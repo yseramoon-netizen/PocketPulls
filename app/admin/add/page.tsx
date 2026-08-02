@@ -449,7 +449,7 @@ text-gray-500
 
 <div className="
 fixed
-bottom-5
+bottom-28
 left-1/2
 -translate-x-1/2
 w-[90%]
@@ -459,6 +459,7 @@ rounded-3xl
 shadow-2xl
 border
 p-6
+z-50
 ">
 
 
