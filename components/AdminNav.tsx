@@ -35,11 +35,11 @@ export default function AdminNav({ hidden = false }: Props) {
       label: "Inventory",
       icon: "📦",
     },
-    {
-      href: "#",
-      label: "Pulls",
-      icon: "🎴",
-    },
+ {
+href:"/admin/pulls",
+label:"Pulls",
+icon:"🎴",
+},
     {
       href: "#",
       label: "Analytics",

@@ -6,33 +6,85 @@ import { useMemo } from "react";
 export default function ForestBackground(){
 
 
-const fireflies = useMemo(
-()=>Array.from({length:35}),
-[]
-);
+const fireflies = useMemo(()=>[
+
+{left:8, top:20},
+{left:15, top:55},
+{left:22, top:35},
+{left:31, top:70},
+{left:42, top:25},
+{left:50, top:60},
+{left:63, top:40},
+{left:72, top:18},
+{left:81, top:65},
+{left:91, top:30},
+{left:12, top:75},
+{left:37, top:50},
+{left:57, top:75},
+{left:77, top:55},
+{left:95, top:70},
+{left:28, top:15},
+{left:68, top:75},
+{left:88, top:45},
+{left:45, top:80},
+{left:5, top:40},
+{left:18, top:65},
+{left:35, top:30},
+{left:60, top:20},
+{left:85, top:75},
+{left:96, top:15},
+
+],[]);
 
 
-const leaves = useMemo(
-()=>Array.from({length:20}),
-[]
-);
+
+
+const leaves = useMemo(()=>[
+
+{left:10,top:25},
+{left:25,top:45},
+{left:40,top:15},
+{left:55,top:60},
+{left:70,top:30},
+{left:85,top:50},
+{left:15,top:70},
+{left:35,top:55},
+{left:60,top:40},
+{left:90,top:25},
+
+{left:5,top:60},
+{left:45,top:75},
+{left:75,top:65},
+{left:95,top:45},
+{left:30,top:20},
+{left:65,top:15},
+{left:80,top:75},
+{left:20,top:35},
+{left:50,top:50},
+{left:88,top:20},
+
+],[]);
+
 
 
 
 return (
 
-<div className="
+<div
+className="
 absolute
 inset-0
 overflow-hidden
 pointer-events-none
 z-0
-">
+"
+>
 
 
 {/* Moon glow */}
 
-<div className="
+<div
+className="
 absolute
 top-10
 right-16
@@ -41,7 +93,8 @@ h-72
 rounded-full
 bg-yellow-100/40
 blur-3xl
-"/>
+"
+/>
 
 
 
@@ -49,7 +102,8 @@ blur-3xl
 
 {/* Mist */}
 
-<div className="
+<div
+className="
 absolute
 bottom-20
 left-0
@@ -57,8 +111,8 @@ right-0
 h-32
 bg-white/20
 blur-3xl
-"/>
-
+"
+/>
 
 
 
@@ -67,7 +121,8 @@ blur-3xl
 
 {/* Far forest */}
 
-<div className="
+<div
+className="
 absolute
 bottom-0
 left-0
@@ -77,34 +132,25 @@ justify-around
 items-end
 opacity-20
 blur-[1px]
-">
-
-
-{
-Array.from({length:12}).map((_,i)=>(
-
-
-<div
-
-key={i}
-
-className="
-text-[100px]
 "
-
 >
 
+{
+
+Array.from({length:12}).map((_,i)=>(
+
+<div
+key={i}
+className="text-[100px]"
+>
 🌲
-
 </div>
-
 
 ))
+
 }
 
-
 </div>
-
 
 
 
@@ -115,7 +161,8 @@ text-[100px]
 
 {/* Middle forest */}
 
-<div className="
+<div
+className="
 absolute
 bottom-0
 left-0
@@ -123,31 +170,23 @@ right-0
 flex
 justify-between
 opacity-30
-">
-
-
-{
-Array.from({length:7}).map((_,i)=>(
-
-
-<div
-
-key={i}
-
-className="
-text-[150px]
 "
-
 >
 
-🌳
+{
 
+Array.from({length:7}).map((_,i)=>(
+
+<div
+key={i}
+className="text-[150px]"
+>
+🌳
 </div>
 
-
 ))
-}
 
+}
 
 </div>
 
@@ -161,7 +200,8 @@ text-[150px]
 
 {/* Grass */}
 
-<div className="
+<div
+className="
 absolute
 bottom-0
 left-0
@@ -170,12 +210,12 @@ h-28
 flex
 justify-around
 items-end
-">
-
+"
+>
 
 {
-Array.from({length:45}).map((_,i)=>(
 
+Array.from({length:45}).map((_,i)=>(
 
 <div
 
@@ -188,9 +228,7 @@ animate-pulse
 "
 
 style={{
-
 animationDelay:`${i*0.1}s`
-
 }}
 
 >
@@ -199,12 +237,12 @@ animationDelay:`${i*0.1}s`
 
 </div>
 
-
 ))
+
 }
 
-
 </div>
+
 
 
 
@@ -218,8 +256,7 @@ animationDelay:`${i*0.1}s`
 
 {
 
-leaves.map((_,i)=>(
-
+leaves.map((leaf,i)=>(
 
 <div
 
@@ -234,9 +271,9 @@ animate-bounce
 
 style={{
 
-left:`${Math.random()*100}%`,
+left:`${leaf.left}%`,
 
-top:`${Math.random()*70}%`,
+top:`${leaf.top}%`,
 
 animationDelay:`${i}s`
 
@@ -251,8 +288,8 @@ animationDelay:`${i}s`
 
 ))
 
-
 }
+
 
 
 
@@ -266,8 +303,7 @@ animationDelay:`${i}s`
 
 {
 
-fireflies.map((_,i)=>(
-
+fireflies.map((fly,i)=>(
 
 <div
 
@@ -285,22 +321,20 @@ animate-pulse
 
 style={{
 
-left:`${Math.random()*100}%`,
+left:`${fly.left}%`,
 
-top:`${Math.random()*80}%`,
+top:`${fly.top}%`,
 
-animationDelay:`${i*.3}s`
+animationDelay:`${i*0.3}s`
 
 }}
 
 >
 
-
 </div>
 
 
 ))
-
 
 }
 
@@ -308,10 +342,9 @@ animationDelay:`${i*.3}s`
 
 
 
-
 </div>
 
-
 );
+
 
 }
