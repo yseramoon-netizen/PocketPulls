@@ -3,9 +3,20 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-export default function AdminNav() {
+interface Props {
+  hidden?: boolean;
+}
+
+export default function AdminNav({ hidden = false }: Props) {
+
 
   const pathname = usePathname();
+
+
+  if(hidden){
+    return null;
+  }
+
 
 
   const links = [
@@ -38,9 +49,12 @@ export default function AdminNav() {
 
 
 
+
+
   return (
 
     <>
+
 
       {/* Desktop Navigation */}
 
@@ -101,9 +115,14 @@ export default function AdminNav() {
 
 
 
-      {/* Mobile Bottom Navigation */}
+
+
+
+
+      {/* Mobile Navigation */}
 
       <nav
+
         className="
         fixed
         bottom-4
@@ -111,7 +130,8 @@ export default function AdminNav() {
         -translate-x-1/2
         w-[94%]
         md:hidden
-        bg-white
+        bg-white/95
+        backdrop-blur-xl
         border
         border-emerald-100
         shadow-2xl
@@ -121,41 +141,67 @@ export default function AdminNav() {
         justify-around
         z-50
         "
+
       >
 
-        {links.slice(0,5).map(link=>(
+
+        {links.map(link=>(
 
           <Link
+
             key={link.label}
+
             href={link.href}
+
             className={`
+
               flex
+
               flex-col
+
               items-center
-              text-xs
+
+              text-[11px]
+
               transition
+
 
               ${
                 pathname === link.href
+
                 ?
-                "text-emerald-700 scale-110"
+
+                "text-emerald-700 scale-110 font-bold"
+
                 :
-                "text-gray-400"
+
+                "text-gray-500"
+
               }
+
             `}
+
           >
 
+
             <span className="text-xl">
+
               {link.icon}
+
             </span>
 
+
             <span>
+
               {link.label}
+
             </span>
+
 
           </Link>
 
         ))}
+
 
       </nav>
 
@@ -165,6 +211,8 @@ export default function AdminNav() {
   );
 
 }
+
+
 
 
 
@@ -187,11 +235,17 @@ return (
 href={href}
 
 className={`
+
 px-4
+
 py-2
+
 rounded-2xl
+
 font-semibold
+
 transition
+
 
 ${
 active
