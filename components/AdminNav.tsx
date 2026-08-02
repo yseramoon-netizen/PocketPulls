@@ -1,250 +1,220 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase";
+import { usePathname } from "next/navigation";
 
 export default function AdminNav() {
 
-  const router = useRouter();
-
-  const [name,setName] = useState("Trainer");
+  const pathname = usePathname();
 
 
-  useEffect(()=>{
-
-    loadProfile();
-
-  },[]);
-
-
-
-  async function loadProfile(){
-
-    const {
-      data:{
-        user
-      }
-    } = await supabase.auth.getUser();
-
-
-    if(!user) return;
-
-
-    const {
-      data:profile
-    } = await supabase
-
-      .from("profiles")
-      .select("name")
-      .eq("id",user.id)
-      .maybeSingle();
-
-
-    setName(
-      profile?.name || "Trainer"
-    );
-
-  }
-
-
-
-
-
-  async function logout(){
-
-    await supabase.auth.signOut();
-
-    router.push("/login");
-
-  }
-
-
+  const links = [
+    {
+      href: "/admin",
+      label: "Forest",
+      icon: "🌿",
+    },
+    {
+      href: "/admin/add",
+      label: "Add Cards",
+      icon: "🌱",
+    },
+    {
+      href: "/admin/inventory",
+      label: "Inventory",
+      icon: "📦",
+    },
+    {
+      href: "#",
+      label: "Pulls",
+      icon: "🎴",
+    },
+    {
+      href: "#",
+      label: "Analytics",
+      icon: "📊",
+    },
+  ];
 
 
 
   return (
 
-    <nav className="
-    bg-white
-    shadow-lg
-    rounded-3xl
-    border
-    border-gray-200
-    p-4
-    mb-6
-    ">
+    <>
 
+      {/* Desktop Navigation */}
 
-      <div className="
-      flex
-      flex-col
-      gap-4
-      md:flex-row
-      md:items-center
-      md:justify-between
-      ">
-
-
-
-        <div className="
-        flex
-        justify-between
+      <nav
+        className="
+        hidden
+        md:flex
         items-center
-        ">
-
-
-        <Link
-
-        href="/admin"
-
-        className="
-        text-xl
-        md:text-2xl
-        font-bold
-        text-emerald-700
+        justify-between
+        bg-white
+        border
+        border-emerald-100
+        rounded-3xl
+        shadow-md
+        p-4
+        mb-8
         "
+      >
 
+
+        <div
+          className="
+          text-2xl
+          font-bold
+          text-emerald-700
+          "
+        >
+          🌿 PocketPulls
+        </div>
+
+
+
+        <div
+          className="
+          flex
+          gap-3
+          "
         >
 
-        🌿 PocketPulls
+          {links.map(link=>(
 
-        </Link>
+            <NavLink
+              key={link.label}
+              {...link}
+              active={
+                pathname === link.href
+              }
+            />
+
+          ))}
+
+        </div>
 
 
-        <img
+      </nav>
 
-        src="/shaymin.png"
 
+
+
+
+      {/* Mobile Bottom Navigation */}
+
+      <nav
         className="
-        w-10
-        h-10
+        fixed
+        bottom-4
+        left-1/2
+        -translate-x-1/2
+        w-[94%]
         md:hidden
-        "
-
-        />
-
-        </div>
-
-
-
-
-
-
-        <div className="
-        text-center
-        md:text-left
-        ">
-
-        <p className="
-        text-xs
-        text-gray-500
-        ">
-
-        Welcome back
-
-        </p>
-
-
-        <p className="
-        font-bold
-        text-emerald-700
-        ">
-
-        {name} 🌿
-
-        </p>
-
-
-        </div>
-
-
-
-
-
-
-
-        <div className="
+        bg-white
+        border
+        border-emerald-100
+        shadow-2xl
+        rounded-3xl
+        p-3
         flex
-        justify-center
-        gap-2
-        flex-wrap
-        ">
-
-
-        <Link
-
-        href="/admin"
-
-        className="
-        px-4
-        py-2
-        rounded-full
-        bg-emerald-50
-        text-emerald-700
-        text-sm
+        justify-around
+        z-50
         "
+      >
 
-        >
+        {links.slice(0,5).map(link=>(
 
-        Dashboard
+          <Link
+            key={link.label}
+            href={link.href}
+            className={`
+              flex
+              flex-col
+              items-center
+              text-xs
+              transition
 
-        </Link>
+              ${
+                pathname === link.href
+                ?
+                "text-emerald-700 scale-110"
+                :
+                "text-gray-400"
+              }
+            `}
+          >
 
+            <span className="text-xl">
+              {link.icon}
+            </span>
 
+            <span>
+              {link.label}
+            </span>
 
-        <Link
+          </Link>
 
-        href="/admin/inventory"
+        ))}
 
-        className="
-        px-4
-        py-2
-        rounded-full
-        bg-emerald-50
-        text-emerald-700
-        text-sm
-        "
-
-        >
-
-        Inventory
-
-        </Link>
-
-
-
-
-        <button
-
-        onClick={logout}
-
-        className="
-        px-4
-        py-2
-        rounded-full
-        bg-emerald-600
-        text-white
-        text-sm
-        "
-
-        >
-
-        Logout
-
-        </button>
+      </nav>
 
 
-
-        </div>
-
-
-      </div>
-
-
-    </nav>
+    </>
 
   );
+
+}
+
+
+
+
+
+function NavLink({
+
+href,
+label,
+icon,
+active
+
+}:any){
+
+
+return (
+
+<Link
+
+href={href}
+
+className={`
+px-4
+py-2
+rounded-2xl
+font-semibold
+transition
+
+${
+active
+
+?
+
+"bg-emerald-600 text-white"
+
+:
+
+"text-gray-600 hover:bg-emerald-50"
+
+}
+
+`}
+
+>
+
+{icon} {label}
+
+</Link>
+
+);
+
 
 }

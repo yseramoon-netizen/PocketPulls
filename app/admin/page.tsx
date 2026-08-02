@@ -1,630 +1,705 @@
 "use client";
 
 import { useEffect, useState } from "react";
+
 import { supabase } from "@/lib/supabase";
+
 import AdminNav from "@/components/AdminNav";
 
-export default function AdminPage() {
+import ForestBackground from "@/components/ForestBackground";
+import ForestStats from "@/components/ForestStats";
+import ForestGrowth from "@/components/ForestGrowth";
+import DiscoveryLog from "@/components/DiscoveryLog";
 
-  const [search, setSearch] = useState("");
-  const [cards, setCards] = useState<any[]>([]);
-  const [selectedCard, setSelectedCard] = useState<any>(null);
 
-  const [quantity, setQuantity] = useState(1);
-  const [location, setLocation] = useState("");
 
-  const [user, setUser] = useState<any>(null);
+export default function AdminPage(){
 
-  const [message, setMessage] = useState("");
 
+const [stats,setStats]=useState({
 
+cards:0,
 
-  useEffect(() => {
+value:0,
 
-    getUser();
+locations:0
 
-  }, []);
+});
 
 
 
+const [contributors,setContributors]=useState({
 
-  async function getUser(){
+Lukas:0,
 
-    const {
-      data:{
-        user
-      }
-    } = await supabase.auth.getUser();
+Skye:0
 
+});
 
-    setUser(user);
 
-  }
 
+const [recent,setRecent]=useState<any[]>([]);
 
 
+const [userName,setUserName]=useState("Trainer");
 
 
-  async function searchCards(value:string){
+const [loading,setLoading]=useState(true);
 
-    setSearch(value);
 
 
-    if(!value.trim()){
 
-      setCards([]);
 
-      return;
+useEffect(()=>{
 
-    }
+loadDashboard();
 
+},[]);
 
 
-    const {
-      data,
-      error
-    } = await supabase
 
-      .from("pokemon_cards")
 
-      .select("*")
 
-      .ilike(
-        "name",
-        `%${value}%`
-      )
 
-      .limit(20);
 
+async function loadDashboard(){
 
 
-    if(error){
+setLoading(true);
 
-      console.log(error);
-      return;
 
-    }
 
 
-    setCards(data || []);
+// USER
 
-  }
 
+const {
 
+data:{
+user
 
+}
 
+}=await supabase.auth.getUser();
 
 
 
 
-  async function addToInventory(){
+if(user){
 
 
-    if(!selectedCard){
+const {
 
-      alert("Select a Pokémon first");
-      return;
+data:profile
 
-    }
+}=await supabase
 
+.from("profiles")
 
-    if(!user){
+.select("name")
 
-      alert("You must be logged in");
-      return;
+.eq(
 
-    }
+"id",
 
+user.id
 
+)
 
+.maybeSingle();
 
-    const {
-      data:existing,
-      error:findError
-    } = await supabase
 
-      .from("inventory")
 
-      .select(
-        "id, quantity"
-      )
+setUserName(
 
-      .eq(
-        "card_id",
-        selectedCard.id
-      )
+profile?.name || "Trainer"
 
-      .maybeSingle();
+);
 
 
+}
 
 
 
-    if(findError){
 
-      alert(findError.message);
-      console.log(findError);
-      return;
 
-    }
 
 
 
+// INVENTORY
 
 
+const {
 
+data:inventory
 
-    if(existing){
+}=await supabase
 
+.from("inventory")
 
+.select(`
 
-      const {
-        error:updateError
-      } = await supabase
+quantity,
 
-        .from("inventory")
+location,
 
-        .update({
+pokemon_cards(
 
-          quantity:
-            Number(existing.quantity)
-            +
-            Number(quantity)
+market_value
 
-        })
+)
 
-        .eq(
-          "id",
-          existing.id
-        );
+`);
 
 
 
 
 
-      if(updateError){
+let cards=0;
 
-        alert(updateError.message);
-        console.log(updateError);
-        return;
+let value=0;
 
-      }
+let locations=new Set();
 
 
 
 
-    } else {
 
+inventory?.forEach((item:any)=>{
 
 
-      const {
-        error:insertError
-      } = await supabase
+const card=
 
-        .from("inventory")
+Array.isArray(item.pokemon_cards)
 
-        .insert({
+?
 
-          card_id:
-            selectedCard.id,
+item.pokemon_cards[0]
 
-          quantity:
-            Number(quantity),
+:
 
-          status:
-            "in_stock",
+item.pokemon_cards;
 
-          location:
-            location || "Default",
 
-          added_by:
-            user.email,
 
-          added_by_user_id:
-            user.id
 
-        });
+const quantity=
 
+Number(item.quantity || 0);
 
 
 
 
-      if(insertError){
+cards += quantity;
 
-        alert(insertError.message);
-        console.log(insertError);
-        return;
 
-      }
 
+value +=
 
+quantity *
 
-    }
+Number(card?.market_value || 0);
 
 
 
 
-    setMessage(
-      `${selectedCard.name} added 🌿`
-    );
+if(item.location)
 
+locations.add(item.location);
 
-    setSelectedCard(null);
 
-    setQuantity(1);
 
-    setLocation("");
+});
 
-  }
 
 
 
 
+setStats({
 
+cards,
 
+value,
 
+locations:locations.size
 
+});
 
-  return (
 
-    <main className="
-      min-h-screen
-      bg-gradient-to-br
-      from-emerald-950
-      via-green-900
-      to-lime-950
-      text-white
-      p-8
-    ">
 
 
-      <AdminNav />
 
 
 
-      <div className="max-w-7xl mx-auto">
 
+// CONTRIBUTORS
 
-        <div className="
-          flex
-          justify-center
-          items-center
-          gap-5
-          mb-10
-        ">
 
+const {
 
-          <img
+data:people
 
-            src="/shaymin.png"
+}=await supabase
 
-            className="
-              w-24
-              h-24
-              object-contain
-              drop-shadow-[0_0_25px_rgba(134,239,172,0.8)]
-            "
+.from("inventory")
 
-          />
+.select(`
 
+quantity,
 
-          <div>
+profiles:added_by_user_id(
 
-            <h1 className="
-              text-5xl
-              font-bold
-              text-green-100
-            ">
+name
 
-              PocketPulls
+)
 
-            </h1>
+`);
 
 
-            <p className="
-              text-green-300
-              text-xl
-            ">
 
-              Fairy Forest Logger 🌿
 
-            </p>
 
+let Lukas=0;
 
-          </div>
+let Skye=0;
 
 
-        </div>
 
 
+people?.forEach((item:any)=>{
 
 
+const amount=
 
-        <input
+Number(item.quantity || 0);
 
-          className="
-            w-full
-            max-w-xl
-            mx-auto
-            block
-            p-4
-            rounded-full
-            text-black
-            shadow-xl
-          "
 
-          placeholder="🔍 Search Pokémon..."
 
-          value={search}
+if(item.profiles?.name==="Lukas")
 
-          onChange={(e)=>
-            searchCards(e.target.value)
-          }
+Lukas+=amount;
 
-        />
 
 
+if(item.profiles?.name==="Skye")
 
+Skye+=amount;
 
 
-        {message && (
 
-          <p className="
-            text-center
-            text-green-200
-            mt-5
-          ">
+});
 
-            ✨ {message}
 
-          </p>
 
-        )}
 
 
+setContributors({
 
+Lukas,
 
+Skye
 
+});
 
 
-        <div className="
-          grid
-          grid-cols-2
-          md:grid-cols-4
-          lg:grid-cols-6
-          gap-6
-          mt-10
-        ">
 
 
-          {cards.map(card=>(
 
 
-            <div
 
-              key={card.id}
 
-              onClick={()=>
-                setSelectedCard(card)
-              }
 
-              className="
-                cursor-pointer
-                bg-white/10
-                rounded-3xl
-                p-3
-                border
-                border-green-300/30
-                hover:-translate-y-2
-                transition
-              "
+// RECENT
 
-            >
 
+const {
 
-              <img
+data:latest
 
-                src={card.image_url}
+}=await supabase
 
-                className="
-                  rounded-2xl
-                "
+.from("inventory")
 
-              />
+.select(`
 
+id,
 
-              <h2 className="
-                mt-3
-                font-bold
-              ">
+quantity,
 
-                {card.name}
+location,
 
-              </h2>
+created_at,
 
 
-              <p className="
-                text-green-300
-                text-sm
-              ">
+profiles:added_by_user_id(
 
-                {card.set_name}
+name
 
-              </p>
+),
 
 
-            </div>
+pokemon_cards(
 
+name,
 
-          ))}
+image_url
 
+)
 
-        </div>
+`)
 
+.order(
 
+"created_at",
 
+{
 
+ascending:false
 
+}
 
+)
 
-        {selectedCard && (
+.limit(8);
 
-          <div className="
-            fixed
-            bottom-8
-            left-1/2
-            -translate-x-1/2
-            bg-green-950
-            border
-            border-green-300
-            rounded-3xl
-            p-6
-            w-[90%]
-            max-w-xl
-            shadow-2xl
-          ">
 
 
 
-            <h2 className="
-              text-3xl
-              font-bold
-            ">
 
-              {selectedCard.name}
+setRecent(
 
-            </h2>
+latest || []
 
+);
 
 
 
+setLoading(false);
 
-            <div className="
-              flex
-              justify-center
-              items-center
-              gap-5
-              mt-5
-            ">
 
+}
 
-              <button
 
-                onClick={()=>
-                  setQuantity(
-                    Math.max(
-                      1,
-                      quantity-1
-                    )
-                  )
-                }
 
-                className="
-                  bg-red-400
-                  text-black
-                  rounded-full
-                  w-12
-                  h-12
-                "
 
-              >
 
-                -
 
-              </button>
 
 
 
-              <span className="text-3xl">
 
-                {quantity}
 
-              </span>
 
 
+return (
 
-              <button
+<main
 
-                onClick={()=>
-                  setQuantity(quantity+1)
-                }
+className="
 
-                className="
-                  bg-green-300
-                  text-black
-                  rounded-full
-                  w-12
-                  h-12
-                "
+relative
 
-              >
+min-h-screen
 
-                +
+overflow-hidden
 
-              </button>
+bg-gradient-to-br
 
+from-[#dff7e8]
 
-            </div>
+via-[#fff7d6]
 
+to-[#f8e7ff]
 
+p-4
 
+md:p-8
 
-            <input
+text-gray-900
 
-              className="
-                mt-5
-                w-full
-                p-3
-                rounded-xl
-                text-black
-              "
+"
 
-              placeholder="Location"
+>
 
-              value={location}
 
-              onChange={(e)=>
-                setLocation(e.target.value)
-              }
+<ForestBackground/>
 
-            />
 
 
 
+<div
 
-            <button
+className="
 
-              onClick={addToInventory}
+relative
 
-              className="
-                mt-5
-                w-full
-                bg-green-300
-                text-black
-                font-bold
-                py-3
-                rounded-xl
-              "
+z-10
 
-            >
+max-w-7xl
 
-              Add To Inventory 🌿
+mx-auto
 
-            </button>
+"
 
+>
 
 
-          </div>
 
-        )}
+<AdminNav/>
 
 
 
-      </div>
 
 
-    </main>
 
-  );
+
+
+
+<section
+
+className="
+
+mt-8
+
+relative
+
+overflow-hidden
+
+rounded-[4rem]
+
+bg-white/60
+
+backdrop-blur-xl
+
+border
+
+border-white
+
+shadow-2xl
+
+p-10
+
+text-center
+
+"
+
+>
+
+
+
+<div className="absolute top-6 left-8 text-4xl opacity-40">
+
+🍃
+
+</div>
+
+
+
+<div className="absolute bottom-6 right-8 text-4xl opacity-40">
+
+🦋
+
+</div>
+
+
+
+
+
+
+<img
+
+src="/shaymin.png"
+
+className="
+
+w-36
+
+h-36
+
+mx-auto
+
+drop-shadow-2xl
+
+"
+
+/>
+
+
+
+
+
+
+<h1
+
+className="
+
+mt-5
+
+text-5xl
+
+md:text-6xl
+
+font-black
+
+text-emerald-950
+
+"
+
+>
+
+PocketPulls Forest
+
+</h1>
+
+
+
+
+
+
+
+<p
+
+className="
+
+mt-4
+
+text-xl
+
+font-semibold
+
+text-emerald-700
+
+"
+
+>
+
+Welcome back {userName} 🌿
+
+</p>
+
+
+
+
+
+
+
+
+
+
+
+</section>
+
+
+
+
+
+
+
+
+
+{
+
+loading ?
+
+
+
+<div
+
+className="
+
+mt-20
+
+text-center
+
+text-emerald-900
+
+font-bold
+
+text-xl
+
+"
+
+>
+
+🌱 Awakening the forest...
+
+</div>
+
+
+
+:
+
+<>
+
+
+
+
+<ForestStats
+
+cards={stats.cards}
+
+value={stats.value}
+
+locations={stats.locations}
+
+/>
+
+
+
+
+
+
+<ForestGrowth
+
+Lukas={contributors.Lukas}
+
+Skye={contributors.Skye}
+
+/>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<DiscoveryLog
+
+recent={recent}
+
+/>
+
+
+
+
+
+
+</>
+
+}
+
+
+
+</div>
+
+
+
+</main>
+
+
+);
+
 
 }
