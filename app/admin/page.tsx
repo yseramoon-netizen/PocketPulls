@@ -412,9 +412,9 @@ via-[#fff7d6]
 to-[#f8e7ff]
 
 p-4
-
+pb-28
 md:p-8
-
+md:pb-8
 text-gray-900
 
 "

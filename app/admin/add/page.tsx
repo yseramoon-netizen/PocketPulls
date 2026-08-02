@@ -260,7 +260,9 @@ from-emerald-50
 via-white
 to-green-100
 p-4
+pb-28
 md:p-8
+md:pb-8
 text-gray-900
 ">
 

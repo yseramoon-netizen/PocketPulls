@@ -123,24 +123,23 @@ export default function AdminNav({ hidden = false }: Props) {
 
       <nav
 
-        className="
-        fixed
-        bottom-4
-        left-1/2
-        -translate-x-1/2
-        w-[94%]
-        md:hidden
-        bg-white/95
-        backdrop-blur-xl
-        border
-        border-emerald-100
-        shadow-2xl
-        rounded-3xl
-        p-3
-        flex
-        justify-around
-        z-50
-        "
+className="
+fixed
+bottom-0
+left-0
+right-0
+md:hidden
+bg-white/95
+backdrop-blur-xl
+border-t
+border-emerald-100
+shadow-[0_-5px_20px_rgba(0,0,0,0.08)]
+p-3
+flex
+justify-around
+z-50
+h-20
+"
 
       >
 

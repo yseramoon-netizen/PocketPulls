@@ -315,8 +315,9 @@ via-yellow-50
 to-purple-100
 
 p-4
-
+pb-28
 md:p-8
+md:pb-8
 
 ">
 
