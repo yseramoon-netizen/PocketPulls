@@ -135,26 +135,41 @@ loadInventory();
 
 
 
-async function refreshMarket(){
+async function refreshMarket() {
 
-setRefreshing(true);
+  setRefreshing(true);
 
+  try {
 
-await fetch(
-"/api/update-prices",
-{
-method:"POST"
+    const response = await fetch("/api/update-prices", {
+      method: "POST",
+    });
+
+    const result = await response.json();
+
+    console.log(result);
+
+    if (!response.ok) {
+      alert(result.error || "Failed to update prices.");
+      return;
+    }
+
+    await loadInventory();
+
+    alert("Market values updated!");
+
+  } catch (err) {
+
+    console.error(err);
+    alert("API request failed.");
+
+  } finally {
+
+    setRefreshing(false);
+
+  }
+
 }
-);
-
-
-await loadInventory();
-
-
-setRefreshing(false);
-
-}
-
 
 
 
