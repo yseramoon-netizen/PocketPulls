@@ -60,7 +60,9 @@ export default function InventoryPage() {
     if(error){
 
       console.log(error);
+
       setLoading(false);
+
       return;
 
     }
@@ -68,6 +70,7 @@ export default function InventoryPage() {
 
 
     setInventory(data || []);
+
     setFiltered(data || []);
 
     setLoading(false);
@@ -79,13 +82,17 @@ export default function InventoryPage() {
 
 
 
+
   async function refreshPrices(){
 
     setUpdatingPrices(true);
 
+
     await fetch("/api/update-prices");
 
+
     await loadInventory();
+
 
     setUpdatingPrices(false);
 
@@ -102,12 +109,15 @@ export default function InventoryPage() {
     setSearch(value);
 
 
-    if(!value.trim()){
+
+    if(!value){
 
       setFiltered(inventory);
+
       return;
 
     }
+
 
 
     setFiltered(
@@ -134,22 +144,25 @@ export default function InventoryPage() {
 
 
 
-  async function updateQuantity(
+  async function changeQuantity(
     id:string,
-    current:number,
-    change:number
+    quantity:number,
+    amount:number
   ){
 
     const newQuantity =
-      current + change;
+      quantity + amount;
+
 
 
     if(newQuantity <= 0){
 
       deleteCard(id);
+
       return;
 
     }
+
 
 
     await supabase
@@ -168,6 +181,7 @@ export default function InventoryPage() {
       );
 
 
+
     loadInventory();
 
   }
@@ -180,8 +194,15 @@ export default function InventoryPage() {
 
   async function deleteCard(id:string){
 
-    if(!confirm("Delete this card?"))
-    return;
+    const confirmDelete =
+      confirm(
+        "Delete this card?"
+      );
+
+
+    if(!confirmDelete)
+      return;
+
 
 
     await supabase
@@ -196,6 +217,7 @@ export default function InventoryPage() {
       );
 
 
+
     loadInventory();
 
   }
@@ -205,11 +227,12 @@ export default function InventoryPage() {
 
 
 
+
   const totalValue = filtered.reduce(
 
-    (total,item)=>
+    (total,item)=>{
 
-      total +
+      return total +
 
       (
 
@@ -223,11 +246,14 @@ export default function InventoryPage() {
           item.quantity || 0
         )
 
-      ),
+      );
+
+    },
 
     0
 
   );
+
 
 
 
@@ -241,12 +267,12 @@ export default function InventoryPage() {
 
       <main className="
       min-h-screen
-      bg-green-950
-      text-white
+      bg-gray-50
       flex
       items-center
       justify-center
-      text-2xl
+      text-emerald-700
+      text-xl
       ">
 
       Loading collection 🌿
@@ -263,114 +289,129 @@ export default function InventoryPage() {
 
 
 
+
+
   return (
 
     <main className="
     min-h-screen
-    bg-gradient-to-br
-    from-emerald-950
-    via-green-900
-    to-lime-950
-    text-white
-    p-8
+    bg-gray-50
+    text-gray-900
+    p-4
+    md:p-8
     ">
 
 
-    <AdminNav />
-
-
-
-    <div className="
-    max-w-7xl
-    mx-auto
-    ">
-
-
-
-
-
-    <div className="
-    flex
-    items-center
-    gap-5
-    mb-10
-    ">
-
-
-      <img
-
-      src="/shaymin.png"
-
-      className="
-      w-24
-      h-24
-      object-contain
-      "
-
-      />
-
-
-      <div>
-
-      <h1 className="
-      text-5xl
-      font-bold
+      <div className="
+      max-w-7xl
+      mx-auto
       ">
 
-      PocketPulls
 
-      </h1>
+      <AdminNav />
 
 
-      <p className="
-      text-green-300
-      text-xl
+
+
+
+
+
+      <div className="
+      flex
+      flex-col
+      sm:flex-row
+      items-center
+      gap-4
+      mb-8
       ">
 
-      Fairy Forest Inventory 🌿
 
-      </p>
+
+        <img
+
+        src="/shaymin.png"
+
+        className="
+        w-20
+        h-20
+        object-contain
+        "
+
+        />
+
+
+
+        <div>
+
+
+        <h1 className="
+        text-3xl
+        md:text-5xl
+        font-bold
+        text-emerald-700
+        ">
+
+        Inventory
+
+        </h1>
+
+
+
+        <p className="
+        text-gray-500
+        ">
+
+        Your Pokémon collection
+
+        </p>
+
+
+        </div>
 
 
       </div>
 
 
-    </div>
 
 
 
 
 
+      <div className="
+      bg-white
+      rounded-3xl
+      shadow-lg
+      border
+      border-gray-200
+      p-6
+      mb-8
+      text-center
+      ">
 
 
 
-    <div className="
-    bg-white/10
-    rounded-3xl
-    p-6
-    mb-8
-    text-center
-    border
-    border-green-300/20
-    ">
+      <p className="
+      text-gray-500
+      ">
 
-
-      <p className="text-green-200">
-
-      Total Collection Value
+      Total Market Value
 
       </p>
 
 
+
       <h2 className="
-      text-5xl
+      text-4xl
+      md:text-5xl
       font-bold
-      text-green-300
+      text-emerald-600
       ">
 
       £{totalValue.toFixed(2)}
 
       </h2>
+
+
 
 
 
@@ -382,9 +423,9 @@ export default function InventoryPage() {
 
       className="
       mt-5
-      bg-green-300
-      text-black
-      px-8
+      bg-emerald-600
+      text-white
+      px-6
       py-3
       rounded-full
       font-bold
@@ -404,7 +445,7 @@ export default function InventoryPage() {
       </button>
 
 
-    </div>
+      </div>
 
 
 
@@ -413,129 +454,34 @@ export default function InventoryPage() {
 
 
 
-    <input
 
-    className="
-    w-full
-    p-4
-    rounded-full
-    text-black
-    mb-10
-    "
+      <input
 
-    placeholder="🔍 Search Pokémon..."
+      value={search}
 
-    value={search}
+      onChange={(e)=>
+        searchCards(
+          e.target.value
+        )
+      }
 
-    onChange={(e)=>
-      searchCards(e.target.value)
-    }
-
-    />
-
-
-
-
-
-
-
-
-    <div className="
-    grid
-    grid-cols-2
-    md:grid-cols-4
-    lg:grid-cols-6
-    gap-6
-    ">
-
-
-    {filtered.map(item=>(
-
-
-      <div
-
-      key={item.id}
+      placeholder="Search Pokémon..."
 
       className="
-      bg-white/10
-      rounded-3xl
-      p-4
+      w-full
+      bg-white
       border
-      border-green-300/20
-      hover:-translate-y-2
-      transition
-      ">
-
-
-      <img
-
-      src={item.pokemon_cards?.image_url}
-
-      className="
-      rounded-2xl
+      border-gray-200
+      rounded-full
+      p-4
+      mb-8
+      shadow-sm
+      outline-none
       "
 
       />
 
 
-
-      <h2 className="
-      font-bold
-      mt-3
-      ">
-
-      {item.pokemon_cards?.name}
-
-      </h2>
-
-
-
-      <p className="
-      text-green-300
-      text-sm
-      ">
-
-      {item.pokemon_cards?.set_name}
-
-      </p>
-
-
-
-
-
-      <p className="text-sm mt-3">
-
-      📍 {item.location || "Unknown"}
-
-      </p>
-
-
-
-      <p className="text-sm">
-
-      👤 Added by:
-
-      {" "}
-
-      {item.profiles?.name || "Unknown"}
-
-      </p>
-
-
-
-
-
-      <p className="
-      mt-3
-      text-green-300
-      font-bold
-      ">
-
-      💎 £{
-        item.pokemon_cards?.market_value || 0
-      }
-
-      </p>
 
 
 
@@ -544,118 +490,251 @@ export default function InventoryPage() {
 
 
       <div className="
-      flex
-      justify-between
-      items-center
-      mt-4
+      grid
+      grid-cols-1
+      sm:grid-cols-2
+      md:grid-cols-3
+      lg:grid-cols-5
+      xl:grid-cols-6
+      gap-5
       ">
 
 
-      <button
 
-      onClick={()=>
-        updateQuantity(
-          item.id,
-          item.quantity,
-          -1
-        )
-      }
-
-      className="
-      bg-red-400
-      text-black
-      rounded-full
-      w-10
-      h-10
-      font-bold
-      "
-
-      >
-
-      -
-
-      </button>
+      {filtered.map(item => (
 
 
+        <div
 
-      <span className="
-      text-xl
-      font-bold
-      ">
+        key={item.id}
 
-      {item.quantity}
+        className="
+        bg-white
+        rounded-3xl
+        shadow-md
+        border
+        border-gray-200
+        p-4
+        "
 
-      </span>
+        >
 
 
 
 
-      <button
+        <img
 
-      onClick={()=>
-        updateQuantity(
-          item.id,
-          item.quantity,
-          1
-        )
-      }
+        src={
+          item.pokemon_cards?.image_url
+        }
 
-      className="
-      bg-green-300
-      text-black
-      rounded-full
-      w-10
-      h-10
-      font-bold
-      "
+        className="
+        w-full
+        aspect-[3/4]
+        object-cover
+        rounded-2xl
+        "
 
-      >
+        />
 
-      +
 
-      </button>
+
+
+
+        <h2 className="
+        mt-3
+        font-bold
+        text-lg
+        ">
+
+        {item.pokemon_cards?.name}
+
+        </h2>
+
+
+
+
+
+        <p className="
+        text-sm
+        text-gray-500
+        ">
+
+        {item.pokemon_cards?.set_name}
+
+        </p>
+
+
+
+
+
+
+
+        <div className="
+        mt-3
+        text-sm
+        space-y-1
+        ">
+
+
+        <p>
+        📍 {item.location || "Unknown"}
+        </p>
+
+
+        <p>
+        👤 {item.profiles?.name || "Unknown"}
+        </p>
+
+
+        </div>
+
+
+
+
+
+
+        <p className="
+        mt-3
+        text-emerald-600
+        font-bold
+        ">
+
+        💎 £{item.pokemon_cards?.market_value || 0}
+
+        </p>
+
+
+
+
+
+
+
+
+        <div className="
+        flex
+        justify-between
+        items-center
+        mt-4
+        ">
+
+
+
+        <button
+
+        onClick={()=>
+          changeQuantity(
+            item.id,
+            item.quantity,
+            -1
+          )
+        }
+
+        className="
+        w-12
+        h-12
+        rounded-full
+        bg-red-100
+        text-red-600
+        font-bold
+        text-xl
+        "
+
+        >
+
+        -
+
+        </button>
+
+
+
+
+
+        <span className="
+        font-bold
+        text-xl
+        ">
+
+        {item.quantity}
+
+        </span>
+
+
+
+
+
+        <button
+
+        onClick={()=>
+          changeQuantity(
+            item.id,
+            item.quantity,
+            1
+          )
+        }
+
+        className="
+        w-12
+        h-12
+        rounded-full
+        bg-emerald-100
+        text-emerald-700
+        font-bold
+        text-xl
+        "
+
+        >
+
+        +
+
+        </button>
+
+
+        </div>
+
+
+
+
+
+
+
+        <button
+
+        onClick={()=>
+          deleteCard(item.id)
+        }
+
+        className="
+        mt-4
+        w-full
+        bg-red-600
+        text-white
+        py-3
+        rounded-xl
+        font-bold
+        "
+
+        >
+
+        Delete
+
+        </button>
+
+
+
+
+        </div>
+
+
+      ))}
+
 
 
       </div>
 
 
 
-
-
-      <button
-
-      onClick={()=>
-        deleteCard(item.id)
-      }
-
-      className="
-      mt-4
-      w-full
-      bg-red-600
-      py-2
-      rounded-xl
-      font-bold
-      "
-
-      >
-
-      Delete
-
-      </button>
-
-
-
       </div>
-
-
-    ))}
-
-
-    </div>
-
-
-
-    </div>
 
 
     </main>
