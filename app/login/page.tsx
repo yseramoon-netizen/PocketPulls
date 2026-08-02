@@ -35,7 +35,9 @@ export default function LoginPage() {
     if(error){
 
       setError(error.message);
+
       setLoading(false);
+
       return;
 
     }
@@ -45,7 +47,6 @@ export default function LoginPage() {
     router.push("/admin");
 
   }
-
 
 
 
@@ -76,7 +77,6 @@ export default function LoginPage() {
       ">
 
 
-
         <img
 
         src="/shaymin.png"
@@ -105,7 +105,6 @@ export default function LoginPage() {
 
 
 
-
         <p className="
         mt-3
         text-gray-500
@@ -119,10 +118,14 @@ export default function LoginPage() {
 
 
 
-
         <div className="
         mt-8
+        bg-emerald-50
+        rounded-3xl
+        p-6
         space-y-4
+        border
+        border-emerald-100
         ">
 
 
@@ -133,10 +136,13 @@ export default function LoginPage() {
           w-full
           p-4
           rounded-2xl
+          bg-white
+          text-gray-900
           border
-          border-gray-200
+          border-emerald-200
           outline-none
           focus:border-emerald-500
+          placeholder:text-gray-400
           "
 
           placeholder="Email"
@@ -161,10 +167,13 @@ export default function LoginPage() {
           w-full
           p-4
           rounded-2xl
+          bg-white
+          text-gray-900
           border
-          border-gray-200
+          border-emerald-200
           outline-none
           focus:border-emerald-500
+          placeholder:text-gray-400
           "
 
           placeholder="Password"
@@ -181,9 +190,7 @@ export default function LoginPage() {
 
 
 
-
         </div>
-
 
 
 
@@ -245,13 +252,14 @@ export default function LoginPage() {
 
 
 
+
         <p className="
         mt-8
         text-xs
         text-gray-400
         ">
 
-        Lets Make Money
+        Your Pokémon collection awaits
 
         </p>
 
