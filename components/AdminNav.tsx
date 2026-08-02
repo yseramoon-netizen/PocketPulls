@@ -2,56 +2,43 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-
 
 export default function AdminNav() {
 
   const router = useRouter();
-  const pathname = usePathname();
 
-  const [name, setName] = useState("");
+  const [name, setName] = useState("Trainer");
+
 
 
   useEffect(() => {
 
-    getUser();
+    loadProfile();
 
   }, []);
 
 
 
 
-  async function getUser() {
-
+  async function loadProfile(){
 
     const {
-      data: { user },
-      error: userError
+      data:{
+        user
+      }
 
     } = await supabase.auth.getUser();
 
 
 
-    console.log("AUTH USER:", user);
-
-
-
-    if (userError || !user) {
-
-      router.push("/login");
-
-      return;
-
-    }
-
+    if(!user) return;
 
 
 
     const {
-      data: profile,
-      error: profileError
+      data:profile
 
     } = await supabase
 
@@ -59,33 +46,26 @@ export default function AdminNav() {
 
       .select("name")
 
-      .eq("id", user.id)
+      .eq(
+        "id",
+        user.id
+      )
+
       .maybeSingle();
 
 
 
+    setName(
 
+      profile?.name
+      ||
+      "Trainer"
 
-    console.log("PROFILE:", profile);
-
-    console.log("PROFILE ERROR:", profileError);
-
-
-
-
-
-    if (profile?.name) {
-
-      setName(profile.name);
-
-    } else {
-
-      setName("NO PROFILE FOUND");
-
-    }
-
+    );
 
   }
+
+
 
 
 
@@ -103,62 +83,97 @@ export default function AdminNav() {
 
 
 
-  const links = [
-
-    {
-      name:"Inventory Logger",
-      href:"/admin"
-    },
-
-    {
-      name:"Inventory",
-      href:"/admin/inventory"
-    }
-
-  ];
-
-
-
-
 
   return (
 
-    <nav className="w-full bg-gray-900 border-b border-gray-700 p-4 mb-8">
+    <nav className="
+    bg-white
+    shadow-lg
+    rounded-3xl
+    border
+    border-gray-200
+    p-4
+    mb-8
+    ">
 
 
-      <div className="flex justify-between items-center">
+      <div className="
+      max-w-7xl
+      mx-auto
+      flex
+      items-center
+      justify-between
+      gap-6
+      ">
 
 
-        <div className="flex gap-4">
+
+        <Link
+
+        href="/admin"
+
+        className="
+        text-2xl
+        font-bold
+        text-emerald-700
+        "
+
+        >
+
+        🌿 PocketPulls
+
+        </Link>
 
 
-          {links.map((link)=>(
 
 
-            <Link
-
-              key={link.href}
-
-              href={link.href}
-
-              className={`px-4 py-2 rounded ${
-                
-                pathname === link.href
-
-                ? "bg-blue-600"
-
-                : "bg-gray-800"
-
-              }`}
-
-            >
-
-              {link.name}
-
-            </Link>
 
 
-          ))}
+        <div className="
+        flex
+        items-center
+        gap-3
+        ">
+
+
+          <img
+
+          src="/shaymin.png"
+
+          className="
+          w-12
+          h-12
+          rounded-full
+          object-contain
+          "
+
+          />
+
+
+
+          <div>
+
+          <p className="
+          text-sm
+          text-gray-500
+          ">
+
+          Welcome back
+
+          </p>
+
+
+          <p className="
+          font-bold
+          text-emerald-700
+          ">
+
+          {name} 🌿
+
+          </p>
+
+
+          </div>
 
 
         </div>
@@ -166,31 +181,88 @@ export default function AdminNav() {
 
 
 
-        <div className="flex items-center gap-4">
 
 
-          <span className="font-bold">
 
-            Welcome, {name}
 
-          </span>
+        <div className="
+        flex
+        items-center
+        gap-3
+        ">
+
+
+
+          <Link
+
+          href="/admin"
+
+          className="
+          px-4
+          py-2
+          rounded-full
+          text-gray-700
+          hover:bg-emerald-50
+          "
+
+          >
+
+          Dashboard
+
+          </Link>
+
+
+
+
+
+
+          <Link
+
+          href="/admin/inventory"
+
+          className="
+          px-4
+          py-2
+          rounded-full
+          text-gray-700
+          hover:bg-emerald-50
+          "
+
+          >
+
+          Inventory
+
+          </Link>
+
+
+
 
 
 
           <button
 
-            onClick={logout}
+          onClick={logout}
 
-            className="bg-red-600 px-4 py-2 rounded"
+          className="
+          px-5
+          py-2
+          rounded-full
+          bg-emerald-600
+          text-white
+          font-bold
+          "
 
           >
 
-            Logout
+          Logout
 
           </button>
 
 
+
         </div>
+
+
 
 
       </div>
