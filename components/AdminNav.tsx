@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-
+import SecretTreeLogo from "@/components/SecretTreeLogo";
 import { supabase } from "@/lib/supabase";
 
 type NavigationItem = {
@@ -229,18 +229,7 @@ export default function AdminNav() {
                 group-hover:shadow-[0_0_36px_rgba(52,211,153,0.24)]
               "
             >
-              <img
-                src="/shaymin.png"
-                alt=""
-                className="
-                  h-11
-                  w-11
-                  object-contain
-                  drop-shadow-lg
-                  transition
-                  group-hover:scale-105
-                "
-              />
+              <SecretTreeLogo />
 
               <span
                 className="

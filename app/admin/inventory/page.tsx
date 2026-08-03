@@ -12,6 +12,10 @@ import {
 
 import AdminNav from "@/components/AdminNav";
 import ForestBackground from "@/components/ForestBackground";
+import {
+  FounderFavouriteButton,
+  FounderFavouritesDisplay,
+} from "@/components/FounderFavourites";
 import { supabase } from "@/lib/supabase";
 
 type InventoryDatabaseRow = {
@@ -2278,6 +2282,8 @@ export default function InventoryPage() {
             />
           </section>
 
+          <FounderFavouritesDisplay />
+
           <section
             className="
               mt-5
@@ -2837,6 +2843,16 @@ export default function InventoryPage() {
                                 >
                                   Alter value
                                 </button>
+
+                                <FounderFavouriteButton
+                                  cardId={
+                                    item.card
+                                      .id
+                                  }
+                                  cardName={
+                                    item.card.name
+                                  }
+                                />
                               </div>
                             </div>
 
