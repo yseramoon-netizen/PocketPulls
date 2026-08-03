@@ -23,7 +23,10 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/catalogue", label: "Catalogue" },
   { href: "/collection", label: "Collection" },
   { href: "/constellation", label: "Stars" },
-  { href: "/leaderboard", label: "Leaderboard" },
+  { href: "/history", label: "History" },
+  { href: "/rewards", label: "Daily Gift" },
+  { href: "/achievements", label: "Badges" },
+  { href: "/leaderboard", label: "Ranks" },
   { href: "/shipping", label: "Shipping" },
   { href: "/profile", label: "Profile" },
 ];
@@ -50,6 +53,7 @@ export default function PlayerNav({
   const [signingOut, setSigningOut] = useState(false);
   const [displayedWishBalance, setDisplayedWishBalance] =
     useState(wishBalance);
+  const [rewardReady, setRewardReady] = useState(false);
 
   useEffect(() => {
     setDisplayedWishBalance(wishBalance);
@@ -85,6 +89,52 @@ export default function PlayerNav({
     };
   }, []);
 
+  useEffect(() => {
+    let active = true;
+
+    const checkReward = async () => {
+      const { data, error } = await supabase.rpc(
+        "get_daily_reward_status",
+      );
+
+      if (!active || error) {
+        return;
+      }
+
+      const row = Array.isArray(data) ? data[0] : data;
+
+      if (
+        typeof row === "object" &&
+        row !== null &&
+        "claimed_today" in row
+      ) {
+        setRewardReady(
+          (row as { claimed_today?: unknown })
+            .claimed_today !== true,
+        );
+      }
+    };
+
+    void checkReward();
+
+    const handleRewardClaimed = () => {
+      setRewardReady(false);
+    };
+
+    window.addEventListener(
+      "pocketpulls:reward-claimed",
+      handleRewardClaimed,
+    );
+
+    return () => {
+      active = false;
+      window.removeEventListener(
+        "pocketpulls:reward-claimed",
+        handleRewardClaimed,
+      );
+    };
+  }, []);
+
   async function handleSignOut() {
     if (signingOut) {
       return;
@@ -107,7 +157,7 @@ export default function PlayerNav({
   return (
     <>
       <header className="sticky top-0 z-50 border-b border-white/10 bg-[#07091f]/95 backdrop-blur-xl">
-        <div className="mx-auto flex min-h-20 w-full max-w-[1600px] items-center gap-4 px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto flex min-h-20 w-full max-w-[1700px] items-center gap-3 px-4 sm:px-6 lg:px-8">
           <Link
             href="/wishes"
             className="flex min-w-0 items-center gap-3 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-yellow-200"
@@ -119,9 +169,6 @@ export default function PlayerNav({
                 src="/jirachi.png"
                 alt=""
                 draggable={false}
-                onError={(event) => {
-                  event.currentTarget.style.display = "none";
-                }}
                 className="relative z-10 h-12 w-12 object-contain drop-shadow-[0_8px_10px_rgba(0,0,0,0.4)]"
               />
 
@@ -141,28 +188,33 @@ export default function PlayerNav({
             </div>
           </Link>
 
-          <nav className="ml-auto hidden items-center gap-1 xl:flex">
+          <nav className="ml-auto hidden items-center gap-0.5 2xl:flex">
             {NAV_ITEMS.map((item) => {
               const active = isActive(pathname, item.href);
+              const rewardItem = item.href === "/rewards";
 
               return (
                 <Link
                   key={item.href}
                   href={item.href}
                   className={[
-                    "rounded-xl border px-3 py-3 text-xs font-black transition",
+                    "relative rounded-xl border px-2.5 py-3 text-[0.68rem] font-black transition",
                     active
                       ? "border-violet-200/20 bg-violet-300/10 text-white"
-                      : "border-transparent text-white/45 hover:border-white/10 hover:bg-white/[0.05] hover:text-white",
+                      : "border-transparent text-white/42 hover:border-white/10 hover:bg-white/[0.05] hover:text-white",
                   ].join(" ")}
                 >
                   {item.label}
+
+                  {rewardItem && rewardReady ? (
+                    <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 animate-pulse rounded-full bg-yellow-200 shadow-[0_0_8px_rgba(253,230,138,0.9)]" />
+                  ) : null}
                 </Link>
               );
             })}
           </nav>
 
-          <div className="ml-auto flex items-center gap-2 xl:ml-2">
+          <div className="ml-auto flex items-center gap-2 2xl:ml-2">
             <Link
               href="/wishes"
               className="rounded-xl border border-yellow-100/20 bg-yellow-200/[0.08] px-3 py-2"
@@ -172,7 +224,10 @@ export default function PlayerNav({
               </p>
 
               <p className="text-sm font-black text-yellow-50">
-                {Math.max(0, Math.floor(displayedWishBalance))}
+                {Math.max(
+                  0,
+                  Math.floor(displayedWishBalance),
+                )}
               </p>
             </Link>
 
@@ -186,12 +241,11 @@ export default function PlayerNav({
                     src={avatarUrl}
                     alt=""
                     className="h-full w-full object-cover"
-                    onError={(event) => {
-                      event.currentTarget.style.display = "none";
-                    }}
                   />
                 ) : (
-                  <span>{getInitial(displayName || username)}</span>
+                  <span>
+                    {getInitial(displayName || username)}
+                  </span>
                 )}
               </div>
 
@@ -210,8 +264,12 @@ export default function PlayerNav({
               type="button"
               onClick={() => setMenuOpen(true)}
               aria-label="Open player menu"
-              className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-white/[0.05] text-white xl:hidden"
+              className="relative flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-white/[0.05] text-white 2xl:hidden"
             >
+              {rewardReady ? (
+                <span className="absolute right-1.5 top-1.5 h-2 w-2 animate-pulse rounded-full bg-yellow-200" />
+              ) : null}
+
               <svg
                 viewBox="0 0 24 24"
                 aria-hidden="true"
@@ -232,17 +290,23 @@ export default function PlayerNav({
 
       {menuOpen ? (
         <div
-          className="fixed inset-0 z-[200] bg-black/75 backdrop-blur-lg xl:hidden"
+          className="fixed inset-0 z-[200] bg-black/75 backdrop-blur-lg 2xl:hidden"
           onPointerDown={() => setMenuOpen(false)}
         >
           <aside
-            className="absolute inset-y-0 right-0 flex w-[min(92vw,26rem)] flex-col border-l border-white/10 bg-[#080a24]"
-            onPointerDown={(event) => event.stopPropagation()}
+            className="absolute inset-y-0 right-0 flex w-[min(92vw,28rem)] flex-col border-l border-white/10 bg-[#080a24]"
+            onPointerDown={(event) =>
+              event.stopPropagation()
+            }
           >
             <div className="flex items-center justify-between border-b border-white/10 p-5">
               <div>
-                <p className="font-black text-white">{displayName}</p>
-                <p className="text-xs font-bold text-white/35">@{username}</p>
+                <p className="font-black text-white">
+                  {displayName}
+                </p>
+                <p className="text-xs font-bold text-white/35">
+                  @{username}
+                </p>
               </div>
 
               <button
@@ -254,9 +318,14 @@ export default function PlayerNav({
               </button>
             </div>
 
-            <nav className="flex-1 space-y-2 overflow-y-auto p-4">
+            <nav className="grid flex-1 auto-rows-min grid-cols-2 gap-2 overflow-y-auto p-4">
               {NAV_ITEMS.map((item) => {
-                const active = isActive(pathname, item.href);
+                const active = isActive(
+                  pathname,
+                  item.href,
+                );
+                const rewardItem =
+                  item.href === "/rewards";
 
                 return (
                   <Link
@@ -264,13 +333,17 @@ export default function PlayerNav({
                     href={item.href}
                     onClick={() => setMenuOpen(false)}
                     className={[
-                      "block rounded-2xl border px-4 py-4 text-sm font-black transition",
+                      "relative rounded-xl border px-4 py-4 text-sm font-black",
                       active
                         ? "border-violet-200/20 bg-violet-300/10 text-white"
-                        : "border-transparent text-white/50 hover:border-white/10 hover:bg-white/[0.05] hover:text-white",
+                        : "border-white/10 bg-white/[0.035] text-white/50",
                     ].join(" ")}
                   >
                     {item.label}
+
+                    {rewardItem && rewardReady ? (
+                      <span className="absolute right-3 top-3 h-2 w-2 animate-pulse rounded-full bg-yellow-200" />
+                    ) : null}
                   </Link>
                 );
               })}
@@ -279,9 +352,9 @@ export default function PlayerNav({
             <div className="border-t border-white/10 p-4">
               <button
                 type="button"
-                disabled={signingOut}
                 onClick={() => void handleSignOut()}
-                className="min-h-12 w-full rounded-xl border border-red-200/10 bg-red-400/[0.06] px-4 text-sm font-black text-red-100 disabled:opacity-40"
+                disabled={signingOut}
+                className="min-h-12 w-full rounded-xl border border-red-200/15 bg-red-400/[0.08] px-4 text-sm font-black text-red-100"
               >
                 {signingOut ? "Signing out..." : "Sign out"}
               </button>

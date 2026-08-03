@@ -24,7 +24,7 @@ type PlayerWalletRow = {
   wish_balance: number | null;
 };
 
-type PlayerData = {
+type PlayerShellData = {
   username: string;
   displayName: string;
   avatarUrl: string | null;
@@ -93,12 +93,13 @@ export default function PlayerLayout({ children }: PlayerLayoutProps) {
   const pathname = usePathname();
   const mountedRef = useRef(true);
 
-  const [player, setPlayer] = useState<PlayerData | null>(null);
+  const [player, setPlayer] = useState<PlayerShellData | null>(null);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const redirectToSignIn = useCallback(() => {
     const nextPath = pathname || "/wishes";
+
     router.replace(`/sign-in?next=${encodeURIComponent(nextPath)}`);
   }, [pathname, router]);
 
@@ -167,16 +168,18 @@ export default function PlayerLayout({ children }: PlayerLayoutProps) {
           ? profile.avatar_url.trim()
           : null;
 
-      if (!mountedRef.current) {
-        return;
-      }
-
-      setPlayer({
+      const nextPlayer: PlayerShellData = {
         username,
         displayName,
         avatarUrl,
         wishBalance: normaliseWishBalance(wallet?.wish_balance),
-      });
+      };
+
+      if (!mountedRef.current) {
+        return;
+      }
+
+      setPlayer(nextPlayer);
     } catch (error: unknown) {
       console.error("Player layout error:", error);
 
@@ -195,7 +198,7 @@ export default function PlayerLayout({ children }: PlayerLayoutProps) {
     }
   }, []);
 
-  const loadSession = useCallback(async () => {
+  const loadCurrentSession = useCallback(async () => {
     setLoading(true);
     setErrorMessage(null);
 
@@ -235,7 +238,7 @@ export default function PlayerLayout({ children }: PlayerLayoutProps) {
   useEffect(() => {
     mountedRef.current = true;
 
-    void loadSession();
+    void loadCurrentSession();
 
     const {
       data: { subscription },
@@ -259,21 +262,36 @@ export default function PlayerLayout({ children }: PlayerLayoutProps) {
       }
     });
 
+    const handleProfileUpdated = () => {
+      void loadCurrentSession();
+    };
+
+    window.addEventListener(
+      "pocketpulls:profile-updated",
+      handleProfileUpdated,
+    );
+
     return () => {
       mountedRef.current = false;
       subscription.unsubscribe();
+      window.removeEventListener(
+        "pocketpulls:profile-updated",
+        handleProfileUpdated,
+      );
     };
-  }, [loadPlayer, loadSession, redirectToSignIn]);
+  }, [loadCurrentSession, loadPlayer, redirectToSignIn]);
 
   if (loading && !player) {
-    return <LoadingScreen />;
+    return <PlayerLoadingScreen />;
   }
 
   if (errorMessage && !player) {
     return (
-      <ErrorScreen
+      <PlayerErrorScreen
         message={errorMessage}
-        onRetry={() => void loadSession()}
+        onRetry={() => {
+          void loadCurrentSession();
+        }}
         onSignOut={() => {
           void supabase.auth.signOut().finally(() => {
             redirectToSignIn();
@@ -284,12 +302,12 @@ export default function PlayerLayout({ children }: PlayerLayoutProps) {
   }
 
   if (!player) {
-    return <LoadingScreen />;
+    return <PlayerLoadingScreen />;
   }
 
   return (
     <div className="relative min-h-[100dvh] overflow-x-hidden bg-[#040617] text-white">
-      <SkyBackground />
+      <WishSkyBackground />
 
       <PlayerNav
         username={player.username}
@@ -305,29 +323,36 @@ export default function PlayerLayout({ children }: PlayerLayoutProps) {
   );
 }
 
-function SkyBackground() {
+function WishSkyBackground() {
   return (
     <div
       aria-hidden="true"
       className="pointer-events-none fixed inset-0 z-0 overflow-hidden"
     >
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(99,102,241,0.18),transparent_34%),linear-gradient(180deg,#060821_0%,#040617_48%,#02030d_100%)]" />
+
       <div className="absolute -left-40 top-24 h-[28rem] w-[28rem] rounded-full bg-violet-500/10 blur-[110px]" />
+
       <div className="absolute -right-32 top-[30%] h-[25rem] w-[25rem] rounded-full bg-cyan-300/[0.07] blur-[110px]" />
-      <span className="absolute left-[7%] top-[13%] h-1 w-1 animate-pulse rounded-full bg-yellow-100/70" />
-      <span className="absolute right-[8%] top-[18%] h-1 w-1 animate-pulse rounded-full bg-cyan-100/70 [animation-delay:700ms]" />
+
+      <div className="absolute left-[7%] top-[13%] h-1 w-1 animate-pulse rounded-full bg-yellow-100/70 shadow-[0_0_8px_rgba(254,249,195,0.8)]" />
+
+      <div className="absolute right-[8%] top-[18%] h-1 w-1 animate-pulse rounded-full bg-cyan-100/70 shadow-[0_0_8px_rgba(207,250,254,0.8)] [animation-delay:700ms]" />
+
+      <div className="absolute bottom-[14%] left-[18%] h-0.5 w-0.5 rounded-full bg-yellow-100/60" />
     </div>
   );
 }
 
-function LoadingScreen() {
+function PlayerLoadingScreen() {
   return (
     <main className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden bg-[#040617] px-6 text-white">
-      <SkyBackground />
+      <WishSkyBackground />
 
-      <div className="relative z-10 text-center">
-        <div className="relative mx-auto flex h-28 w-28 items-center justify-center">
+      <div className="relative z-10 flex max-w-sm flex-col items-center text-center">
+        <div className="relative flex h-28 w-28 items-center justify-center">
           <div className="absolute inset-2 animate-pulse rounded-full bg-yellow-200/15 blur-2xl" />
+
           <div className="absolute inset-0 animate-spin rounded-full border border-transparent border-r-cyan-100/40 border-t-yellow-100/70 [animation-duration:2.5s]" />
 
           <img
@@ -337,7 +362,7 @@ function LoadingScreen() {
             onError={(event) => {
               event.currentTarget.style.display = "none";
             }}
-            className="relative h-20 w-20 object-contain"
+            className="relative h-20 w-20 object-contain drop-shadow-[0_12px_16px_rgba(0,0,0,0.4)]"
           />
 
           <span className="absolute text-5xl text-yellow-100/20">*</span>
@@ -350,12 +375,16 @@ function LoadingScreen() {
         <h1 className="mt-3 text-2xl font-black">
           Preparing your wishes
         </h1>
+
+        <p className="mt-3 text-sm font-semibold leading-6 text-white/35">
+          Loading your trainer profile and wish balance.
+        </p>
       </div>
     </main>
   );
 }
 
-function ErrorScreen({
+function PlayerErrorScreen({
   message,
   onRetry,
   onSignOut,
@@ -365,10 +394,10 @@ function ErrorScreen({
   onSignOut: () => void;
 }) {
   return (
-    <main className="relative flex min-h-[100dvh] items-center justify-center bg-[#040617] px-4 py-12 text-white">
-      <SkyBackground />
+    <main className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden bg-[#040617] px-4 py-12 text-white">
+      <WishSkyBackground />
 
-      <section className="relative z-10 w-full max-w-lg overflow-hidden rounded-[2rem] border border-red-200/15 bg-[#090b27]/95">
+      <section className="relative z-10 w-full max-w-lg overflow-hidden rounded-[2rem] border border-red-200/15 bg-[#090b27]/95 shadow-[0_35px_120px_rgba(0,0,0,0.65)] backdrop-blur-2xl">
         <div className="h-1 bg-gradient-to-r from-red-300 via-pink-200 to-yellow-200" />
 
         <div className="p-6 sm:p-8">
@@ -388,7 +417,7 @@ function ErrorScreen({
             <button
               type="button"
               onClick={onRetry}
-              className="min-h-12 flex-1 rounded-xl bg-yellow-200 px-5 text-sm font-black text-[#17122f]"
+              className="min-h-12 flex-1 rounded-xl bg-yellow-200 px-5 text-sm font-black text-[#17122f] transition hover:bg-yellow-100"
             >
               Try again
             </button>
@@ -396,7 +425,7 @@ function ErrorScreen({
             <button
               type="button"
               onClick={onSignOut}
-              className="min-h-12 flex-1 rounded-xl border border-white/10 bg-white/[0.05] px-5 text-sm font-black text-white/65"
+              className="min-h-12 flex-1 rounded-xl border border-white/10 bg-white/[0.05] px-5 text-sm font-black text-white/65 transition hover:bg-white/10 hover:text-white"
             >
               Return to sign in
             </button>
