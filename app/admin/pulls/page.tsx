@@ -694,10 +694,14 @@ card={card}
 
 <section className="mt-16">
 
-<PullStats
-
-history={history}
-
+<PullStats 
+  cost={5}
+  totalValue={84.5}
+  bestPull={{
+    name:"Shaymin EX",
+    value:84.5
+  }}
+  count={10}
 />
 
 </section>
