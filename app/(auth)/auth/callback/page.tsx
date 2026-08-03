@@ -1,0 +1,92 @@
+"use client";
+
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+
+import AuthLoading from "@/components/auth/AuthLoading";
+import AuthMessage from "@/components/auth/AuthMessage";
+import AuthShell from "@/components/auth/AuthShell";
+import { getAuthErrorMessage } from "@/lib/auth/helpers";
+import { normaliseNextPath } from "@/lib/auth/navigation";
+import { supabase } from "@/lib/supabase";
+
+export default function AuthCallbackPage() {
+  const router = useRouter();
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+
+    async function complete() {
+      try {
+        const search = new URLSearchParams(window.location.search);
+        const code = search.get("code");
+        const nextPath = normaliseNextPath(search.get("next"));
+        const callbackError = search.get("error_description") || search.get("error");
+
+        if (callbackError) {
+          throw new Error(callbackError);
+        }
+
+        if (code) {
+          const { error } = await supabase.auth.exchangeCodeForSession(code);
+          if (error) throw error;
+        }
+
+        const { data, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError) throw sessionError;
+
+        if (!data.session) {
+          throw new Error("The confirmation link did not create a valid session. It may have expired.");
+        }
+
+        const { error: registrationError } = await supabase.rpc(
+          "complete_player_registration",
+        );
+
+        if (registrationError) throw registrationError;
+        if (!active) return;
+
+        router.replace(`/welcome?next=${encodeURIComponent(nextPath)}`);
+        router.refresh();
+      } catch (error: unknown) {
+        if (!active) return;
+        setErrorMessage(
+          getAuthErrorMessage(
+            error,
+            "The account confirmation could not be completed.",
+          ),
+        );
+      }
+    }
+
+    void complete();
+
+    return () => {
+      active = false;
+    };
+  }, [router]);
+
+  if (!errorMessage) {
+    return <AuthLoading title="Binding your trainer symbol" />;
+  }
+
+  return (
+    <AuthShell
+      eyebrow="Confirmation interrupted"
+      title="The Symbol Did Not Open"
+      description="The confirmation link could not finish the account session."
+    >
+      <div className="space-y-5">
+        <AuthMessage tone="error">{errorMessage}</AuthMessage>
+        <Link
+          href="/sign-in"
+          className="flex min-h-12 w-full items-center justify-center rounded-xl bg-gradient-to-r from-cyan-100 via-violet-200 to-pink-200 px-5 text-sm font-black text-[#111329]"
+        >
+          Return to sign in
+        </Link>
+      </div>
+    </AuthShell>
+  );
+}
