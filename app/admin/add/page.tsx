@@ -16,11 +16,17 @@ import CardScanner, {
 } from "@/components/CardScanner";
 import ForestBackground from "@/components/ForestBackground";
 
+type CardFinish =
+  | "normal"
+  | "holo"
+  | "reverse_holo";
+
 type InventoryRow = {
   id: string;
   quantity: number | string | null;
   location: string | null;
   status: string | null;
+  finish: CardFinish | null;
 };
 
 type AddResult = {
@@ -28,7 +34,43 @@ type AddResult = {
   quantityAdded: number;
   finalQuantity: number;
   location: string;
+  finish: CardFinish;
 };
+
+type FinishOption = {
+  value: CardFinish;
+  label: string;
+  shortLabel: string;
+  description: string;
+  selectedClassName: string;
+};
+
+const FINISH_OPTIONS: FinishOption[] = [
+  {
+    value: "normal",
+    label: "Normal",
+    shortLabel: "N",
+    description: "Standard non-foil card",
+    selectedClassName:
+      "border-emerald-200/45 bg-emerald-300/18 text-emerald-50 shadow-[0_0_28px_rgba(110,231,183,0.12)]",
+  },
+  {
+    value: "holo",
+    label: "Holo",
+    shortLabel: "H",
+    description: "Holographic artwork finish",
+    selectedClassName:
+      "border-cyan-100/45 bg-cyan-200/18 text-cyan-50 shadow-[0_0_28px_rgba(165,243,252,0.12)]",
+  },
+  {
+    value: "reverse_holo",
+    label: "Reverse Holo",
+    shortLabel: "R",
+    description: "Holographic card body finish",
+    selectedClassName:
+      "border-violet-100/45 bg-violet-200/18 text-violet-50 shadow-[0_0_28px_rgba(221,214,254,0.12)]",
+  },
+];
 
 const CARD_SELECT = `
   id,
@@ -43,6 +85,16 @@ const CARD_SELECT = `
 
 const LAST_LOCATION_KEY =
   "pocketpulls:last-inventory-location";
+
+function getFinishLabel(
+  finish: CardFinish,
+): string {
+  return (
+    FINISH_OPTIONS.find(
+      (option) => option.value === finish,
+    )?.label || "Normal"
+  );
+}
 
 function toNumber(
   value: number | string | null | undefined,
@@ -236,6 +288,9 @@ export default function AddCardsPage() {
   const [quantity, setQuantity] =
     useState(1);
 
+  const [finish, setFinish] =
+    useState<CardFinish>("normal");
+
   const [location, setLocation] =
     useState("Main Inventory");
 
@@ -294,6 +349,7 @@ export default function AddCardsPage() {
     useCallback(
       async (
         card: ScannerPokemonCard,
+        selectedFinish: CardFinish,
       ) => {
         setCheckingStock(true);
         setExistingInventory(null);
@@ -313,9 +369,11 @@ export default function AddCardsPage() {
               id,
               quantity,
               location,
-              status
+              status,
+              finish
             `)
             .eq("card_id", card.id)
+            .eq("finish", selectedFinish)
             .order("created_at", {
               ascending: true,
             })
@@ -367,11 +425,15 @@ export default function AddCardsPage() {
       ) => {
         setSelectedCard(card);
         setQuantity(1);
+        setFinish("normal");
         setResult(null);
         setError("");
         setSearchResults([]);
 
-        void loadExistingInventory(card);
+        void loadExistingInventory(
+          card,
+          "normal",
+        );
 
         if (scrollToForm) {
           window.setTimeout(() => {
@@ -480,6 +542,30 @@ export default function AddCardsPage() {
     };
   }, [search]);
 
+  function chooseFinish(
+    nextFinish: CardFinish,
+  ) {
+    if (
+      adding ||
+      checkingStock ||
+      finish === nextFinish
+    ) {
+      return;
+    }
+
+    setFinish(nextFinish);
+    setExistingInventory(null);
+    setResult(null);
+    setError("");
+
+    if (selectedCard) {
+      void loadExistingInventory(
+        selectedCard,
+        nextFinish,
+      );
+    }
+  }
+
   function openScanner() {
     setError("");
 
@@ -550,12 +636,14 @@ export default function AddCardsPage() {
           id,
           quantity,
           location,
-          status
+          status,
+          finish
         `)
         .eq(
           "card_id",
           selectedCard.id,
         )
+        .eq("finish", finish)
         .order("created_at", {
           ascending: true,
         })
@@ -594,6 +682,8 @@ export default function AddCardsPage() {
             status:
               "in_stock",
 
+            finish,
+
             added_by:
               user.email ||
               "Admin",
@@ -628,6 +718,8 @@ export default function AddCardsPage() {
             status:
               "in_stock",
 
+            finish,
+
             added_by:
               user.email ||
               "Admin",
@@ -656,6 +748,7 @@ export default function AddCardsPage() {
         quantity: finalQuantity,
         location: safeLocation,
         status: "in_stock",
+        finish,
       });
 
       setResult({
@@ -669,6 +762,8 @@ export default function AddCardsPage() {
 
         location:
           safeLocation,
+
+        finish,
       });
 
       setQuantity(1);
@@ -694,6 +789,7 @@ export default function AddCardsPage() {
     setSelectedCard(null);
     setExistingInventory(null);
     setQuantity(1);
+    setFinish("normal");
     setResult(null);
     setError("");
   }
@@ -984,7 +1080,8 @@ export default function AddCardsPage() {
                       text-emerald-50/55
                     "
                   >
-                    Added {result.quantityAdded} ×{" "}
+                    Added {result.quantityAdded} x{" "}
+                    {getFinishLabel(result.finish)}{" "}
                     {result.cardName}. New stock:{" "}
                     {result.finalQuantity} in{" "}
                     {result.location}.
@@ -1613,6 +1710,22 @@ export default function AddCardsPage() {
                               selectedCard.market_value,
                             )}
                           </span>
+
+                          <span
+                            className="
+                              rounded-full
+                              border
+                              border-cyan-100/20
+                              bg-cyan-200/10
+                              px-3
+                              py-1.5
+                              text-xs
+                              font-black
+                              text-cyan-50
+                            "
+                          >
+                            {getFinishLabel(finish)}
+                          </span>
                         </div>
 
                         <div
@@ -1634,7 +1747,9 @@ export default function AddCardsPage() {
                               text-white/35
                             "
                           >
-                            Existing stock
+                            Existing{" "}
+                            {getFinishLabel(finish)}{" "}
+                            stock
                           </p>
 
                           {checkingStock ? (
@@ -1670,11 +1785,144 @@ export default function AddCardsPage() {
                       onSubmit={addToInventory}
                       className="mt-8"
                     >
+                      <fieldset>
+                        <legend
+                          className="
+                            text-sm
+                            font-black
+                            text-white
+                          "
+                        >
+                          Card finish
+                        </legend>
+
+                        <p
+                          className="
+                            mt-1
+                            text-xs
+                            font-semibold
+                            leading-5
+                            text-white/35
+                          "
+                        >
+                          Keep Normal, Holo and Reverse Holo
+                          copies as separate physical stock.
+                        </p>
+
+                        <div
+                          className="
+                            mt-3
+                            grid
+                            gap-3
+                            sm:grid-cols-3
+                          "
+                        >
+                          {FINISH_OPTIONS.map(
+                            (option) => {
+                              const active =
+                                finish ===
+                                option.value;
+
+                              return (
+                                <button
+                                  key={
+                                    option.value
+                                  }
+                                  type="button"
+                                  onClick={() =>
+                                    chooseFinish(
+                                      option.value,
+                                    )
+                                  }
+                                  disabled={
+                                    adding ||
+                                    checkingStock
+                                  }
+                                  aria-pressed={
+                                    active
+                                  }
+                                  className={`
+                                    min-h-24
+                                    rounded-2xl
+                                    border
+                                    p-4
+                                    text-left
+                                    transition
+                                    disabled:cursor-not-allowed
+                                    disabled:opacity-45
+                                    ${
+                                      active
+                                        ? option.selectedClassName
+                                        : `
+                                            border-white/10
+                                            bg-white/[0.04]
+                                            text-white/55
+                                            hover:border-white/20
+                                            hover:bg-white/[0.075]
+                                            hover:text-white
+                                          `
+                                    }
+                                  `}
+                                >
+                                  <span
+                                    className="
+                                      flex
+                                      h-8
+                                      w-8
+                                      items-center
+                                      justify-center
+                                      rounded-xl
+                                      border
+                                      border-white/10
+                                      bg-black/15
+                                      text-xs
+                                      font-black
+                                    "
+                                  >
+                                    {
+                                      option.shortLabel
+                                    }
+                                  </span>
+
+                                  <span
+                                    className="
+                                      mt-3
+                                      block
+                                      text-sm
+                                      font-black
+                                    "
+                                  >
+                                    {option.label}
+                                  </span>
+
+                                  <span
+                                    className="
+                                      mt-1
+                                      block
+                                      text-[0.68rem]
+                                      font-semibold
+                                      leading-4
+                                      opacity-55
+                                    "
+                                  >
+                                    {
+                                      option.description
+                                    }
+                                  </span>
+                                </button>
+                              );
+                            },
+                          )}
+                        </div>
+                      </fieldset>
+
                       <label
                         htmlFor="quantity"
                         className="
                           text-sm
                           font-black
+                          mt-7
+                          block
                           text-white
                         "
                       >
@@ -1901,13 +2149,16 @@ export default function AddCardsPage() {
                           </>
                         ) : existingInventory ? (
                           <>
-                            Add {quantity} more
-                            <span>＋</span>
+                            Add {quantity} more{" "}
+                            {getFinishLabel(finish)}
+                            <span>+</span>
                           </>
                         ) : (
                           <>
-                            Add to inventory
-                            <span>→</span>
+                            Add{" "}
+                            {getFinishLabel(finish)}{" "}
+                            to inventory
+                            <span>-&gt;</span>
                           </>
                         )}
                       </button>
