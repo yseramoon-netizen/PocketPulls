@@ -1,14 +1,13 @@
 "use client";
 
-import { motion, AnimatePresence } from "framer-motion";
-import { useEffect, useState } from "react";
-
 
 interface PullMachineProps {
 
-  onComplete: () => void;
+  opening:boolean;
 
-  opening: boolean;
+  stage:string;
+
+  progress:number;
 
 }
 
@@ -16,319 +15,284 @@ interface PullMachineProps {
 
 export default function PullMachine({
 
-  onComplete,
+  opening,
 
-  opening
+  stage,
 
-}: PullMachineProps){
+  progress
 
+}:PullMachineProps){
 
 
-  const [stage,setStage] = useState<
-    "idle" |
-    "forest" |
-    "energy" |
-    "portal" |
-    "reveal"
-  >("idle");
 
+if(!opening){
 
+return null;
 
-  useEffect(()=>{
+}
 
 
-    if(!opening){
 
-      setStage("idle");
+return(
 
-      return;
 
-    }
+<section
 
+className="
+relative
+w-full
+max-w-2xl
+h-[520px]
 
+mx-auto
 
-    setStage("forest");
+overflow-hidden
 
+rounded-[4rem]
 
+bg-black/40
 
-    const timers = [
+backdrop-blur-2xl
 
-      setTimeout(()=>{
+border
 
-        setStage("energy");
+border-emerald-400/20
 
-      },1200),
+shadow-[0_0_120px_rgba(16,185,129,.35)]
 
+flex
 
+items-center
 
-      setTimeout(()=>{
+justify-center
 
-        setStage("portal");
+"
 
-      },2500),
+>
 
 
 
-      setTimeout(()=>{
+{/* forest glow */}
 
-        setStage("reveal");
+<div
 
-        onComplete();
+className="
 
-      },4200)
+absolute
 
-    ];
+inset-0
 
+bg-gradient-to-b
 
+from-emerald-900/40
 
-    return ()=>{
+via-black
 
-      timers.forEach(clearTimeout);
+to-black
 
-    };
+"
 
+/>
 
-  },[opening]);
 
 
 
 
 
+{/* floating particles */}
 
-  return (
+{
 
-    <div
+Array.from({length:35}).map((_,i)=>(
 
-      className="
-      relative
-      h-[420px]
-      w-full
-      flex
-      items-center
-      justify-center
-      overflow-hidden
-      rounded-[3rem]
-      "
 
-    >
+<div
 
+key={i}
 
+className="
 
-      {/* Forest glow */}
+absolute
 
-      <motion.div
+w-2
 
-        animate={
+h-2
 
-          stage !== "idle"
+rounded-full
 
-          ?
+bg-yellow-300
 
-          {
-            opacity:1,
-            scale:1.2
-          }
+shadow-[0_0_20px_rgba(250,204,21,.9)]
 
-          :
+animate-pulse
 
-          {
-            opacity:0
-          }
+"
 
-        }
+style={{
 
+left:`${Math.random()*100}%`,
 
-        transition={{
-          duration:2
-        }}
+top:`${Math.random()*100}%`,
 
+animationDelay:`${i*0.15}s`
 
-        className="
-        absolute
-        w-96
-        h-96
-        rounded-full
-        bg-emerald-400/20
-        blur-3xl
-        "
+}}
 
-      />
+/>
 
 
+))
 
+}
 
 
 
 
-      {/* Floating energy */}
 
-      <AnimatePresence>
 
 
-      {
-        stage==="energy" && (
 
-          <>
 
-          {
-            Array.from({
-              length:20
-            }).map((_,i)=>(
+<div
 
-              <motion.div
+className="
+relative
+z-10
+flex
+flex-col
+items-center
+"
 
-                key={i}
+>
 
-                initial={{
 
-                  opacity:0,
 
-                  y:100,
 
-                  x:0
 
-                }}
 
 
-                animate={{
+{/* Tree */}
 
-                  opacity:1,
+<div
 
-                  y:-150,
+className={`
 
-                  x:
-                  Math.random()*300-150
+relative
 
-                }}
+transition-all
 
+duration-1000
 
-                exit={{
-                  opacity:0
-                }}
 
+${progress>40
 
-                transition={{
+?
 
-                  duration:2,
+"scale-110"
 
-                  delay:i*0.05
+:
 
-                }}
+"scale-100"
 
+}
 
-                className="
-                absolute
-                w-3
-                h-3
-                bg-yellow-300
-                rounded-full
-                shadow-[0_0_25px_10px_rgba(253,224,71,.8)]
-                "
+`}
 
-              />
+>
 
 
-            ))
 
-          }
 
 
-          </>
+{/* tree glow */}
 
-        )
-      }
+<div
 
+className="
 
-      </AnimatePresence>
+absolute
 
+inset-0
 
+bg-emerald-400/30
 
+blur-3xl
 
+rounded-full
 
+animate-pulse
 
+"
 
+/>
 
 
-      {/* Portal */}
 
 
-      <AnimatePresence>
 
+{/* trunk */}
 
-      {
-        stage==="portal" && (
+<div
 
+className="
 
-          <motion.div
+relative
 
-            initial={{
+text-[160px]
 
-              scale:0,
+leading-none
 
-              rotate:0
+select-none
 
-            }}
+"
 
+>
 
-            animate={{
+🌳
 
-              scale:1,
+</div>
 
-              rotate:360
 
-            }}
 
 
-            transition={{
 
-              duration:1.5,
+{/* blooming card */}
 
-              ease:"backOut"
+{
 
-            }}
+progress>75 && (
 
+<div
 
-            className="
-            relative
-            w-52
-            h-52
-            rounded-full
-            bg-gradient-to-br
-            from-yellow-300
-            via-orange-400
-            to-red-500
-            shadow-[0_0_80px_rgba(250,204,21,.9)]
-            flex
-            items-center
-            justify-center
-            "
+className="
 
-          >
+absolute
 
+top-0
 
-            <div
+left-1/2
 
-              className="
-              text-8xl
-              "
+-translate-x-1/2
 
-            >
+text-7xl
 
-              🎴
+animate-bounce
 
-            </div>
+"
 
+>
 
+🎴
 
-          </motion.div>
+</div>
 
+)
 
-        )
-      }
+}
 
 
-      </AnimatePresence>
 
+</div>
 
 
 
@@ -337,144 +301,138 @@ export default function PullMachine({
 
 
 
-      {/* Final flash */}
 
+<h2
 
-      <AnimatePresence>
+className="
 
+mt-10
 
-      {
+text-center
 
-        stage==="reveal" && (
+text-3xl
 
+md:text-4xl
 
-          <motion.div
+font-black
 
-            initial={{
+text-white
 
-              opacity:0,
+animate-pulse
 
-              scale:0
+"
 
-            }}
+>
 
+{stage}
 
-            animate={{
+</h2>
 
-              opacity:1,
 
-              scale:2
 
-            }}
 
 
-            transition={{
 
-              duration:.7
 
-            }}
+{/* energy bar */}
 
+<div
 
-            className="
-            absolute
-            inset-0
-            bg-white
-            rounded-[3rem]
-            "
+className="
 
-          />
+mt-8
 
+w-72
 
-        )
+h-4
 
-      }
+rounded-full
 
+bg-white/10
 
-      </AnimatePresence>
+overflow-hidden
 
+border
 
+border-white/20
 
+"
 
+>
 
+<div
 
+className="
 
+h-full
 
+rounded-full
 
-      {
+bg-gradient-to-r
 
-        stage!=="idle" && (
+from-yellow-300
 
+via-emerald-400
 
-          <motion.h2
+to-green-500
 
-            initial={{
+transition-all
 
-              opacity:0
+duration-300
 
-            }}
+"
 
+style={{
 
-            animate={{
+width:`${progress}%`
 
-              opacity:1
+}}
 
-            }}
+/>
 
 
-            className="
-            absolute
-            bottom-10
-            text-xl
-            font-black
-            text-white
-            drop-shadow-xl
-            "
 
-          >
+</div>
 
-            {
 
-              stage==="forest"
 
-              ?
 
-              "🌲 The forest awakens..."
 
-              :
 
-              stage==="energy"
 
-              ?
+<p
 
-              "✨ Something is calling..."
+className="
 
-              :
+mt-5
 
-              stage==="portal"
+text-emerald-200
 
-              ?
+font-bold
 
-              "🎴 A discovery awaits..."
+"
 
-              :
+>
 
-              "🌟 Revealing..."
+Forest energy: {progress}%
 
-            }
+</p>
 
 
-          </motion.h2>
 
 
-        )
 
-      }
 
+</div>
 
 
-    </div>
 
 
-  );
+
+</section>
+
+
+);
+
 
 }

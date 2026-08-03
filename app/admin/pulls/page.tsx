@@ -4,10 +4,11 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
 import AdminNav from "@/components/AdminNav";
-import PullAnimation from "@/components/PullAnimation";
+import PullMachine from "@/components/PullMachine";
 import PullCard from "@/components/PullCard";
 import PullStats from "@/components/PullStats";
 import PullHistory from "@/components/PullHistory";
+
 
 
 export default function PullsPage(){
@@ -19,6 +20,8 @@ const [checking,setChecking]=useState(true);
 
 const [opening,setOpening]=useState(false);
 
+const [progress,setProgress]=useState(0);
+
 const [card,setCard]=useState<any>(null);
 
 const [history,setHistory]=useState<any[]>([]);
@@ -26,6 +29,8 @@ const [history,setHistory]=useState<any[]>([]);
 const [stage,setStage]=useState("");
 
 const [error,setError]=useState("");
+
+
 
 
 
@@ -67,9 +72,7 @@ return;
 setUser(user);
 
 
-
 await loadHistory();
-
 
 
 setChecking(false);
@@ -118,7 +121,9 @@ rarity
 "created_at",
 
 {
+
 ascending:false
+
 }
 
 )
@@ -132,8 +137,6 @@ ascending:false
 if(error){
 
 console.log(error);
-
-setError(error.message);
 
 return;
 
@@ -160,9 +163,7 @@ async function openPull(){
 
 if(!user){
 
-setError(
-"Please login before pulling"
-);
+setError("Please login first");
 
 return;
 
@@ -176,7 +177,7 @@ setCard(null);
 
 setOpening(true);
 
-
+setProgress(0);
 
 
 
@@ -187,24 +188,52 @@ setStage(
 
 
 
-setTimeout(()=>{
+
+let current=0;
+
+
+
+const energy=setInterval(()=>{
+
+
+current += 5;
+
+
+setProgress(current);
+
+
+
+if(current >= 30){
 
 setStage(
 "✨ Ancient roots are glowing..."
 );
 
-},1200);
+}
 
 
 
-
-setTimeout(()=>{
+if(current >= 60){
 
 setStage(
 "🌟 A hidden Pokémon is emerging..."
 );
 
-},2600);
+}
+
+
+
+if(current >=100){
+
+clearInterval(energy);
+
+}
+
+
+},150);
+
+
+
 
 
 
@@ -251,6 +280,7 @@ await response.json();
 
 
 
+
 if(!response.ok){
 
 throw new Error(
@@ -261,9 +291,25 @@ data.error || "Pull failed"
 
 
 
+setProgress(100);
+
+
+
+setStage(
+"🎴 Discovery complete!"
+);
+
+
+
+
+setTimeout(()=>{
 
 
 setCard(data.card);
+
+
+},700);
+
 
 
 
@@ -271,10 +317,14 @@ await loadHistory();
 
 
 
+
+
 }
 
 catch(err:any){
 
+
+console.log(err);
 
 setError(err.message);
 
@@ -287,7 +337,7 @@ setOpening(false);
 
 
 
-},4200);
+},4500);
 
 
 
@@ -300,20 +350,29 @@ setOpening(false);
 
 
 
+
 if(checking){
 
 return(
 
-<div className="
+<div
+
+className="
 min-h-screen
 bg-black
 flex
 items-center
 justify-center
+
 text-emerald-400
+
 font-black
+
 text-xl
-">
+
+"
+
+>
 
 🌲 Entering PocketPulls Forest...
 
@@ -336,23 +395,28 @@ return(
 <main
 
 className="
-min-h-screen
-
 relative
+
+min-h-screen
 
 overflow-hidden
 
 bg-gradient-to-br
+
 from-[#020617]
+
 via-[#052e16]
+
 to-[#064e3b]
 
 p-4
+
 md:p-8
 
 pb-40
 
 text-white
+
 "
 
 >
@@ -363,9 +427,13 @@ text-white
 
 className="
 max-w-6xl
+
 mx-auto
+
 relative
+
 z-10
+
 "
 
 >
@@ -382,24 +450,19 @@ z-10
 
 
 
-{/* HERO */}
-
 <section
 
 className="
+
 mt-10
 
-relative
-
-overflow-hidden
-
 rounded-[3rem]
+
+bg-white/5
 
 border
 
 border-white/10
-
-bg-white/5
 
 backdrop-blur-2xl
 
@@ -414,39 +477,19 @@ text-center
 >
 
 
-<div
-
-className="
-absolute
-inset-0
-
-bg-gradient-to-br
-
-from-emerald-400/10
-
-via-transparent
-
-to-yellow-300/10
-
-"
-
-/>
-
-
-
-
-
-<div className="relative">
-
 
 <img
 
 src="/shaymin.png"
 
 className="
+
 w-32
+
 mx-auto
+
 drop-shadow-2xl
+
 "
 
 />
@@ -458,6 +501,7 @@ drop-shadow-2xl
 <h1
 
 className="
+
 mt-6
 
 text-6xl
@@ -488,9 +532,11 @@ PocketPulls
 
 
 
+
 <p
 
 className="
+
 mt-4
 
 text-emerald-100
@@ -503,9 +549,11 @@ text-lg
 
 >
 
-Discover Pokémon hidden within the forest
+Discover Pokémon hidden inside the forest
 
 </p>
+
+
 
 
 
@@ -540,7 +588,7 @@ font-black
 
 text-xl
 
-shadow-[0_0_60px_rgba(250,204,21,.7)]
+shadow-[0_0_60px_rgba(250,204,21,.6)]
 
 hover:scale-110
 
@@ -558,7 +606,7 @@ opening
 
 ?
 
-"🌿 Searching..."
+"🌿 Growing..."
 
 :
 
@@ -571,7 +619,7 @@ opening
 
 
 
-</div>
+
 
 
 </section>
@@ -584,38 +632,23 @@ opening
 
 
 
-{/* REVEAL AREA */}
+{opening && (
 
-{
+<div className="mt-14">
 
-opening && (
+<PullMachine
 
-<div
-
-className="
-mt-16
-
-flex
-
-justify-center
-
-"
-
->
-
-
-<PullAnimation
+opening={opening}
 
 stage={stage}
 
-/>
+progress={progress}
 
+/>
 
 </div>
 
-)
-
-}
+)}
 
 
 
@@ -625,29 +658,21 @@ stage={stage}
 
 
 
-{/* CARD REVEAL */}
-
-{
-
-card && !opening && (
+{card && !opening && (
 
 <div
 
 className="
+
 mt-16
 
 flex
 
 justify-center
 
-items-center
-
-w-full
-
 "
 
 >
-
 
 <PullCard
 
@@ -655,12 +680,9 @@ card={card}
 
 />
 
-
 </div>
 
-)
-
-}
+)}
 
 
 
@@ -670,16 +692,7 @@ card={card}
 
 
 
-{/* PROFILE */}
-
-<section
-
-className="
-mt-16
-"
-
->
-
+<section className="mt-16">
 
 <PullStats
 
@@ -687,7 +700,6 @@ history={history}
 
 />
 
-
 </section>
 
 
@@ -698,16 +710,7 @@ history={history}
 
 
 
-{/* HISTORY */}
-
-<section
-
-className="
-mt-16
-"
-
->
-
+<section className="mt-16">
 
 <PullHistory
 
@@ -715,7 +718,6 @@ history={history}
 
 />
 
-
 </section>
 
 
@@ -726,13 +728,12 @@ history={history}
 
 
 
-{
-
-error && (
+{error && (
 
 <div
 
 className="
+
 mt-10
 
 rounded-3xl
@@ -757,9 +758,7 @@ font-bold
 
 </div>
 
-)
-
-}
+)}
 
 
 
@@ -770,6 +769,7 @@ font-bold
 
 
 </main>
+
 
 );
 
