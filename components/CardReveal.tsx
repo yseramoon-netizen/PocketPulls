@@ -1,12 +1,11 @@
 "use client";
 
-import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
 
 
-interface CardRevealProps {
+interface CardRevealProps{
 
-  card:any;
+card:any;
 
 }
 
@@ -14,213 +13,299 @@ interface CardRevealProps {
 
 export default function CardReveal({
 
-  card
+card
 
 }:CardRevealProps){
 
 
-  const [show,setShow]=useState(false);
 
+const [show,setShow]=useState(false);
 
+const [value,setValue]=useState(0);
 
-  useEffect(()=>{
+const [bloom,setBloom]=useState(false);
 
 
-    setShow(false);
 
 
-    const timer=setTimeout(()=>{
 
-      setShow(true);
 
-    },300);
+useEffect(()=>{
 
 
+setTimeout(()=>{
 
-    return ()=>clearTimeout(timer);
+setBloom(true);
 
+},300);
 
-  },[card]);
 
 
+setTimeout(()=>{
 
+setShow(true);
 
+},900);
 
 
-  if(!card)
-  return null;
 
 
 
+const target =
+Number(card.market_value || 0);
 
 
 
+let current=0;
 
-  function rarityStyle(rarity:string){
 
 
-    const r =
-    rarity?.toLowerCase() || "";
+const counter=setInterval(()=>{
 
 
+current += target / 40;
 
-    if(r.includes("secret"))
 
-    return {
 
-      border:
-      "from-purple-500 via-yellow-300 to-pink-500",
+if(current >= target){
 
-      glow:
-      "shadow-[0_0_120px_rgba(250,204,21,.9)]"
+current=target;
 
-    };
+clearInterval(counter);
 
+}
 
 
-    if(
-      r.includes("illustration")
-    )
 
-    return {
+setValue(current);
 
-      border:
-      "from-pink-400 via-purple-400 to-blue-400",
 
-      glow:
-      "shadow-[0_0_100px_rgba(168,85,247,.8)]"
 
-    };
+},40);
 
 
 
-    if(
-      r.includes("ultra")
-    )
 
-    return {
 
-      border:
-      "from-blue-400 via-purple-400 to-indigo-500",
+return()=>clearInterval(counter);
 
-      glow:
-      "shadow-[0_0_90px_rgba(99,102,241,.8)]"
 
-    };
 
+},[card]);
 
 
-    if(
-      r.includes("rare")
-    )
 
-    return {
 
-      border:
-      "from-yellow-300 to-orange-400",
 
-      glow:
-      "shadow-[0_0_80px_rgba(250,204,21,.7)]"
 
-    };
 
 
 
-    return {
+function rarityStyle(){
 
-      border:
-      "from-emerald-300 to-green-400",
 
-      glow:
-      "shadow-[0_0_60px_rgba(16,185,129,.5)]"
+const rarity =
 
-    };
+(card.rarity || "")
+.toLowerCase();
 
 
-  }
 
 
+if(rarity.includes("secret")){
 
 
+return{
 
-  const style =
-  rarityStyle(card.rarity);
+label:"SECRET RARE",
 
+gradient:
+"from-yellow-300 via-pink-500 to-purple-600",
 
+glow:
+"shadow-[0_0_120px_rgba(250,204,21,.9)]"
 
+};
 
+}
 
 
 
 
+if(rarity.includes("ultra")){
 
-return (
 
-<div
+return{
+
+label:"ULTRA RARE",
+
+gradient:
+"from-purple-400 via-blue-500 to-cyan-400",
+
+glow:
+"shadow-[0_0_100px_rgba(59,130,246,.8)]"
+
+};
+
+}
+
+
+
+
+
+if(rarity.includes("illustration")){
+
+
+return{
+
+label:"ILLUSTRATION RARE",
+
+gradient:
+"from-pink-400 via-purple-500 to-blue-500",
+
+glow:
+"shadow-[0_0_100px_rgba(236,72,153,.8)]"
+
+};
+
+}
+
+
+
+
+
+if(rarity.includes("rare")){
+
+
+return{
+
+label:"RARE",
+
+gradient:
+"from-yellow-300 to-orange-500",
+
+glow:
+"shadow-[0_0_80px_rgba(250,204,21,.7)]"
+
+};
+
+}
+
+
+
+
+
+return{
+
+label:"FOREST DISCOVERY",
+
+gradient:
+"from-emerald-300 to-green-600",
+
+glow:
+"shadow-[0_0_80px_rgba(16,185,129,.6)]"
+
+};
+
+
+
+}
+
+
+
+
+
+
+
+const style = rarityStyle();
+
+
+
+
+
+
+
+return(
+
+<section
 
 className="
+
 relative
+
+w-full
+
 flex
+
 justify-center
-items-center
+
+overflow-hidden
+
 "
 
 >
 
 
-{/* particles */}
+
+
+
+
+
+{/* forest atmosphere */}
+
+
+<div
+
+className="
+
+absolute
+
+inset-0
+
+pointer-events-none
+
+"
+
+>
+
+
 
 {
 
-Array.from({
-length:25
-}).map((_,i)=>(
+Array.from({length:30}).map((_,i)=>(
 
 
-<motion.div
+<div
 
 key={i}
 
-initial={{
-
-opacity:0,
-
-scale:0
-
-}}
-
-
-animate={{
-
-opacity:[0,1,0],
-
-scale:[0,1.5,0],
-
-y:-150,
-
-x:
-Math.random()*300-150
-
-}}
-
-
-transition={{
-
-duration:2,
-
-delay:i*.04
-
-}}
-
-
 className="
+
 absolute
+
 w-2
+
 h-2
+
 rounded-full
+
 bg-yellow-300
-shadow-[0_0_20px_8px_rgba(250,204,21,.8)]
+
+animate-pulse
+
+shadow-[0_0_20px_5px_rgba(250,204,21,.7)]
+
 "
+
+style={{
+
+left:`${Math.random()*100}%`,
+
+top:`${Math.random()*100}%`,
+
+animationDelay:`${i*0.15}s`
+
+}}
 
 />
 
@@ -231,90 +316,224 @@ shadow-[0_0_20px_8px_rgba(250,204,21,.8)]
 
 
 
+</div>
 
 
-<motion.div
 
 
-initial={{
-
-rotateY:180,
-
-scale:.4,
-
-opacity:0
-
-}}
 
 
-animate={
+
+
+
+<div
+
+className={`
+
+relative
+
+transition-all
+
+duration-1000
+
+${
 
 show
 
 ?
 
-{
-
-rotateY:0,
-
-scale:1,
-
-opacity:1
-
-}
+"opacity-100 translate-y-0"
 
 :
 
-{}
+"opacity-0 translate-y-20"
 
 }
 
+`
 
-transition={{
-
-duration:1,
-
-type:"spring",
-
-bounce:.4
-
-}}
-
-
-
-style={{
-
-transformStyle:"preserve-3d"
-
-}}
-
-
-className={`
-relative
-p-2
-rounded-[3rem]
-bg-gradient-to-br
-${style.border}
-${style.glow}
-w-full
-max-w-sm
-`}
-
+}
 
 >
+
+
+
+
+
+
+
+{/* tree glow */}
+
+
+<div
+
+className={`
+
+absolute
+
+-inset-20
+
+rounded-full
+
+bg-emerald-400/30
+
+blur-3xl
+
+transition
+
+duration-1000
+
+${
+
+bloom
+
+?
+
+"scale-150"
+
+:
+
+"scale-50"
+
+}
+
+`
+
+}
+
+/>
+
+
+
+
+
+
+
+
+
+
+{/* card frame */}
+
+
+<div
+
+className={`
+
+relative
+
+rounded-[3rem]
+
+p-1
+
+bg-gradient-to-br
+
+${style.gradient}
+
+${style.glow}
+
+`
+
+}
+
+>
+
+
+
+
+
+
 
 
 <div
 
 className="
-bg-white
-rounded-[2.7rem]
-p-5
-text-black
-text-center
+
+rounded-[2.8rem]
+
+bg-black/70
+
+backdrop-blur-xl
+
+p-6
+
+w-[340px]
+
 "
 
 >
+
+
+
+
+
+
+<div
+
+className="
+
+flex
+
+justify-between
+
+items-center
+
+"
+
+>
+
+
+<span
+
+className="
+
+bg-white/10
+
+px-4
+
+py-2
+
+rounded-full
+
+text-xs
+
+font-black
+
+"
+
+>
+
+NEW DISCOVERY
+
+</span>
+
+
+
+
+<span
+
+className="
+
+text-yellow-300
+
+font-black
+
+"
+
+>
+
+✦ {style.label}
+
+</span>
+
+
+
+</div>
+
+
+
+
+
+
 
 
 
@@ -323,12 +542,22 @@ text-center
 src={card.image_url}
 
 className="
-rounded-3xl
-shadow-xl
-mx-auto
+
+mt-6
+
+rounded-[2rem]
+
+w-full
+
+shadow-2xl
+
 "
 
-/>
+ />
+
+
+
+
 
 
 
@@ -337,9 +566,15 @@ mx-auto
 <h1
 
 className="
+
 mt-6
+
+text-center
+
 text-4xl
+
 font-black
+
 "
 
 >
@@ -352,13 +587,21 @@ font-black
 
 
 
+
+
+
 <p
 
 className="
-mt-3
-text-lg
+
+text-center
+
+mt-2
+
+text-emerald-200
+
 font-bold
-text-gray-600
+
 "
 
 >
@@ -371,13 +614,24 @@ text-gray-600
 
 
 
+
+
+
+
 <div
 
 className="
-mt-5
-bg-emerald-100
-rounded-2xl
-p-4
+
+mt-8
+
+rounded-3xl
+
+bg-white/10
+
+p-5
+
+text-center
+
 "
 
 >
@@ -386,9 +640,17 @@ p-4
 <p
 
 className="
-text-sm
+
+text-xs
+
+uppercase
+
+tracking-widest
+
+text-gray-300
+
 font-bold
-text-gray-500
+
 "
 
 >
@@ -398,22 +660,33 @@ Market Value
 </p>
 
 
+
 <p
 
 className="
-text-4xl
+
+text-5xl
+
 font-black
-text-emerald-700
+
+text-yellow-300
+
+mt-2
+
 "
 
 >
 
-£{Number(card.market_value).toFixed(2)}
+£{value.toFixed(2)}
 
 </p>
 
 
+
 </div>
+
+
+
 
 
 
@@ -423,35 +696,63 @@ text-emerald-700
 <button
 
 className="
-mt-5
+
+mt-6
+
 w-full
-py-3
-rounded-2xl
-bg-emerald-600
-text-white
+
+rounded-full
+
+py-4
+
+bg-gradient-to-r
+
+from-yellow-300
+
+to-orange-400
+
+text-black
+
 font-black
+
 hover:scale-105
+
 transition
+
 "
 
 >
 
-🌿 Added to Collection
+✨ Add To Collection
 
 </button>
 
 
 
-</div>
-
-
-
-</motion.div>
 
 
 
 
 </div>
+
+
+
+
+
+</div>
+
+
+
+
+
+
+
+
+</div>
+
+
+
+</section>
 
 
 );

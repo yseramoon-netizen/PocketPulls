@@ -1,40 +1,6 @@
 import { NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
-
-
-function rollRarity(){
-
-
-const roll = Math.random() * 100;
-
-
-
-if(roll < 0.2)
-return "Secret Rare";
-
-
-if(roll < 2)
-return "Ultra Rare";
-
-
-if(roll < 10)
-return "Rare";
-
-
-if(roll < 30)
-return "Uncommon";
-
-
-return "Common";
-
-
-}
-
-
-
-
-
+import { supabase } from "@/lib/supabase";
 
 
 export async function POST(req:Request){
@@ -43,21 +9,25 @@ export async function POST(req:Request){
 try{
 
 
-const {
-userId
-}=await req.json();
+const body = await req.json();
+
+
+const userId = body.userId;
 
 
 
 if(!userId){
 
 return NextResponse.json(
+
 {
-error:"Missing user"
+error:"User missing"
 },
+
 {
 status:400
 }
+
 );
 
 }
@@ -67,29 +37,102 @@ status:400
 
 
 
-// 1. DECIDE RARITY
+/*
+GET USER WALLET
+*/
 
-let rarity = rollRarity();
+
+const {
+
+data:user,
+
+error:userError
+
+}=await supabase
+
+.from("profiles")
+
+.select("balance")
+
+.eq(
+
+"id",
+
+userId
+
+)
+
+.single();
 
 
 
-console.log(
-"RARITY ROLL:",
-rarity
+if(userError || !user){
+
+return NextResponse.json(
+
+{
+error:"Profile not found"
+},
+
+{
+status:400
+}
+
+);
+
+}
+
+
+
+
+
+
+
+
+const price = 1;
+
+
+
+
+
+if(Number(user.balance) < price){
+
+
+return NextResponse.json(
+
+{
+error:"Insufficient balance"
+},
+
+{
+status:400
+}
+
 );
 
 
+}
 
 
 
 
-// 2. FIND CARDS OF THAT RARITY
 
 
-let {
+
+
+
+/*
+GET AVAILABLE INVENTORY
+*/
+
+
+const {
+
 data:inventory,
-error
-}=await supabaseAdmin
+
+error:inventoryError
+
+}=await supabase
 
 .from("inventory")
 
@@ -105,9 +148,9 @@ id,
 
 name,
 
-image_url,
-
 rarity,
+
+image_url,
 
 market_value
 
@@ -116,34 +159,10 @@ market_value
 `)
 
 .gt(
+
 "quantity",
+
 0
-);
-
-
-
-
-
-
-if(error)
-throw error;
-
-
-
-
-
-
-
-// Filter rarity
-
-let available = inventory?.filter(
-(item:any)=>
-
-item.pokemon_cards?.rarity
-?.toLowerCase()
-.includes(
-rarity.toLowerCase()
-)
 
 );
 
@@ -153,20 +172,45 @@ rarity.toLowerCase()
 
 
 
-// If no cards of rarity exist,
-// fallback to any available card
+if(inventoryError){
 
-if(!available || available.length===0){
+console.error(inventoryError);
 
 
-console.log(
-"No",
-rarity,
-"cards available. Falling back."
+return NextResponse.json(
+
+{
+error:"Inventory loading failed"
+},
+
+{
+status:500
+}
+
 );
 
 
-available = inventory || [];
+}
+
+
+
+
+
+
+if(!inventory || inventory.length===0){
+
+
+return NextResponse.json(
+
+{
+error:"Forest is empty"
+},
+
+{
+status:400
+}
+
+);
 
 
 }
@@ -178,70 +222,59 @@ available = inventory || [];
 
 
 
-// 3. WEIGHT BY QUANTITY
 
 
-let pool:any[]=[];
-
-
-
-available.forEach((item:any)=>{
-
-
-for(
-let i=0;
-i<item.quantity;
-i++
-){
-
-pool.push(item);
-
-}
-
-
-});
-
-
-
-
-
-
-
-if(pool.length===0){
-
-
-return NextResponse.json({
-
-error:"No cards available"
-
-});
-
-
-}
-
-
-
-
-
-
-
-// 4. SELECT CARD
+/*
+CHOOSE RANDOM CARD
+FROM REAL INVENTORY
+*/
 
 
 const selected =
 
-pool[
+inventory[
+
 Math.floor(
-Math.random()*pool.length
+
+Math.random()
+
+*
+
+inventory.length
+
 )
+
 ];
 
 
 
 
 
-const card =
-selected.pokemon_cards;
+
+const card = selected.pokemon_cards;
+
+
+
+
+
+
+if(!card){
+
+
+return NextResponse.json(
+
+{
+error:"Invalid card"
+},
+
+{
+status:500
+}
+
+);
+
+
+}
 
 
 
@@ -250,17 +283,52 @@ selected.pokemon_cards;
 
 
 
-// 5. REMOVE FROM INVENTORY
+
+/*
+REMOVE ONE CARD
+*/
 
 
-await supabaseAdmin
+const newQuantity =
+
+Number(selected.quantity)-1;
+
+
+
+
+if(newQuantity<=0){
+
+
+
+await supabase
+
+.from("inventory")
+
+.delete()
+
+.eq(
+
+"id",
+
+selected.id
+
+);
+
+
+
+}
+
+else{
+
+
+
+await supabase
 
 .from("inventory")
 
 .update({
 
-quantity:
-selected.quantity - 1
+quantity:newQuantity
 
 })
 
@@ -274,34 +342,7 @@ selected.id
 
 
 
-
-
-
-
-
-
-// 6. ADD TO COLLECTION
-
-
-const {
-data:existing
-}=await supabaseAdmin
-
-.from("user_cards")
-
-.select("*")
-
-.eq(
-"user_id",
-userId
-)
-
-.eq(
-"card_id",
-card.id
-)
-
-.maybeSingle();
+}
 
 
 
@@ -309,48 +350,35 @@ card.id
 
 
 
-if(existing){
 
 
-await supabaseAdmin
+/*
+REMOVE MONEY
+*/
 
-.from("user_cards")
+
+await supabase
+
+.from("profiles")
 
 .update({
 
-quantity:
-existing.quantity + 1
+balance:
+
+Number(user.balance)-price
 
 })
 
 .eq(
+
 "id",
-existing.id
+
+userId
+
 );
 
 
 
-}
-
-else{
-
-
-await supabaseAdmin
-
-.from("user_cards")
-
-.insert({
-
-user_id:userId,
-
-card_id:card.id,
-
-quantity:1
-
-});
-
-
-}
 
 
 
@@ -358,12 +386,12 @@ quantity:1
 
 
 
+/*
+SAVE HISTORY
+*/
 
 
-// 7. SAVE HISTORY
-
-
-await supabaseAdmin
+await supabase
 
 .from("pull_history")
 
@@ -374,9 +402,17 @@ user_id:userId,
 card_id:card.id,
 
 market_value:
-card.market_value
+
+Number(card.market_value || 0),
+
+amount_paid:
+
+price
 
 });
+
+
+
 
 
 
@@ -388,38 +424,46 @@ return NextResponse.json({
 
 success:true,
 
-rarityRolled:rarity,
+card:{
 
-card
+id:card.id,
+
+name:card.name,
+
+rarity:card.rarity,
+
+image_url:card.image_url,
+
+market_value:Number(card.market_value || 0)
+
+}
 
 });
-
-
-
 
 
 
 
 
 }
+
 catch(error:any){
 
 
-console.log(
-error
-);
+console.error(error);
 
 
 
-return NextResponse.json({
+return NextResponse.json(
 
-error:error.message
-
+{
+error:error.message || "Pull failed"
 },
 
 {
 status:500
-});
+}
+
+);
 
 
 }

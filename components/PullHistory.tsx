@@ -3,16 +3,28 @@
 
 interface PullHistoryProps {
 
+
 items:{
-  id:string;
-  name:string;
-  rarity:string;
-  value:number;
-  created_at:string;
-  image_url?:string;
+
+id:string;
+
+name:string;
+
+rarity:string;
+
+value:number;
+
+amount_paid?:number;
+
+created_at:string;
+
+image_url?:string;
+
 }[];
 
+
 }
+
 
 
 
@@ -28,75 +40,101 @@ items
 
 
 
-function rarityStyle(rarity:string){
+function timeAgo(date:string){
+
+
+const seconds =
+
+Math.floor(
+
+(Date.now() -
+
+new Date(date).getTime())
+
+/1000
+
+);
+
+
+
+
+if(seconds < 60)
+
+return `${seconds}s ago`;
+
+
+
+const minutes =
+
+Math.floor(seconds/60);
+
+
+
+if(minutes < 60)
+
+return `${minutes}m ago`;
+
+
+
+const hours =
+
+Math.floor(minutes/60);
+
+
+
+if(hours < 24)
+
+return `${hours}h ago`;
+
+
+
+return new Date(date)
+
+.toLocaleDateString();
+
+
+}
+
+
+
+
+
+
+
+
+function rarityGlow(rarity:string){
+
 
 const r =
-rarity?.toLowerCase() || "";
+
+rarity.toLowerCase();
+
+
+
 
 
 if(r.includes("secret"))
 
-return "shadow-[0_0_40px_rgba(250,204,21,.7)] border-yellow-300/50";
+return "shadow-[0_0_40px_rgba(250,204,21,.8)]";
 
-
-if(r.includes("illustration"))
-
-return "shadow-[0_0_40px_rgba(236,72,153,.6)] border-pink-400/50";
 
 
 if(r.includes("ultra"))
 
-return "shadow-[0_0_40px_rgba(59,130,246,.6)] border-blue-400/50";
+return "shadow-[0_0_40px_rgba(168,85,247,.8)]";
+
 
 
 if(r.includes("rare"))
 
-return "shadow-[0_0_30px_rgba(250,204,21,.4)] border-yellow-300/30";
+return "shadow-[0_0_30px_rgba(59,130,246,.6)]";
 
 
-return "shadow-[0_0_25px_rgba(16,185,129,.3)] border-emerald-400/30";
+
+return "shadow-[0_0_20px_rgba(16,185,129,.5)]";
+
 
 }
-
-
-
-
-function timeAgo(date:string){
-
-const seconds =
-Math.floor(
-(Date.now()-new Date(date).getTime())/1000
-);
-
-
-if(seconds < 60)
-return `${seconds}s ago`;
-
-
-const minutes =
-Math.floor(seconds/60);
-
-
-if(minutes < 60)
-return `${minutes}m ago`;
-
-
-const hours =
-Math.floor(minutes/60);
-
-
-if(hours < 24)
-return `${hours}h ago`;
-
-
-const days =
-Math.floor(hours/24);
-
-
-return `${days}d ago`;
-
-}
-
 
 
 
@@ -106,7 +144,6 @@ return `${days}d ago`;
 
 
 return(
-
 
 <section
 
@@ -126,9 +163,7 @@ border-white/20
 
 p-8
 
-shadow-[0_0_80px_rgba(16,185,129,.15)]
-
-overflow-hidden
+shadow-[0_0_70px_rgba(16,185,129,.2)]
 
 "
 
@@ -145,8 +180,6 @@ flex
 justify-between
 
 items-center
-
-mb-8
 
 "
 
@@ -168,9 +201,10 @@ font-black
 
 >
 
-Recent Discoveries
+🌎 Recent Discoveries
 
 </h2>
+
 
 
 <p
@@ -187,7 +221,7 @@ mt-1
 
 >
 
-Worldwide forest activity
+The PocketPulls Forest
 
 </p>
 
@@ -196,37 +230,27 @@ Worldwide forest activity
 
 
 
-
-
-<div
+<span
 
 className="
-
-px-4
-
-py-2
 
 rounded-full
 
 bg-emerald-400/20
 
-border
+px-5
 
-border-emerald-300/30
-
-text-emerald-100
+py-2
 
 font-black
-
-text-sm
 
 "
 
 >
 
-🌎 LIVE FEED
+LIVE
 
-</div>
+</span>
 
 
 
@@ -243,12 +267,17 @@ text-sm
 <div
 
 className="
+
+mt-8
 
 space-y-4
 
 "
 
 >
+
+
+
 
 
 {
@@ -263,7 +292,7 @@ className="
 
 text-center
 
-py-14
+py-12
 
 text-emerald-200
 
@@ -273,24 +302,42 @@ font-bold
 
 >
 
-🌱 No discoveries yet
-
-<br/>
-
-<span className="text-sm opacity-70">
-
-Be the first to awaken the forest
-
-</span>
+No discoveries yet 🌱
 
 </div>
+
 
 
 :
 
 
-items.map((item)=>(
 
+items.slice(0,5).map(item=>{
+
+
+
+const paid =
+
+Number(item.amount_paid || 0);
+
+
+
+const value =
+
+Number(item.value || 0);
+
+
+
+const gain =
+
+value-paid;
+
+
+
+
+
+
+return(
 
 
 <div
@@ -298,10 +345,6 @@ items.map((item)=>(
 key={item.id}
 
 className={`
-
-group
-
-relative
 
 flex
 
@@ -311,101 +354,90 @@ gap-5
 
 rounded-[2rem]
 
-bg-black/20
+bg-black/30
 
 border
 
+border-white/10
+
 p-4
-
-transition-all
-
-duration-300
-
-hover:bg-white/10
-
-hover:scale-[1.02]
-
-${rarityStyle(item.rarity)}
-
-`}
-
->
-
-
-
-
-
-
-<div
-
-className="
-
-relative
-
-shrink-0
-
-"
-
->
-
-
-<div
-
-className="
-
-absolute
-
-inset-0
-
-rounded-2xl
-
-bg-emerald-400/20
-
-blur-xl
-
-group-hover:bg-yellow-300/30
 
 transition
 
-"
+hover:bg-white/10
 
-/>
+${
 
+rarityGlow(item.rarity)
 
-
-
-
-<img
-
-src={
-item.image_url || "/card-placeholder.png"
 }
 
-alt={item.name}
+`
+
+}
+
+>
+
+
+
+
+<div
 
 className="
-
-relative
 
 w-20
 
 h-28
 
-object-cover
-
 rounded-2xl
 
-shadow-xl
+overflow-hidden
 
-group-hover:scale-110
+bg-emerald-900
 
-transition
+flex
 
-duration-300
+items-center
+
+justify-center
+
+"
+
+>
+
+
+{
+
+item.image_url
+
+?
+
+<img
+
+src={item.image_url}
+
+className="
+
+w-full
+
+h-full
+
+object-cover
 
 "
 
 />
+
+:
+
+<span>
+
+🎴
+
+</span>
+
+}
+
 
 
 </div>
@@ -424,8 +456,6 @@ className="
 
 flex-1
 
-min-w-0
-
 "
 
 >
@@ -437,9 +467,7 @@ className="
 
 font-black
 
-text-lg
-
-truncate
+text-xl
 
 "
 
@@ -452,13 +480,12 @@ truncate
 
 
 
+
 <p
 
 className="
 
 text-emerald-200
-
-text-sm
 
 font-bold
 
@@ -473,14 +500,13 @@ font-bold
 
 
 
-
 <p
 
 className="
 
-text-gray-300
-
 text-xs
+
+text-gray-300
 
 mt-2
 
@@ -488,13 +514,13 @@ mt-2
 
 >
 
-🌲 {timeAgo(item.created_at)}
+{timeAgo(item.created_at)}
 
 </p>
 
 
-</div>
 
+</div>
 
 
 
@@ -520,38 +546,88 @@ className="
 
 font-black
 
-text-xl
-
-text-yellow-300
-
 "
 
 >
 
-£{Number(item.value).toFixed(2)}
+Paid £{paid.toFixed(2)}
 
 </p>
+
+
+
 
 
 <p
 
 className="
 
-text-xs
+text-emerald-300
 
-text-gray-300
+font-black
 
-font-bold
+text-xl
 
 "
 
 >
 
-VALUE
+£{value.toFixed(2)}
 
 </p>
 
 
+
+
+
+<p
+
+className={`
+
+font-black
+
+text-sm
+
+${
+
+gain>=0
+
+?
+
+"text-yellow-300"
+
+:
+
+"text-red-300"
+
+}
+
+`
+
+}
+
+>
+
+{
+
+gain>=0
+
+?
+
+`+£${gain.toFixed(2)}`
+
+:
+
+`-£${Math.abs(gain).toFixed(2)}`
+
+}
+
+
+</p>
+
+
+
+
 </div>
 
 
@@ -560,20 +636,21 @@ VALUE
 
 
 
-
 </div>
 
 
+)
 
-))
+
+})
 
 
 }
 
 
 
-</div>
 
+</div>
 
 
 

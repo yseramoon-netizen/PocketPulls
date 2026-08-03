@@ -37,13 +37,30 @@ totalValue - cost;
 
 
 
+const returnRate =
+cost > 0
+
+?
+
+((totalValue / cost) * 100)
+
+:
+
+0;
+
+
+
+
+
 const stats=[
 
+
 {
-label:"Total Pulls",
+label:"Cards Pulled",
 value:count,
 icon:"🎴"
 },
+
 
 {
 label:"Spent",
@@ -51,11 +68,13 @@ value:`£${cost.toFixed(2)}`,
 icon:"💰"
 },
 
+
 {
 label:"Forest Value",
 value:`£${totalValue.toFixed(2)}`,
 icon:"💎"
 },
+
 
 {
 label:"Best Discovery",
@@ -63,7 +82,11 @@ value:bestPull.name,
 icon:"👑"
 }
 
+
 ];
+
+
+
 
 
 
@@ -71,9 +94,13 @@ icon:"👑"
 
 return(
 
+
 <section
 
 className="
+
+mt-10
+
 grid
 
 grid-cols-2
@@ -82,14 +109,13 @@ md:grid-cols-4
 
 gap-5
 
-mt-10
-
 "
 
 >
 
 
 {
+
 
 stats.map((stat)=>(
 
@@ -116,9 +142,11 @@ border-white/20
 
 p-6
 
-text-center
-
 shadow-[0_0_40px_rgba(16,185,129,.15)]
+
+hover:scale-[1.03]
+
+transition
 
 "
 
@@ -128,7 +156,47 @@ shadow-[0_0_40px_rgba(16,185,129,.15)]
 <div
 
 className="
+
+absolute
+
+inset-0
+
+bg-gradient-to-br
+
+from-white/10
+
+to-transparent
+
+pointer-events-none
+
+"
+
+/>
+
+
+
+
+
+
+<div
+
+className="
+
+relative
+
+text-center
+
+"
+
+>
+
+
+<div
+
+className="
+
 text-4xl
+
 "
 
 >
@@ -139,20 +207,23 @@ text-4xl
 
 
 
+
+
 <p
 
 className="
+
 mt-3
 
 text-emerald-200
 
-text-sm
-
-font-bold
-
 uppercase
 
-tracking-wider
+tracking-widest
+
+text-xs
+
+font-black
 
 "
 
@@ -161,6 +232,7 @@ tracking-wider
 {stat.label}
 
 </p>
+
 
 
 
@@ -175,6 +247,8 @@ text-xl
 
 font-black
 
+truncate
+
 "
 
 >
@@ -185,7 +259,13 @@ font-black
 
 
 
+
 </div>
+
+
+
+</div>
+
 
 
 ))
@@ -194,7 +274,170 @@ font-black
 
 
 
+
+
+<div
+
+className="
+
+col-span-2
+
+md:col-span-4
+
+rounded-[2rem]
+
+bg-black/20
+
+backdrop-blur-xl
+
+border
+
+border-white/10
+
+p-6
+
+flex
+
+justify-between
+
+items-center
+
+"
+
+>
+
+
+<div>
+
+
+<p
+
+className="
+
+text-emerald-200
+
+text-sm
+
+font-bold
+
+uppercase
+
+"
+
+>
+
+Collector Return
+
+</p>
+
+
+
+<p
+
+className={`
+
+text-4xl
+
+font-black
+
+mt-1
+
+${
+profit >= 0
+
+?
+
+"text-yellow-300"
+
+:
+
+"text-red-400"
+
+}
+
+`}
+
+>
+
+{
+
+profit >= 0
+
+?
+
+"+"
+
+:
+
+""
+
+}
+
+£{profit.toFixed(2)}
+
+</p>
+
+
+</div>
+
+
+
+
+
+
+<div className="text-right">
+
+
+<p
+
+className="
+
+text-emerald-200
+
+text-sm
+
+font-bold
+
+"
+
+>
+
+Value Efficiency
+
+</p>
+
+
+<p
+
+className="
+
+text-3xl
+
+font-black
+
+"
+
+>
+
+{returnRate.toFixed(0)}%
+
+</p>
+
+
+</div>
+
+
+
+
+
+</div>
+
+
+
+
+
 </section>
+
 
 );
 

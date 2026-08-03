@@ -1,33 +1,56 @@
 "use client";
 
 import { useEffect, useState } from "react";
+
 import { supabase } from "@/lib/supabase";
 
 import AdminNav from "@/components/AdminNav";
+import ForestBackground from "@/components/ForestBackground";
+
 import PullMachine from "@/components/PullMachine";
 import CardReveal from "@/components/CardReveal";
 import PullStats from "@/components/PullStats";
 import PullHistory from "@/components/PullHistory";
 
 
+
+const DAILY_LIMIT = 10;
+
+
+
+
+
 export default function PullsPage(){
 
 
-const [user,setUser] = useState<any>(null);
 
-const [checking,setChecking] = useState(true);
+const [user,setUser]=useState<any>(null);
 
-const [opening,setOpening] = useState(false);
+const [loading,setLoading]=useState(true);
 
-const [progress,setProgress] = useState(0);
+const [opening,setOpening]=useState(false);
 
-const [stage,setStage] = useState("");
+const [progress,setProgress]=useState(0);
 
-const [card,setCard] = useState<any>(null);
+const [stage,setStage]=useState("");
 
-const [history,setHistory] = useState<any[]>([]);
+const [card,setCard]=useState<any>(null);
 
-const [error,setError] = useState("");
+const [history,setHistory]=useState<any[]>([]);
+
+const [balance,setBalance]=useState(0);
+
+const [dailyPulls,setDailyPulls]=useState(0);
+
+const [error,setError]=useState("");
+
+
+
+
+
+const pullPrice = dailyPulls + 1;
+
+
 
 
 
@@ -35,7 +58,7 @@ const [error,setError] = useState("");
 
 useEffect(()=>{
 
-loadUser();
+initialise();
 
 },[]);
 
@@ -44,20 +67,27 @@ loadUser();
 
 
 
-async function loadUser(){
+
+
+
+async function initialise(){
 
 
 const {
+
 data:{
 user
+
 }
+
 }=await supabase.auth.getUser();
+
 
 
 
 if(!user){
 
-setChecking(false);
+setLoading(false);
 
 return;
 
@@ -67,9 +97,22 @@ return;
 
 setUser(user);
 
-await loadHistory();
 
-setChecking(false);
+
+
+await Promise.all([
+
+loadWallet(user),
+
+loadDaily(user),
+
+loadHistory(user)
+
+]);
+
+
+
+setLoading(false);
 
 
 }
@@ -80,12 +123,139 @@ setChecking(false);
 
 
 
-async function loadHistory(){
+
+
+async function loadWallet(current:any){
 
 
 const {
-data,
-error
+
+data
+
+}=await supabase
+
+.from("profiles")
+
+.select("balance")
+
+.eq(
+
+"id",
+
+current.id
+
+)
+
+.single();
+
+
+
+
+setBalance(
+
+Number(data?.balance || 0)
+
+);
+
+
+}
+
+
+
+
+
+
+
+
+
+async function loadDaily(current:any){
+
+
+const start=new Date();
+
+
+start.setHours(
+
+0,
+
+0,
+
+0,
+
+0
+
+);
+
+
+
+
+
+const {
+
+count
+
+}=await supabase
+
+.from("pull_history")
+
+.select(
+
+"id",
+
+{
+
+count:"exact",
+
+head:true
+
+}
+
+)
+
+.eq(
+
+"user_id",
+
+current.id
+
+)
+
+.gte(
+
+"created_at",
+
+start.toISOString()
+
+);
+
+
+
+
+
+setDailyPulls(
+
+count || 0
+
+);
+
+
+}
+
+
+
+
+
+
+
+
+
+async function loadHistory(current:any){
+
+
+const {
+
+data
+
 }=await supabase
 
 .from("pull_history")
@@ -98,61 +268,82 @@ created_at,
 
 market_value,
 
+amount_paid,
+
+
 pokemon_cards(
 
 name,
 
-image_url,
+rarity,
 
-rarity
+image_url
 
 )
 
 `)
+
+.eq(
+
+"user_id",
+
+current.id
+
+)
 
 .order(
 
 "created_at",
 
 {
+
 ascending:false
+
 }
 
 )
 
-.limit(20);
+.limit(10);
 
 
 
 
-if(error){
-
-setError(error.message);
-
-return;
-
-}
 
 
 
-const formatted = (data || []).map((item:any)=>({
+setHistory(
+
+(data || []).map((item:any)=>(
+
+{
+
 
 id:item.id,
 
+
 name:item.pokemon_cards?.name || "Unknown",
+
 
 rarity:item.pokemon_cards?.rarity || "Unknown",
 
+
+image_url:item.pokemon_cards?.image_url,
+
+
 value:Number(item.market_value || 0),
 
-created_at:item.created_at,
 
-image_url:item.pokemon_cards?.image_url
-
-}));
+amount_paid:Number(item.amount_paid || 0),
 
 
-setHistory(formatted);
+created_at:item.created_at
+
+
+}
+
+))
+
+);
 
 
 }
@@ -168,13 +359,52 @@ setHistory(formatted);
 async function openPull(){
 
 
+
 if(!user){
 
-setError("Login required");
+setError(
+"Login required"
+);
 
 return;
 
 }
+
+
+
+if(opening)
+
+return;
+
+
+
+
+
+if(dailyPulls >= DAILY_LIMIT){
+
+setError(
+"The forest needs to recover 🌙"
+);
+
+return;
+
+}
+
+
+
+
+if(balance < pullPrice){
+
+setError(
+`You need £${pullPrice} balance`
+);
+
+return;
+
+}
+
+
+
 
 
 
@@ -189,78 +419,71 @@ setProgress(0);
 
 
 setStage(
-"🌱 The forest awakens..."
+"🌱 Awakening the ancient grove..."
 );
 
 
 
 
-let current=0;
 
 
-const interval=setInterval(()=>{
-
-
-current+=5;
-
-
-setProgress(current);
+let value=0;
 
 
 
-if(current>=25){
+
+const timer=setInterval(()=>{
+
+
+value += 5;
+
+
+setProgress(value);
+
+
+
+if(value>30)
 
 setStage(
-"✨ Ancient roots are glowing..."
+"🍃 The leaves whisper..."
 );
 
-}
 
 
-
-if(current>=60){
+if(value>60)
 
 setStage(
-"🌸 Something is blooming..."
+"✨ Ancient energy gathers..."
 );
 
-}
 
 
-
-if(current>=90){
+if(value>85)
 
 setStage(
-"🎴 A hidden treasure emerges..."
+"🎴 Something is waiting..."
 );
 
-}
+
+
+if(value>=100)
+
+clearInterval(timer);
 
 
 
-if(current>=100){
-
-clearInterval(interval);
-
-}
-
-
-},200);
-
+},150);
 
 
 
 
 
-
-
-setTimeout(async()=>{
 
 
 try{
 
 
-const response = await fetch(
+const response=await fetch(
 
 "/api/pull",
 
@@ -270,8 +493,7 @@ method:"POST",
 
 headers:{
 
-"Content-Type":
-"application/json"
+"Content-Type":"application/json"
 
 },
 
@@ -288,7 +510,8 @@ userId:user.id
 
 
 
-const data = await response.json();
+
+const data=await response.json();
 
 
 
@@ -296,18 +519,38 @@ const data = await response.json();
 
 if(!response.ok){
 
-throw new Error(
-data.error || "Pull failed"
-);
+throw new Error(data.error);
 
 }
 
 
 
 
+
+
+
+setTimeout(async()=>{
+
+
 setCard(data.card);
 
-await loadHistory();
+
+
+await loadWallet(user);
+
+await loadDaily(user);
+
+await loadHistory(user);
+
+
+
+setOpening(false);
+
+
+
+},3500);
+
+
 
 
 
@@ -315,16 +558,13 @@ await loadHistory();
 
 catch(err:any){
 
+
 setError(err.message);
-
-}
-
-
 
 setOpening(false);
 
 
-},4500);
+}
 
 
 
@@ -336,92 +576,23 @@ setOpening(false);
 
 
 
+if(loading){
 
 
-const totalValue =
-history.reduce(
+return (
 
-(sum,item)=>sum+Number(item.value || 0),
-
-0
-
-);
-
-
-
-const bestPull =
-history.length
-
-?
-
-history.reduce(
-
-(best,item)=>
-
-item.value > best.value
-
-?
-
-item
-
-:
-
-best
-
-)
-
-:
-
-{
-name:"No pull yet",
-value:0
-};
-
-
-
-
-
-
-
-
-
-if(checking){
-
-return(
-
-<div className="
-min-h-screen
-bg-black
-flex
-items-center
-justify-center
-text-emerald-400
-font-black
-text-xl
-">
-
-🌲 Entering PocketPulls Forest...
-
-</div>
-
-);
-
-}
-
-
-
-
-
-
-
-
-
-return(
-
-<main
+<div
 
 className="
+
 min-h-screen
+
+flex
+
+items-center
+
+justify-center
+
 
 bg-gradient-to-br
 
@@ -431,11 +602,54 @@ via-[#052e16]
 
 to-[#064e3b]
 
+
+text-emerald-100
+
+font-black
+
+text-xl
+
+"
+
+>
+
+🌱 Awakening PocketPulls...
+
+</div>
+
+);
+
+
+}
+
+return (
+
+<main
+
+className="
+
+relative
+
+min-h-screen
+
+overflow-hidden
+
+
+bg-gradient-to-br
+
+from-[#020617]
+
+via-[#052e16]
+
+to-[#064e3b]
+
+
 p-4
+
+pb-28
 
 md:p-8
 
-pb-40
 
 text-white
 
@@ -444,11 +658,24 @@ text-white
 >
 
 
+<ForestBackground />
+
+
+
+
+
 <div
 
 className="
-max-w-6xl
+
+relative
+
+z-10
+
+max-w-7xl
+
 mx-auto
+
 "
 
 >
@@ -462,26 +689,114 @@ mx-auto
 
 
 
+
+
+{/* MAIN SHRINE */}
+
+
 <section
 
 className="
-mt-10
 
-rounded-[3rem]
+mt-8
+
+relative
+
+overflow-hidden
+
+
+rounded-[4rem]
+
 
 bg-white/10
 
-backdrop-blur-2xl
+
+backdrop-blur-3xl
+
 
 border
 
 border-white/20
 
+
+shadow-[0_30px_120px_rgba(16,185,129,0.35)]
+
+
 p-10
+
+md:p-14
+
 
 text-center
 
-shadow-2xl
+"
+
+>
+
+
+
+<div
+
+className="
+
+absolute
+
+inset-0
+
+
+bg-gradient-to-br
+
+from-white/20
+
+via-transparent
+
+to-emerald-400/20
+
+"
+
+/>
+
+
+
+
+
+
+<div className="relative z-10">
+
+
+
+
+
+<div
+
+className="
+
+mx-auto
+
+w-40
+
+h-40
+
+
+rounded-full
+
+
+bg-emerald-400/20
+
+
+border
+
+border-white/20
+
+
+flex
+
+items-center
+
+justify-center
+
+
+shadow-[0_0_100px_rgba(52,211,153,0.55)]
 
 "
 
@@ -493,39 +808,56 @@ shadow-2xl
 src="/shaymin.png"
 
 className="
+
 w-32
-mx-auto
-drop-shadow-xl
+
+drop-shadow-2xl
+
 "
 
 />
 
 
+</div>
 
 
 
-<h1 className="
-mt-6
 
-text-6xl
+
+
+
+<h1
+
+className="
+
+mt-8
+
+text-5xl
+
+md:text-6xl
+
 
 font-black
 
+
 bg-gradient-to-r
 
-from-yellow-300
+from-white
 
-via-emerald-300
+via-emerald-200
 
-to-green-400
+to-emerald-400
+
 
 bg-clip-text
 
 text-transparent
 
-">
+"
 
-PocketPulls
+>
+
+Ancient Pull Shrine
 
 </h1>
 
@@ -533,16 +865,23 @@ PocketPulls
 
 
 
-<p className="
+<p
+
+className="
+
 mt-4
+
+text-xl
 
 text-emerald-100
 
-font-bold
+font-semibold
 
-">
+"
 
-Discover Pokémon hidden inside the forest
+>
+
+Discover Pokémon hidden within the forest
 
 </p>
 
@@ -552,42 +891,257 @@ Discover Pokémon hidden inside the forest
 
 
 
-<button
 
-onClick={openPull}
+{/* CRYSTAL STATS */}
 
-disabled={opening}
+
+
+<div
 
 className="
-mt-10
 
-px-14
+mt-12
 
-py-6
+grid
 
-rounded-full
+grid-cols-1
 
-bg-gradient-to-r
+md:grid-cols-3
 
-from-yellow-300
 
-to-orange-400
-
-text-black
-
-font-black
-
-text-xl
-
-shadow-xl
-
-hover:scale-110
-
-transition
+gap-6
 
 "
 
 >
+
+
+
+
+
+<div
+
+className="
+
+rounded-[2rem]
+
+
+bg-white/10
+
+
+border
+
+border-white/20
+
+
+backdrop-blur-xl
+
+
+p-6
+
+
+shadow-[0_0_40px_rgba(52,211,153,0.25)]
+
+"
+
+>
+
+<p className="text-4xl">
+
+💎
+
+</p>
+
+<p className="text-sm uppercase text-emerald-200 font-bold">
+
+Wallet Crystal
+
+</p>
+
+<p className="text-3xl font-black">
+
+£{balance.toFixed(2)}
+
+</p>
+
+</div>
+
+
+
+
+
+
+
+
+<div
+
+className="
+
+rounded-[2rem]
+
+
+bg-white/10
+
+
+border
+
+border-white/20
+
+
+backdrop-blur-xl
+
+
+p-6
+
+"
+
+>
+
+<p className="text-4xl">
+
+🌙
+
+</p>
+
+<p className="text-sm uppercase text-emerald-200 font-bold">
+
+Daily Energy
+
+</p>
+
+<p className="text-3xl font-black">
+
+{dailyPulls}/{DAILY_LIMIT}
+
+</p>
+
+</div>
+
+
+
+
+
+
+
+
+<div
+
+className="
+
+rounded-[2rem]
+
+
+bg-white/10
+
+
+border
+
+border-white/20
+
+
+backdrop-blur-xl
+
+
+p-6
+
+"
+
+>
+
+<p className="text-4xl">
+
+🎴
+
+</p>
+
+<p className="text-sm uppercase text-emerald-200 font-bold">
+
+Discovery Cost
+
+</p>
+
+<p className="text-3xl font-black">
+
+£{pullPrice}
+
+</p>
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+{/* OPEN BUTTON */}
+
+
+
+<button
+
+
+onClick={openPull}
+
+
+disabled={opening}
+
+
+className="
+
+
+mt-12
+
+
+px-16
+
+py-6
+
+
+rounded-full
+
+
+bg-emerald-400/30
+
+
+border
+
+border-emerald-200/40
+
+
+backdrop-blur-xl
+
+
+font-black
+
+
+text-xl
+
+
+shadow-[0_0_70px_rgba(52,211,153,0.6)]
+
+
+hover:bg-emerald-400/50
+
+
+hover:scale-105
+
+
+transition-all
+
+
+disabled:opacity-50
+
+"
+
+>
+
 
 {
 
@@ -595,15 +1149,22 @@ opening
 
 ?
 
-"🌿 Growing..."
+"🌱 The forest is awakening..."
 
 :
 
-"🎴 Open Pull"
+"🎴 Open Hidden Discovery"
 
 }
 
+
 </button>
+
+
+
+
+
+</div>
 
 
 </section>
@@ -616,95 +1177,192 @@ opening
 
 
 
-{opening && (
+{/* MACHINE */}
 
-<div className="
-mt-12
-flex
-justify-center
-">
+
+{
+
+opening &&
+
+<section
+
+className="
+
+mt-10
+
+
+rounded-[3rem]
+
+
+bg-white/10
+
+
+backdrop-blur-3xl
+
+
+border
+
+border-white/20
+
+
+p-8
+
+
+shadow-[0_30px_100px_rgba(16,185,129,0.35)]
+
+"
+
+>
+
 
 <PullMachine
 
 opening={opening}
 
-progress={progress}
-
 stage={stage}
 
-/>
-
-</div>
-
-)}
-
-
-
-
-
-
-
-
-
-{card && !opening && (
-
-<div className="
-mt-12
-flex
-justify-center
-">
-
-<CardReveal
-
-card={card}
+progress={progress}
 
 />
 
-</div>
 
-)}
-
+</section>
 
 
-
+}
 
 
 
+
+
+
+
+
+
+{/* REVEAL */}
+
+
+
+{
+
+card && !opening &&
+
+
+<section
+
+className="
+
+mt-10
+
+
+rounded-[3rem]
+
+
+bg-white/10
+
+
+backdrop-blur-3xl
+
+
+border
+
+border-white/20
+
+
+p-8
+
+
+shadow-[0_30px_120px_rgba(250,204,21,0.25)]
+
+"
+
+>
+
+
+<CardReveal card={card}/>
+
+
+</section>
+
+
+}
+
+
+
+
+
+
+
+
+
+{/* STATS */}
+
+
+<section
+
+className="
+
+mt-10
+
+
+rounded-[3rem]
+
+
+bg-white/10
+
+
+backdrop-blur-3xl
+
+
+border
+
+border-white/20
+
+
+p-8
+
+"
+
+>
 
 
 <PullStats
 
-cost={history.length * 5}
 
-totalValue={totalValue}
+cost={history.reduce(
+
+(a,b)=>a+b.amount_paid,
+
+0
+
+)}
+
+
+totalValue={history.reduce(
+
+(a,b)=>a+b.value,
+
+0
+
+)}
+
 
 bestPull={{
 
-name:bestPull.name,
+name:history[0]?.name || "None",
 
-value:bestPull.value
+value:history[0]?.value || 0
 
 }}
 
+
 count={history.length}
 
-/>
-
-
-
-
-
-
-
-
-
-<PullHistory
-
-items={history}
 
 />
 
 
+</section>
 
 
 
@@ -712,36 +1370,124 @@ items={history}
 
 
 
-{error && (
 
-<div className="
+
+{/* HISTORY */}
+
+
+<section
+
+className="
+
 mt-10
 
-bg-red-500/20
+
+rounded-[3rem]
+
+
+bg-black/30
+
+
+backdrop-blur-3xl
+
 
 border
 
-border-red-400
+border-emerald-400/20
+
+
+p-8
+
+
+"
+
+>
+
+
+<h2
+
+className="
+
+text-3xl
+
+font-black
+
+mb-6
+
+"
+
+>
+
+🌿 Forest Discovery Records
+
+</h2>
+
+
+
+
+<PullHistory items={history}/>
+
+
+</section>
+
+
+
+
+
+
+
+
+
+{
+
+error &&
+
+
+<div
+
+className="
+
+mt-8
+
 
 rounded-3xl
 
+
+bg-red-500/20
+
+
+border
+
+border-red-300/30
+
+
+backdrop-blur-xl
+
+
 p-5
+
 
 text-center
 
+
 font-bold
 
-">
+
+"
+
+>
 
 {error}
 
 </div>
 
-)}
+
+}
 
 
 
 </div>
+
 
 </main>
 

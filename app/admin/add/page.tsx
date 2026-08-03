@@ -6,242 +6,218 @@ import AdminNav from "@/components/AdminNav";
 
 export default function AddPage() {
 
-  const [search,setSearch] = useState("");
-  const [cards,setCards] = useState<any[]>([]);
-  const [selectedCard,setSelectedCard] = useState<any>(null);
 
-  const [quantity,setQuantity] = useState(1);
-  const [location,setLocation] = useState("");
+const [search,setSearch]=useState("");
+const [cards,setCards]=useState<any[]>([]);
+const [selectedCard,setSelectedCard]=useState<any>(null);
 
-  const [user,setUser] = useState<any>(null);
+const [quantity,setQuantity]=useState(1);
+const [location,setLocation]=useState("");
 
-  const [message,setMessage] = useState("");
+const [user,setUser]=useState<any>(null);
 
+const [message,setMessage]=useState("");
 
 
 
+useEffect(()=>{
 
-  useEffect(()=>{
+loadUser();
 
-    loadUser();
+},[]);
 
-  },[]);
 
 
 
 
+async function loadUser(){
 
-  async function loadUser(){
+const {
+data:{user}
+}=await supabase.auth.getUser();
 
-    const {
-      data:{
-        user
-      }
-    } = await supabase.auth.getUser();
+setUser(user);
 
+}
 
-    setUser(user);
 
-  }
 
 
 
 
 
+async function searchCards(value:string){
 
 
-  async function searchCards(value:string){
+setSearch(value);
 
 
-    setSearch(value);
+if(!value.trim()){
 
+setCards([]);
 
-    if(!value.trim()){
+return;
 
-      setCards([]);
+}
 
-      return;
 
-    }
 
+const {
+data,
+error
 
+}=await supabase
 
-    const {
+.from("pokemon_cards")
 
-      data,
-      error
+.select("*")
 
-    } = await supabase
+.ilike(
+"name",
+`%${value}%`
+)
 
-      .from("pokemon_cards")
+.limit(20);
 
-      .select("*")
 
-      .ilike(
 
-        "name",
+if(error){
 
-        `%${value}%`
+console.log(error);
 
-      )
+return;
 
-      .limit(20);
+}
 
 
+setCards(data || []);
 
+}
 
-    if(error){
 
-      console.log(error);
 
-      return;
 
-    }
 
 
-    setCards(data || []);
 
 
-  }
 
+async function addToInventory(){
 
 
+if(!selectedCard)
 
+return alert(
+"Choose a Pokémon first 🌿"
+);
 
 
 
+if(!user)
 
+return alert(
+"Login required"
+);
 
-  async function addToInventory(){
 
 
-    if(!selectedCard)
-      return alert(
-        "Choose a Pokémon first 🌿"
-      );
 
+const {
+data:existing
 
+}=await supabase
 
-    if(!user)
-      return alert(
-        "Login required"
-      );
+.from("inventory")
 
+.select("id,quantity")
 
+.eq(
+"card_id",
+selectedCard.id
+)
 
+.maybeSingle();
 
 
 
-    const {
 
-      data:existing
 
-    } = await supabase
 
-      .from("inventory")
 
-      .select(
-        "id,quantity"
-      )
+if(existing){
 
-      .eq(
-        "card_id",
-        selectedCard.id
-      )
 
-      .maybeSingle();
+await supabase
 
+.from("inventory")
 
+.update({
 
+quantity:
 
+Number(existing.quantity)
 
++
 
+Number(quantity)
 
+})
 
-    if(existing){
+.eq(
+"id",
+existing.id
+);
 
 
 
-      await supabase
+}
 
-      .from("inventory")
+else {
 
-      .update({
 
-        quantity:
+await supabase
 
-          Number(existing.quantity)
+.from("inventory")
 
-          +
+.insert({
 
-          Number(quantity)
+card_id:selectedCard.id,
 
-      })
+quantity,
 
-      .eq(
+status:"in_stock",
 
-        "id",
+location:
+location || "Forest Storage",
 
-        existing.id
+added_by:user.email,
 
-      );
+added_by_user_id:user.id
 
+});
 
 
+}
 
-    }
 
-    else {
 
 
 
-      await supabase
 
-      .from("inventory")
+setMessage(
 
-      .insert({
+`${selectedCard.name} joined the forest 🌿`
 
-        card_id:
-          selectedCard.id,
+);
 
-        quantity,
 
-        status:
-          "in_stock",
+setSelectedCard(null);
 
-        location:
-          location || "Forest Storage",
+setQuantity(1);
 
-        added_by:
-          user.email,
+setLocation("");
 
-        added_by_user_id:
-          user.id
-
-      });
-
-
-    }
-
-
-
-
-
-
-    setMessage(
-
-      `${selectedCard.name} joined the forest 🌿`
-
-    );
-
-
-    setSelectedCard(null);
-
-    setQuantity(1);
-
-    setLocation("");
-
-  }
+}
 
 
 
@@ -253,24 +229,42 @@ export default function AddPage() {
 
 return (
 
-<main className="
+<main
+
+className="
+
+relative
+
 min-h-screen
+
+overflow-hidden
+
+
 bg-gradient-to-br
-from-emerald-50
-via-white
-to-green-100
+
+from-[#020617]
+
+via-[#052e16]
+
+to-[#064e3b]
+
+
 p-4
+
 pb-28
+
 md:p-8
-md:pb-8
-text-gray-900
-">
 
 
-<div className="
-max-w-7xl
-mx-auto
-">
+text-white
+
+"
+
+>
+
+
+
+<div className="relative z-10 max-w-7xl mx-auto">
 
 
 <AdminNav />
@@ -281,46 +275,159 @@ mx-auto
 
 
 
-<section className="
-text-center
-mb-10
-">
+{/* Shrine Header */}
 
 
-<img
-
-src="/shaymin.png"
+<section
 
 className="
-w-28
-mx-auto
+
+rounded-[3rem]
+
+relative
+
+overflow-hidden
+
+
+bg-white/10
+
+backdrop-blur-3xl
+
+border
+
+border-white/20
+
+
+shadow-[0_30px_100px_rgba(16,185,129,0.3)]
+
+
+p-8
+
+text-center
+
+"
+
+>
+
+
+<div
+
+className="
+
+absolute
+
+inset-0
+
+bg-gradient-to-br
+
+from-white/20
+
+via-transparent
+
+to-emerald-400/20
+
 "
 
 />
 
 
 
-<h1 className="
-text-4xl
-font-bold
-text-emerald-700
-mt-4
-">
+<div className="relative z-10">
 
-Add a visitor 🌱
+
+
+<div
+
+className="
+
+mx-auto
+
+w-36
+
+h-36
+
+rounded-full
+
+
+bg-emerald-400/20
+
+
+border
+
+border-white/20
+
+
+flex
+
+items-center
+
+justify-center
+
+
+shadow-[0_0_80px_rgba(52,211,153,0.5)]
+
+"
+
+>
+
+
+<img
+
+src="/shaymin.png"
+
+className="w-28 drop-shadow-2xl"
+
+/>
+
+
+</div>
+
+
+
+
+
+
+<h1
+
+className="
+
+mt-6
+
+text-5xl
+
+font-black
+
+bg-gradient-to-r
+
+from-white
+
+to-emerald-300
+
+bg-clip-text
+
+text-transparent
+
+"
+
+>
+
+Card Logger
 
 </h1>
 
 
 
-<p className="
-text-gray-500
-mt-2
-">
 
-Add cards into the PocketPulls forest
+<p className="mt-3 text-emerald-100">
+
+Register new Pokémon into the Pulls forest 🌿
 
 </p>
+
+
+
+</div>
+
 
 
 </section>
@@ -333,20 +440,63 @@ Add cards into the PocketPulls forest
 
 
 
-<input
+{/* Search Crystal */}
+
+
+
+<div
 
 className="
-w-full
-p-4
-rounded-full
-shadow
-border
-mb-8
+
+mt-10
+
 "
 
-placeholder="
-🔍 Search Pokémon...
+>
+
+
+<input
+
+
+className="
+
+w-full
+
+p-5
+
+rounded-full
+
+
+bg-white/10
+
+
+backdrop-blur-3xl
+
+
+border
+
+border-white/20
+
+
+text-white
+
+
+placeholder:text-emerald-200/60
+
+
+shadow-[0_20px_60px_rgba(16,185,129,0.25)]
+
+
+outline-none
+
+
+focus:ring-2
+
+focus:ring-emerald-400
+
 "
+
+placeholder="🔍 Search Pokémon card..."
 
 value={search}
 
@@ -357,6 +507,7 @@ searchCards(e.target.value)
 />
 
 
+</div>
 
 
 
@@ -364,36 +515,95 @@ searchCards(e.target.value)
 
 
 
-<div className="
+
+
+{/* Card Gallery */}
+
+
+
+<div
+
+className="
+
 grid
+
 grid-cols-2
+
 sm:grid-cols-3
+
 md:grid-cols-5
-gap-5
-">
 
 
-{cards.map(card=>(
+gap-6
+
+mt-8
+
+"
+
+>
+
+
+
+{
+
+cards.map(card=>(
 
 
 <div
 
 key={card.id}
 
-onClick={()=>
-setSelectedCard(card)
-}
+onClick={()=>setSelectedCard(card)}
 
 className="
+
 cursor-pointer
-bg-white
-rounded-3xl
-shadow
+
+
+rounded-[2rem]
+
+
+bg-white/10
+
+
+border
+
+border-white/20
+
+
+backdrop-blur-2xl
+
+
 p-3
-hover:scale-105
-transition
+
+
+hover:-translate-y-3
+
+
+hover:bg-white/20
+
+
+transition-all
+
+
+shadow-[0_20px_50px_rgba(16,185,129,0.2)]
+
 "
 
+>
+
+
+<div
+
+className="
+
+rounded-2xl
+
+overflow-hidden
+
+bg-black/20
+
+"
 
 >
 
@@ -402,27 +612,23 @@ transition
 
 src={card.image_url}
 
-className="
-rounded-2xl
-"
+className="w-full"
 
 />
 
 
-<p className="
-font-bold
-mt-2
-">
+</div>
+
+
+
+<p className="mt-3 font-black">
 
 {card.name}
 
 </p>
 
 
-<p className="
-text-xs
-text-gray-500
-">
+<p className="text-xs text-emerald-200/70">
 
 {card.set_name}
 
@@ -432,8 +638,9 @@ text-gray-500
 </div>
 
 
-))}
+))
 
+}
 
 
 </div>
@@ -446,30 +653,67 @@ text-gray-500
 
 
 
-{selectedCard && (
+{/* Capture Chamber */}
 
 
-<div className="
+
+{
+
+selectedCard && (
+
+
+<div
+
+className="
+
 fixed
-bottom-28
+
+bottom-6
+
 left-1/2
+
 -translate-x-1/2
+
+
 w-[90%]
+
+
 max-w-lg
-bg-white
-rounded-3xl
-shadow-2xl
-border
-p-6
+
+
 z-50
-">
 
 
-<h2 className="
-text-2xl
-font-bold
-text-emerald-700
-">
+rounded-[3rem]
+
+
+bg-gradient-to-br
+
+from-white/20
+
+to-emerald-950/80
+
+
+backdrop-blur-3xl
+
+
+border
+
+border-white/20
+
+
+shadow-[0_30px_120px_rgba(16,185,129,0.5)]
+
+
+p-7
+
+"
+
+>
+
+
+
+<h2 className="text-3xl font-black">
 
 {selectedCard.name}
 
@@ -479,42 +723,42 @@ text-emerald-700
 
 
 
-<div className="
+
+<div
+
+className="
+
 flex
+
 justify-center
+
+gap-6
+
 items-center
-gap-5
-my-5
-">
+
+my-6
+
+"
+
+
+>
 
 
 <button
 
-className="
-bg-red-200
-w-12
-h-12
-rounded-full
-"
+className="w-14 h-14 rounded-full bg-red-400/30 border border-white/20 text-2xl"
 
-onClick={()=>
-setQuantity(
-Math.max(1,quantity-1)
-)
-}
+onClick={()=>setQuantity(Math.max(1,quantity-1))}
 
 >
 
--
+−
 
 </button>
 
 
 
-<span className="
-text-3xl
-font-bold
-">
+<span className="text-4xl font-black">
 
 {quantity}
 
@@ -524,16 +768,9 @@ font-bold
 
 <button
 
-className="
-bg-green-200
-w-12
-h-12
-rounded-full
-"
+className="w-14 h-14 rounded-full bg-emerald-400/30 border border-white/20 text-2xl"
 
-onClick={()=>
-setQuantity(quantity+1)
-}
+onClick={()=>setQuantity(quantity+1)}
 
 >
 
@@ -549,24 +786,38 @@ setQuantity(quantity+1)
 
 
 
+
 <input
 
 className="
+
 w-full
-p-3
-border
+
+p-4
+
 rounded-xl
+
+
+bg-white/10
+
+
+border
+
+border-white/20
+
+
+placeholder:text-emerald-200/60
+
 "
 
-placeholder="Storage location"
+placeholder="Forest storage location"
 
 value={location}
 
-onChange={(e)=>
-setLocation(e.target.value)
-}
+onChange={(e)=>setLocation(e.target.value)}
 
-/>
+ />
+
 
 
 
@@ -579,18 +830,40 @@ setLocation(e.target.value)
 onClick={addToInventory}
 
 className="
-mt-4
+
+mt-5
+
 w-full
-bg-emerald-600
-text-white
+
+py-4
+
 rounded-xl
-py-3
-font-bold
+
+
+font-black
+
+
+bg-emerald-400/40
+
+
+border
+
+border-emerald-200/40
+
+
+shadow-[0_0_40px_rgba(52,211,153,0.5)]
+
+
+hover:bg-emerald-400/60
+
+
+transition
+
 "
 
 >
 
-🌿 Add to Forest
+🌿 Plant Pokémon
 
 </button>
 
@@ -599,7 +872,10 @@ font-bold
 </div>
 
 
-)}
+)
+
+
+}
 
 
 
@@ -607,31 +883,60 @@ font-bold
 
 
 
-{message && (
+{
 
-<p className="
+message && (
+
+<div
+
+className="
+
 fixed
+
 top-24
+
 left-1/2
+
 -translate-x-1/2
-bg-emerald-600
-text-white
+
+
+bg-emerald-400/80
+
+
+backdrop-blur-xl
+
+
 px-6
+
 py-3
+
+
 rounded-full
-shadow
-">
+
+
+font-bold
+
+
+shadow-[0_0_50px_rgba(52,211,153,0.8)]
+
+"
+
+>
 
 ✨ {message}
 
-</p>
+</div>
 
-)}
+)
+
+}
+
 
 
 
 
 </div>
+
 
 </main>
 

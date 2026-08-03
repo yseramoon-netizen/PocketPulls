@@ -1,12 +1,8 @@
 "use client";
 
-
-type Props={
-
-recent:any[];
-
+type Props = {
+  recent:any[];
 };
-
 
 
 export default function DiscoveryLog({
@@ -27,21 +23,62 @@ mt-10
 
 rounded-[3rem]
 
-bg-white/70
+relative
 
-backdrop-blur-xl
+overflow-hidden
+
+bg-gradient-to-br
+
+from-white/15
+
+via-emerald-900/20
+
+to-emerald-950/40
+
+backdrop-blur-3xl
 
 border
 
-border-white
+border-white/20
 
-shadow-xl
+shadow-[0_30px_100px_rgba(16,185,129,0.25)]
 
 p-8
 
 "
 
 >
+
+
+{/* glass reflection */}
+
+<div
+
+className="
+
+absolute
+
+inset-0
+
+bg-gradient-to-br
+
+from-white/10
+
+via-transparent
+
+to-emerald-400/10
+
+pointer-events-none
+
+"
+
+/>
+
+
+
+
+
+<div className="relative z-10">
 
 
 <h2
@@ -52,7 +89,7 @@ text-3xl
 
 font-black
 
-text-emerald-950
+text-white
 
 "
 
@@ -63,10 +100,40 @@ text-emerald-950
 </h2>
 
 
+<p
+
+className="
+
+mt-2
+
+text-emerald-200/70
+
+font-semibold
+
+"
+
+>
+
+Recent Pokémon discoveries within the sanctuary
+
+</p>
 
 
 
-<div className="space-y-4 mt-6">
+
+
+
+<div
+
+className="
+
+space-y-4
+
+mt-6
+
+"
+
+>
 
 
 {
@@ -88,11 +155,14 @@ item.pokemon_cards;
 
 return (
 
+
 <div
 
 key={item.id}
 
 className="
+
+group
 
 flex
 
@@ -102,13 +172,59 @@ gap-5
 
 rounded-3xl
 
-bg-gradient-to-r
+bg-white/10
 
-from-green-50
+border
 
-to-pink-50
+border-white/20
+
+backdrop-blur-2xl
 
 p-4
+
+transition-all
+
+duration-300
+
+hover:bg-white/20
+
+hover:-translate-y-1
+
+hover:shadow-[0_20px_50px_rgba(52,211,153,0.2)]
+
+"
+
+>
+
+
+
+
+
+<div
+
+className="
+
+w-20
+
+h-24
+
+rounded-2xl
+
+bg-white/10
+
+border
+
+border-white/20
+
+overflow-hidden
+
+flex
+
+items-center
+
+justify-center
+
+shadow-[0_0_25px_rgba(52,211,153,0.2)]
 
 "
 
@@ -121,19 +237,27 @@ src={card?.image_url}
 
 className="
 
-w-16
+w-full
 
-h-20
-
-rounded-xl
+h-full
 
 object-cover
 
-shadow
+group-hover:scale-105
+
+transition
+
+duration-300
 
 "
 
 />
+
+
+</div>
+
+
+
 
 
 
@@ -141,14 +265,36 @@ shadow
 <div>
 
 
-<h3 className="font-black text-lg">
+<h3
+
+className="
+
+font-black
+
+text-lg
+
+text-white
+
+"
+
+>
 
 ✨ {card?.name}
 
 </h3>
 
 
-<p className="text-gray-600">
+
+
+<p
+
+className="
+
+text-emerald-100/80
+
+"
+
+>
 
 {
 
@@ -166,7 +312,7 @@ item.profiles?.name==="Skye"
 
 {" "}
 
-{item.profiles?.name || "Trainer"}{" "}
+{item.profiles?.name || "Trainer"}{" "} 
 
 discovered this Pokémon
 
@@ -174,14 +320,32 @@ discovered this Pokémon
 
 
 
-<p className="text-sm text-gray-500">
+
+
+<p
+
+className="
+
+text-sm
+
+text-emerald-200/60
+
+mt-1
+
+"
+
+>
 
 📦 {item.location || "Forest"}
 
 </p>
 
 
+
 </div>
+
+
+
 
 
 </div>
@@ -198,7 +362,11 @@ discovered this Pokémon
 </div>
 
 
+</div>
+
+
 </section>
+
 
 );
 

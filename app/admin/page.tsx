@@ -12,30 +12,24 @@ import ForestGrowth from "@/components/ForestGrowth";
 import DiscoveryLog from "@/components/DiscoveryLog";
 
 
-
 export default function AdminPage(){
 
 
 const [stats,setStats]=useState({
 
 cards:0,
-
 value:0,
-
 locations:0
 
 });
 
 
-
 const [contributors,setContributors]=useState({
 
 Lukas:0,
-
 Skye:0
 
 });
-
 
 
 const [recent,setRecent]=useState<any[]>([]);
@@ -72,7 +66,6 @@ setLoading(true);
 
 // USER
 
-
 const {
 
 data:{
@@ -99,11 +92,8 @@ data:profile
 .select("name")
 
 .eq(
-
 "id",
-
 user.id
-
 )
 
 .maybeSingle();
@@ -124,10 +114,7 @@ profile?.name || "Trainer"
 
 
 
-
-
 // INVENTORY
-
 
 const {
 
@@ -182,7 +169,6 @@ item.pokemon_cards;
 
 
 
-
 const quantity=
 
 Number(item.quantity || 0);
@@ -199,6 +185,7 @@ value +=
 quantity *
 
 Number(card?.market_value || 0);
+
 
 
 
@@ -232,8 +219,8 @@ locations:locations.size
 
 
 
-// CONTRIBUTORS
 
+// CONTRIBUTORS
 
 const {
 
@@ -266,6 +253,7 @@ let Skye=0;
 
 
 
+
 people?.forEach((item:any)=>{
 
 
@@ -275,9 +263,13 @@ Number(item.quantity || 0);
 
 
 
+
+
 if(item.profiles?.name==="Lukas")
 
 Lukas+=amount;
+
+
 
 
 
@@ -309,8 +301,7 @@ Skye
 
 
 
-// RECENT
-
+// RECENT DISCOVERIES
 
 const {
 
@@ -366,11 +357,8 @@ ascending:false
 
 
 
-setRecent(
+setRecent(latest || []);
 
-latest || []
-
-);
 
 
 
@@ -378,10 +366,6 @@ setLoading(false);
 
 
 }
-
-
-
-
 
 
 
@@ -403,26 +387,34 @@ min-h-screen
 
 overflow-hidden
 
+
 bg-gradient-to-br
 
-from-[#dff7e8]
+from-[#020617]
 
-via-[#fff7d6]
+via-[#052e16]
 
-to-[#f8e7ff]
+to-[#064e3b]
+
 
 p-4
+
 pb-28
+
 md:p-8
+
 md:pb-8
-text-gray-900
+
+
+text-white
 
 "
 
 >
 
 
-<ForestBackground/>
+<ForestBackground />
+
 
 
 
@@ -445,7 +437,7 @@ mx-auto
 
 
 
-<AdminNav/>
+<AdminNav />
 
 
 
@@ -453,6 +445,8 @@ mx-auto
 
 
 
+
+{/* SHAYMIN SANCTUARY */}
 
 
 <section
@@ -465,19 +459,26 @@ relative
 
 overflow-hidden
 
+
 rounded-[4rem]
 
-bg-white/60
 
-backdrop-blur-xl
+bg-white/10
+
+
+backdrop-blur-3xl
+
 
 border
 
-border-white
+border-white/20
 
-shadow-2xl
+
+shadow-[0_30px_120px_rgba(16,185,129,0.35)]
+
 
 p-10
+
 
 text-center
 
@@ -486,8 +487,37 @@ text-center
 >
 
 
+{/* glass reflection */}
 
-<div className="absolute top-6 left-8 text-4xl opacity-40">
+<div
+
+className="
+
+absolute
+
+inset-0
+
+
+bg-gradient-to-br
+
+from-white/20
+
+via-transparent
+
+to-emerald-400/20
+
+
+pointer-events-none
+
+"
+
+/>
+
+
+
+
+
+<div className="absolute top-8 left-10 text-5xl opacity-30">
 
 🍃
 
@@ -495,7 +525,8 @@ text-center
 
 
 
-<div className="absolute bottom-6 right-8 text-4xl opacity-40">
+
+<div className="absolute bottom-8 right-10 text-5xl opacity-30">
 
 🦋
 
@@ -504,6 +535,67 @@ text-center
 
 
 
+
+
+
+
+<div
+
+className="
+
+relative
+
+z-10
+
+"
+
+>
+
+
+
+
+
+<div
+
+className="
+
+mx-auto
+
+w-48
+
+h-48
+
+
+rounded-full
+
+
+bg-gradient-to-br
+
+from-emerald-300/30
+
+to-emerald-950/40
+
+
+backdrop-blur-2xl
+
+
+border
+
+border-white/20
+
+
+flex
+
+items-center
+
+justify-center
+
+
+shadow-[0_0_100px_rgba(52,211,153,0.55)]
+
+"
+
+>
 
 
 <img
@@ -516,13 +608,15 @@ w-36
 
 h-36
 
-mx-auto
 
-drop-shadow-2xl
+drop-shadow-[0_0_35px_rgba(52,211,153,0.8)]
 
 "
 
 />
+
+
+</div>
 
 
 
@@ -533,15 +627,33 @@ drop-shadow-2xl
 
 className="
 
-mt-5
+mt-10
+
 
 text-5xl
 
 md:text-6xl
 
+
 font-black
 
-text-emerald-950
+
+tracking-tight
+
+
+bg-gradient-to-r
+
+from-white
+
+via-emerald-100
+
+to-emerald-300
+
+
+bg-clip-text
+
+
+text-transparent
 
 "
 
@@ -550,7 +662,6 @@ text-emerald-950
 PocketPulls Forest
 
 </h1>
-
 
 
 
@@ -567,7 +678,7 @@ text-xl
 
 font-semibold
 
-text-emerald-700
+text-emerald-100
 
 "
 
@@ -581,8 +692,28 @@ Welcome back {userName} 🌿
 
 
 
+<p
+
+className="
+
+mt-2
+
+text-sm
+
+text-emerald-200/70
+
+"
+
+>
+
+Your sanctuary grows with every discovery
+
+</p>
 
 
+
+
+</div>
 
 
 
@@ -599,8 +730,10 @@ Welcome back {userName} 🌿
 
 {
 
-loading ?
 
+loading
+
+?
 
 
 <div
@@ -611,7 +744,7 @@ mt-20
 
 text-center
 
-text-emerald-900
+text-emerald-100
 
 font-bold
 
@@ -629,8 +762,8 @@ text-xl
 
 :
 
-<>
 
+<>
 
 
 
@@ -648,7 +781,6 @@ locations={stats.locations}
 
 
 
-
 <ForestGrowth
 
 Lukas={contributors.Lukas}
@@ -656,20 +788,6 @@ Lukas={contributors.Lukas}
 Skye={contributors.Skye}
 
 />
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -684,16 +802,15 @@ recent={recent}
 
 
 
-
-
 </>
+
 
 }
 
 
 
-</div>
 
+</div>
 
 
 </main>

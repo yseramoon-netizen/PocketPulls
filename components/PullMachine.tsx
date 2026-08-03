@@ -1,6 +1,7 @@
 "use client";
 
 
+
 interface PullMachineProps {
 
   opening:boolean;
@@ -10,6 +11,8 @@ interface PullMachineProps {
   progress:number;
 
 }
+
+
 
 
 
@@ -25,40 +28,62 @@ export default function PullMachine({
 
 
 
-if(!opening){
-
-return null;
-
-}
 
 
+const particles = [
 
-return(
+  [10,20],
+  [25,80],
+  [40,15],
+  [55,65],
+  [70,30],
+  [85,75],
+  [15,55],
+  [35,90],
+  [60,45],
+  [90,10],
+  [75,55],
+  [50,25],
+  [20,40],
+  [65,85],
+  [95,60],
+  [30,10],
+  [80,90],
+  [45,70],
+  [12,85],
+  [88,35],
+  [55,95],
+  [72,15],
+  [38,50],
+  [92,80],
+  [5,45],
+  [60,5],
+  [28,65],
+  [82,40],
+  [48,30],
+  [68,75],
 
+];
+
+
+
+
+
+return (
 
 <section
 
-className="
-relative
-w-full
-max-w-2xl
-h-[520px]
+className={`
 
-mx-auto
+mt-10
+
+relative
 
 overflow-hidden
 
-rounded-[4rem]
+rounded-[3rem]
 
-bg-black/40
-
-backdrop-blur-2xl
-
-border
-
-border-emerald-400/20
-
-shadow-[0_0_120px_rgba(16,185,129,.35)]
+min-h-[420px]
 
 flex
 
@@ -66,13 +91,49 @@ items-center
 
 justify-center
 
-"
+
+bg-black/40
+
+backdrop-blur-3xl
+
+
+border
+
+border-emerald-400/20
+
+
+shadow-[0_0_120px_rgba(16,185,129,.35)]
+
+
+transition-all
+
+duration-700
+
+
+${
+
+opening
+
+?
+
+"opacity-100 scale-100"
+
+:
+
+"opacity-0 scale-95"
+
+}
+
+`}
 
 >
 
 
 
-{/* forest glow */}
+
+
+{/* glow */}
+
 
 <div
 
@@ -80,15 +141,17 @@ className="
 
 absolute
 
-inset-0
+w-96
 
-bg-gradient-to-b
+h-96
 
-from-emerald-900/40
+bg-emerald-400/20
 
-via-black
+rounded-full
 
-to-black
+blur-3xl
+
+animate-pulse
 
 "
 
@@ -99,11 +162,13 @@ to-black
 
 
 
-{/* floating particles */}
+
+{/* particles */}
+
 
 {
 
-Array.from({length:35}).map((_,i)=>(
+particles.map((particle,i)=>(
 
 
 <div
@@ -130,11 +195,11 @@ animate-pulse
 
 style={{
 
-left:`${Math.random()*100}%`,
+left:`${particle[0]}%`,
 
-top:`${Math.random()*100}%`,
+top:`${particle[1]}%`,
 
-animationDelay:`${i*0.15}s`
+animationDelay:`${i*0.12}s`
 
 }}
 
@@ -153,14 +218,23 @@ animationDelay:`${i*0.15}s`
 
 
 
+{/* Tree energy circle */}
+
+
 <div
 
 className="
+
 relative
+
 z-10
+
 flex
+
 flex-col
+
 items-center
+
 "
 
 >
@@ -169,80 +243,58 @@ items-center
 
 
 
-
-
-{/* Tree */}
-
-<div
-
-className={`
-
-relative
-
-transition-all
-
-duration-1000
-
-
-${progress>40
-
-?
-
-"scale-110"
-
-:
-
-"scale-100"
-
-}
-
-`}
-
->
-
-
-
-
-
-{/* tree glow */}
-
 <div
 
 className="
 
-absolute
+relative
 
-inset-0
+w-56
 
-bg-emerald-400/30
-
-blur-3xl
+h-56
 
 rounded-full
 
-animate-pulse
+
+bg-gradient-to-br
+
+from-emerald-300/30
+
+via-green-500/20
+
+to-yellow-300/30
+
+
+border
+
+border-white/20
+
+
+backdrop-blur-xl
+
+
+flex
+
+items-center
+
+justify-center
+
+
+shadow-[0_0_80px_rgba(16,185,129,.7)]
 
 "
 
-/>
+>
 
 
-
-
-
-{/* trunk */}
 
 <div
 
 className="
 
-relative
+text-8xl
 
-text-[160px]
-
-leading-none
-
-select-none
+animate-bounce
 
 "
 
@@ -255,50 +307,27 @@ select-none
 
 
 
+</div>
 
-{/* blooming card */}
 
-{
 
-progress>75 && (
+
+
+
+
+
 
 <div
 
 className="
 
-absolute
+mt-8
 
-top-0
-
-left-1/2
-
--translate-x-1/2
-
-text-7xl
-
-animate-bounce
+text-center
 
 "
 
 >
-
-🎴
-
-</div>
-
-)
-
-}
-
-
-
-</div>
-
-
-
-
-
-
 
 
 
@@ -306,19 +335,11 @@ animate-bounce
 
 className="
 
-mt-10
-
-text-center
-
 text-3xl
-
-md:text-4xl
 
 font-black
 
 text-white
-
-animate-pulse
 
 "
 
@@ -331,10 +352,38 @@ animate-pulse
 
 
 
+<p
+
+className="
+
+mt-3
+
+text-emerald-200
+
+font-bold
+
+"
+
+>
+
+Ancient Pokémon energy is forming...
+
+</p>
 
 
 
-{/* energy bar */}
+</div>
+
+
+
+
+
+
+
+
+
+{/* progress */}
+
 
 <div
 
@@ -342,7 +391,7 @@ className="
 
 mt-8
 
-w-72
+w-80
 
 h-4
 
@@ -360,13 +409,12 @@ border-white/20
 
 >
 
+
 <div
 
 className="
 
 h-full
-
-rounded-full
 
 bg-gradient-to-r
 
@@ -391,10 +439,7 @@ width:`${progress}%`
 />
 
 
-
 </div>
-
-
 
 
 
@@ -404,20 +449,19 @@ width:`${progress}%`
 
 className="
 
-mt-5
+mt-3
 
-text-emerald-200
+text-white
 
-font-bold
+font-black
 
 "
 
 >
 
-Forest energy: {progress}%
+{progress}%
 
 </p>
-
 
 
 
@@ -429,8 +473,8 @@ Forest energy: {progress}%
 
 
 
-</section>
 
+</section>
 
 );
 

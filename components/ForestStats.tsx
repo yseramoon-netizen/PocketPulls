@@ -1,21 +1,19 @@
 "use client";
 
-
 type Props = {
-cards:number;
-value:number;
-locations:number;
+  cards:number;
+  value:number;
+  locations:number;
 };
 
 
 export default function ForestStats({
 
-cards,
-value,
-locations
+  cards,
+  value,
+  locations
 
 }:Props){
-
 
 
 const stats=[
@@ -77,36 +75,118 @@ key={stat.title}
 
 className="
 
+group
+
 relative
 
 overflow-hidden
 
 rounded-[2.5rem]
 
-bg-white/70
+bg-gradient-to-br
 
-backdrop-blur-xl
+from-white/15
+
+via-white/10
+
+to-emerald-900/20
+
+backdrop-blur-3xl
 
 border
 
-border-white
+border-white/20
 
-shadow-xl
+shadow-[0_25px_70px_rgba(16,185,129,0.18)]
 
 p-7
 
-hover:-translate-y-2
+transition-all
 
-transition
+duration-500
 
-duration-300
+hover:-translate-y-3
+
+hover:shadow-[0_35px_90px_rgba(52,211,153,0.35)]
 
 "
 
 >
 
 
-<div className="text-5xl">
+{/* glass reflection */}
+
+<div
+
+className="
+
+absolute
+
+inset-0
+
+bg-gradient-to-br
+
+from-white/20
+
+via-transparent
+
+to-emerald-400/10
+
+opacity-70
+
+pointer-events-none
+
+"
+
+/>
+
+
+
+
+<div
+
+className="
+
+relative
+
+z-10
+
+"
+
+>
+
+
+<div
+
+className="
+
+w-16
+
+h-16
+
+rounded-3xl
+
+bg-emerald-400/20
+
+backdrop-blur-xl
+
+border
+
+border-white/20
+
+flex
+
+items-center
+
+justify-center
+
+text-4xl
+
+shadow-[0_0_35px_rgba(52,211,153,0.35)]
+
+"
+
+>
 
 {stat.icon}
 
@@ -114,7 +194,11 @@ duration-300
 
 
 
-<h3 className="
+
+
+<h3
+
+className="
 
 mt-5
 
@@ -122,9 +206,11 @@ text-xl
 
 font-black
 
-text-emerald-950
+text-white
 
-">
+"
+
+>
 
 {stat.title}
 
@@ -133,17 +219,22 @@ text-emerald-950
 
 
 
-<p className="
+
+<p
+
+className="
 
 text-4xl
 
 font-black
 
-text-emerald-700
+text-emerald-100
 
 mt-2
 
-">
+"
+
+>
 
 {stat.value}
 
@@ -152,14 +243,31 @@ mt-2
 
 
 
-<p className="text-gray-600 mt-2">
+
+<p
+
+className="
+
+text-emerald-200/70
+
+mt-2
+
+"
+
+>
 
 {stat.text}
 
 </p>
 
 
+</div>
 
+
+
+
+
+{/* energy line */}
 
 <div
 
@@ -173,13 +281,17 @@ left-0
 
 right-0
 
-h-2
+h-1
 
 bg-gradient-to-r
 
-from-lime-300
+from-emerald-300/20
 
-to-emerald-500
+via-emerald-400
+
+to-emerald-300/20
+
+shadow-[0_0_20px_rgba(52,211,153,0.8)]
 
 "
 

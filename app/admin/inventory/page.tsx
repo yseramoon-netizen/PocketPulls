@@ -1,40 +1,53 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
+
 import { supabase } from "@/lib/supabase";
+
 import AdminNav from "@/components/AdminNav";
+
 import ForestBackground from "@/components/ForestBackground";
+
 
 
 export default function InventoryPage(){
 
+
 const [inventory,setInventory]=useState<any[]>([]);
+
 const [search,setSearch]=useState("");
+
 const [loading,setLoading]=useState(true);
+
 const [refreshing,setRefreshing]=useState(false);
 
 
 
-const fireflies = useMemo(
-()=>Array.from({length:20}).map(()=>({
-left:Math.random()*100,
-top:Math.random()*80,
-delay:Math.random()*5
-})),
-[]
-);
-
 
 
 useEffect(()=>{
+
 loadInventory();
+
 },[]);
+
+
+
+
+
 
 
 
 async function loadInventory(){
 
-const {data,error}=await supabase
+
+const {
+
+data,
+
+error
+
+}=await supabase
 
 .from("inventory")
 
@@ -67,129 +80,243 @@ market_value
 `)
 
 .order(
+
 "created_at",
+
 {
+
 ascending:false
+
 }
+
 );
+
+
 
 
 
 if(error){
 
 console.error(error);
+
 return;
 
 }
 
 
+
 setInventory(data || []);
+
 setLoading(false);
 
+
 }
+
+
+
+
+
 
 
 
 
 async function updateQuantity(
+
 id:string,
+
 amount:number,
+
 current:number
+
 ){
+
+
 
 const newQuantity=current+amount;
 
 
+
+
 if(newQuantity<=0){
 
+
 await supabase
+
 .from("inventory")
+
 .delete()
+
 .eq(
+
 "id",
+
 id
+
 );
+
 
 }
 
 else{
 
+
 await supabase
+
 .from("inventory")
+
 .update({
+
 quantity:newQuantity
+
 })
+
 .eq(
+
 "id",
+
 id
+
 );
 
+
 }
+
 
 
 loadInventory();
 
+
+}
+
+
+
+
+
+
+
+
+
+async function refreshMarket(){
+
+
+setRefreshing(true);
+
+
+
+try{
+
+
+const response = await fetch(
+
+"/api/update-prices",
+
+{
+
+method:"POST"
+
+}
+
+);
+
+
+
+const result = await response.json();
+
+
+
+
+
+if(!response.ok){
+
+
+alert(
+
+result.error || "Failed to update prices"
+
+);
+
+
+return;
+
+
+}
+
+
+
+await loadInventory();
+
+
+
+alert(
+
+"Market values updated!"
+
+);
+
+
+
+}
+
+catch(error){
+
+
+console.error(error);
+
+alert(
+
+"API request failed"
+
+);
+
+
+}
+
+finally{
+
+
+setRefreshing(false);
+
+
+}
+
+
 }
 
 
 
 
 
-async function refreshMarket() {
-
-  setRefreshing(true);
-
-  try {
-
-    const response = await fetch("/api/update-prices", {
-      method: "POST",
-    });
-
-    const result = await response.json();
-
-    console.log(result);
-
-    if (!response.ok) {
-      alert(result.error || "Failed to update prices.");
-      return;
-    }
-
-    await loadInventory();
-
-    alert("Market values updated!");
-
-  } catch (err) {
-
-    console.error(err);
-    alert("API request failed.");
-
-  } finally {
-
-    setRefreshing(false);
-
-  }
-
-}
 
 
 
 
 function rarityStyle(rarity:string){
 
-const r=rarity?.toLowerCase() || "";
+
+const r = rarity?.toLowerCase() || "";
+
+
+
 
 
 if(r.includes("secret"))
 
 return {
 
-border:"border-indigo-300",
+border:
+"border-indigo-400/50",
 
-glow:"shadow-[0_0_45px_rgba(99,102,241,.45)]",
+glow:
+"shadow-[0_0_60px_rgba(99,102,241,0.45)]",
 
-bg:"bg-indigo-50"
+badge:
+"bg-indigo-400/20 text-indigo-100"
 
 };
+
+
+
+
 
 
 
@@ -197,13 +324,21 @@ if(r.includes("illustration"))
 
 return {
 
-border:"border-pink-300",
+border:
+"border-pink-400/50",
 
-glow:"shadow-[0_0_45px_rgba(236,72,153,.45)]",
+glow:
+"shadow-[0_0_60px_rgba(236,72,153,0.45)]",
 
-bg:"bg-pink-50"
+badge:
+"bg-pink-400/20 text-pink-100"
 
 };
+
+
+
+
+
 
 
 
@@ -211,13 +346,21 @@ if(r.includes("ultra"))
 
 return {
 
-border:"border-purple-300",
+border:
+"border-purple-400/50",
 
-glow:"shadow-[0_0_45px_rgba(168,85,247,.45)]",
+glow:
+"shadow-[0_0_60px_rgba(168,85,247,0.45)]",
 
-bg:"bg-purple-50"
+badge:
+"bg-purple-400/20 text-purple-100"
 
 };
+
+
+
+
+
 
 
 
@@ -225,23 +368,37 @@ if(r.includes("rare"))
 
 return {
 
-border:"border-yellow-300",
+border:
+"border-yellow-400/50",
 
-glow:"shadow-[0_0_45px_rgba(234,179,8,.45)]",
+glow:
+"shadow-[0_0_60px_rgba(250,204,21,0.45)]",
 
-bg:"bg-yellow-50"
+badge:
+"bg-yellow-400/20 text-yellow-100"
 
 };
 
 
 
+
+
+
+
 return {
 
-border:"border-emerald-200",
 
-glow:"shadow-[0_0_35px_rgba(16,185,129,.25)]",
+border:
+"border-emerald-400/30",
 
-bg:"bg-emerald-50"
+
+glow:
+"shadow-[0_0_45px_rgba(52,211,153,0.25)]",
+
+
+badge:
+"bg-emerald-400/20 text-emerald-100"
+
 
 };
 
@@ -252,53 +409,81 @@ bg:"bg-emerald-50"
 
 
 
-const filtered=inventory.filter(item=>
 
-item.pokemon_cards?.name
+
+
+
+const filtered = inventory.filter(item=>{
+
+
+const card=item.pokemon_cards;
+
+
+return card?.name
 
 ?.toLowerCase()
 
 .includes(
+
 search.toLowerCase()
-)
 
 );
 
 
+});
 
 
 
-const totalVisitors=inventory.reduce(
-(a,b)=>a+Number(b.quantity||0),
+
+
+
+
+
+const totalVisitors = inventory.reduce(
+
+(total,item)=>
+
+total+
+
+Number(item.quantity || 0),
+
 0
+
 );
 
 
 
-const totalTreasure=inventory.reduce(
-(a,b)=>
 
-a+
 
-Number(b.quantity||0)
+
+
+const totalTreasure = inventory.reduce(
+
+(total,item)=>
+
+
+total +
+
+(
+
+Number(item.quantity || 0)
 
 *
 
-Number(
-b.pokemon_cards?.market_value || 0
+Number(item.pokemon_cards?.market_value || 0)
+
 ),
 
+
 0
+
 );
-
-
-
-
-
 
 return (
 
-<main className="
+<main
+
+className="
 
 relative
 
@@ -306,78 +491,54 @@ min-h-screen
 
 overflow-hidden
 
+
 bg-gradient-to-br
 
-from-green-100
+from-[#020617]
 
-via-yellow-50
+via-[#052e16]
 
-to-purple-100
+to-[#064e3b]
+
 
 p-4
+
 pb-28
+
 md:p-8
+
 md:pb-8
 
-">
+
+text-white
+
+"
+
+>
 
 
 <ForestBackground />
 
 
 
-<div className="absolute inset-0 pointer-events-none">
 
-{
-
-fireflies.map((f,i)=>(
 
 <div
 
-key={i}
-
 className="
 
-absolute
+relative
 
-w-2
+z-10
 
-h-2
+max-w-7xl
 
-rounded-full
-
-bg-yellow-300
-
-shadow-[0_0_18px_8px_rgba(250,204,21,.7)]
-
-animate-pulse
+mx-auto
 
 "
 
-style={{
+>
 
-left:`${f.left}%`,
-
-top:`${f.top}%`,
-
-animationDelay:`${f.delay}s`
-
-}}
-
-/>
-
-))
-
-}
-
-</div>
-
-
-
-
-
-
-<div className="relative z-10 max-w-7xl mx-auto">
 
 
 <AdminNav />
@@ -386,44 +547,115 @@ animationDelay:`${f.delay}s`
 
 
 
-<section className="
+
+
+
+{/* VAULT HEADER */}
+
+
+<section
+
+className="
 
 mt-8
 
-bg-white
+relative
+
+overflow-hidden
+
 
 rounded-[3rem]
 
-shadow-xl
+
+bg-white/10
+
+
+backdrop-blur-3xl
+
 
 border
 
-border-emerald-200
+border-white/20
+
+
+shadow-[0_30px_120px_rgba(16,185,129,0.35)]
+
 
 p-10
 
+
 text-center
 
-">
+"
+
+>
 
 
-<h1 className="
+<div
+
+className="
+
+absolute
+
+inset-0
+
+
+bg-gradient-to-br
+
+from-white/20
+
+via-transparent
+
+to-emerald-400/20
+
+"
+
+/>
+
+
+
+
+
+
+<div className="relative z-10">
+
+
+<h1
+
+className="
 
 text-5xl
 
 font-black
 
-text-emerald-950
 
-">
+bg-gradient-to-r
 
-Forest Visitors
+from-white
+
+via-emerald-100
+
+to-emerald-300
+
+
+bg-clip-text
+
+text-transparent
+
+"
+
+>
+
+🏛️ Collector Vault
 
 </h1>
 
 
 
-<p className="
+
+<p
+
+className="
 
 mt-4
 
@@ -431,11 +663,13 @@ text-xl
 
 font-bold
 
-text-emerald-700
+text-emerald-100
 
-">
+"
 
-{totalVisitors.toLocaleString()} visitors
+>
+
+{totalVisitors.toLocaleString()} Pokémon stored
 
 </p>
 
@@ -443,50 +677,58 @@ text-emerald-700
 
 
 
-<div className="
+
+
+<div
+
+className="
 
 mt-10
 
-flex
+grid
 
-flex-col
+md:grid-cols-2
 
-md:flex-row
+gap-6
 
-justify-center
+"
 
-gap-12
-
-items-center
-
-">
+>
 
 
-<div className="
+{/* Treasure */}
 
-bg-yellow-100
+<div
+
+className="
+
+rounded-[2rem]
+
+bg-yellow-400/10
 
 border
 
-border-yellow-300
+border-yellow-300/30
 
-rounded-3xl
+backdrop-blur-xl
 
-px-10
+p-6
 
-py-6
+shadow-[0_0_50px_rgba(250,204,21,0.2)]
 
-">
+"
+
+>
 
 
-<p className="text-sm font-bold uppercase text-yellow-700">
+<p className="text-yellow-200 font-bold uppercase text-sm">
 
 Forest Treasure
 
 </p>
 
 
-<p className="text-4xl font-black text-yellow-950">
+<p className="text-4xl font-black mt-2">
 
 £{totalTreasure.toFixed(2)}
 
@@ -499,6 +741,11 @@ Forest Treasure
 
 
 
+
+
+
+{/* Refresh */}
+
 <button
 
 onClick={refreshMarket}
@@ -507,25 +754,28 @@ disabled={refreshing}
 
 className="
 
-bg-emerald-100
+rounded-[2rem]
 
-hover:bg-emerald-200
+bg-emerald-400/20
 
 border
 
-border-emerald-300
+border-emerald-300/30
 
-text-emerald-950
-
-rounded-3xl
-
-px-10
-
-py-6
 
 font-black
 
-shadow-md
+
+text-lg
+
+
+hover:bg-emerald-400/40
+
+
+transition
+
+
+shadow-[0_0_40px_rgba(52,211,153,0.35)]
 
 "
 
@@ -537,19 +787,24 @@ refreshing
 
 ?
 
-"Updating..."
+"🌱 Updating market..."
 
 :
 
-"Refresh Market Values"
+"💎 Refresh Market Values"
 
 }
+
 
 </button>
 
 
 
 </div>
+
+
+</div>
+
 
 
 </section>
@@ -559,13 +814,23 @@ refreshing
 
 
 
+
+
+
+{/* SEARCH */}
+
+
 <input
+
 
 value={search}
 
+
 onChange={(e)=>setSearch(e.target.value)}
 
-placeholder="Search visitors..."
+
+placeholder="🔍 Search vault collection..."
+
 
 className="
 
@@ -573,25 +838,38 @@ mt-10
 
 w-full
 
-rounded-3xl
+rounded-[2rem]
+
 
 p-5
 
-bg-white
 
-text-black
+bg-white/10
 
-shadow-xl
+
+backdrop-blur-3xl
+
 
 border
 
-border-emerald-200
+border-white/20
 
-font-semibold
+
+text-white
+
+
+placeholder:text-emerald-200/60
+
+
+outline-none
+
+
+shadow-[0_20px_60px_rgba(16,185,129,0.25)]
 
 "
 
 />
+
 
 
 
@@ -605,9 +883,25 @@ font-semibold
 loading ?
 
 
-<div className="text-center mt-10">
+<div
 
-Growing forest...
+className="
+
+text-center
+
+mt-20
+
+text-xl
+
+font-bold
+
+text-emerald-100
+
+"
+
+>
+
+🌱 Opening vault...
 
 </div>
 
@@ -616,7 +910,9 @@ Growing forest...
 :
 
 
-<div className="
+<div
+
+className="
 
 grid
 
@@ -630,47 +926,101 @@ gap-8
 
 mt-10
 
-">
+"
+
+>
 
 
 {
+
 
 filtered.map((item:any)=>{
 
 
 const card=item.pokemon_cards;
 
+
 const rarity=rarityStyle(card?.rarity);
+
 
 
 
 return (
 
+
 <div
+
 
 key={item.id}
 
+
 className={`
 
-bg-
 
 rounded-[2.5rem]
 
+
 overflow-hidden
 
-border-2
+
+bg-white/10
+
+
+backdrop-blur-3xl
+
+
+border
+
 
 ${rarity.border}
 
+
 ${rarity.glow}
 
-transition
+
+transition-all
+
 
 hover:-translate-y-3
 
+
 duration-300
 
+
 `}
+
+
+>
+
+
+
+
+
+{/* CARD IMAGE */}
+
+
+<div
+
+className="
+
+p-4
+
+"
+
+>
+
+
+<div
+
+className="
+
+rounded-[2rem]
+
+overflow-hidden
+
+bg-black/20
+
+"
 
 >
 
@@ -689,24 +1039,45 @@ object-cover
 
 "
 
-/>
+ />
+
+
+</div>
+
+
+</div>
 
 
 
 
 
-<div className="p-6">
 
 
-<h2 className="
+
+<div
+
+className="
+
+px-6
+
+pb-6
+
+"
+
+>
+
+
+<h2
+
+className="
 
 text-2xl
 
 font-black
 
-text-gray-950
+"
 
-">
+>
 
 {card.name}
 
@@ -714,9 +1085,13 @@ text-gray-950
 
 
 
-<p className="font-semibold text-gray-700">
 
-{card.set_name} #{card.card_no}
+
+<p className="text-emerald-200/70">
+
+{card.set_name}
+
+#{card.card_no}
 
 </p>
 
@@ -724,76 +1099,118 @@ text-gray-950
 
 
 
-<div className={`
 
-mt-3
+
+
+<div
+
+className={`
 
 inline-block
 
-rounded-full
+mt-4
 
 px-4
 
 py-2
 
-font-bold
+rounded-full
 
-text-black
+font-black
 
-${rarity.bg}
+${rarity.badge}
 
 `}
+
 >
+
 {card.rarity}
+
 </div>
 
 
 
 
 
-<div className="
+
+
+
+
+<div
+
+className="
 
 mt-5
 
 rounded-3xl
 
-bg-gray-50
+bg-black/20
+
+border
+
+border-white/10
 
 p-5
 
 space-y-3
 
-font-semibold
+"
 
-text-black
-
-">
+>
 
 
 <p>
-Quantity:
-<b> {item.quantity}</b>
-</p>
 
+📦 Quantity:
 
-<p>
-Market Value:
 <b>
-£{Number(card.market_value||0).toFixed(2)}
+
+{" "}
+
+{item.quantity}
+
 </b>
+
 </p>
 
 
+
+
 <p>
-Total Treasure:
+
+💎 Value:
+
 <b>
+
+£{Number(card.market_value || 0).toFixed(2)}
+
+</b>
+
+</p>
+
+
+
+
+<p>
+
+🏆 Total:
+
+<b>
+
 £{(
+
 Number(item.quantity)
+
 *
-Number(card.market_value||0)
+
+Number(card.market_value || 0)
+
 ).toFixed(2)}
+
 </b>
+
 </p>
+
 
 
 </div>
@@ -802,9 +1219,13 @@ Number(card.market_value||0)
 
 
 
-<div className="
 
-mt-5
+
+
+
+<div
+
+className="
 
 grid
 
@@ -812,59 +1233,81 @@ grid-cols-2
 
 gap-3
 
-">
+mt-5
+
+"
+
+>
 
 
 <button
 
 onClick={()=>updateQuantity(
+
 item.id,
+
 -1,
+
 item.quantity
+
 )}
 
 className="
 
 rounded-2xl
 
-bg-red-100
+bg-red-400/20
 
-text-red-900
+border
+
+border-red-300/30
+
+py-3
 
 font-black
 
-py-3
+hover:bg-red-400/40
 
 "
 
 >
 
--
+−
 
 </button>
 
 
 
 
+
+
 <button
 
 onClick={()=>updateQuantity(
+
 item.id,
+
 1,
+
 item.quantity
+
 )}
 
 className="
 
 rounded-2xl
 
-bg-emerald-100
+bg-emerald-400/20
 
-text-emerald-950
+border
+
+border-emerald-300/30
+
+py-3
 
 font-black
 
-py-3
+hover:bg-emerald-400/40
 
 "
 
@@ -875,16 +1318,25 @@ py-3
 </button>
 
 
+
 </div>
+
+
+
+
 
 
 
 <button
 
 onClick={()=>updateQuantity(
+
 item.id,
+
 -item.quantity,
+
 item.quantity
+
 )}
 
 className="
@@ -895,40 +1347,53 @@ w-full
 
 rounded-2xl
 
-bg-gray-900
+bg-black/40
 
-text-white
+border
+
+border-white/10
 
 py-3
 
 font-bold
 
+hover:bg-black/60
+
 "
 
 >
 
-Remove
+Remove From Vault
 
 </button>
 
 
 
-</div>
 
 
 </div>
+
+
+
+</div>
+
 
 )
 
+
 })
 
+
 }
+
 
 
 </div>
 
 
+
 }
+
 
 
 </div>
@@ -937,6 +1402,5 @@ Remove
 </main>
 
 );
-
 
 }
