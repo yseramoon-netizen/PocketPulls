@@ -195,9 +195,7 @@ function readAllowlist(
 ): string[] {
   return (value || "")
     .split(",")
-    .map((entry) =>
-      entry.trim(),
-    )
+    .map((entry) => entry.trim())
     .filter(Boolean);
 }
 
@@ -229,29 +227,72 @@ async function authenticateAdmin(
   );
 
   if (error || !user) {
+    console.error(
+      "Tree authentication failed:",
+      error,
+    );
+
     throw new RouteError(
       "Your session could not be verified.",
       401,
     );
   }
 
-  const allowedUserIds =
-    readAllowlist(
+  const allowedUserIds = [
+    ...readAllowlist(
       process.env
         .POCKETPULLS_ADMIN_USER_IDS,
-    );
+    ),
 
-  const allowedEmails =
-    readAllowlist(
+    ...readAllowlist(
+      process.env
+        .POCKETPULLS_LUKAS_USER_IDS,
+    ),
+
+    ...readAllowlist(
+      process.env
+        .POCKETPULLS_SKYE_USER_IDS,
+    ),
+  ];
+
+  const allowedEmails = [
+    ...readAllowlist(
       process.env
         .POCKETPULLS_ADMIN_EMAILS,
-    ).map((email) =>
-      email.toLowerCase(),
+    ),
+
+    ...readAllowlist(
+      process.env
+        .POCKETPULLS_LUKAS_EMAILS,
+    ),
+
+    ...readAllowlist(
+      process.env
+        .POCKETPULLS_SKYE_EMAILS,
+    ),
+  ].map((email) =>
+    email.toLowerCase(),
+  );
+
+  const configured =
+    allowedUserIds.length > 0 ||
+    allowedEmails.length > 0;
+
+  if (!configured) {
+    console.error(
+      "No PocketPulls founder allowlist is configured.",
     );
 
+    throw new RouteError(
+      "The founder accounts have not been configured on this deployment.",
+      500,
+    );
+  }
+
   const userEmail =
-    user.email?.toLowerCase() ||
-    "";
+    user.email
+      ?.trim()
+      .toLowerCase() || "";
 
   const authorisedById =
     allowedUserIds.includes(
@@ -265,6 +306,20 @@ async function authenticateAdmin(
           userEmail,
         ),
     );
+
+  console.info(
+    "Tree access check:",
+    {
+      userId: user.id,
+      email: userEmail,
+      authorisedById,
+      authorisedByEmail,
+      deployment:
+        process.env
+          .VERCEL_ENV ||
+        "local",
+    },
+  );
 
   if (
     !authorisedById &&

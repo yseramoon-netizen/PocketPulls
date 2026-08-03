@@ -18,7 +18,7 @@ const navigationItems: NavigationItem[] = [
     label: "Dashboard",
     href: "/admin",
     icon: "⌂",
-    description: "Operations overview",
+    description: "",
   },
   {
     label: "Add Cards",
