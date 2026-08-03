@@ -1,0 +1,1120 @@
+.overlay {
+  --wish-primary: #e2e8f0;
+  --wish-secondary: #94a3b8;
+  --wish-glow: rgba(226, 232, 240, 0.76);
+  --impact-scale: 7;
+  --shake-distance: 4px;
+  --flash-strength: 0.84;
+  --tier: 3;
+
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  overflow: hidden;
+  color: #ffffff;
+  background: #020617;
+  isolation: isolate;
+}
+
+.sky,
+.stars,
+.vignette,
+.sequence {
+  position: absolute;
+  inset: 0;
+}
+
+.sky,
+.stars,
+.vignette {
+  pointer-events: none;
+}
+
+.sky {
+  background:
+    radial-gradient(
+      circle at 50% 12%,
+      rgba(255, 255, 255, 0.08),
+      transparent 31%
+    ),
+    radial-gradient(
+      circle at 18% 36%,
+      rgba(125, 211, 252, 0.07),
+      transparent 26%
+    ),
+    radial-gradient(
+      circle at 84% 24%,
+      rgba(196, 181, 253, 0.08),
+      transparent 27%
+    ),
+    linear-gradient(
+      180deg,
+      #020617 0%,
+      #08132e 52%,
+      #020617 100%
+    );
+}
+
+.stars {
+  opacity: 0.84;
+  background-image:
+    radial-gradient(circle at 8% 16%, #ffffff 0 1px, transparent 1.5px),
+    radial-gradient(circle at 17% 43%, #ffffff 0 1px, transparent 1.5px),
+    radial-gradient(circle at 28% 21%, #ffffff 0 1.2px, transparent 1.7px),
+    radial-gradient(circle at 38% 37%, #ffffff 0 1px, transparent 1.5px),
+    radial-gradient(circle at 48% 13%, #ffffff 0 1.2px, transparent 1.7px),
+    radial-gradient(circle at 58% 31%, #ffffff 0 1px, transparent 1.5px),
+    radial-gradient(circle at 69% 17%, #ffffff 0 1.2px, transparent 1.7px),
+    radial-gradient(circle at 79% 39%, #ffffff 0 1px, transparent 1.5px),
+    radial-gradient(circle at 90% 18%, #ffffff 0 1.2px, transparent 1.7px),
+    radial-gradient(circle at 12% 71%, #ffffff 0 1px, transparent 1.5px),
+    radial-gradient(circle at 27% 82%, #ffffff 0 1.2px, transparent 1.7px),
+    radial-gradient(circle at 43% 66%, #ffffff 0 1px, transparent 1.5px),
+    radial-gradient(circle at 61% 78%, #ffffff 0 1.2px, transparent 1.7px),
+    radial-gradient(circle at 77% 69%, #ffffff 0 1px, transparent 1.5px),
+    radial-gradient(circle at 92% 58%, #ffffff 0 1.2px, transparent 1.7px);
+  animation: starsBreathe 3.5s ease-in-out infinite alternate;
+}
+
+.vignette {
+  background: radial-gradient(
+    circle,
+    transparent 42%,
+    rgba(0, 0, 0, 0.58) 100%
+  );
+}
+
+.preparing {
+  position: absolute;
+  z-index: 20;
+  top: 50%;
+  left: 50%;
+  display: flex;
+  width: min(70vw, 260px);
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  transform: translate(-50%, -50%);
+}
+
+.preparingGlow {
+  position: absolute;
+  top: 42%;
+  left: 50%;
+  width: 230px;
+  height: 230px;
+  border-radius: 999px;
+  background: radial-gradient(
+    circle,
+    rgba(255, 255, 255, 0.18),
+    transparent 70%
+  );
+  filter: blur(20px);
+  transform: translate(-50%, -50%);
+  animation: gentlePulse 1.4s ease-in-out infinite alternate;
+}
+
+.preparing img {
+  position: relative;
+  z-index: 2;
+  display: block;
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+  filter: drop-shadow(
+    0 22px 32px rgba(0, 0, 0, 0.58)
+  );
+  animation: float 2.4s ease-in-out infinite;
+}
+
+.preparing p {
+  position: relative;
+  z-index: 3;
+  margin: 0.8rem 0 0;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.7rem;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.soundButton,
+.skipButton {
+  position: absolute;
+  z-index: 90;
+  top: 1.25rem;
+  min-height: 2.65rem;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  padding: 0 1rem;
+  color: rgba(255, 255, 255, 0.72);
+  background: rgba(0, 0, 0, 0.3);
+  cursor: pointer;
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+}
+
+.soundButton {
+  left: 1.25rem;
+}
+
+.skipButton {
+  right: 1.25rem;
+}
+
+.soundButton:hover,
+.skipButton:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.09);
+}
+
+.sequence {
+  z-index: 20;
+  overflow: hidden;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  animation:
+    sequenceShake 760ms 4.54s
+    cubic-bezier(0.36, 0.07, 0.19, 0.97)
+    both;
+  animation-play-state: running;
+  contain: layout paint style;
+}
+
+.jirachiScene {
+  position: absolute;
+  z-index: 16;
+  top: 9%;
+  left: 50%;
+  display: flex;
+  width: min(56vw, 255px);
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  opacity: 0;
+  transform: translate3d(-50%, 18px, 0) scale(0.92);
+  animation: jirachiScene 1.55s ease-in-out both;
+  backface-visibility: hidden;
+}
+
+.jirachiAura {
+  position: absolute;
+  top: 42%;
+  left: 50%;
+  width: 230px;
+  height: 230px;
+  border-radius: 999px;
+  background: radial-gradient(
+    circle,
+    rgba(255, 255, 255, 0.2),
+    transparent 70%
+  );
+  filter: blur(19px);
+  transform: translate(-50%, -50%);
+  animation: gentlePulse 1.1s ease-in-out infinite alternate;
+}
+
+.jirachi {
+  position: relative;
+  z-index: 2;
+  display: block;
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+  filter: drop-shadow(
+    0 22px 32px rgba(0, 0, 0, 0.58)
+  );
+  animation: float 2.3s ease-in-out infinite;
+}
+
+.jirachiScene p {
+  position: relative;
+  z-index: 3;
+  margin: 0.7rem 0 0;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 0.7rem;
+  font-weight: 900;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.fallingStar {
+  position: absolute;
+  z-index: 30;
+  top: 50%;
+  left: 50%;
+  width: 76px;
+  height: 76px;
+  opacity: 0;
+  animation: starJourney 3.65s 1.05s
+    cubic-bezier(0.34, 0.05, 0.64, 1) both;
+  transform: translate3d(-50%, -50%, 0);
+  transform-origin: center;
+  backface-visibility: hidden;
+  will-change: transform, opacity;
+}
+
+.whiteTrail,
+.rarityTrail {
+  position: absolute;
+  left: 50%;
+  bottom: 42px;
+  width: 18px;
+  height: 225px;
+  border-radius: 999px;
+  filter: blur(7px);
+  transform: translateX(-50%);
+  transform-origin: bottom;
+}
+
+.whiteTrail {
+  background: linear-gradient(
+    to top,
+    rgba(255, 255, 255, 0.96),
+    rgba(255, 255, 255, 0.34) 36%,
+    transparent
+  );
+  opacity: 0.92;
+  animation: whiteFades 3.65s 1.05s linear both;
+}
+
+.rarityTrail {
+  background: linear-gradient(
+    to top,
+    #ffffff,
+    var(--wish-primary) 28%,
+    var(--wish-secondary) 58%,
+    transparent
+  );
+  opacity: 0;
+  animation: rarityAppears 3.65s 1.05s linear both;
+}
+
+.starOuterGlow {
+  position: absolute;
+  inset: -36px;
+  border-radius: 999px;
+  background: radial-gradient(
+    circle,
+    rgba(255, 255, 255, 0.34),
+    transparent 68%
+  );
+  filter: blur(18px);
+  animation:
+    gentlePulse 620ms ease-in-out infinite alternate,
+    glowChanges 3.65s 1.05s linear both;
+}
+
+.whiteCore,
+.rarityCore {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+}
+
+.whiteCore {
+  background: radial-gradient(
+    circle,
+    #ffffff 0%,
+    #ffffff 52%,
+    rgba(255, 255, 255, 0.68) 76%,
+    transparent 100%
+  );
+  box-shadow:
+    0 0 25px 8px rgba(255, 255, 255, 0.62),
+    0 0 70px 22px rgba(255, 255, 255, 0.28);
+  opacity: 1;
+  animation: whiteFades 3.65s 1.05s linear both;
+}
+
+.rarityCore {
+  background: radial-gradient(
+    circle,
+    #ffffff 0%,
+    var(--wish-primary) 42%,
+    var(--wish-secondary) 78%,
+    transparent 100%
+  );
+  box-shadow:
+    0 0 28px 9px var(--wish-primary),
+    0 0 88px 30px var(--wish-glow);
+  opacity: 0;
+  animation: rarityAppears 3.65s 1.05s linear both;
+}
+
+.impact {
+  position: absolute;
+  z-index: 40;
+  inset: 0;
+  pointer-events: none;
+}
+
+.impactFlash {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    circle at 50% 78%,
+    #ffffff 0%,
+    var(--wish-primary) 9%,
+    var(--wish-glow) 24%,
+    transparent 54%
+  );
+  opacity: 0;
+  animation: impactFlash 760ms 4.54s ease-out both;
+}
+
+.impactRing,
+.impactRingSecond,
+.impactRingThird {
+  position: absolute;
+  top: 78%;
+  left: 50%;
+  width: 78px;
+  height: 78px;
+  border: 4px solid var(--wish-primary);
+  border-radius: 999px;
+  box-shadow: 0 0 34px var(--wish-glow);
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.18);
+  animation: impactRing 820ms 4.56s ease-out both;
+}
+
+.impactRingSecond {
+  animation-delay: 4.64s;
+}
+
+.impactRingThird {
+  animation-delay: 4.72s;
+}
+
+.impactRays {
+  position: absolute;
+  top: 78%;
+  left: 50%;
+  width: 1px;
+  height: 1px;
+}
+
+.impactRays span {
+  --ray-angle: 0deg;
+  --ray-length: 130px;
+  --ray-delay: 0ms;
+
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: var(--ray-length);
+  height: 2px;
+  border-radius: 999px;
+  background: linear-gradient(
+    to right,
+    var(--wish-primary),
+    transparent
+  );
+  box-shadow: 0 0 9px var(--wish-glow);
+  opacity: 0;
+  transform:
+    rotate(var(--ray-angle))
+    translateX(12px)
+    scaleX(0.1);
+  transform-origin: left center;
+  animation: rayBurst 650ms
+    calc(4.55s + var(--ray-delay))
+    ease-out both;
+}
+
+.particles {
+  position: absolute;
+  top: 78%;
+  left: 50%;
+  width: 1px;
+  height: 1px;
+}
+
+.particles span {
+  --particle-angle: 0deg;
+  --particle-distance: 130px;
+  --particle-delay: 0ms;
+  --particle-size: 4px;
+
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: var(--particle-size);
+  height: var(--particle-size);
+  border-radius: 999px;
+  background: var(--wish-primary);
+  box-shadow: 0 0 9px var(--wish-glow);
+  opacity: 0;
+  transform:
+    rotate(var(--particle-angle))
+    translateX(0)
+    scale(1);
+  animation: particleBurst 820ms
+    calc(4.57s + var(--particle-delay))
+    ease-out both;
+}
+
+.cardScene {
+  position: absolute;
+  z-index: 50;
+  top: 44%;
+  left: 50%;
+  width: min(51vw, 285px);
+  aspect-ratio: 0.716;
+  opacity: 0;
+  perspective: 1400px;
+  transform:
+    translate3d(-50%, -50%, 0)
+    scale(0.7)
+    rotateY(90deg);
+  transform-style: preserve-3d;
+  animation: cardReveal 1.45s 5.08s
+    cubic-bezier(0.16, 0.9, 0.24, 1) both;
+  backface-visibility: hidden;
+  will-change: transform, opacity;
+}
+
+.cardGlow {
+  position: absolute;
+  inset: -28%;
+  border-radius: 999px;
+  background: radial-gradient(
+    circle,
+    var(--wish-glow),
+    transparent 68%
+  );
+  filter: blur(27px);
+  opacity: 0.72;
+  animation: gentlePulse 1.4s ease-in-out infinite alternate;
+}
+
+.cardFrame {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  border: 2px solid var(--wish-primary);
+  border-radius: 1.35rem;
+  background: #07091f;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.08),
+    0 0 46px var(--wish-glow),
+    0 28px 75px rgba(0, 0, 0, 0.68);
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+.cardFrame img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: #050713;
+  object-fit: contain;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+.cardFallback {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 1rem;
+  text-align: center;
+}
+
+.cardFallback span {
+  color: var(--wish-primary);
+  font-size: 6rem;
+  filter: drop-shadow(0 0 24px var(--wish-glow));
+}
+
+.cardFallback strong {
+  color: #ffffff;
+  font-size: 1rem;
+}
+
+.cardShine,
+.premiumCardShine {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    112deg,
+    transparent 24%,
+    rgba(255, 255, 255, 0.04) 38%,
+    rgba(255, 255, 255, 0.25) 49%,
+    rgba(255, 255, 255, 0.04) 60%,
+    transparent 76%
+  );
+  background-size: 260% 100%;
+  animation: shine 2.4s 5.4s linear infinite;
+}
+
+.premiumCardShine {
+  inset: 0;
+  pointer-events: none;
+  background: conic-gradient(
+    from 115deg,
+    transparent,
+    rgba(103, 232, 249, 0.14),
+    rgba(249, 168, 212, 0.16),
+    rgba(254, 240, 138, 0.14),
+    transparent
+  );
+  mix-blend-mode: screen;
+  opacity: 0;
+  animation:
+    premiumShine 2.8s 5.25s linear infinite,
+    premiumShineIn 500ms 5.25s ease-out both;
+}
+
+.cardInfo {
+  position: absolute;
+  z-index: 60;
+  right: 0;
+  bottom: 1.25rem;
+  left: 0;
+  width: min(92%, 700px);
+  margin: 0 auto;
+  padding: 0 0.5rem;
+  opacity: 0;
+  text-align: center;
+  transform: translate3d(0, 24px, 0);
+  animation: infoAppears 520ms 6.18s ease-out both;
+}
+
+.rarity {
+  margin: 0;
+  color: var(--wish-primary);
+  font-size: 0.7rem;
+  font-weight: 900;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+
+.cardInfo h2 {
+  margin: 0.42rem 0 0;
+  color: #ffffff;
+  font-size: clamp(1.8rem, 5vw, 2.8rem);
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  line-height: 1.06;
+}
+
+.meta {
+  margin: 0.62rem 0 0;
+  color: rgba(255, 255, 255, 0.56);
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.pills {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.55rem;
+  margin-top: 0.85rem;
+}
+
+.pills span {
+  display: inline-flex;
+  min-height: 2.2rem;
+  align-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  border-radius: 999px;
+  padding: 0 0.9rem;
+  color: rgba(255, 255, 255, 0.78);
+  background: rgba(0, 0, 0, 0.3);
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.actionError {
+  margin: 0.8rem auto 0;
+  max-width: 34rem;
+  border: 1px solid rgba(254, 202, 202, 0.18);
+  border-radius: 0.8rem;
+  padding: 0.65rem 0.8rem;
+  color: #fee2e2;
+  background: rgba(239, 68, 68, 0.1);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.65rem;
+  margin-top: 1rem;
+}
+
+.wishAgainButton,
+.keepButton {
+  min-height: 3rem;
+  border-radius: 0.85rem;
+  padding: 0 1.55rem;
+  cursor: pointer;
+  font-size: 0.88rem;
+  font-weight: 900;
+  transition:
+    filter 180ms ease,
+    transform 180ms ease,
+    opacity 180ms ease;
+}
+
+.wishAgainButton {
+  border: 0;
+  color: #020617;
+  background: linear-gradient(
+    135deg,
+    var(--wish-primary),
+    var(--wish-secondary)
+  );
+  box-shadow: 0 0 30px var(--wish-glow);
+}
+
+.keepButton {
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.82);
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.wishAgainButton:hover,
+.keepButton:hover {
+  filter: brightness(1.08);
+  transform: translateY(-2px);
+}
+
+.wishAgainButton:disabled,
+.keepButton:disabled {
+  cursor: not-allowed;
+  filter: none;
+  opacity: 0.45;
+  transform: none;
+}
+
+.sequenceSkipped .jirachiScene,
+.sequenceSkipped .fallingStar,
+.sequenceSkipped .impact {
+  display: none;
+}
+
+.sequenceSkipped .cardScene {
+  opacity: 1;
+  animation: none;
+  transform:
+    translate3d(-50%, -50%, 0)
+    scale(1)
+    rotateY(0deg);
+}
+
+.sequenceSkipped .cardInfo {
+  opacity: 1;
+  animation: none;
+  transform: translate3d(0, 0, 0);
+}
+
+@keyframes starsBreathe {
+  from {
+    opacity: 0.68;
+  }
+
+  to {
+    opacity: 0.96;
+  }
+}
+
+@keyframes gentlePulse {
+  from {
+    opacity: 0.58;
+    transform: scale(0.92);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1.12);
+  }
+}
+
+@keyframes float {
+  0%,
+  100% {
+    transform: translate3d(0, -4px, 0);
+  }
+
+  50% {
+    transform: translate3d(0, 9px, 0);
+  }
+}
+
+@keyframes jirachiScene {
+  0% {
+    opacity: 0;
+    transform: translate3d(-50%, 18px, 0) scale(0.92);
+  }
+
+  18% {
+    opacity: 1;
+    transform: translate3d(-50%, 0, 0) scale(1);
+  }
+
+  72% {
+    opacity: 1;
+    transform: translate3d(-50%, 0, 0) scale(1);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate3d(-50%, -14px, 0) scale(0.94);
+  }
+}
+
+@keyframes starJourney {
+  0% {
+    opacity: 0;
+    transform:
+      translate3d(-50%, calc(-50% - 27vh), 0)
+      scale(0.16);
+  }
+
+  8% {
+    opacity: 1;
+    transform:
+      translate3d(-50%, calc(-50% - 25vh), 0)
+      scale(0.72);
+  }
+
+  28% {
+    opacity: 1;
+    transform:
+      translate3d(
+        calc(-50% + 20vw),
+        calc(-50% - 19vh),
+        0
+      )
+      scale(0.84);
+  }
+
+  55% {
+    opacity: 1;
+    transform:
+      translate3d(
+        calc(-50% + 26vw),
+        calc(-50% - 2vh),
+        0
+      )
+      scale(0.98);
+  }
+
+  78% {
+    opacity: 1;
+    transform:
+      translate3d(
+        calc(-50% - 19vw),
+        calc(-50% + 10vh),
+        0
+      )
+      scale(1.08);
+  }
+
+  100% {
+    opacity: 1;
+    transform:
+      translate3d(
+        -50%,
+        calc(-50% + 28vh),
+        0
+      )
+      scale(1.25);
+  }
+}
+
+@keyframes whiteFades {
+  0%,
+  56% {
+    opacity: 1;
+  }
+
+  82%,
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes rarityAppears {
+  0%,
+  54% {
+    opacity: 0;
+  }
+
+  80%,
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes glowChanges {
+  0%,
+  54% {
+    background: radial-gradient(
+      circle,
+      rgba(255, 255, 255, 0.34),
+      transparent 68%
+    );
+  }
+
+  100% {
+    background: radial-gradient(
+      circle,
+      var(--wish-glow),
+      transparent 68%
+    );
+  }
+}
+
+@keyframes impactFlash {
+  0% {
+    opacity: 0;
+  }
+
+  7% {
+    opacity: var(--flash-strength);
+  }
+
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes impactRing {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.18);
+  }
+
+  8% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+    transform:
+      translate(-50%, -50%)
+      scale(var(--impact-scale));
+  }
+}
+
+@keyframes rayBurst {
+  0% {
+    opacity: 0;
+    transform:
+      rotate(var(--ray-angle))
+      translateX(12px)
+      scaleX(0.1);
+  }
+
+  8% {
+    opacity: 0.9;
+  }
+
+  100% {
+    opacity: 0;
+    transform:
+      rotate(var(--ray-angle))
+      translateX(20px)
+      scaleX(1);
+  }
+}
+
+@keyframes particleBurst {
+  0% {
+    opacity: 0;
+    transform:
+      rotate(var(--particle-angle))
+      translateX(0)
+      scale(1);
+  }
+
+  8% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+    transform:
+      rotate(var(--particle-angle))
+      translateX(var(--particle-distance))
+      scale(0);
+  }
+}
+
+@keyframes cardReveal {
+  0% {
+    opacity: 0;
+    transform:
+      translate3d(-50%, -50%, 0)
+      scale(0.7)
+      rotateY(90deg);
+  }
+
+  50% {
+    opacity: 1;
+    transform:
+      translate3d(-50%, -50%, 0)
+      scale(1.07)
+      rotateY(-11deg);
+  }
+
+  74% {
+    opacity: 1;
+    transform:
+      translate3d(-50%, -50%, 0)
+      scale(0.98)
+      rotateY(4deg);
+  }
+
+  100% {
+    opacity: 1;
+    transform:
+      translate3d(-50%, -50%, 0)
+      scale(1)
+      rotateY(0deg);
+  }
+}
+
+@keyframes infoAppears {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 24px, 0);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes shine {
+  from {
+    background-position: 180% 0;
+  }
+
+  to {
+    background-position: -80% 0;
+  }
+}
+
+
+@keyframes sequenceShake {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+
+  12% {
+    transform: translate3d(
+      calc(var(--shake-distance) * -0.75),
+      calc(var(--shake-distance) * 0.22),
+      0
+    );
+  }
+
+  24% {
+    transform: translate3d(
+      var(--shake-distance),
+      calc(var(--shake-distance) * -0.3),
+      0
+    );
+  }
+
+  38% {
+    transform: translate3d(
+      calc(var(--shake-distance) * -0.8),
+      calc(var(--shake-distance) * 0.26),
+      0
+    );
+  }
+
+  52% {
+    transform: translate3d(
+      calc(var(--shake-distance) * 0.65),
+      calc(var(--shake-distance) * -0.18),
+      0
+    );
+  }
+
+  70% {
+    transform: translate3d(
+      calc(var(--shake-distance) * -0.32),
+      0,
+      0
+    );
+  }
+}
+
+@keyframes premiumShine {
+  from {
+    transform: rotate(0deg) scale(1.35);
+  }
+
+  to {
+    transform: rotate(360deg) scale(1.35);
+  }
+}
+
+@keyframes premiumShineIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 0.72;
+  }
+}
+
+@media (max-width: 640px) {
+  .jirachiScene {
+    top: 8%;
+    width: min(68vw, 215px);
+  }
+
+  .fallingStar {
+    width: 64px;
+    height: 64px;
+  }
+
+  .cardScene {
+    top: 42%;
+    width: min(64vw, 245px);
+  }
+
+  .cardInfo {
+    bottom: 0.75rem;
+  }
+
+  .cardInfo h2 {
+    font-size: 1.75rem;
+  }
+
+  .meta {
+    font-size: 0.78rem;
+  }
+
+  .wishAgainButton,
+  .keepButton {
+    min-height: 2.8rem;
+    padding: 0 1.2rem;
+    font-size: 0.8rem;
+  }
+}
+

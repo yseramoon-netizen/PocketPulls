@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { supabase } from "@/lib/supabase";
 
@@ -47,6 +47,42 @@ export default function PlayerNav({
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
+  const [displayedWishBalance, setDisplayedWishBalance] =
+    useState(wishBalance);
+
+  useEffect(() => {
+    setDisplayedWishBalance(wishBalance);
+  }, [wishBalance]);
+
+  useEffect(() => {
+    const handleWishBalance = (event: Event) => {
+      const customEvent = event as CustomEvent<{
+        wishBalance?: unknown;
+      }>;
+
+      const parsed = Number(
+        customEvent.detail?.wishBalance,
+      );
+
+      if (Number.isFinite(parsed)) {
+        setDisplayedWishBalance(
+          Math.max(0, Math.floor(parsed)),
+        );
+      }
+    };
+
+    window.addEventListener(
+      "pocketpulls:wish-balance",
+      handleWishBalance,
+    );
+
+    return () => {
+      window.removeEventListener(
+        "pocketpulls:wish-balance",
+        handleWishBalance,
+      );
+    };
+  }, []);
 
   async function handleSignOut() {
     if (signingOut) {
@@ -135,7 +171,7 @@ export default function PlayerNav({
               </p>
 
               <p className="text-sm font-black text-yellow-50">
-                {Math.max(0, Math.floor(wishBalance))}
+                {Math.max(0, Math.floor(displayedWishBalance))}
               </p>
             </Link>
 
