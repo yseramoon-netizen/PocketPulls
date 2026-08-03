@@ -287,6 +287,82 @@ export default function PlayerNav({
 
             <button
               type="button"
+              onClick={() => void handleSignOut()}
+              disabled={signingOut}
+              aria-label="Log out of Unknown Pulls"
+              title="Log out"
+              className="
+                group
+                relative
+                hidden
+                min-h-11
+                items-center
+                gap-2.5
+                overflow-hidden
+                rounded-xl
+                border
+                border-pink-200/15
+                bg-pink-300/[0.055]
+                px-3
+                text-pink-50
+                shadow-[inset_0_0_0_1px_rgba(103,232,249,0.02)]
+                transition
+                hover:-translate-y-0.5
+                hover:border-pink-100/25
+                hover:bg-pink-300/[0.1]
+                disabled:cursor-not-allowed
+                disabled:opacity-45
+                disabled:hover:translate-y-0
+                xl:flex
+              "
+            >
+              <span
+                aria-hidden="true"
+                className="
+                  pointer-events-none
+                  absolute
+                  inset-0
+                  bg-gradient-to-r
+                  from-violet-400/[0.05]
+                  via-cyan-200/[0.025]
+                  to-pink-300/[0.07]
+                  opacity-0
+                  transition
+                  group-hover:opacity-100
+                "
+              />
+
+              <svg
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+                className="relative h-4 w-4 flex-none"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.9"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M10 5H6.8A1.8 1.8 0 0 0 5 6.8v10.4A1.8 1.8 0 0 0 6.8 19H10" />
+                <path d="M13 8l4 4-4 4" />
+                <path d="M9 12h8" />
+              </svg>
+
+              <span className="relative">
+                <UnownText
+                  text={
+                    signingOut
+                      ? "Leaving"
+                      : "Logout"
+                  }
+                  size="0.62rem"
+                  tone="muted"
+                  wrap={false}
+                />
+              </span>
+            </button>
+
+            <button
+              type="button"
               onClick={() => setMenuOpen(true)}
               aria-label="Open player menu"
               className="relative flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-white/[0.05] text-white 2xl:hidden"
