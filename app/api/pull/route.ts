@@ -1,354 +1,399 @@
 import { NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { supabaseAdmin as supabase } from "@/lib/supabaseAdmin";
 
 
-export async function POST(req: Request){
+export async function POST(req: Request) {
 
-try{
+  try {
 
+    const { userId } = await req.json();
 
-const body = await req.json();
 
-const userId = body.userId;
+    if (!userId) {
 
+      return NextResponse.json(
+        {
+          error: "User missing"
+        },
+        {
+          status: 400
+        }
+      );
 
+    }
 
-if(!userId){
 
-return NextResponse.json(
-{
-error:"User missing"
-},
-{
-status:400
-}
-);
 
-}
+    // GET USER BALANCE
 
+    const {
+      data: user,
+      error: userError
 
+    } = await supabase
 
+      .from("profiles")
 
-// GET USER WALLET
+      .select("balance")
 
-const {
-data:user,
-error:userError
+      .eq("id", userId)
 
-}=await supabase
+      .single();
 
-.from("profiles")
 
-.select("balance")
 
-.eq(
-"id",
-userId
-)
+    if (userError || !user) {
 
-.single();
+      console.error(userError);
 
+      return NextResponse.json(
+        {
+          error: "Profile not found"
+        },
+        {
+          status: 400
+        }
+      );
 
+    }
 
-if(userError || !user){
 
-return NextResponse.json(
-{
-error:"Profile not found"
-},
-{
-status:400
-}
-);
 
-}
+    const price = 1;
 
 
 
+    if (Number(user.balance) < price) {
 
-const price = 1;
+      return NextResponse.json(
+        {
+          error: "Insufficient balance"
+        },
+        {
+          status:400
+        }
+      );
 
+    }
 
 
-if(Number(user.balance) < price){
 
-return NextResponse.json(
-{
-error:"Insufficient balance"
-},
-{
-status:400
-}
-);
 
-}
+    // GET REAL INVENTORY
 
+    const {
 
+      data: inventory,
 
+      error: inventoryError
 
+    } = await supabase
 
-// GET REAL INVENTORY
+      .from("inventory")
 
-const {
-data:inventory,
-error:inventoryError
+      .select(`
 
-}=await supabase
+        id,
 
-.from("inventory")
+        quantity,
 
-.select(`
+        pokemon_cards(
 
-id,
+          id,
 
-quantity,
+          name,
 
-pokemon_cards(
-id,
-name,
-rarity,
-image_url,
-market_value
+          rarity,
 
-)
+          image_url,
 
-`)
+          market_value
 
-.gt(
-"quantity",
-0
-);
+        )
 
+      `)
 
+      .gt("quantity",0);
 
 
-if(inventoryError){
 
-console.error(inventoryError);
 
-return NextResponse.json(
-{
-error:"Inventory loading failed"
-},
-{
-status:500
-}
-);
 
-}
+    if(inventoryError){
 
+      console.error(inventoryError);
 
+      return NextResponse.json(
+        {
+          error:"Inventory loading failed"
+        },
+        {
+          status:500
+        }
+      );
 
+    }
 
-if(!inventory || inventory.length===0){
 
-return NextResponse.json(
-{
-error:"Forest is empty"
-},
-{
-status:400
-}
-);
 
-}
 
 
+    if(!inventory || inventory.length===0){
 
+      return NextResponse.json(
+        {
+          error:"Forest is empty"
+        },
+        {
+          status:400
+        }
+      );
 
-// PICK RANDOM CARD
+    }
 
-const selected =
-inventory[
-Math.floor(
-Math.random()*inventory.length
-)
-];
 
 
 
-const card = Array.isArray(selected.pokemon_cards)
+    // RANDOM REAL CARD
 
-?
-selected.pokemon_cards[0]
+    const selected =
+      inventory[
+        Math.floor(Math.random()*inventory.length)
+      ];
 
-:
 
-selected.pokemon_cards;
 
+    const card = Array.isArray(selected.pokemon_cards)
 
+      ? selected.pokemon_cards[0]
 
+      : selected.pokemon_cards;
 
-if(!card){
 
-return NextResponse.json(
-{
-error:"Card missing"
-},
-{
-status:500
-}
-);
 
-}
+    if(!card){
 
+      return NextResponse.json(
+        {
+          error:"Card missing"
+        },
+        {
+          status:500
+        }
+      );
 
+    }
 
 
-// REMOVE INVENTORY CARD
 
-const remaining =
-Number(selected.quantity)-1;
 
 
+    // REMOVE CARD FROM INVENTORY
 
-if(remaining<=0){
+    const remaining =
+      Number(selected.quantity)-1;
 
 
-await supabase
 
-.from("inventory")
+    if(remaining <= 0){
 
-.delete()
 
-.eq(
-"id",
-selected.id
-);
+      await supabase
 
+        .from("inventory")
 
-}
+        .delete()
 
-else{
+        .eq(
+          "id",
+          selected.id
+        );
 
 
-await supabase
+    } else {
 
-.from("inventory")
 
-.update({
+      await supabase
 
-quantity:remaining
+        .from("inventory")
 
-})
+        .update({
 
-.eq(
-"id",
-selected.id
-);
+          quantity: remaining
 
+        })
 
-}
+        .eq(
+          "id",
+          selected.id
+        );
 
 
+    }
 
 
 
-// REMOVE WALLET MONEY
 
-await supabase
 
-.from("profiles")
 
-.update({
 
-balance:
-Number(user.balance)-price
+    // SUBTRACT WALLET
 
-})
+    const newBalance =
+      Number(user.balance)-price;
 
-.eq(
-"id",
-userId
-);
 
 
+    const {
 
+      data:updatedProfile,
 
+      error:balanceError
 
+    } = await supabase
 
+      .from("profiles")
 
-// SAVE DISCOVERY HISTORY
+      .update({
 
-const {
-error:historyError
+        balance:newBalance
 
-}=await supabase
+      })
 
-.from("pull_history")
+      .eq(
+        "id",
+        userId
+      )
 
-.insert({
+      .select("balance")
 
-user_id:userId,
+      .single();
 
-card_id:card.id,
 
-market_value:
-Number(card.market_value || 0),
 
-amount_paid:
-price
 
-});
 
+    if(balanceError){
 
+      console.error(
+        "Wallet update error:",
+        balanceError
+      );
 
-if(historyError){
 
-console.error(
-"History save error:",
-historyError
-);
+      return NextResponse.json(
+        {
+          error:"Wallet update failed"
+        },
+        {
+          status:500
+        }
+      );
 
-}
+    }
 
 
 
 
 
-return NextResponse.json({
+    console.log(
+      "Wallet updated:",
+      updatedProfile.balance
+    );
 
-success:true,
 
 
-card:{
 
-id:card.id,
 
-name:card.name,
 
-rarity:card.rarity,
 
-image_url:card.image_url,
+    // SAVE DISCOVERY LOG
 
-market_value:
-Number(card.market_value || 0)
+    const {
 
-}
+      error:historyError
 
+    } = await supabase
 
-});
+      .from("pull_history")
 
+      .insert({
 
+        user_id:userId,
 
-}
-catch(error:any){
+        card_id:card.id,
 
+        market_value:Number(card.market_value || 0),
 
-console.error(error);
+        amount_paid:price
 
+      });
 
-return NextResponse.json(
-{
-error:error.message || "Pull failed"
-},
-{
-status:500
-}
-);
 
 
-}
 
+
+    if(historyError){
+
+      console.error(
+        "History save error:",
+        historyError
+      );
+
+    }
+
+
+
+
+
+
+
+    return NextResponse.json({
+
+      success:true,
+
+      card:{
+
+        id:card.id,
+
+        name:card.name,
+
+        rarity:card.rarity,
+
+        image_url:card.image_url,
+
+        market_value:Number(card.market_value || 0)
+
+      }
+
+    });
+
+
+
+  }
+
+  catch(error:any){
+
+
+    console.error(
+      "Pull error:",
+      error
+    );
+
+
+    return NextResponse.json(
+
+      {
+        error:error.message || "Pull failed"
+      },
+
+      {
+        status:500
+      }
+
+    );
+
+
+  }
 
 }

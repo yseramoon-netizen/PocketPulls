@@ -646,7 +646,7 @@ text-transparent
 
 >
 
-🏛️ Collector Vault
+🏛️ Bulk Inventory
 
 </h1>
 

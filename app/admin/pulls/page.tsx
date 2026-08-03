@@ -13,7 +13,7 @@ import PullStats from "@/components/PullStats";
 import PullHistory from "@/components/PullHistory";
 
 
-const DAILY_LIMIT = 10;
+const DAILY_LIMIT = 100;
 
 
 
@@ -47,6 +47,7 @@ const pullPrice = dailyPulls + 1;
 
 
 
+
 useEffect(()=>{
 
 initialise();
@@ -67,33 +68,43 @@ user
 }=await supabase.auth.getUser();
 
 
-
 if(!user){
 
 setLoading(false);
-
 return;
 
 }
 
 
-
 setUser(user);
 
+
+await refreshData(user);
+
+
+setLoading(false);
+
+
+}
+
+
+
+
+
+
+
+async function refreshData(current:any){
 
 
 await Promise.all([
 
-loadWallet(user),
+loadWallet(current),
 
-loadDaily(user),
+loadDaily(current),
 
-loadHistory(user)
+loadHistory(current)
 
 ]);
-
-
-setLoading(false);
 
 
 }
@@ -109,7 +120,8 @@ async function loadWallet(current:any){
 
 
 const {
-data
+data,
+error
 }=await supabase
 
 .from("profiles")
@@ -124,15 +136,22 @@ current.id
 .single();
 
 
+if(error){
+
+console.log(error);
+
+return;
+
+}
+
 
 setBalance(
-
 Number(data?.balance || 0)
-
 );
 
 
 }
+
 
 
 
@@ -152,7 +171,8 @@ start.setHours(0,0,0,0);
 
 
 const {
-count
+count,
+error
 }=await supabase
 
 .from("pull_history")
@@ -177,6 +197,15 @@ start.toISOString()
 
 
 
+if(error){
+
+console.log(error);
+
+return;
+
+}
+
+
 setDailyPulls(count || 0);
 
 
@@ -190,10 +219,7 @@ setDailyPulls(count || 0);
 
 
 
-
-
 async function loadHistory(current:any){
-
 
 
 const {
@@ -235,20 +261,15 @@ current.id
 {
 ascending:false
 }
-
 )
 
 .limit(10);
 
 
 
-
 if(error){
 
-console.error(
-"History error:",
-error
-);
+console.log(error);
 
 return;
 
@@ -256,8 +277,6 @@ return;
 
 
 
-
-console.log("PULL HISTORY:", data);
 
 setHistory(
 
@@ -278,27 +297,19 @@ item.pokemon_cards;
 
 return {
 
-
 id:item.id,
-
 
 name:pulledCard?.name || "Unknown",
 
-
 rarity:pulledCard?.rarity || "Unknown",
-
 
 image_url:pulledCard?.image_url,
 
-
 value:Number(item.market_value || 0),
-
 
 amount_paid:Number(item.amount_paid || 0),
 
-
 created_at:item.created_at
-
 
 };
 
@@ -309,6 +320,7 @@ created_at:item.created_at
 
 
 }
+
 
 
 
@@ -331,7 +343,9 @@ return;
 
 
 
-if(opening)return;
+if(opening)
+return;
+
 
 
 
@@ -344,7 +358,6 @@ setError(
 return;
 
 }
-
 
 
 
@@ -373,6 +386,7 @@ setProgress(0);
 setStage(
 "🌱 Awakening the grove..."
 );
+
 
 
 
@@ -419,10 +433,7 @@ if(value>=100)
 clearInterval(timer);
 
 
-
 },150);
-
-
 
 
 
@@ -434,13 +445,17 @@ try{
 
 
 const response=await fetch(
+
 "/api/pull",
+
 {
 
 method:"POST",
 
 headers:{
+
 "Content-Type":"application/json"
+
 },
 
 body:JSON.stringify({
@@ -455,9 +470,7 @@ userId:user.id
 
 
 
-
 const data=await response.json();
-
 
 
 
@@ -471,7 +484,6 @@ throw new Error(data.error);
 
 
 
-
 setTimeout(async()=>{
 
 
@@ -479,15 +491,15 @@ setCard(data.card);
 
 
 
-await Promise.all([
+await new Promise(
 
-loadWallet(user),
+resolve=>setTimeout(resolve,1000)
 
-loadDaily(user),
+);
 
-loadHistory(user)
 
-]);
+
+await refreshData(user);
 
 
 
@@ -499,16 +511,15 @@ setOpening(false);
 
 
 
-
-
 }
 
 catch(err:any){
 
 
-setError(
-err.message
-);
+console.error(err);
+
+
+setError(err.message);
 
 
 setOpening(false);
@@ -530,8 +541,7 @@ setOpening(false);
 
 if(loading){
 
-
-return (
+return(
 
 <div className="
 min-h-screen
@@ -551,8 +561,6 @@ text-xl
 );
 
 }
-
-
 
 
 
@@ -601,8 +609,6 @@ mx-auto
 
 
 <AdminNav />
-
-
 
 
 
@@ -659,7 +665,6 @@ PocketPulls Grove
 
 
 
-
 <p className="
 
 mt-3
@@ -676,7 +681,6 @@ Discover Pokémon hidden inside the forest 🌿
 
 
 
-
 <div className="
 
 mt-10
@@ -690,19 +694,7 @@ gap-5
 ">
 
 
-<div className="
-
-bg-white/10
-
-border
-
-border-white/20
-
-rounded-3xl
-
-p-6
-
-">
+<div className="bg-white/10 border border-white/20 rounded-3xl p-6">
 
 💎
 
@@ -711,28 +703,16 @@ Wallet
 </p>
 
 <p className="text-3xl font-black">
+
 £{balance.toFixed(2)}
+
 </p>
 
 </div>
 
 
 
-
-
-<div className="
-
-bg-white/10
-
-border
-
-border-white/20
-
-rounded-3xl
-
-p-6
-
-">
+<div className="bg-white/10 border border-white/20 rounded-3xl p-6">
 
 🌙
 
@@ -741,28 +721,16 @@ Daily Pulls
 </p>
 
 <p className="text-3xl font-black">
+
 {dailyPulls}/{DAILY_LIMIT}
+
 </p>
 
 </div>
 
 
 
-
-
-<div className="
-
-bg-white/10
-
-border
-
-border-white/20
-
-rounded-3xl
-
-p-6
-
-">
+<div className="bg-white/10 border border-white/20 rounded-3xl p-6">
 
 🎴
 
@@ -771,16 +739,15 @@ Pull Cost
 </p>
 
 <p className="text-3xl font-black">
+
 £{pullPrice}
+
 </p>
 
 </div>
 
 
-
 </div>
-
-
 
 
 
@@ -814,10 +781,6 @@ font-black
 
 text-xl
 
-hover:bg-emerald-400/50
-
-transition
-
 "
 
 >
@@ -839,10 +802,7 @@ opening
 </button>
 
 
-
-
 </section>
-
 
 
 
@@ -869,6 +829,7 @@ progress={progress}
 </div>
 
 }
+
 
 
 
@@ -945,8 +906,6 @@ count={history.length}
 
 
 
-
-
 <section className="
 
 mt-10
@@ -990,8 +949,6 @@ mb-6
 
 
 
-
-
 {
 
 error &&
@@ -1028,7 +985,6 @@ font-bold
 
 
 </main>
-
 
 );
 
