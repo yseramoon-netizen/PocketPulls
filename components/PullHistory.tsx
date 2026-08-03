@@ -3,7 +3,14 @@
 
 interface PullHistoryProps {
 
-history:any[];
+  items:{
+    id:string;
+    name:string;
+    rarity:string;
+    value:number;
+    created_at:string;
+    image_url?:string;
+  }[];
 
 }
 
@@ -11,76 +18,41 @@ history:any[];
 
 export default function PullHistory({
 
-history
+  items
 
 }:PullHistoryProps){
 
 
 
-const visibleHistory = history.slice(0,5);
-
-
-
 return(
-
 
 <section
 
 className="
 mt-12
-relative
-overflow-hidden
+
 rounded-[3rem]
-p-8
 
 bg-white/10
+
 backdrop-blur-2xl
 
 border
+
 border-white/20
 
-shadow-[0_30px_80px_rgba(0,0,0,.25)]
+p-8
+
+shadow-[0_0_50px_rgba(16,185,129,.15)]
 
 "
 
 >
 
 
-{/* ambient glow */}
+<div
 
-<div className="
-absolute
-top-0
-right-0
-w-64
-h-64
-bg-emerald-400/20
-rounded-full
-blur-3xl
-"
-/>
-
-
-<div className="
-absolute
-bottom-0
-left-0
-w-52
-h-52
-bg-yellow-300/10
-rounded-full
-blur-3xl
-"
-/>
-
-
-
-
-
-
-<div className="
-relative
-z-10
+className="
 flex
 justify-between
 items-center
@@ -89,33 +61,32 @@ items-center
 >
 
 
-<h2 className="
+<h2
+
+className="
 text-3xl
 font-black
-text-white
-tracking-tight
-">
+"
 
-Recent Pulls
+>
+
+Recent Discoveries
 
 </h2>
 
 
+<p
 
-<span className="
+className="
 text-emerald-200
 font-bold
-text-sm
-bg-white/10
-px-4
-py-2
-rounded-full
-backdrop-blur-xl
-">
+"
 
-{history.length} discovered
+>
 
-</span>
+Global Forest
+
+</p>
 
 
 </div>
@@ -126,11 +97,11 @@ backdrop-blur-xl
 
 
 
-<div className="
-relative
-z-10
-mt-8
-space-y-3
+<div
+
+className="
+mt-6
+space-y-4
 "
 
 >
@@ -138,19 +109,22 @@ space-y-3
 
 {
 
-
-visibleHistory.length === 0
+items.length === 0
 
 ?
 
-<div className="
-text-center
-py-12
-text-white/50
-font-bold
-">
+<div
 
-The forest is waiting 🌱
+className="
+text-center
+py-10
+text-emerald-200
+font-bold
+"
+
+>
+
+No discoveries yet 🌱
 
 </div>
 
@@ -158,141 +132,101 @@ The forest is waiting 🌱
 :
 
 
-visibleHistory.map((pull:any,index)=>(
+items.map((item)=>(
+
+
+<div
+
+key={item.id}
+
+className="
+
+flex
+
+items-center
+
+gap-5
+
+rounded-3xl
+
+bg-black/20
+
+border
+
+border-white/10
+
+p-4
+
+hover:bg-white/10
+
+transition
+
+"
+
+>
+
+
+<div
+
+className="
+w-16
+h-16
+rounded-2xl
+bg-gradient-to-br
+from-emerald-400
+to-green-700
+flex
+items-center
+justify-center
+text-3xl
+"
+
+>
+
+🎴
+
+</div>
+
+
+
 
 
 
 <div
 
-key={index}
-
-className={`
-
-group
-
-relative
-
-flex
-items-center
-gap-5
-
-rounded-[2rem]
-
-p-4
-
-overflow-hidden
-
-transition-all
-duration-500
-
-
-bg-white/10
-
-backdrop-blur-xl
-
-border
-border-white/10
-
-
-hover:bg-white/20
-
-hover:scale-[1.02]
-
-
-${
-
-index===4
-
-?
-
-"opacity-40 scale-[0.96]"
-
-:
-
-""
-
-}
-
-`
-
-}
+className="
+flex-1
+"
 
 >
 
 
-{/* shine */}
-
-<div className="
-absolute
-inset-0
-bg-gradient-to-r
-from-white/10
-via-transparent
-to-transparent
-opacity-0
-group-hover:opacity-100
-transition
-"
-/>
-
-
-
-
-
-
-<img
-
-src={pull.pokemon_cards.image_url}
+<h3
 
 className="
-relative
-z-10
-
-w-20
-h-20
-
-object-cover
-
-rounded-2xl
-
-shadow-[0_10px_30px_rgba(0,0,0,.4)]
-
-"
-
- />
-
-
-
-
-
-
-<div className="
-relative
-z-10
-flex-1
-">
-
-
-<p className="
-text-white
 font-black
 text-lg
-">
+"
 
-{pull.pokemon_cards.name}
+>
 
-</p>
+{item.name}
+
+</h3>
 
 
 
+<p
 
-<p className="
-text-white/50
+className="
+text-emerald-200
 text-sm
 font-bold
-">
+"
 
-{pull.pokemon_cards.rarity}
+>
+
+{item.rarity}
 
 </p>
 
@@ -303,41 +237,45 @@ font-bold
 
 
 
+<div
 
-<div className="
-relative
-z-10
+className="
 text-right
-">
+"
+
+>
 
 
-<p className="
+<p
+
+className="
 font-black
 text-xl
-text-yellow-300
-drop-shadow
-">
+"
 
-£{Number(
-pull.market_value
-).toFixed(2)}
+>
+
+£{item.value.toFixed(2)}
 
 </p>
 
 
+<p
 
-<p className="
-text-white/40
+className="
 text-xs
-mt-1
-">
+text-gray-300
+"
 
-{new Date(
-pull.created_at
-).toLocaleTimeString([],{
-hour:"2-digit",
-minute:"2-digit"
-})}
+>
+
+{
+
+new Date(
+item.created_at
+).toLocaleDateString()
+
+}
 
 </p>
 
@@ -349,45 +287,15 @@ minute:"2-digit"
 
 
 </div>
-
 
 
 ))
-
 
 }
 
 
 
-
-
 </div>
-
-
-
-
-
-
-{/* bottom fade */}
-
-<div className="
-absolute
-bottom-0
-left-0
-right-0
-h-28
-
-bg-gradient-to-t
-from-[#052e16]
-to-transparent
-
-pointer-events-none
-
-"
-
-/>
-
-
 
 
 

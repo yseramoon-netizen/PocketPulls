@@ -5,32 +5,29 @@ import { supabase } from "@/lib/supabase";
 
 import AdminNav from "@/components/AdminNav";
 import PullMachine from "@/components/PullMachine";
-import PullCard from "@/components/PullCard";
+import CardReveal from "@/components/CardReveal";
 import PullStats from "@/components/PullStats";
 import PullHistory from "@/components/PullHistory";
-
 
 
 export default function PullsPage(){
 
 
-const [user,setUser]=useState<any>(null);
+const [user,setUser] = useState<any>(null);
 
-const [checking,setChecking]=useState(true);
+const [checking,setChecking] = useState(true);
 
-const [opening,setOpening]=useState(false);
+const [opening,setOpening] = useState(false);
 
-const [progress,setProgress]=useState(0);
+const [progress,setProgress] = useState(0);
 
-const [card,setCard]=useState<any>(null);
+const [stage,setStage] = useState("");
 
-const [history,setHistory]=useState<any[]>([]);
+const [card,setCard] = useState<any>(null);
 
-const [stage,setStage]=useState("");
+const [history,setHistory] = useState<any[]>([]);
 
-const [error,setError]=useState("");
-
-
+const [error,setError] = useState("");
 
 
 
@@ -41,7 +38,6 @@ useEffect(()=>{
 loadUser();
 
 },[]);
-
 
 
 
@@ -71,16 +67,12 @@ return;
 
 setUser(user);
 
-
 await loadHistory();
-
 
 setChecking(false);
 
 
 }
-
-
 
 
 
@@ -100,11 +92,13 @@ error
 
 .select(`
 
+id,
+
 created_at,
 
 market_value,
 
-pokemon_cards!inner(
+pokemon_cards(
 
 name,
 
@@ -121,22 +115,19 @@ rarity
 "created_at",
 
 {
-
 ascending:false
-
 }
 
 )
 
-.limit(5);
-
+.limit(20);
 
 
 
 
 if(error){
 
-console.log(error);
+setError(error.message);
 
 return;
 
@@ -144,8 +135,24 @@ return;
 
 
 
-setHistory(data || []);
+const formatted = (data || []).map((item:any)=>({
 
+id:item.id,
+
+name:item.pokemon_cards?.name || "Unknown",
+
+rarity:item.pokemon_cards?.rarity || "Unknown",
+
+value:Number(item.market_value || 0),
+
+created_at:item.created_at,
+
+image_url:item.pokemon_cards?.image_url
+
+}));
+
+
+setHistory(formatted);
 
 
 }
@@ -163,7 +170,7 @@ async function openPull(){
 
 if(!user){
 
-setError("Please login first");
+setError("Login required");
 
 return;
 
@@ -188,22 +195,20 @@ setStage(
 
 
 
-
 let current=0;
 
 
+const interval=setInterval(()=>{
 
-const energy=setInterval(()=>{
 
-
-current += 5;
+current+=5;
 
 
 setProgress(current);
 
 
 
-if(current >= 30){
+if(current>=25){
 
 setStage(
 "✨ Ancient roots are glowing..."
@@ -213,24 +218,34 @@ setStage(
 
 
 
-if(current >= 60){
+if(current>=60){
 
 setStage(
-"🌟 A hidden Pokémon is emerging..."
+"🌸 Something is blooming..."
 );
 
 }
 
 
 
-if(current >=100){
+if(current>=90){
 
-clearInterval(energy);
+setStage(
+"🎴 A hidden treasure emerges..."
+);
 
 }
 
 
-},150);
+
+if(current>=100){
+
+clearInterval(interval);
+
+}
+
+
+},200);
 
 
 
@@ -273,9 +288,7 @@ userId:user.id
 
 
 
-
-const data =
-await response.json();
+const data = await response.json();
 
 
 
@@ -291,31 +304,10 @@ data.error || "Pull failed"
 
 
 
-setProgress(100);
-
-
-
-setStage(
-"🎴 Discovery complete!"
-);
-
-
-
-
-setTimeout(()=>{
-
 
 setCard(data.card);
 
-
-},700);
-
-
-
-
 await loadHistory();
-
-
 
 
 
@@ -323,18 +315,13 @@ await loadHistory();
 
 catch(err:any){
 
-
-console.log(err);
-
 setError(err.message);
-
 
 }
 
 
 
 setOpening(false);
-
 
 
 },4500);
@@ -351,34 +338,73 @@ setOpening(false);
 
 
 
+const totalValue =
+history.reduce(
+
+(sum,item)=>sum+Number(item.value || 0),
+
+0
+
+);
+
+
+
+const bestPull =
+history.length
+
+?
+
+history.reduce(
+
+(best,item)=>
+
+item.value > best.value
+
+?
+
+item
+
+:
+
+best
+
+)
+
+:
+
+{
+name:"No pull yet",
+value:0
+};
+
+
+
+
+
+
+
+
+
 if(checking){
 
 return(
 
-<div
-
-className="
+<div className="
 min-h-screen
 bg-black
 flex
 items-center
 justify-center
-
 text-emerald-400
-
 font-black
-
 text-xl
-
-"
-
->
+">
 
 🌲 Entering PocketPulls Forest...
 
 </div>
 
-)
+);
 
 }
 
@@ -395,11 +421,7 @@ return(
 <main
 
 className="
-relative
-
 min-h-screen
-
-overflow-hidden
 
 bg-gradient-to-br
 
@@ -422,22 +444,14 @@ text-white
 >
 
 
-
 <div
 
 className="
 max-w-6xl
-
 mx-auto
-
-relative
-
-z-10
-
 "
 
 >
-
 
 
 <AdminNav />
@@ -448,34 +462,30 @@ z-10
 
 
 
-
-
 <section
 
 className="
-
 mt-10
 
 rounded-[3rem]
 
-bg-white/5
-
-border
-
-border-white/10
+bg-white/10
 
 backdrop-blur-2xl
 
-shadow-[0_0_100px_rgba(16,185,129,.25)]
+border
+
+border-white/20
 
 p-10
 
 text-center
 
+shadow-2xl
+
 "
 
 >
-
 
 
 <img
@@ -483,13 +493,9 @@ text-center
 src="/shaymin.png"
 
 className="
-
 w-32
-
 mx-auto
-
-drop-shadow-2xl
-
+drop-shadow-xl
 "
 
 />
@@ -498,10 +504,7 @@ drop-shadow-2xl
 
 
 
-<h1
-
-className="
-
+<h1 className="
 mt-6
 
 text-6xl
@@ -520,9 +523,7 @@ bg-clip-text
 
 text-transparent
 
-"
-
->
+">
 
 PocketPulls
 
@@ -532,27 +533,18 @@ PocketPulls
 
 
 
-
-<p
-
-className="
-
+<p className="
 mt-4
 
 text-emerald-100
 
 font-bold
 
-text-lg
-
-"
-
->
+">
 
 Discover Pokémon hidden inside the forest
 
 </p>
-
 
 
 
@@ -567,10 +559,9 @@ onClick={openPull}
 disabled={opening}
 
 className="
-
 mt-10
 
-px-16
+px-14
 
 py-6
 
@@ -588,13 +579,11 @@ font-black
 
 text-xl
 
-shadow-[0_0_60px_rgba(250,204,21,.6)]
+shadow-xl
 
 hover:scale-110
 
 transition
-
-disabled:opacity-50
 
 "
 
@@ -614,12 +603,7 @@ opening
 
 }
 
-
 </button>
-
-
-
-
 
 
 </section>
@@ -634,15 +618,19 @@ opening
 
 {opening && (
 
-<div className="mt-14">
+<div className="
+mt-12
+flex
+justify-center
+">
 
 <PullMachine
 
 opening={opening}
 
-stage={stage}
-
 progress={progress}
+
+stage={stage}
 
 />
 
@@ -660,21 +648,13 @@ progress={progress}
 
 {card && !opening && (
 
-<div
-
-className="
-
-mt-16
-
+<div className="
+mt-12
 flex
-
 justify-center
+">
 
-"
-
->
-
-<PullCard
+<CardReveal
 
 card={card}
 
@@ -692,19 +672,24 @@ card={card}
 
 
 
-<section className="mt-16">
+<PullStats
 
-<PullStats 
-  cost={5}
-  totalValue={84.5}
-  bestPull={{
-    name:"Shaymin EX",
-    value:84.5
-  }}
-  count={10}
+cost={history.length * 5}
+
+totalValue={totalValue}
+
+bestPull={{
+
+name:bestPull.name,
+
+value:bestPull.value
+
+}}
+
+count={history.length}
+
 />
 
-</section>
 
 
 
@@ -712,17 +697,12 @@ card={card}
 
 
 
-
-
-<section className="mt-16">
 
 <PullHistory
 
-history={history}
+items={history}
 
 />
-
-</section>
 
 
 
@@ -734,13 +714,8 @@ history={history}
 
 {error && (
 
-<div
-
-className="
-
+<div className="
 mt-10
-
-rounded-3xl
 
 bg-red-500/20
 
@@ -748,15 +723,15 @@ border
 
 border-red-400
 
+rounded-3xl
+
 p-5
 
 text-center
 
 font-bold
 
-"
-
->
+">
 
 {error}
 
@@ -766,16 +741,10 @@ font-bold
 
 
 
-
-
 </div>
-
-
 
 </main>
 
-
 );
-
 
 }
