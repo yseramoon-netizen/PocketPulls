@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 import {
   type FormEvent,
   useCallback,
@@ -15,6 +17,23 @@ import CardScanner, {
   type ScannerPokemonCard,
 } from "@/components/CardScanner";
 import ForestBackground from "@/components/ForestBackground";
+
+type AddPageCard = ScannerPokemonCard & {
+  market_value_normal_gbp?:
+    | number
+    | string
+    | null;
+  market_value_holo_gbp?:
+    | number
+    | string
+    | null;
+  market_value_reverse_holo_gbp?:
+    | number
+    | string
+    | null;
+  price_source?: string | null;
+  price_updated_at?: string | null;
+};
 
 type CardFinish =
   | "normal"
@@ -80,6 +99,11 @@ const CARD_SELECT = `
   card_no,
   image_url,
   market_value,
+  market_value_normal_gbp,
+  market_value_holo_gbp,
+  market_value_reverse_holo_gbp,
+  price_source,
+  price_updated_at,
   api_id
 `;
 
@@ -94,6 +118,25 @@ function getFinishLabel(
       (option) => option.value === finish,
     )?.label || "Normal"
   );
+}
+
+function getFinishMarketValue(
+  card: AddPageCard,
+  finish: CardFinish,
+): number {
+  const finishValue =
+    finish === "holo"
+      ? card.market_value_holo_gbp
+      : finish === "reverse_holo"
+        ? card.market_value_reverse_holo_gbp
+        : card.market_value_normal_gbp;
+
+  const parsedFinishValue =
+    toNumber(finishValue);
+
+  return parsedFinishValue > 0
+    ? parsedFinishValue
+    : toNumber(card.market_value);
 }
 
 function toNumber(
@@ -262,7 +305,7 @@ export default function AddCardsPage() {
     searchResults,
     setSearchResults,
   ] = useState<
-    ScannerPokemonCard[]
+    AddPageCard[]
   >([]);
 
   const [searching, setSearching] =
@@ -271,7 +314,7 @@ export default function AddCardsPage() {
   const [
     selectedCard,
     setSelectedCard,
-  ] = useState<ScannerPokemonCard | null>(
+  ] = useState<AddPageCard | null>(
     null,
   );
 
@@ -348,7 +391,7 @@ export default function AddCardsPage() {
   const loadExistingInventory =
     useCallback(
       async (
-        card: ScannerPokemonCard,
+        card: AddPageCard,
         selectedFinish: CardFinish,
       ) => {
         setCheckingStock(true);
@@ -420,7 +463,7 @@ export default function AddCardsPage() {
   const selectCard =
     useCallback(
       (
-        card: ScannerPokemonCard,
+        card: AddPageCard,
         scrollToForm = true,
       ) => {
         setSelectedCard(card);
@@ -503,7 +546,7 @@ export default function AddCardsPage() {
 
             setSearchResults(
               (data ||
-                []) as ScannerPokemonCard[],
+                []) as AddPageCard[],
             );
           } catch (
             searchError: unknown
@@ -582,7 +625,10 @@ export default function AddCardsPage() {
     setScannerOpen(false);
     setSearch("");
 
-    selectCard(card, true);
+    selectCard(
+      card as AddPageCard,
+      true,
+    );
   }
 
   async function addToInventory(
@@ -955,8 +1001,54 @@ export default function AddCardsPage() {
                 </p>
               </div>
 
+              <div
+                className="
+                  flex
+                  flex-col
+                  gap-3
+                  sm:flex-row
+                "
+              >
+                <Link
+                  href="/admin/database"
+                  className="
+                    inline-flex
+                    min-h-14
+                    items-center
+                    justify-center
+                    gap-3
+                    rounded-2xl
+                    border
+                    border-emerald-100/25
+                    bg-emerald-300/15
+                    px-6
+                    font-black
+                    text-emerald-50
+                    transition
+                    hover:-translate-y-0.5
+                    hover:bg-emerald-300/20
+                  "
+                >
+                  <span
+                    className="
+                      flex
+                      h-8
+                      w-8
+                      items-center
+                      justify-center
+                      rounded-xl
+                      bg-emerald-950/15
+                      text-lg
+                    "
+                  >
+                    ↻
+                  </span>
+
+                  Sync database
+                </Link>
+
               <button
-                type="button"
+                  type="button"
                 onClick={openScanner}
                 disabled={adding}
                 className="
@@ -997,6 +1089,7 @@ export default function AddCardsPage() {
 
                 Scan card
               </button>
+              </div>
             </div>
           </header>
 
@@ -1707,7 +1800,10 @@ export default function AddCardsPage() {
                             "
                           >
                             {formatCurrency(
-                              selectedCard.market_value,
+                              getFinishMarketValue(
+                                selectedCard,
+                                finish,
+                              ),
                             )}
                           </span>
 
@@ -1727,6 +1823,26 @@ export default function AddCardsPage() {
                             {getFinishLabel(finish)}
                           </span>
                         </div>
+
+                        <p
+                          className="
+                            mt-3
+                            text-xs
+                            font-semibold
+                            text-white/30
+                          "
+                        >
+                          {selectedCard.price_source
+                            ? `Price source: ${selectedCard.price_source}`
+                            : "No live price source stored yet"}
+                          {selectedCard.price_updated_at
+                            ? ` · Updated ${new Date(
+                                selectedCard.price_updated_at,
+                              ).toLocaleDateString(
+                                "en-GB",
+                              )}`
+                            : ""}
+                        </p>
 
                         <div
                           className="
