@@ -6,6 +6,8 @@ import { usePathname, useRouter } from "next/navigation";
 import type { Session } from "@supabase/supabase-js";
 
 import PlayerNav from "@/components/player/PlayerNav";
+import UnownText from "@/components/player/UnownText";
+import UnknownPullsBackdrop from "@/components/player/UnknownPullsBackdrop";
 import { supabase } from "@/lib/supabase";
 
 type PlayerLayoutProps = {
@@ -60,7 +62,7 @@ function getFallbackDisplayName(session: Session): string {
 
   const emailName = (session.user.email || "").split("@")[0]?.trim();
 
-  return emailName || "Pokemon Trainer";
+  return emailName || "Unknown Trainer";
 }
 
 function getFallbackUsername(session: Session): string {
@@ -306,8 +308,8 @@ export default function PlayerLayout({ children }: PlayerLayoutProps) {
   }
 
   return (
-    <div className="relative min-h-[100dvh] overflow-x-hidden bg-[#040617] text-white">
-      <WishSkyBackground />
+    <div className="unknown-pulls-shell relative min-h-[100dvh] overflow-x-hidden bg-[#02030d] text-white">
+      <UnknownPullsBackdrop />
 
       <PlayerNav
         username={player.username}
@@ -319,35 +321,90 @@ export default function PlayerLayout({ children }: PlayerLayoutProps) {
       <main className="relative z-10 min-h-[calc(100dvh-5rem)]">
         {children}
       </main>
-    </div>
-  );
-}
 
-function WishSkyBackground() {
-  return (
-    <div
-      aria-hidden="true"
-      className="pointer-events-none fixed inset-0 z-0 overflow-hidden"
-    >
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(99,102,241,0.18),transparent_34%),linear-gradient(180deg,#060821_0%,#040617_48%,#02030d_100%)]" />
+      <style jsx global>{`
+        .unknown-pulls-shell {
+          --ancient-gold: #e5a93f;
+          --ancient-copper: #a85b2a;
+          --ancient-scarlet: #cf425f;
+          --ancient-cyan: #35d1c5;
+          --ancient-emerald: #3eb66f;
+          --ancient-violet: #7548b5;
+        }
 
-      <div className="absolute -left-40 top-24 h-[28rem] w-[28rem] rounded-full bg-violet-500/10 blur-[110px]" />
+        .unknown-pulls-shell main header,
+        .unknown-pulls-shell main article {
+          background-image:
+            radial-gradient(
+              circle at 4% 10%,
+              rgba(207, 66, 95, 0.075),
+              transparent 25%
+            ),
+            radial-gradient(
+              circle at 94% 8%,
+              rgba(53, 209, 197, 0.075),
+              transparent 24%
+            ),
+            radial-gradient(
+              circle at 75% 100%,
+              rgba(62, 182, 111, 0.05),
+              transparent 28%
+            ),
+            linear-gradient(
+              135deg,
+              rgba(229, 169, 63, 0.055),
+              transparent 30%,
+              rgba(117, 72, 181, 0.055) 68%,
+              rgba(168, 91, 42, 0.045)
+            );
+          border-color: rgba(229, 169, 63, 0.18);
+          box-shadow:
+            inset 0 0 0 1px rgba(53, 209, 197, 0.035),
+            inset 0 0 38px rgba(207, 66, 95, 0.025),
+            0 24px 80px rgba(0, 0, 0, 0.22);
+        }
 
-      <div className="absolute -right-32 top-[30%] h-[25rem] w-[25rem] rounded-full bg-cyan-300/[0.07] blur-[110px]" />
+        .unknown-pulls-shell main input,
+        .unknown-pulls-shell main select,
+        .unknown-pulls-shell main textarea {
+          border-color: rgba(229, 169, 63, 0.16);
+          background-image:
+            linear-gradient(
+              135deg,
+              rgba(168, 91, 42, 0.07),
+              rgba(53, 209, 197, 0.025) 48%,
+              rgba(117, 72, 181, 0.06)
+            );
+        }
 
-      <div className="absolute left-[7%] top-[13%] h-1 w-1 animate-pulse rounded-full bg-yellow-100/70 shadow-[0_0_8px_rgba(254,249,195,0.8)]" />
+        .unknown-pulls-shell main input:focus,
+        .unknown-pulls-shell main select:focus,
+        .unknown-pulls-shell main textarea:focus {
+          border-color: rgba(53, 209, 197, 0.34);
+          box-shadow:
+            0 0 0 2px rgba(53, 209, 197, 0.075),
+            0 0 22px rgba(207, 66, 95, 0.045);
+        }
 
-      <div className="absolute right-[8%] top-[18%] h-1 w-1 animate-pulse rounded-full bg-cyan-100/70 shadow-[0_0_8px_rgba(207,250,254,0.8)] [animation-delay:700ms]" />
+        .unknown-pulls-shell ::selection {
+          background: rgba(229, 169, 63, 0.38);
+          color: #fff8dc;
+        }
 
-      <div className="absolute bottom-[14%] left-[18%] h-0.5 w-0.5 rounded-full bg-yellow-100/60" />
+        .unknown-pulls-shell * {
+          scrollbar-color:
+            rgba(229, 169, 63, 0.42)
+            rgba(5, 4, 17, 0.72);
+        }
+      `}</style>
     </div>
   );
 }
 
 function PlayerLoadingScreen() {
   return (
-    <main className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden bg-[#040617] px-6 text-white">
-      <WishSkyBackground />
+    <main className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden bg-[#02030d] px-6 text-white">
+      <UnknownPullsBackdrop />
 
       <div className="relative z-10 flex max-w-sm flex-col items-center text-center">
         <div className="relative flex h-28 w-28 items-center justify-center">
@@ -369,12 +426,21 @@ function PlayerLoadingScreen() {
         </div>
 
         <p className="mt-6 text-xs font-black uppercase tracking-[0.22em] text-yellow-100/45">
-          Jirachi is waking
+          The ancient archive is waking
         </p>
 
-        <h1 className="mt-3 text-2xl font-black">
+        <div className="mt-4">
+          <UnownText
+            text="Unknown Pulls"
+            size="2rem"
+            tone="holo"
+            centred
+          />
+        </div>
+
+        <p className="mt-4 text-sm font-black text-white/72">
           Preparing your wishes
-        </h1>
+        </p>
 
         <p className="mt-3 text-sm font-semibold leading-6 text-white/35">
           Loading your trainer profile and wish balance.
@@ -394,20 +460,28 @@ function PlayerErrorScreen({
   onSignOut: () => void;
 }) {
   return (
-    <main className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden bg-[#040617] px-4 py-12 text-white">
-      <WishSkyBackground />
+    <main className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden bg-[#02030d] px-4 py-12 text-white">
+      <UnknownPullsBackdrop />
 
-      <section className="relative z-10 w-full max-w-lg overflow-hidden rounded-[2rem] border border-red-200/15 bg-[#090b27]/95 shadow-[0_35px_120px_rgba(0,0,0,0.65)] backdrop-blur-2xl">
-        <div className="h-1 bg-gradient-to-r from-red-300 via-pink-200 to-yellow-200" />
+      <section className="relative z-10 w-full max-w-lg overflow-hidden rounded-[2rem] border border-violet-200/15 bg-[#090b27]/95 shadow-[0_35px_120px_rgba(0,0,0,0.65)] backdrop-blur-2xl">
+        <div className="h-1 bg-gradient-to-r from-[#d44860] via-[#e7ad46] to-[#42d2c7]" />
 
         <div className="p-6 sm:p-8">
-          <p className="text-xs font-black uppercase tracking-[0.2em] text-red-100/45">
+          <p className="text-xs font-black uppercase tracking-[0.2em] text-cyan-100/42">
             Wish interrupted
           </p>
 
-          <h1 className="mt-3 text-2xl font-black">
-            Jirachi could not open your profile
-          </h1>
+          <div className="mt-4">
+            <UnownText
+              text="Wish Interrupted"
+              size="1.55rem"
+              tone="ancient"
+            />
+          </div>
+
+          <p className="mt-4 text-xl font-black text-white">
+            Your trainer profile could not be opened.
+          </p>
 
           <p className="mt-4 text-sm font-semibold leading-6 text-white/55">
             {message}
@@ -417,7 +491,7 @@ function PlayerErrorScreen({
             <button
               type="button"
               onClick={onRetry}
-              className="min-h-12 flex-1 rounded-xl bg-yellow-200 px-5 text-sm font-black text-[#17122f] transition hover:bg-yellow-100"
+              className="min-h-12 flex-1 rounded-xl bg-gradient-to-r from-cyan-100 via-yellow-100 to-violet-200 px-5 text-sm font-black text-[#111329] transition hover:bg-yellow-100"
             >
               Try again
             </button>

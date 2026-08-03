@@ -337,7 +337,7 @@ export default function HistoryPage() {
           action={
             <Link
               href="/wishes"
-              className="flex min-h-12 items-center justify-center rounded-xl bg-gradient-to-r from-yellow-200 via-cyan-100 to-violet-200 px-5 text-sm font-black text-[#111329]"
+              className="flex min-h-12 items-center justify-center rounded-xl bg-gradient-to-r from-[#e7ad46] via-[#48d5ca] to-[#d84f78] px-5 text-sm font-black text-[#111329]"
             >
               Visit the Wish Chamber
             </Link>

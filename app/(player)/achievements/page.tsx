@@ -327,7 +327,7 @@ function AchievementCard({
           <div
             className={`h-full rounded-full transition-[width] duration-700 ${
               unlocked
-                ? "bg-gradient-to-r from-yellow-200 via-cyan-100 to-violet-200"
+                ? "bg-gradient-to-r from-[#e7ad46] via-[#48d5ca] to-[#d84f78]"
                 : "bg-gradient-to-r from-violet-400/60 to-cyan-300/60"
             }`}
             style={{
@@ -342,7 +342,7 @@ function AchievementCard({
           ? `Unlocked ${formatDate(
               achievement.unlockedAt,
             )}`
-          : "Keep building your PocketPulls journey."}
+          : "Keep building your Unknown Pulls journey."}
       </p>
     </PlayerPanel>
   );

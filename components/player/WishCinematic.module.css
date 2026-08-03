@@ -12,7 +12,7 @@
   z-index: 10000;
   overflow: hidden;
   color: #ffffff;
-  background: #020617;
+  background: #030414;
   isolation: isolate;
 }
 
@@ -33,25 +33,25 @@
 .sky {
   background:
     radial-gradient(
-      circle at 50% 12%,
-      rgba(255, 255, 255, 0.08),
-      transparent 31%
+      circle at 50% 8%,
+      rgba(244, 202, 114, 0.14),
+      transparent 29%
     ),
     radial-gradient(
       circle at 18% 36%,
-      rgba(125, 211, 252, 0.07),
-      transparent 26%
+      rgba(45, 212, 191, 0.1),
+      transparent 29%
     ),
     radial-gradient(
       circle at 84% 24%,
-      rgba(196, 181, 253, 0.08),
-      transparent 27%
+      rgba(168, 85, 247, 0.13),
+      transparent 30%
     ),
     linear-gradient(
       180deg,
-      #020617 0%,
-      #08132e 52%,
-      #020617 100%
+      #07051a 0%,
+      #0a0a2a 50%,
+      #030414 100%
     );
 }
 
@@ -144,11 +144,11 @@
   z-index: 90;
   top: 1.25rem;
   min-height: 2.65rem;
-  border: 1px solid rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(244, 202, 114, 0.2);
   border-radius: 999px;
   padding: 0 1rem;
   color: rgba(255, 255, 255, 0.72);
-  background: rgba(0, 0, 0, 0.3);
+  background: rgba(10, 8, 34, 0.7);
   cursor: pointer;
   font-size: 0.68rem;
   font-weight: 900;
@@ -498,9 +498,10 @@
   overflow: hidden;
   border: 2px solid var(--wish-primary);
   border-radius: 1.35rem;
-  background: #07091f;
+  background: #07051a;
   box-shadow:
-    0 0 0 1px rgba(255, 255, 255, 0.08),
+    0 0 0 1px rgba(244, 202, 114, 0.2),
+    0 0 0 5px rgba(217, 154, 53, 0.055),
     0 0 46px var(--wish-glow),
     0 28px 75px rgba(0, 0, 0, 0.68);
   transform: translateZ(0);
@@ -722,6 +723,128 @@
   opacity: 1;
   animation: none;
   transform: translate3d(0, 0, 0);
+}
+
+
+.ancientCardGhost,
+.holoDust,
+.ancientGlyphBandTop,
+.ancientGlyphBandBottom,
+.ancientFrame {
+  position: absolute;
+  pointer-events: none;
+}
+
+.ancientCardGhost {
+  inset: -7%;
+  z-index: 0;
+  background:
+    linear-gradient(
+      rgba(3, 4, 20, 0.82),
+      rgba(3, 4, 20, 0.94)
+    ),
+    url("/unknown-pulls/ancient-mew-card.jpg")
+      center 34% / cover no-repeat;
+  opacity: 0.3;
+  mix-blend-mode: screen;
+  filter:
+    saturate(1.28)
+    contrast(1.08)
+    blur(0.5px);
+  transform: scale(1.08);
+}
+
+.holoDust {
+  inset: -18%;
+  z-index: 3;
+  opacity: 0.3;
+  background-image:
+    radial-gradient(circle at 7% 13%, #67e8f9 0 1px, transparent 2px),
+    radial-gradient(circle at 18% 27%, #fde68a 0 1.2px, transparent 2.4px),
+    radial-gradient(circle at 28% 8%, #f9a8d4 0 1px, transparent 2px),
+    radial-gradient(circle at 39% 42%, #a7f3d0 0 1.3px, transparent 2.4px),
+    radial-gradient(circle at 51% 17%, #c4b5fd 0 1px, transparent 2px),
+    radial-gradient(circle at 63% 35%, #fde68a 0 1.2px, transparent 2.4px),
+    radial-gradient(circle at 74% 11%, #67e8f9 0 1px, transparent 2px),
+    radial-gradient(circle at 87% 29%, #fb7185 0 1.2px, transparent 2.4px),
+    radial-gradient(circle at 11% 71%, #c4b5fd 0 1.2px, transparent 2.4px),
+    radial-gradient(circle at 44% 73%, #fde68a 0 1.2px, transparent 2.4px),
+    radial-gradient(circle at 77% 68%, #a7f3d0 0 1.3px, transparent 2.4px);
+  background-size: 300px 245px;
+  mix-blend-mode: screen;
+  animation: ancientDustDrift 34s linear infinite;
+}
+
+.ancientGlyphBandTop,
+.ancientGlyphBandBottom {
+  right: 0;
+  left: 0;
+  z-index: 6;
+  height: 36px;
+  background:
+    linear-gradient(
+      90deg,
+      rgba(217, 154, 53, 0.08),
+      rgba(244, 202, 114, 0.52),
+      rgba(103, 232, 249, 0.32),
+      rgba(244, 202, 114, 0.52),
+      rgba(217, 154, 53, 0.08)
+    );
+  -webkit-mask-image:
+    url("/unknown-pulls/unown-band.png");
+  mask-image:
+    url("/unknown-pulls/unown-band.png");
+  -webkit-mask-repeat: repeat-x;
+  mask-repeat: repeat-x;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-size: auto 32px;
+  mask-size: auto 32px;
+  opacity: 0.26;
+}
+
+.ancientGlyphBandTop {
+  top: 0;
+}
+
+.ancientGlyphBandBottom {
+  bottom: 0;
+  transform: rotate(180deg);
+}
+
+.ancientFrame {
+  z-index: 7;
+  inset: 10px;
+  border: 1px solid rgba(244, 202, 114, 0.2);
+  border-radius: 18px;
+  box-shadow:
+    inset 0 0 0 6px rgba(103, 232, 249, 0.015),
+    inset 0 0 42px rgba(217, 154, 53, 0.035);
+}
+
+.preparingMew {
+  width: 116% !important;
+  filter:
+    drop-shadow(0 0 18px var(--wish-glow))
+    drop-shadow(0 24px 32px rgba(0, 0, 0, 0.62)) !important;
+}
+
+.mew {
+  width: 118%;
+  max-width: none;
+  filter:
+    drop-shadow(0 0 20px var(--wish-glow))
+    drop-shadow(0 24px 34px rgba(0, 0, 0, 0.62));
+}
+
+@keyframes ancientDustDrift {
+  from {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+
+  to {
+    transform: translate3d(-110px, 65px, 0) rotate(3deg);
+  }
 }
 
 @keyframes starsBreathe {
@@ -1083,6 +1206,19 @@
 }
 
 @media (max-width: 640px) {
+  .ancientGlyphBandTop,
+  .ancientGlyphBandBottom {
+    height: 24px;
+    -webkit-mask-size: auto 21px;
+    mask-size: auto 21px;
+    opacity: 0.18;
+  }
+
+  .ancientFrame {
+    inset: 5px;
+    border-radius: 12px;
+  }
+
   .jirachiScene {
     top: 8%;
     width: min(68vw, 215px);

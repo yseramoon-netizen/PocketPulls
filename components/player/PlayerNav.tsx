@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import UnownText from "@/components/player/UnownText";
 import { supabase } from "@/lib/supabase";
 
 type PlayerNavProps = {
@@ -156,34 +157,47 @@ export default function PlayerNav({
 
   return (
     <>
-      <header className="sticky top-0 z-50 border-b border-white/10 bg-[#07091f]/95 backdrop-blur-xl">
-        <div className="mx-auto flex min-h-20 w-full max-w-[1700px] items-center gap-3 px-4 sm:px-6 lg:px-8">
+      <header
+        className="sticky top-0 z-50 border-b border-violet-200/15 bg-[#07091f]/96 shadow-[0_12px_45px_rgba(0,0,0,0.24)] backdrop-blur-2xl"
+        style={{
+          backgroundImage:
+            "linear-gradient(112deg, rgba(34,211,238,0.08), rgba(7,9,31,0.96) 24%, rgba(124,58,237,0.12) 52%, rgba(103,232,249,0.07) 76%, rgba(250,204,21,0.035))",
+        }}
+      >
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-cyan-200/35 to-transparent" />
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-0 bottom-0 h-4 bg-gradient-to-r from-transparent via-violet-100/[0.035] to-transparent opacity-70 [mask-image:url('/unknown-pulls/unown-band.png')] [mask-position:center] [mask-repeat:repeat-x] [mask-size:auto_14px]"
+        />
+
+        <div className="mx-auto flex min-h-20 w-full max-w-[1760px] items-center gap-3 px-4 sm:px-6 lg:px-8">
           <Link
             href="/wishes"
-            className="flex min-w-0 items-center gap-3 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-yellow-200"
+            title="Unknown Pulls"
+            className="flex min-w-0 items-center gap-3 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-cyan-200"
           >
             <div className="relative flex h-14 w-14 flex-none items-center justify-center">
-              <div className="absolute inset-2 rounded-full bg-yellow-200/15 blur-xl" />
+              <div className="absolute inset-1 rounded-full border border-cyan-100/16 bg-violet-300/[0.07] shadow-[inset_0_0_16px_rgba(103,232,249,0.08)]" />
+              <div className="absolute inset-2 rounded-full bg-cyan-200/10 blur-xl" />
 
               <img
                 src="/jirachi.png"
                 alt=""
                 draggable={false}
-                className="relative z-10 h-12 w-12 object-contain drop-shadow-[0_8px_10px_rgba(0,0,0,0.4)]"
+                className="relative z-10 h-11 w-11 object-contain drop-shadow-[0_8px_10px_rgba(0,0,0,0.4)]"
               />
-
-              <span className="absolute text-4xl text-yellow-100/25">
-                *
-              </span>
             </div>
 
-            <div className="hidden sm:block">
-              <p className="text-lg font-black text-white">
-                PocketPulls
-              </p>
+            <div className="hidden min-w-0 sm:block">
+              <UnownText
+                text="Unknown Pulls"
+                size="1.12rem"
+                tone="holo"
+                wrap={false}
+              />
 
-              <p className="text-[0.62rem] font-black uppercase tracking-[0.18em] text-cyan-100/40">
-                Wish upon a star
+              <p className="mt-1 text-[0.58rem] font-black uppercase tracking-[0.18em] text-cyan-100/35">
+                Ancient wishes · real cards
               </p>
             </div>
           </Link>
@@ -197,17 +211,24 @@ export default function PlayerNav({
                 <Link
                   key={item.href}
                   href={item.href}
+                  title={item.label}
+                  aria-label={item.label}
                   className={[
-                    "relative rounded-xl border px-2.5 py-3 text-[0.68rem] font-black transition",
+                    "relative rounded-xl border px-2 py-3 transition",
                     active
-                      ? "border-violet-200/20 bg-violet-300/10 text-white"
-                      : "border-transparent text-white/42 hover:border-white/10 hover:bg-white/[0.05] hover:text-white",
+                      ? "border-violet-200/20 bg-violet-300/[0.09] shadow-[inset_0_0_0_1px_rgba(103,232,249,0.04)]"
+                      : "border-transparent hover:border-white/10 hover:bg-white/[0.045]",
                   ].join(" ")}
                 >
-                  {item.label}
+                  <UnownText
+                    text={item.label}
+                    size="0.72rem"
+                    tone={active ? "holo" : "muted"}
+                    wrap={false}
+                  />
 
                   {rewardItem && rewardReady ? (
-                    <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 animate-pulse rounded-full bg-yellow-200 shadow-[0_0_8px_rgba(253,230,138,0.9)]" />
+                    <span className="absolute right-1 top-1 h-1.5 w-1.5 animate-pulse rounded-full bg-yellow-200 shadow-[0_0_8px_rgba(253,230,138,0.9)]" />
                   ) : null}
                 </Link>
               );
@@ -217,13 +238,17 @@ export default function PlayerNav({
           <div className="ml-auto flex items-center gap-2 2xl:ml-2">
             <Link
               href="/wishes"
-              className="rounded-xl border border-yellow-100/20 bg-yellow-200/[0.08] px-3 py-2"
+              title="Wish balance"
+              className="rounded-xl border border-yellow-100/18 bg-yellow-200/[0.07] px-3 py-2 shadow-[inset_0_0_0_1px_rgba(103,232,249,0.025)]"
             >
-              <p className="text-[0.5rem] font-black uppercase tracking-[0.14em] text-yellow-100/45">
-                Wishes
-              </p>
+              <UnownText
+                text="Wishes"
+                size="0.58rem"
+                tone="muted"
+                wrap={false}
+              />
 
-              <p className="text-sm font-black text-yellow-50">
+              <p className="mt-1 text-sm font-black text-yellow-50">
                 {Math.max(
                   0,
                   Math.floor(displayedWishBalance),
@@ -290,28 +315,38 @@ export default function PlayerNav({
 
       {menuOpen ? (
         <div
-          className="fixed inset-0 z-[200] bg-black/75 backdrop-blur-lg 2xl:hidden"
+          className="fixed inset-0 z-[200] bg-black/78 backdrop-blur-lg 2xl:hidden"
           onPointerDown={() => setMenuOpen(false)}
         >
           <aside
-            className="absolute inset-y-0 right-0 flex w-[min(92vw,28rem)] flex-col border-l border-white/10 bg-[#080a24]"
+            className="absolute inset-y-0 right-0 flex w-[min(94vw,30rem)] flex-col border-l border-violet-200/15 bg-[#07091f]/98 shadow-[-30px_0_100px_rgba(0,0,0,0.45)]"
+            style={{
+              backgroundImage:
+                "linear-gradient(155deg, rgba(168,91,42,0.18), rgba(8,6,29,0.98) 28%, rgba(117,72,181,0.15) 58%, rgba(53,209,197,0.1) 82%, rgba(207,66,95,0.12))",
+            }}
             onPointerDown={(event) =>
               event.stopPropagation()
             }
           >
-            <div className="flex items-center justify-between border-b border-white/10 p-5">
-              <div>
-                <p className="font-black text-white">
-                  {displayName}
-                </p>
-                <p className="text-xs font-bold text-white/35">
-                  @{username}
+            <div className="relative flex items-center justify-between border-b border-white/10 p-5">
+              <div className="pointer-events-none absolute inset-x-8 bottom-0 h-px bg-gradient-to-r from-transparent via-violet-200/25 to-transparent" />
+
+              <div className="min-w-0">
+                <UnownText
+                  text="Unknown Pulls"
+                  size="1.05rem"
+                  tone="holo"
+                  wrap={false}
+                />
+                <p className="mt-2 truncate text-xs font-bold text-white/35">
+                  {displayName} · @{username}
                 </p>
               </div>
 
               <button
                 type="button"
                 onClick={() => setMenuOpen(false)}
+                aria-label="Close player menu"
                 className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/[0.05] font-black text-white"
               >
                 X
@@ -331,15 +366,22 @@ export default function PlayerNav({
                   <Link
                     key={item.href}
                     href={item.href}
+                    title={item.label}
+                    aria-label={item.label}
                     onClick={() => setMenuOpen(false)}
                     className={[
-                      "relative rounded-xl border px-4 py-4 text-sm font-black",
+                      "relative flex min-h-20 items-center justify-center rounded-xl border px-3 py-4",
                       active
-                        ? "border-violet-200/20 bg-violet-300/10 text-white"
-                        : "border-white/10 bg-white/[0.035] text-white/50",
+                        ? "border-violet-200/20 bg-violet-300/[0.09]"
+                        : "border-white/10 bg-white/[0.035]",
                     ].join(" ")}
                   >
-                    {item.label}
+                    <UnownText
+                      text={item.label}
+                      size="0.82rem"
+                      tone={active ? "holo" : "muted"}
+                      centred
+                    />
 
                     {rewardItem && rewardReady ? (
                       <span className="absolute right-3 top-3 h-2 w-2 animate-pulse rounded-full bg-yellow-200" />

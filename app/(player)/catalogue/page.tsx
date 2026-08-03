@@ -10,6 +10,7 @@ import {
   useState,
 } from "react";
 
+import UnownText from "@/components/player/UnownText";
 import { supabase } from "@/lib/supabase";
 
 type CatalogueRpcRow = {
@@ -930,22 +931,26 @@ function CatalogueHero({
   onRefresh: () => void;
 }) {
   return (
-    <header className="relative overflow-hidden rounded-[2rem] border border-violet-200/15 bg-[#090b27]/85 p-6 shadow-[0_30px_100px_rgba(0,0,0,0.28)] backdrop-blur-xl sm:p-8">
+    <header className="relative overflow-hidden rounded-[2rem] border border-violet-200/15 bg-[#090b27]/82 shadow-[inset_0_0_0_1px_rgba(103,232,249,0.035)] p-6 shadow-[0_30px_100px_rgba(0,0,0,0.28)] backdrop-blur-xl sm:p-8">
       <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-cyan-300/[0.08] blur-[100px]" />
       <div className="pointer-events-none absolute -bottom-28 left-[16%] h-72 w-72 rounded-full bg-violet-400/[0.09] blur-[100px]" />
 
       <div className="relative flex flex-col gap-7 xl:flex-row xl:items-end xl:justify-between">
         <div>
           <p className="text-xs font-black uppercase tracking-[0.22em] text-cyan-100/40">
-            The PocketPulls archive
+            The Unknown Pulls archive
           </p>
 
-          <h1 className="mt-3 text-4xl font-black tracking-tight text-white sm:text-5xl">
-            Card Catalogue
-          </h1>
+          <div className="mt-4 max-w-full overflow-hidden">
+            <UnownText
+              text="Card Catalogue"
+              size="clamp(2.1rem, 5vw, 4rem)"
+              tone="holo"
+            />
+          </div>
 
           <p className="mt-4 max-w-3xl text-sm font-semibold leading-7 text-white/45 sm:text-base">
-            Explore every card recorded by PocketPulls. Values are
+            Explore every card recorded by Unknown Pulls. Values are
             shown for reference, while live stock tells you which
             physical cards can currently answer a wish.
           </p>
@@ -1572,7 +1577,7 @@ function CatalogueEmptyState({
       <p className="mt-3 max-w-md text-sm font-semibold leading-7 text-white/38">
         {hasActiveFilters
           ? "Try another name, set, rarity or stock filter."
-          : "Cards will appear here as soon as they are added to the PocketPulls database."}
+          : "Cards will appear here as soon as they are added to the Unknown Pulls database."}
       </p>
 
       {hasActiveFilters ? (
@@ -1724,7 +1729,7 @@ function CardDetailModal({
 
               <p className="mt-3 text-sm font-semibold leading-7 text-white/48">
                 {card.stockQuantity > 0
-                  ? `${card.name} is currently capable of appearing in a real PocketPulls wish. Every awarded card removes one physical copy from live stock.`
+                  ? `${card.name} is currently capable of appearing in a real Unknown Pulls wish. Every awarded card removes one physical copy from live stock.`
                   : `${card.name} remains visible in the archive, but it cannot currently appear in a wish until new physical stock is added.`}
               </p>
             </div>
@@ -1750,7 +1755,7 @@ function CardDetailModal({
               <Link
                 href="/wishes"
                 onClick={onClose}
-                className="flex min-h-12 flex-1 items-center justify-center rounded-xl bg-gradient-to-r from-yellow-200 via-cyan-100 to-violet-200 px-5 text-sm font-black text-[#111329] transition hover:-translate-y-0.5 hover:brightness-110"
+                className="flex min-h-12 flex-1 items-center justify-center rounded-xl bg-gradient-to-r from-[#e7ad46] via-[#48d5ca] to-[#d84f78] px-5 text-sm font-black text-[#111329] transition hover:-translate-y-0.5 hover:brightness-110"
               >
                 Visit the Wish Chamber
               </Link>

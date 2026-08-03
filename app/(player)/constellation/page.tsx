@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import UnownText from "@/components/player/UnownText";
 import { supabase } from "@/lib/supabase";
 
 type WishRow = {
@@ -438,15 +439,21 @@ export default function ConstellationPage() {
 
   return (
     <section className="mx-auto w-full max-w-[1600px] px-4 py-8 sm:px-6 lg:px-8">
-      <header className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+      <header className="relative overflow-hidden rounded-[2rem] border border-violet-200/15 bg-[#090b27]/76 p-5 shadow-[0_24px_90px_rgba(0,0,0,0.22)] backdrop-blur-xl sm:p-7">
+        <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-amber-100/45 to-transparent" />
+        <div className="relative flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <p className="text-xs font-black uppercase tracking-[0.22em] text-cyan-100/40">
             Jirachi&apos;s memory
           </p>
 
-          <h1 className="mt-3 text-4xl font-black tracking-tight text-white sm:text-5xl">
-            Your Wish Constellation
-          </h1>
+          <div className="mt-4 max-w-full overflow-hidden">
+            <UnownText
+              text="Your Wish Constellation"
+              size="clamp(1.9rem, 4.6vw, 3.75rem)"
+              tone="holo"
+            />
+          </div>
 
           <p className="mt-4 max-w-3xl text-sm font-semibold leading-7 text-white/45 sm:text-base">
             Every card Jirachi has granted you lives here as a permanent
@@ -465,6 +472,7 @@ export default function ConstellationPage() {
         >
           {refreshing ? "Reading the stars..." : "Refresh constellation"}
         </button>
+        </div>
       </header>
 
       {errorMessage ? (

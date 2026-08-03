@@ -284,6 +284,22 @@ export default function WishCinematic({
     [card?.rarity],
   );
 
+  const rareSpirit = theme.tier >= 4;
+
+  const spirit = rareSpirit
+    ? {
+        src: "/mew.png",
+        alt: "Ancient Mew",
+        preparing: "An ancient presence is answering...",
+        granting: "Mew is awakening your rare wish...",
+      }
+    : {
+        src: "/jirachi.png",
+        alt: "Jirachi",
+        preparing: "Preparing your wish...",
+        granting: "Jirachi is granting your wish...",
+      };
+
   const cardKey = useMemo(() => {
     if (!card) {
       return "";
@@ -522,7 +538,12 @@ export default function WishCinematic({
       aria-label={`Wish reveal for ${card.name}`}
     >
       <div className={styles.sky} />
+      <div className={styles.ancientCardGhost} />
       <div className={styles.stars} />
+      <div className={styles.holoDust} />
+      <div className={styles.ancientGlyphBandTop} />
+      <div className={styles.ancientGlyphBandBottom} />
+      <div className={styles.ancientFrame} />
       <div className={styles.vignette} />
 
       <button
@@ -542,12 +563,13 @@ export default function WishCinematic({
           <div className={styles.preparingGlow} />
 
           <img
-            src="/jirachi.png"
-            alt="Jirachi"
+            src={spirit.src}
+            alt={spirit.alt}
             draggable={false}
+            className={rareSpirit ? styles.preparingMew : ""}
           />
 
-          <p>Preparing your wish...</p>
+          <p>{spirit.preparing}</p>
         </div>
       ) : (
         <div
@@ -560,13 +582,15 @@ export default function WishCinematic({
             <div className={styles.jirachiAura} />
 
             <img
-              src="/jirachi.png"
-              alt="Jirachi"
+              src={spirit.src}
+              alt={spirit.alt}
               draggable={false}
-              className={styles.jirachi}
+              className={`${styles.jirachi} ${
+                rareSpirit ? styles.mew : ""
+              }`}
             />
 
-            <p>Jirachi is granting your wish...</p>
+            <p>{spirit.granting}</p>
           </div>
 
           <div className={styles.fallingStar}>

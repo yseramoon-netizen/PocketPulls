@@ -1,0 +1,398 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  background: #02030d;
+  isolation: isolate;
+}
+
+.deepSpace,
+.ancientMewGhost,
+.papyrusWash,
+.prismField,
+.holoDust,
+.nebulaCyan,
+.nebulaViolet,
+.nebulaScarlet,
+.nebulaEmerald,
+.nebulaGold,
+.topGlyphBand,
+.bottomGlyphBand,
+.frame,
+.innerFrame,
+.cornerTopLeft,
+.cornerTopRight,
+.cornerBottomLeft,
+.cornerBottomRight,
+.vignette {
+  position: absolute;
+  pointer-events: none;
+}
+
+/*
+ * The original PocketPulls night sky is once again the dominant layer.
+ * Ancient Mew remains present as a quiet relic rather than the wallpaper.
+ */
+.deepSpace {
+  inset: 0;
+  background:
+    radial-gradient(
+      circle at 50% -10%,
+      rgba(165, 180, 252, 0.22),
+      transparent 30%
+    ),
+    radial-gradient(
+      circle at 8% 18%,
+      rgba(103, 232, 249, 0.17),
+      transparent 30%
+    ),
+    radial-gradient(
+      circle at 90% 14%,
+      rgba(196, 181, 253, 0.17),
+      transparent 29%
+    ),
+    radial-gradient(
+      circle at 74% 82%,
+      rgba(91, 72, 190, 0.22),
+      transparent 37%
+    ),
+    radial-gradient(
+      circle at 22% 84%,
+      rgba(45, 212, 191, 0.11),
+      transparent 31%
+    ),
+    radial-gradient(
+      circle at 52% 42%,
+      rgba(232, 169, 71, 0.055),
+      transparent 30%
+    ),
+    linear-gradient(
+      180deg,
+      #05071d 0%,
+      #0b0c2c 30%,
+      #07162a 64%,
+      #02030d 100%
+    );
+}
+
+.ancientMewGhost {
+  inset: 0;
+  background:
+    radial-gradient(
+      ellipse at center,
+      rgba(9, 11, 39, 0.08) 0%,
+      rgba(4, 6, 24, 0.54) 48%,
+      rgba(2, 3, 13, 0.92) 82%
+    ),
+    linear-gradient(
+      180deg,
+      rgba(3, 5, 20, 0.38),
+      rgba(8, 7, 31, 0.56) 48%,
+      rgba(2, 4, 15, 0.76)
+    ),
+    url("/unknown-pulls/ancient-mew-card.jpg")
+      center 43% / clamp(18rem, 38vw, 34rem) auto no-repeat;
+  opacity: 0.14;
+  mix-blend-mode: soft-light;
+  filter:
+    saturate(1.18)
+    contrast(1.03)
+    sepia(0.08)
+    blur(0.25px);
+}
+
+.papyrusWash {
+  inset: 0;
+  background:
+    linear-gradient(
+      90deg,
+      rgba(163, 91, 35, 0.09),
+      rgba(233, 174, 71, 0.02) 8%,
+      transparent 20%,
+      transparent 80%,
+      rgba(233, 174, 71, 0.02) 92%,
+      rgba(163, 91, 35, 0.09)
+    ),
+    linear-gradient(
+      180deg,
+      rgba(226, 156, 54, 0.045),
+      transparent 18%,
+      transparent 82%,
+      rgba(226, 156, 54, 0.04)
+    ),
+    repeating-linear-gradient(
+      95deg,
+      rgba(255, 223, 157, 0.008) 0 1px,
+      transparent 1px 9px
+    );
+  mix-blend-mode: screen;
+}
+
+.prismField {
+  inset: -35%;
+  background:
+    conic-gradient(
+      from 35deg at 52% 48%,
+      transparent 0deg,
+      rgba(196, 181, 253, 0.11) 38deg,
+      transparent 76deg,
+      rgba(103, 232, 249, 0.12) 116deg,
+      transparent 154deg,
+      rgba(232, 181, 77, 0.045) 202deg,
+      transparent 241deg,
+      rgba(139, 92, 246, 0.12) 286deg,
+      transparent 330deg,
+      rgba(45, 212, 191, 0.07) 360deg
+    );
+  opacity: 0.42;
+  filter: blur(66px);
+  mix-blend-mode: screen;
+  animation: turnPrism 78s linear infinite;
+}
+
+.holoDust {
+  inset: -18%;
+  opacity: 0.34;
+  background-image:
+    radial-gradient(circle at 7% 13%, #67e8f9 0 1px, transparent 2.5px),
+    radial-gradient(circle at 18% 27%, #fde68a 0 1.2px, transparent 2.8px),
+    radial-gradient(circle at 28% 8%, #c4b5fd 0 1px, transparent 2.5px),
+    radial-gradient(circle at 39% 42%, #5eead4 0 1.2px, transparent 2.8px),
+    radial-gradient(circle at 51% 17%, #a78bfa 0 1px, transparent 2.4px),
+    radial-gradient(circle at 63% 35%, #fef3c7 0 1.2px, transparent 2.8px),
+    radial-gradient(circle at 74% 11%, #67e8f9 0 1px, transparent 2.5px),
+    radial-gradient(circle at 87% 29%, #f9a8d4 0 1.2px, transparent 2.8px),
+    radial-gradient(circle at 95% 8%, #5eead4 0 1px, transparent 2.5px),
+    radial-gradient(circle at 11% 71%, #c4b5fd 0 1.2px, transparent 2.8px),
+    radial-gradient(circle at 25% 86%, #67e8f9 0 1px, transparent 2.5px),
+    radial-gradient(circle at 44% 73%, #fde68a 0 1.2px, transparent 2.8px),
+    radial-gradient(circle at 59% 91%, #f9a8d4 0 1px, transparent 2.5px),
+    radial-gradient(circle at 77% 68%, #5eead4 0 1.2px, transparent 2.8px),
+    radial-gradient(circle at 92% 87%, #67e8f9 0 1px, transparent 2.5px),
+    radial-gradient(circle at 46% 54%, rgba(255,255,255,0.78) 0 0.7px, transparent 1.8px);
+  background-size: 330px 270px;
+  animation: driftDust 44s linear infinite;
+  mix-blend-mode: screen;
+}
+
+.nebulaCyan,
+.nebulaViolet,
+.nebulaScarlet,
+.nebulaEmerald,
+.nebulaGold {
+  border-radius: 999px;
+  filter: blur(122px);
+  mix-blend-mode: screen;
+}
+
+.nebulaCyan {
+  top: 9%;
+  left: -13rem;
+  width: 39rem;
+  height: 39rem;
+  background: rgba(34, 211, 238, 0.18);
+}
+
+.nebulaViolet {
+  right: -13rem;
+  bottom: 5%;
+  width: 39rem;
+  height: 39rem;
+  background: rgba(124, 58, 237, 0.22);
+}
+
+.nebulaScarlet {
+  right: 5%;
+  top: 10%;
+  width: 25rem;
+  height: 25rem;
+  background: rgba(219, 39, 119, 0.055);
+}
+
+.nebulaEmerald {
+  left: 18%;
+  bottom: -13rem;
+  width: 31rem;
+  height: 31rem;
+  background: rgba(45, 212, 191, 0.08);
+}
+
+.nebulaGold {
+  left: 44%;
+  top: -15rem;
+  width: 29rem;
+  height: 29rem;
+  background: rgba(250, 204, 21, 0.065);
+}
+
+.topGlyphBand,
+.bottomGlyphBand {
+  right: 0;
+  left: 0;
+  height: 36px;
+  background:
+    linear-gradient(
+      90deg,
+      rgba(124, 58, 237, 0.04),
+      rgba(103, 232, 249, 0.55),
+      rgba(196, 181, 253, 0.5),
+      rgba(232, 167, 54, 0.42),
+      rgba(196, 181, 253, 0.5),
+      rgba(103, 232, 249, 0.55),
+      rgba(124, 58, 237, 0.04)
+    );
+  -webkit-mask-image:
+    url("/unknown-pulls/unown-band.png");
+  mask-image:
+    url("/unknown-pulls/unown-band.png");
+  -webkit-mask-repeat: repeat-x;
+  mask-repeat: repeat-x;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-size: auto 31px;
+  mask-size: auto 31px;
+  opacity: 0.2;
+  filter: drop-shadow(0 0 12px rgba(103, 232, 249, 0.1));
+}
+
+.topGlyphBand {
+  top: 2px;
+}
+
+.bottomGlyphBand {
+  bottom: 2px;
+  transform: rotate(180deg);
+}
+
+.frame {
+  inset: 8px;
+  border: 1px solid rgba(196, 181, 253, 0.2);
+  border-radius: 20px;
+  box-shadow:
+    inset 0 0 0 1px rgba(103, 232, 249, 0.06),
+    inset 0 0 42px rgba(124, 58, 237, 0.035),
+    0 0 28px rgba(103, 232, 249, 0.035);
+}
+
+.innerFrame {
+  inset: 15px;
+  border: 1px solid rgba(103, 232, 249, 0.1);
+  border-radius: 14px;
+  box-shadow:
+    inset 0 0 0 1px rgba(250, 204, 21, 0.025),
+    0 0 18px rgba(124, 58, 237, 0.03);
+}
+
+.cornerTopLeft,
+.cornerTopRight,
+.cornerBottomLeft,
+.cornerBottomRight {
+  width: 58px;
+  height: 58px;
+  opacity: 0.46;
+}
+
+.cornerTopLeft {
+  top: 11px;
+  left: 11px;
+  border-top: 3px double rgba(103, 232, 249, 0.48);
+  border-left: 3px double rgba(103, 232, 249, 0.48);
+  border-top-left-radius: 15px;
+}
+
+.cornerTopRight {
+  top: 11px;
+  right: 11px;
+  border-top: 3px double rgba(196, 181, 253, 0.48);
+  border-right: 3px double rgba(196, 181, 253, 0.48);
+  border-top-right-radius: 15px;
+}
+
+.cornerBottomLeft {
+  bottom: 11px;
+  left: 11px;
+  border-bottom: 3px double rgba(94, 234, 212, 0.4);
+  border-left: 3px double rgba(94, 234, 212, 0.4);
+  border-bottom-left-radius: 15px;
+}
+
+.cornerBottomRight {
+  right: 11px;
+  bottom: 11px;
+  border-right: 3px double rgba(250, 204, 21, 0.28);
+  border-bottom: 3px double rgba(250, 204, 21, 0.28);
+  border-bottom-right-radius: 15px;
+}
+
+.vignette {
+  inset: 0;
+  background:
+    radial-gradient(
+      circle at center,
+      transparent 34%,
+      rgba(0, 0, 0, 0.13) 66%,
+      rgba(0, 0, 0, 0.62) 100%
+    );
+}
+
+@keyframes driftDust {
+  from {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+
+  to {
+    transform: translate3d(-110px, 62px, 0) rotate(2deg);
+  }
+}
+
+@keyframes turnPrism {
+  from {
+    transform: rotate(0deg) scale(1);
+  }
+
+  to {
+    transform: rotate(360deg) scale(1.025);
+  }
+}
+
+@media (max-width: 720px) {
+  .topGlyphBand,
+  .bottomGlyphBand {
+    height: 25px;
+    -webkit-mask-size: auto 22px;
+    mask-size: auto 22px;
+    opacity: 0.14;
+  }
+
+  .frame {
+    inset: 5px;
+    border-radius: 13px;
+  }
+
+  .innerFrame {
+    inset: 10px;
+    border-radius: 9px;
+  }
+
+  .cornerTopLeft,
+  .cornerTopRight,
+  .cornerBottomLeft,
+  .cornerBottomRight {
+    width: 34px;
+    height: 34px;
+  }
+
+  .ancientMewGhost {
+    background-size: clamp(16rem, 72vw, 24rem) auto;
+    opacity: 0.09;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .holoDust,
+  .prismField {
+    animation: none;
+  }
+}

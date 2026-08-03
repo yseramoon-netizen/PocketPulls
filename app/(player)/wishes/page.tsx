@@ -12,6 +12,7 @@ import {
 import WishCinematic, {
   type WishRevealCard,
 } from "@/components/player/WishCinematic";
+import UnownText from "@/components/player/UnownText";
 import { primeWishAudio } from "@/components/player/wishAudio";
 import { supabase } from "@/lib/supabase";
 
@@ -552,15 +553,21 @@ export default function WishesPage() {
 
   return (
     <section className="relative mx-auto w-full max-w-[1600px] px-4 py-8 sm:px-6 lg:px-8 lg:py-12">
-      <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+      <div className="relative overflow-hidden rounded-[2rem] border border-violet-200/15 bg-[#090b27]/76 p-5 shadow-[0_24px_90px_rgba(0,0,0,0.22)] backdrop-blur-xl sm:p-7">
+        <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-amber-100/45 to-transparent" />
+        <div className="relative flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <p className="text-xs font-black uppercase tracking-[0.22em] text-yellow-100/45">
             Jirachi's sanctuary
           </p>
 
-          <h1 className="mt-3 text-4xl font-black tracking-tight text-white sm:text-5xl">
-            Make a Wish
-          </h1>
+          <div className="mt-4 max-w-full overflow-hidden">
+            <UnownText
+              text="Make a Wish"
+              size="clamp(2.2rem, 5vw, 4rem)"
+              tone="holo"
+            />
+          </div>
 
           <p className="mt-4 max-w-2xl text-sm font-semibold leading-7 text-white/45 sm:text-base">
             Open real Pokemon cards, grow your collection and unlock free
@@ -576,6 +583,7 @@ export default function WishesPage() {
         >
           {refreshing ? "Refreshing..." : "Refresh dashboard"}
         </button>
+        </div>
       </div>
 
       {errorMessage ? (
@@ -729,7 +737,7 @@ function WishChamber({
   const hasWishes = wishBalance > 0;
 
   return (
-    <article className="relative overflow-hidden rounded-[2rem] border border-yellow-200/15 bg-[#090b27]/85 p-6 shadow-[0_30px_100px_rgba(0,0,0,0.3)] backdrop-blur-xl sm:p-8">
+    <article className="relative overflow-hidden rounded-[2rem] border border-violet-200/16 bg-[#090b27]/84 shadow-[inset_0_0_0_1px_rgba(103,232,249,0.035)] p-6 shadow-[0_30px_100px_rgba(0,0,0,0.3)] backdrop-blur-xl sm:p-8">
       <div className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-yellow-200/10 blur-[90px]" />
       <div className="pointer-events-none absolute -bottom-24 left-10 h-64 w-64 rounded-full bg-violet-400/10 blur-[90px]" />
 
@@ -769,7 +777,7 @@ function WishChamber({
             {hasWishes
               ? `You have ${formatWholeNumber(wishBalance)} wish${
                   wishBalance === 1 ? "" : "es"
-                } available. Each wish awards one real physical card from available PocketPulls stock.`
+                } available. Each wish awards one real physical card from available Unknown Pulls stock.`
               : "You currently have no wishes available. New wish credits will appear here as soon as they are added to your account."}
           </p>
 
@@ -784,7 +792,7 @@ function WishChamber({
               type="button"
               onClick={onMakeWish}
               disabled={!hasWishes || makingWish || revealOpen}
-              className="relative min-h-13 flex-1 overflow-hidden rounded-xl bg-gradient-to-r from-yellow-200 via-cyan-100 to-violet-200 px-5 text-sm font-black text-[#111329] shadow-[0_0_35px_rgba(253,224,71,0.12)] transition hover:-translate-y-0.5 hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0"
+              className="relative min-h-13 flex-1 overflow-hidden rounded-xl bg-gradient-to-r from-[#e7ad46] via-[#46d3c8] to-[#d84f78] px-5 text-sm font-black text-[#111329] shadow-[0_0_35px_rgba(253,224,71,0.12)] transition hover:-translate-y-0.5 hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0"
             >
               <span className="relative z-10">
                 {makingWish

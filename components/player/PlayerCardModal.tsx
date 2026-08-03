@@ -58,7 +58,7 @@ export default function PlayerCardModal({
 
   return (
     <div
-      className="fixed inset-0 z-[10000] flex items-center justify-center overflow-y-auto bg-[#01020d]/90 p-4 backdrop-blur-xl"
+      className="fixed inset-0 z-[10000] flex items-center justify-center overflow-y-auto bg-[#02020f]/92 p-4 backdrop-blur-xl"
       role="dialog"
       aria-modal="true"
       aria-label={`${card.name} card details`}
@@ -68,7 +68,7 @@ export default function PlayerCardModal({
         }
       }}
     >
-      <article className="relative my-auto grid w-full max-w-5xl overflow-hidden rounded-[2rem] border border-white/15 bg-[#080a24] shadow-[0_40px_140px_rgba(0,0,0,0.65)] lg:grid-cols-[minmax(18rem,0.9fr)_minmax(22rem,1.1fr)]">
+      <article className="relative my-auto grid w-full max-w-5xl overflow-hidden rounded-[2rem] border border-violet-200/15 bg-[#090b27] shadow-[0_40px_140px_rgba(0,0,0,0.65)] lg:grid-cols-[minmax(18rem,0.9fr)_minmax(22rem,1.1fr)]">
         <button
           type="button"
           onClick={onClose}
@@ -153,7 +153,7 @@ export default function PlayerCardModal({
             <Link
               href="/shipping"
               onClick={onClose}
-              className="flex min-h-12 flex-1 items-center justify-center rounded-xl bg-gradient-to-r from-yellow-200 via-cyan-100 to-violet-200 px-5 text-sm font-black text-[#111329] transition hover:-translate-y-0.5 hover:brightness-110"
+              className="flex min-h-12 flex-1 items-center justify-center rounded-xl bg-gradient-to-r from-[#e7ad46] via-[#48d5ca] to-[#d84f78] px-5 text-sm font-black text-[#111329] transition hover:-translate-y-0.5 hover:brightness-110"
             >
               Shipping centre
             </Link>
@@ -172,7 +172,7 @@ function ModalValue({
   value: string;
 }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+    <div className="rounded-2xl border border-white/10 bg-white/[0.035] p-4">
       <p className="text-[0.58rem] font-black uppercase tracking-[0.15em] text-white/27">
         {label}
       </p>
