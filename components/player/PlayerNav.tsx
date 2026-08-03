@@ -22,6 +22,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/wishes", label: "Wishes" },
   { href: "/catalogue", label: "Catalogue" },
   { href: "/collection", label: "Collection" },
+  { href: "/constellation", label: "Stars" },
   { href: "/leaderboard", label: "Leaderboard" },
   { href: "/shipping", label: "Shipping" },
   { href: "/profile", label: "Profile" },
