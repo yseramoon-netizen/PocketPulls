@@ -1,139 +1,51 @@
 "use client";
 
-
-
-interface PullMachineProps {
-
+type Props = {
   opening:boolean;
-
   stage:string;
-
   progress:number;
-
-}
-
-
-
+};
 
 
 export default function PullMachine({
-
   opening,
-
   stage,
-
   progress
-
-}:PullMachineProps){
-
-
-
-
-
-const particles = [
-
-  [10,20],
-  [25,80],
-  [40,15],
-  [55,65],
-  [70,30],
-  [85,75],
-  [15,55],
-  [35,90],
-  [60,45],
-  [90,10],
-  [75,55],
-  [50,25],
-  [20,40],
-  [65,85],
-  [95,60],
-  [30,10],
-  [80,90],
-  [45,70],
-  [12,85],
-  [88,35],
-  [55,95],
-  [72,15],
-  [38,50],
-  [92,80],
-  [5,45],
-  [60,5],
-  [28,65],
-  [82,40],
-  [48,30],
-  [68,75],
-
-];
-
-
-
+}:Props){
 
 
 return (
 
 <section
 
-className={`
-
-mt-10
+className="
 
 relative
 
 overflow-hidden
 
-rounded-[3rem]
+rounded-[4rem]
 
-min-h-[420px]
-
-flex
-
-items-center
-
-justify-center
-
-
-bg-black/40
+bg-white/10
 
 backdrop-blur-3xl
 
-
 border
 
-border-emerald-400/20
+border-white/20
 
+shadow-[0_0_100px_rgba(16,185,129,.35)]
 
-shadow-[0_0_120px_rgba(16,185,129,.35)]
+p-10
 
+text-center
 
-transition-all
-
-duration-700
-
-
-${
-
-opening
-
-?
-
-"opacity-100 scale-100"
-
-:
-
-"opacity-0 scale-95"
-
-}
-
-`}
+"
 
 >
 
 
-
-
-
-{/* glow */}
-
+{/* Forest energy */}
 
 <div
 
@@ -141,17 +53,15 @@ className="
 
 absolute
 
-w-96
+inset-0
 
-h-96
+bg-gradient-to-br
 
-bg-emerald-400/20
+from-emerald-400/20
 
-rounded-full
+via-transparent
 
-blur-3xl
-
-animate-pulse
+to-yellow-300/10
 
 "
 
@@ -161,15 +71,11 @@ animate-pulse
 
 
 
-
-
-{/* particles */}
-
+{/* Floating particles */}
 
 {
 
-particles.map((particle,i)=>(
-
+Array.from({length:18}).map((_,i)=>(
 
 <div
 
@@ -187,7 +93,7 @@ rounded-full
 
 bg-yellow-300
 
-shadow-[0_0_20px_rgba(250,204,21,.9)]
+shadow-[0_0_25px_10px_rgba(250,204,21,.8)]
 
 animate-pulse
 
@@ -195,16 +101,15 @@ animate-pulse
 
 style={{
 
-left:`${particle[0]}%`,
+left:`${10 + (i*5)%80}%`,
 
-top:`${particle[1]}%`,
+top:`${15 + (i*13)%65}%`,
 
-animationDelay:`${i*0.12}s`
+animationDelay:`${i*0.2}s`
 
 }}
 
 />
-
 
 ))
 
@@ -214,64 +119,21 @@ animationDelay:`${i*0.12}s`
 
 
 
-
-
-
-
-{/* Tree energy circle */}
-
-
-<div
-
-className="
-
-relative
-
-z-10
-
-flex
-
-flex-col
-
-items-center
-
-"
-
->
-
-
+<div className="relative z-10">
 
 
 
 <div
 
-className="
+className={`
 
-relative
+mx-auto
 
-w-56
+w-52
 
-h-56
+h-52
 
 rounded-full
-
-
-bg-gradient-to-br
-
-from-emerald-300/30
-
-via-green-500/20
-
-to-yellow-300/30
-
-
-border
-
-border-white/20
-
-
-backdrop-blur-xl
-
 
 flex
 
@@ -280,9 +142,21 @@ items-center
 justify-center
 
 
-shadow-[0_0_80px_rgba(16,185,129,.7)]
+bg-emerald-400/20
 
-"
+border
+
+border-emerald-200/40
+
+
+shadow-[0_0_80px_rgba(52,211,153,.6)]
+
+
+${opening ? "animate-pulse" : ""}
+
+`
+
+}
 
 >
 
@@ -300,40 +174,24 @@ animate-bounce
 
 >
 
-🌳
+🌿
+
+</div>
+
 
 </div>
 
 
 
 
-</div>
-
-
-
-
-
-
-
-
-
-<div
-
-className="
-
-mt-8
-
-text-center
-
-"
-
->
 
 
 
 <h2
 
 className="
+
+mt-8
 
 text-3xl
 
@@ -345,9 +203,10 @@ text-white
 
 >
 
-{stage}
+The forest is awakening...
 
 </h2>
+
 
 
 
@@ -356,33 +215,29 @@ text-white
 
 className="
 
-mt-3
+mt-4
 
-text-emerald-200
+text-xl
 
 font-bold
+
+text-emerald-100
+
+min-h-8
 
 "
 
 >
 
-Ancient Pokémon energy is forming...
+{stage}
 
 </p>
 
 
 
-</div>
 
 
 
-
-
-
-
-
-
-{/* progress */}
 
 
 <div
@@ -391,13 +246,15 @@ className="
 
 mt-8
 
-w-80
+max-w-xl
 
-h-4
+mx-auto
+
+h-5
 
 rounded-full
 
-bg-white/10
+bg-black/30
 
 overflow-hidden
 
@@ -416,17 +273,21 @@ className="
 
 h-full
 
+rounded-full
+
 bg-gradient-to-r
 
-from-yellow-300
+from-lime-300
 
 via-emerald-400
 
-to-green-500
+to-yellow-300
 
 transition-all
 
 duration-300
+
+shadow-[0_0_30px_rgba(52,211,153,.8)]
 
 "
 
@@ -449,11 +310,13 @@ width:`${progress}%`
 
 className="
 
-mt-3
+mt-4
 
-text-white
+text-emerald-200
 
 font-black
+
+text-lg
 
 "
 
@@ -468,10 +331,6 @@ font-black
 
 
 </div>
-
-
-
-
 
 
 </section>

@@ -13,15 +13,11 @@ import PullStats from "@/components/PullStats";
 import PullHistory from "@/components/PullHistory";
 
 
-
 const DAILY_LIMIT = 10;
 
 
 
-
-
 export default function PullsPage(){
-
 
 
 const [user,setUser]=useState<any>(null);
@@ -46,12 +42,7 @@ const [error,setError]=useState("");
 
 
 
-
-
 const pullPrice = dailyPulls + 1;
-
-
-
 
 
 
@@ -66,22 +57,14 @@ initialise();
 
 
 
-
-
-
-
 async function initialise(){
 
 
 const {
-
 data:{
 user
-
 }
-
 }=await supabase.auth.getUser();
-
 
 
 
@@ -99,7 +82,6 @@ setUser(user);
 
 
 
-
 await Promise.all([
 
 loadWallet(user),
@@ -109,7 +91,6 @@ loadDaily(user),
 loadHistory(user)
 
 ]);
-
 
 
 setLoading(false);
@@ -124,14 +105,11 @@ setLoading(false);
 
 
 
-
 async function loadWallet(current:any){
 
 
 const {
-
 data
-
 }=await supabase
 
 .from("profiles")
@@ -139,15 +117,11 @@ data
 .select("balance")
 
 .eq(
-
 "id",
-
 current.id
-
 )
 
 .single();
-
 
 
 
@@ -173,73 +147,42 @@ async function loadDaily(current:any){
 
 const start=new Date();
 
-
-start.setHours(
-
-0,
-
-0,
-
-0,
-
-0
-
-);
-
-
+start.setHours(0,0,0,0);
 
 
 
 const {
-
 count
-
 }=await supabase
 
 .from("pull_history")
 
 .select(
-
 "id",
-
 {
-
 count:"exact",
-
 head:true
-
 }
-
 )
 
 .eq(
-
 "user_id",
-
 current.id
-
 )
 
 .gte(
-
 "created_at",
-
 start.toISOString()
-
 );
 
 
 
-
-
-setDailyPulls(
-
-count || 0
-
-);
+setDailyPulls(count || 0);
 
 
 }
+
+
 
 
 
@@ -252,10 +195,10 @@ count || 0
 async function loadHistory(current:any){
 
 
+
 const {
-
-data
-
+data,
+error
 }=await supabase
 
 .from("pull_history")
@@ -270,7 +213,6 @@ market_value,
 
 amount_paid,
 
-
 pokemon_cards(
 
 name,
@@ -284,21 +226,14 @@ image_url
 `)
 
 .eq(
-
 "user_id",
-
 current.id
-
 )
 
 .order(
-
 "created_at",
-
 {
-
 ascending:false
-
 }
 
 )
@@ -308,26 +243,52 @@ ascending:false
 
 
 
+if(error){
+
+console.error(
+"History error:",
+error
+);
+
+return;
+
+}
 
 
+
+
+console.log("PULL HISTORY:", data);
 
 setHistory(
 
-(data || []).map((item:any)=>(
+(data || []).map((item:any)=>{
 
-{
+
+const pulledCard = Array.isArray(item.pokemon_cards)
+
+?
+
+item.pokemon_cards[0]
+
+:
+
+item.pokemon_cards;
+
+
+
+return {
 
 
 id:item.id,
 
 
-name:item.pokemon_cards?.name || "Unknown",
+name:pulledCard?.name || "Unknown",
 
 
-rarity:item.pokemon_cards?.rarity || "Unknown",
+rarity:pulledCard?.rarity || "Unknown",
 
 
-image_url:item.pokemon_cards?.image_url,
+image_url:pulledCard?.image_url,
 
 
 value:Number(item.market_value || 0),
@@ -339,9 +300,10 @@ amount_paid:Number(item.amount_paid || 0),
 created_at:item.created_at
 
 
-}
+};
 
-))
+
+})
 
 );
 
@@ -359,12 +321,9 @@ created_at:item.created_at
 async function openPull(){
 
 
-
 if(!user){
 
-setError(
-"Login required"
-);
+setError("Login required");
 
 return;
 
@@ -372,11 +331,7 @@ return;
 
 
 
-if(opening)
-
-return;
-
-
+if(opening)return;
 
 
 
@@ -405,9 +360,6 @@ return;
 
 
 
-
-
-
 setError("");
 
 setCard(null);
@@ -419,11 +371,8 @@ setProgress(0);
 
 
 setStage(
-"🌱 Awakening the ancient grove..."
+"🌱 Awakening the grove..."
 );
-
-
-
 
 
 
@@ -431,11 +380,10 @@ let value=0;
 
 
 
-
 const timer=setInterval(()=>{
 
 
-value += 5;
+value+=5;
 
 
 setProgress(value);
@@ -445,7 +393,7 @@ setProgress(value);
 if(value>30)
 
 setStage(
-"🍃 The leaves whisper..."
+"🍃 Leaves begin to move..."
 );
 
 
@@ -461,7 +409,7 @@ setStage(
 if(value>85)
 
 setStage(
-"🎴 Something is waiting..."
+"🎴 A discovery appears..."
 );
 
 
@@ -480,21 +428,19 @@ clearInterval(timer);
 
 
 
+
+
 try{
 
 
 const response=await fetch(
-
 "/api/pull",
-
 {
 
 method:"POST",
 
 headers:{
-
 "Content-Type":"application/json"
-
 },
 
 body:JSON.stringify({
@@ -510,9 +456,7 @@ userId:user.id
 
 
 
-
 const data=await response.json();
-
 
 
 
@@ -528,7 +472,6 @@ throw new Error(data.error);
 
 
 
-
 setTimeout(async()=>{
 
 
@@ -536,11 +479,15 @@ setCard(data.card);
 
 
 
-await loadWallet(user);
+await Promise.all([
 
-await loadDaily(user);
+loadWallet(user),
 
-await loadHistory(user);
+loadDaily(user),
+
+loadHistory(user)
+
+]);
 
 
 
@@ -559,7 +506,10 @@ setOpening(false);
 catch(err:any){
 
 
-setError(err.message);
+setError(
+err.message
+);
+
 
 setOpening(false);
 
@@ -576,42 +526,23 @@ setOpening(false);
 
 
 
+
+
 if(loading){
 
 
 return (
 
-<div
-
-className="
-
+<div className="
 min-h-screen
-
 flex
-
 items-center
-
 justify-center
-
-
-bg-gradient-to-br
-
-from-[#020617]
-
-via-[#052e16]
-
-to-[#064e3b]
-
-
+bg-[#020617]
 text-emerald-100
-
 font-black
-
 text-xl
-
-"
-
->
+">
 
 🌱 Awakening PocketPulls...
 
@@ -619,21 +550,24 @@ text-xl
 
 );
 
-
 }
+
+
+
+
+
+
+
 
 return (
 
-<main
-
-className="
+<main className="
 
 relative
 
 min-h-screen
 
 overflow-hidden
-
 
 bg-gradient-to-br
 
@@ -643,42 +577,27 @@ via-[#052e16]
 
 to-[#064e3b]
 
-
 p-4
 
 pb-28
 
 md:p-8
 
-
 text-white
 
-"
-
->
+">
 
 
 <ForestBackground />
 
 
 
-
-
-<div
-
-className="
-
+<div className="
 relative
-
 z-10
-
 max-w-7xl
-
 mx-auto
-
-"
-
->
+">
 
 
 <AdminNav />
@@ -687,120 +606,27 @@ mx-auto
 
 
 
-
-
-
-
-{/* MAIN SHRINE */}
-
-
-<section
-
-className="
+<section className="
 
 mt-8
 
-relative
-
-overflow-hidden
-
-
 rounded-[4rem]
-
 
 bg-white/10
 
-
 backdrop-blur-3xl
-
 
 border
 
 border-white/20
 
-
-shadow-[0_30px_120px_rgba(16,185,129,0.35)]
-
+shadow-[0_30px_100px_rgba(16,185,129,.25)]
 
 p-10
 
-md:p-14
-
-
 text-center
 
-"
-
->
-
-
-
-<div
-
-className="
-
-absolute
-
-inset-0
-
-
-bg-gradient-to-br
-
-from-white/20
-
-via-transparent
-
-to-emerald-400/20
-
-"
-
-/>
-
-
-
-
-
-
-<div className="relative z-10">
-
-
-
-
-
-<div
-
-className="
-
-mx-auto
-
-w-40
-
-h-40
-
-
-rounded-full
-
-
-bg-emerald-400/20
-
-
-border
-
-border-white/20
-
-
-flex
-
-items-center
-
-justify-center
-
-
-shadow-[0_0_100px_rgba(52,211,153,0.55)]
-
-"
-
->
+">
 
 
 <img
@@ -808,160 +634,84 @@ shadow-[0_0_100px_rgba(52,211,153,0.55)]
 src="/shaymin.png"
 
 className="
-
 w-32
-
+mx-auto
 drop-shadow-2xl
-
 "
 
 />
 
 
-</div>
 
+<h1 className="
 
-
-
-
-
-
-<h1
-
-className="
-
-mt-8
+mt-5
 
 text-5xl
 
-md:text-6xl
-
-
 font-black
 
+">
 
-bg-gradient-to-r
-
-from-white
-
-via-emerald-200
-
-to-emerald-400
-
-
-bg-clip-text
-
-text-transparent
-
-"
-
->
-
-Ancient Pull Shrine
+PocketPulls Grove
 
 </h1>
 
 
 
 
+<p className="
 
-<p
-
-className="
-
-mt-4
-
-text-xl
+mt-3
 
 text-emerald-100
 
-font-semibold
+text-xl
 
-"
+">
 
->
-
-Discover Pokémon hidden within the forest
+Discover Pokémon hidden inside the forest 🌿
 
 </p>
 
 
 
 
+<div className="
 
-
-
-
-{/* CRYSTAL STATS */}
-
-
-
-<div
-
-className="
-
-mt-12
+mt-10
 
 grid
 
-grid-cols-1
-
 md:grid-cols-3
 
+gap-5
 
-gap-6
-
-"
-
->
+">
 
 
-
-
-
-<div
-
-className="
-
-rounded-[2rem]
-
+<div className="
 
 bg-white/10
-
 
 border
 
 border-white/20
 
-
-backdrop-blur-xl
-
+rounded-3xl
 
 p-6
 
-
-shadow-[0_0_40px_rgba(52,211,153,0.25)]
-
-"
-
->
-
-<p className="text-4xl">
+">
 
 💎
 
-</p>
-
-<p className="text-sm uppercase text-emerald-200 font-bold">
-
-Wallet Crystal
-
+<p className="font-bold">
+Wallet
 </p>
 
 <p className="text-3xl font-black">
-
 £{balance.toFixed(2)}
-
 </p>
 
 </div>
@@ -970,49 +720,28 @@ Wallet Crystal
 
 
 
-
-
-
-<div
-
-className="
-
-rounded-[2rem]
-
+<div className="
 
 bg-white/10
-
 
 border
 
 border-white/20
 
-
-backdrop-blur-xl
-
+rounded-3xl
 
 p-6
 
-"
-
->
-
-<p className="text-4xl">
+">
 
 🌙
 
-</p>
-
-<p className="text-sm uppercase text-emerald-200 font-bold">
-
-Daily Energy
-
+<p className="font-bold">
+Daily Pulls
 </p>
 
 <p className="text-3xl font-black">
-
 {dailyPulls}/{DAILY_LIMIT}
-
 </p>
 
 </div>
@@ -1021,49 +750,28 @@ Daily Energy
 
 
 
-
-
-
-<div
-
-className="
-
-rounded-[2rem]
-
+<div className="
 
 bg-white/10
-
 
 border
 
 border-white/20
 
-
-backdrop-blur-xl
-
+rounded-3xl
 
 p-6
 
-"
-
->
-
-<p className="text-4xl">
+">
 
 🎴
 
-</p>
-
-<p className="text-sm uppercase text-emerald-200 font-bold">
-
-Discovery Cost
-
+<p className="font-bold">
+Pull Cost
 </p>
 
 <p className="text-3xl font-black">
-
 £{pullPrice}
-
 </p>
 
 </div>
@@ -1075,73 +783,44 @@ Discovery Cost
 
 
 
-
-
-
-
-
-{/* OPEN BUTTON */}
 
 
 
 <button
 
-
 onClick={openPull}
-
 
 disabled={opening}
 
-
 className="
 
-
-mt-12
-
+mt-10
 
 px-16
 
 py-6
 
-
 rounded-full
 
-
 bg-emerald-400/30
-
 
 border
 
 border-emerald-200/40
 
-
-backdrop-blur-xl
-
+shadow-[0_0_50px_rgba(52,211,153,.5)]
 
 font-black
 
-
 text-xl
-
-
-shadow-[0_0_70px_rgba(52,211,153,0.6)]
-
 
 hover:bg-emerald-400/50
 
-
-hover:scale-105
-
-
-transition-all
-
-
-disabled:opacity-50
+transition
 
 "
 
 >
-
 
 {
 
@@ -1149,22 +828,17 @@ opening
 
 ?
 
-"🌱 The forest is awakening..."
+"🌱 Growing Discovery..."
 
 :
 
-"🎴 Open Hidden Discovery"
+"🎴 Open Discovery"
 
 }
-
 
 </button>
 
 
-
-
-
-</div>
 
 
 </section>
@@ -1176,44 +850,11 @@ opening
 
 
 
-
-{/* MACHINE */}
-
-
 {
 
 opening &&
 
-<section
-
-className="
-
-mt-10
-
-
-rounded-[3rem]
-
-
-bg-white/10
-
-
-backdrop-blur-3xl
-
-
-border
-
-border-white/20
-
-
-p-8
-
-
-shadow-[0_30px_100px_rgba(16,185,129,0.35)]
-
-"
-
->
-
+<div className="mt-10">
 
 <PullMachine
 
@@ -1225,21 +866,13 @@ progress={progress}
 
 />
 
-
-</section>
-
+</div>
 
 }
 
 
 
 
-
-
-
-
-
-{/* REVEAL */}
 
 
 
@@ -1247,43 +880,11 @@ progress={progress}
 
 card && !opening &&
 
-
-<section
-
-className="
-
-mt-10
-
-
-rounded-[3rem]
-
-
-bg-white/10
-
-
-backdrop-blur-3xl
-
-
-border
-
-border-white/20
-
-
-p-8
-
-
-shadow-[0_30px_120px_rgba(250,204,21,0.25)]
-
-"
-
->
-
+<div className="mt-10">
 
 <CardReveal card={card}/>
 
-
-</section>
-
+</div>
 
 }
 
@@ -1293,59 +894,36 @@ shadow-[0_30px_120px_rgba(250,204,21,0.25)]
 
 
 
-
-
-{/* STATS */}
-
-
-<section
-
-className="
+<section className="
 
 mt-10
 
-
 rounded-[3rem]
-
 
 bg-white/10
 
-
 backdrop-blur-3xl
-
 
 border
 
 border-white/20
 
-
 p-8
 
-"
-
->
+">
 
 
 <PullStats
 
-
 cost={history.reduce(
-
 (a,b)=>a+b.amount_paid,
-
 0
-
 )}
-
 
 totalValue={history.reduce(
-
 (a,b)=>a+b.value,
-
 0
-
 )}
-
 
 bestPull={{
 
@@ -1355,9 +933,7 @@ value:history[0]?.value || 0
 
 }}
 
-
 count={history.length}
-
 
 />
 
@@ -1371,42 +947,24 @@ count={history.length}
 
 
 
-
-{/* HISTORY */}
-
-
-<section
-
-className="
+<section className="
 
 mt-10
 
-
 rounded-[3rem]
-
 
 bg-black/30
 
-
-backdrop-blur-3xl
-
-
 border
 
-border-emerald-400/20
-
+border-emerald-500/20
 
 p-8
 
-
-"
-
->
+">
 
 
-<h2
-
-className="
+<h2 className="
 
 text-3xl
 
@@ -1414,23 +972,19 @@ font-black
 
 mb-6
 
-"
+">
 
->
-
-🌿 Forest Discovery Records
+🌿 Discovery Log
 
 </h2>
-
 
 
 
 <PullHistory items={history}/>
 
 
+
 </section>
-
-
 
 
 
@@ -1442,45 +996,29 @@ mb-6
 
 error &&
 
-
-<div
-
-className="
+<div className="
 
 mt-8
 
-
 rounded-3xl
-
 
 bg-red-500/20
 
-
 border
 
-border-red-300/30
-
-
-backdrop-blur-xl
-
+border-red-400/30
 
 p-5
 
-
 text-center
-
 
 font-bold
 
-
-"
-
->
+">
 
 {error}
 
 </div>
-
 
 }
 
@@ -1491,6 +1029,8 @@ font-bold
 
 </main>
 
+
 );
+
 
 }

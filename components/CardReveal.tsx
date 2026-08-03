@@ -1,231 +1,49 @@
 "use client";
 
-import { useEffect, useState } from "react";
-
-
-interface CardRevealProps{
-
-card:any;
-
-}
-
+type Props = {
+  card:any;
+};
 
 
 export default function CardReveal({
-
-card
-
-}:CardRevealProps){
+  card
+}:Props){
 
 
-
-const [show,setShow]=useState(false);
-
-const [value,setValue]=useState(0);
-
-const [bloom,setBloom]=useState(false);
+if(!card)
+return null;
 
 
 
+function rarityGlow(rarity:string){
+
+const r = rarity?.toLowerCase() || "";
 
 
-
-useEffect(()=>{
-
-
-setTimeout(()=>{
-
-setBloom(true);
-
-},300);
+if(r.includes("secret"))
+return "shadow-[0_0_100px_rgba(168,85,247,.9)]";
 
 
-
-setTimeout(()=>{
-
-setShow(true);
-
-},900);
+if(r.includes("illustration"))
+return "shadow-[0_0_100px_rgba(236,72,153,.9)]";
 
 
+if(r.includes("ultra"))
+return "shadow-[0_0_100px_rgba(250,204,21,.9)]";
 
 
-
-const target =
-Number(card.market_value || 0);
-
+if(r.includes("rare"))
+return "shadow-[0_0_80px_rgba(250,204,21,.7)]";
 
 
-let current=0;
-
-
-
-const counter=setInterval(()=>{
-
-
-current += target / 40;
-
-
-
-if(current >= target){
-
-current=target;
-
-clearInterval(counter);
+return "shadow-[0_0_60px_rgba(52,211,153,.6)]";
 
 }
 
 
 
-setValue(current);
 
-
-
-},40);
-
-
-
-
-
-return()=>clearInterval(counter);
-
-
-
-},[card]);
-
-
-
-
-
-
-
-
-
-function rarityStyle(){
-
-
-const rarity =
-
-(card.rarity || "")
-.toLowerCase();
-
-
-
-
-if(rarity.includes("secret")){
-
-
-return{
-
-label:"SECRET RARE",
-
-gradient:
-"from-yellow-300 via-pink-500 to-purple-600",
-
-glow:
-"shadow-[0_0_120px_rgba(250,204,21,.9)]"
-
-};
-
-}
-
-
-
-
-if(rarity.includes("ultra")){
-
-
-return{
-
-label:"ULTRA RARE",
-
-gradient:
-"from-purple-400 via-blue-500 to-cyan-400",
-
-glow:
-"shadow-[0_0_100px_rgba(59,130,246,.8)]"
-
-};
-
-}
-
-
-
-
-
-if(rarity.includes("illustration")){
-
-
-return{
-
-label:"ILLUSTRATION RARE",
-
-gradient:
-"from-pink-400 via-purple-500 to-blue-500",
-
-glow:
-"shadow-[0_0_100px_rgba(236,72,153,.8)]"
-
-};
-
-}
-
-
-
-
-
-if(rarity.includes("rare")){
-
-
-return{
-
-label:"RARE",
-
-gradient:
-"from-yellow-300 to-orange-500",
-
-glow:
-"shadow-[0_0_80px_rgba(250,204,21,.7)]"
-
-};
-
-}
-
-
-
-
-
-return{
-
-label:"FOREST DISCOVERY",
-
-gradient:
-"from-emerald-300 to-green-600",
-
-glow:
-"shadow-[0_0_80px_rgba(16,185,129,.6)]"
-
-};
-
-
-
-}
-
-
-
-
-
-
-
-const style = rarityStyle();
-
-
-
-
-
-
-
-return(
+return (
 
 <section
 
@@ -233,47 +51,40 @@ className="
 
 relative
 
-w-full
-
-flex
-
-justify-center
-
 overflow-hidden
 
+rounded-[4rem]
+
+bg-white/10
+
+backdrop-blur-3xl
+
+border
+
+border-white/20
+
+shadow-[0_30px_100px_rgba(16,185,129,.35)]
+
+p-10
+
+text-center
+
+animate-in
+
+fade-in
+
+duration-700
+
 "
 
 >
 
 
-
-
-
-
-
-{/* forest atmosphere */}
-
-
-<div
-
-className="
-
-absolute
-
-inset-0
-
-pointer-events-none
-
-"
-
->
-
-
+{/* magical particles */}
 
 {
 
-Array.from({length:30}).map((_,i)=>(
-
+Array.from({length:20}).map((_,i)=>(
 
 <div
 
@@ -291,9 +102,9 @@ rounded-full
 
 bg-yellow-300
 
-animate-pulse
+shadow-[0_0_25px_10px_rgba(250,204,21,.8)]
 
-shadow-[0_0_20px_5px_rgba(250,204,21,.7)]
+animate-pulse
 
 "
 
@@ -301,14 +112,11 @@ style={{
 
 left:`${Math.random()*100}%`,
 
-top:`${Math.random()*100}%`,
-
-animationDelay:`${i*0.15}s`
+top:`${Math.random()*100}%`
 
 }}
 
 />
-
 
 ))
 
@@ -316,225 +124,66 @@ animationDelay:`${i*0.15}s`
 
 
 
-</div>
 
 
+<div className="relative z-10">
 
 
 
-
-
-
-
-<div
-
-className={`
-
-relative
-
-transition-all
-
-duration-1000
-
-${
-
-show
-
-?
-
-"opacity-100 translate-y-0"
-
-:
-
-"opacity-0 translate-y-20"
-
-}
-
-`
-
-}
-
->
-
-
-
-
-
-
-
-{/* tree glow */}
-
-
-<div
-
-className={`
-
-absolute
-
--inset-20
-
-rounded-full
-
-bg-emerald-400/30
-
-blur-3xl
-
-transition
-
-duration-1000
-
-${
-
-bloom
-
-?
-
-"scale-150"
-
-:
-
-"scale-50"
-
-}
-
-`
-
-}
-
-/>
-
-
-
-
-
-
-
-
-
-
-{/* card frame */}
-
-
-<div
-
-className={`
-
-relative
-
-rounded-[3rem]
-
-p-1
-
-bg-gradient-to-br
-
-${style.gradient}
-
-${style.glow}
-
-`
-
-}
-
->
-
-
-
-
-
-
-
-
-<div
+<p
 
 className="
 
-rounded-[2.8rem]
-
-bg-black/70
-
-backdrop-blur-xl
-
-p-6
-
-w-[340px]
-
-"
-
->
-
-
-
-
-
-
-<div
-
-className="
-
-flex
-
-justify-between
-
-items-center
-
-"
-
->
-
-
-<span
-
-className="
-
-bg-white/10
-
-px-4
-
-py-2
-
-rounded-full
-
-text-xs
+text-emerald-200
 
 font-black
 
-"
+uppercase
 
->
-
-NEW DISCOVERY
-
-</span>
-
-
-
-
-<span
-
-className="
-
-text-yellow-300
-
-font-black
+tracking-widest
 
 "
 
 >
 
-✦ {style.label}
+✨ Discovery Complete ✨
 
-</span>
-
-
-
-</div>
+</p>
 
 
 
 
 
 
+<div
 
+className={`
+
+mt-8
+
+mx-auto
+
+w-fit
+
+rounded-[2.5rem]
+
+p-5
+
+bg-black/20
+
+border
+
+border-white/20
+
+${rarityGlow(card.rarity)}
+
+animate-bounce
+
+`
+
+}
+
+>
 
 
 <img
@@ -543,19 +192,18 @@ src={card.image_url}
 
 className="
 
-mt-6
+w-72
 
-rounded-[2rem]
-
-w-full
+rounded-3xl
 
 shadow-2xl
 
 "
 
- />
+/>
 
 
+</div>
 
 
 
@@ -567,13 +215,13 @@ shadow-2xl
 
 className="
 
-mt-6
+mt-8
 
-text-center
-
-text-4xl
+text-5xl
 
 font-black
+
+text-white
 
 "
 
@@ -588,19 +236,29 @@ font-black
 
 
 
-
-
-<p
+<div
 
 className="
 
-text-center
+mt-5
 
-mt-2
+inline-block
 
-text-emerald-200
+rounded-full
 
-font-bold
+px-6
+
+py-3
+
+bg-white/10
+
+border
+
+border-white/20
+
+text-emerald-100
+
+font-black
 
 "
 
@@ -608,9 +266,7 @@ font-bold
 
 {card.rarity}
 
-</p>
-
-
+</div>
 
 
 
@@ -624,69 +280,118 @@ className="
 
 mt-8
 
+grid
+
+md:grid-cols-2
+
+gap-5
+
+"
+
+>
+
+
+<div
+
+className="
+
 rounded-3xl
 
 bg-white/10
 
-p-5
+border
 
-text-center
+border-white/20
 
-"
-
->
-
-
-<p
-
-className="
-
-text-xs
-
-uppercase
-
-tracking-widest
-
-text-gray-300
-
-font-bold
+p-6
 
 "
 
 >
+
+<p className="text-emerald-200 font-bold">
 
 Market Value
 
 </p>
 
 
-
 <p
 
 className="
 
-text-5xl
+text-4xl
 
 font-black
 
 text-yellow-300
 
-mt-2
-
 "
 
 >
 
-£{value.toFixed(2)}
+£{Number(card.market_value || 0).toFixed(2)}
 
 </p>
-
 
 
 </div>
 
 
 
+
+
+
+
+<div
+
+className="
+
+rounded-3xl
+
+bg-emerald-400/20
+
+border
+
+border-emerald-200/30
+
+p-6
+
+"
+
+>
+
+<p className="text-emerald-100 font-bold">
+
+Added To
+
+</p>
+
+
+<p
+
+className="
+
+text-3xl
+
+font-black
+
+text-white
+
+"
+
+>
+
+Forest Log 🌿
+
+</p>
+
+
+</div>
+
+
+
+</div>
 
 
 
@@ -695,27 +400,32 @@ mt-2
 
 <button
 
+onClick={()=>window.scrollTo({
+top:0,
+behavior:"smooth"
+})}
+
 className="
 
-mt-6
-
-w-full
+mt-10
 
 rounded-full
 
+px-10
+
 py-4
 
-bg-gradient-to-r
+bg-emerald-400/30
 
-from-yellow-300
+border
 
-to-orange-400
+border-emerald-200/30
 
-text-black
+text-white
 
 font-black
 
-hover:scale-105
+hover:bg-emerald-400/50
 
 transition
 
@@ -723,7 +433,7 @@ transition
 
 >
 
-✨ Add To Collection
+Continue Exploring 🌱
 
 </button>
 
@@ -732,28 +442,10 @@ transition
 
 
 
-
 </div>
-
-
-
-
-
-</div>
-
-
-
-
-
-
-
-
-</div>
-
 
 
 </section>
-
 
 );
 
