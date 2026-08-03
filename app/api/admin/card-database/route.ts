@@ -1,21 +1,90 @@
+import { createHash } from "node:crypto";
+import {
+  access,
+  mkdir,
+  readFile,
+  writeFile,
+} from "node:fs/promises";
+import path from "node:path";
+
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
-type SyncMode = "full" | "prices";
+const SOURCE_NAME = "pokemon-tcg-data";
+const REPOSITORY = "PokemonTCG/pokemon-tcg-data";
+const REPOSITORY_BRANCH = "master";
+const SETS_FILE_PATH = "sets/en.json";
+const CARD_FILE_PATTERN = /^cards\/en\/[A-Za-z0-9._-]+\.json$/;
+const LOCAL_ROOT = path.join(
+  process.cwd(),
+  ".pocketpulls-data",
+  "pokemon-tcg-data",
+);
 
-type PokemonPrice = {
-  low?: number | null;
-  mid?: number | null;
-  high?: number | null;
-  market?: number | null;
-  directLow?: number | null;
+class HttpError extends Error {
+  readonly status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = "HttpError";
+    this.status = status;
+  }
+}
+
+type SyncAction =
+  | "prepare_local"
+  | "sync_local_file"
+  | "complete_local"
+  | "price_batch";
+
+type SyncRequest = {
+  action?: unknown;
+  runId?: unknown;
+  commitSha?: unknown;
+  filePath?: unknown;
+  remoteSha?: unknown;
 };
 
-type PokemonCard = {
-  id: string;
+type GithubCommitResponse = {
+  sha?: string;
+};
+
+type GithubTreeEntry = {
+  path?: string;
+  mode?: string;
+  type?: string;
+  sha?: string;
+  size?: number;
+  url?: string;
+};
+
+type GithubTreeResponse = {
+  sha?: string;
+  url?: string;
+  truncated?: boolean;
+  tree?: GithubTreeEntry[];
+};
+
+type SourceFile = {
+  path: string;
+  sha: string;
+  size: number;
+};
+
+type LocalSet = {
+  id?: string;
+  name?: string;
+  series?: string;
+  releaseDate?: string;
+  updatedAt?: string;
+};
+
+type LocalCard = {
+  id?: string;
   name?: string;
   supertype?: string;
   subtypes?: string[];
@@ -27,13 +96,18 @@ type PokemonCard = {
     small?: string;
     large?: string;
   };
-  set?: {
-    id?: string;
-    name?: string;
-    series?: string;
-    releaseDate?: string;
-    updatedAt?: string;
-  };
+};
+
+type PokemonPrice = {
+  low?: number | null;
+  mid?: number | null;
+  high?: number | null;
+  market?: number | null;
+  directLow?: number | null;
+};
+
+type PokemonApiCard = LocalCard & {
+  set?: LocalSet;
   tcgplayer?: {
     url?: string;
     updatedAt?: string;
@@ -65,22 +139,12 @@ type PokemonCard = {
   };
 };
 
-type PokemonResponse = {
-  data?: PokemonCard[];
-  page?: number;
-  pageSize?: number;
-  count?: number;
-  totalCount?: number;
+type PokemonCardResponse = {
+  data?: PokemonApiCard;
   error?: {
     message?: string;
     code?: number;
   };
-};
-
-type SyncRequest = {
-  page?: unknown;
-  mode?: unknown;
-  runId?: unknown;
 };
 
 type FxRateResponse = {
@@ -90,20 +154,9 @@ type FxRateResponse = {
   rate?: number;
 };
 
-class HttpError extends Error {
-  readonly status: number;
-
-  constructor(message: string, status: number) {
-    super(message);
-    this.name = "HttpError";
-    this.status = status;
-  }
-}
-
 function getAdminClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceKey =
-    process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (!url || !serviceKey) {
     throw new Error(
@@ -119,6 +172,84 @@ function getAdminClient() {
   });
 }
 
+async function requireUser(
+  request: Request,
+  admin: ReturnType<typeof getAdminClient>,
+) {
+  const header = request.headers.get("authorization") || "";
+  const token = header.replace(/^Bearer\s+/i, "").trim();
+
+  if (!token) {
+    throw new HttpError("Missing authentication token.", 401);
+  }
+
+  const {
+    data: { user },
+    error,
+  } = await admin.auth.getUser(token);
+
+  if (error || !user) {
+    console.warn(
+      "Card database authentication rejected:",
+      error?.message || "No authenticated user returned.",
+    );
+
+    throw new HttpError(
+      "Your admin session expired or became invalid.",
+      401,
+    );
+  }
+
+  const allowedEmails = (process.env.ADMIN_EMAILS || "")
+    .split(",")
+    .map((email) => email.trim().toLowerCase())
+    .filter(Boolean);
+
+  if (
+    allowedEmails.length > 0 &&
+    !allowedEmails.includes((user.email || "").toLowerCase())
+  ) {
+    throw new HttpError(
+      "This account is not allowed to run database syncs.",
+      403,
+    );
+  }
+
+  return user;
+}
+
+function getErrorMessage(error: unknown, fallback: string): string {
+  if (error instanceof Error && error.message.trim()) {
+    return error.message.trim();
+  }
+
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "message" in error &&
+    typeof (error as { message?: unknown }).message === "string"
+  ) {
+    return (error as { message: string }).message;
+  }
+
+  return fallback;
+}
+
+function jsonError(
+  error: unknown,
+  fallback: string,
+  status = 500,
+) {
+  return NextResponse.json(
+    {
+      error: getErrorMessage(error, fallback),
+    },
+    {
+      status: error instanceof HttpError ? error.status : status,
+    },
+  );
+}
+
 function cleanNumber(value: unknown): number | null {
   const number = Number(value);
 
@@ -127,19 +258,6 @@ function cleanNumber(value: unknown): number | null {
   }
 
   return Math.round(number * 10000) / 10000;
-}
-
-function convert(
-  value: unknown,
-  rate: number,
-): number | null {
-  const number = cleanNumber(value);
-
-  if (number === null) {
-    return null;
-  }
-
-  return Math.round(number * rate * 100) / 100;
 }
 
 function firstPositive(
@@ -156,13 +274,22 @@ function firstPositive(
   return null;
 }
 
+function convert(value: unknown, rate: number): number | null {
+  const number = cleanNumber(value);
+
+  if (number === null) {
+    return null;
+  }
+
+  return Math.round(number * rate * 100) / 100;
+}
+
 function parseDate(value: string | undefined): string | null {
   if (!value) {
     return null;
   }
 
-  const normalised = value.replace(/\//g, "-");
-  const date = new Date(normalised);
+  const date = new Date(value.replace(/\//g, "-"));
 
   if (Number.isNaN(date.getTime())) {
     return null;
@@ -171,9 +298,7 @@ function parseDate(value: string | undefined): string | null {
   return date.toISOString().slice(0, 10);
 }
 
-function parseTimestamp(
-  value: string | undefined,
-): string | null {
+function parseTimestamp(value: string | undefined): string | null {
   if (!value) {
     return null;
   }
@@ -183,9 +308,7 @@ function parseTimestamp(
     .replace(" ", "T");
 
   const date = new Date(
-    normalised.endsWith("Z")
-      ? normalised
-      : `${normalised}Z`,
+    normalised.endsWith("Z") ? normalised : `${normalised}Z`,
   );
 
   if (Number.isNaN(date.getTime())) {
@@ -195,54 +318,30 @@ function parseTimestamp(
   return date.toISOString();
 }
 
-async function requireUser(
-  request: Request,
-  admin: ReturnType<typeof getAdminClient>,
-) {
-  const header =
-    request.headers.get("authorization") || "";
+function sha256(value: string | Buffer): string {
+  return createHash("sha256").update(value).digest("hex");
+}
 
-  const token = header.replace(/^Bearer\s+/i, "").trim();
+function gitBlobSha(value: Buffer): string {
+  const header = Buffer.from(`blob ${value.length}\0`, "utf8");
 
-  if (!token) {
-    throw new HttpError(
-      "Missing authentication token.",
-      401,
-    );
+  return createHash("sha1")
+    .update(Buffer.concat([header, value]))
+    .digest("hex");
+}
+
+function githubHeaders(): Record<string, string> {
+  const headers: Record<string, string> = {
+    Accept: "application/vnd.github+json",
+    "User-Agent": "PocketPulls-Card-Database",
+    "X-GitHub-Api-Version": "2022-11-28",
+  };
+
+  if (process.env.GITHUB_TOKEN) {
+    headers.Authorization = `Bearer ${process.env.GITHUB_TOKEN}`;
   }
 
-  const {
-    data: { user },
-    error,
-  } = await admin.auth.getUser(token);
-
-  if (error || !user) {
-    throw new HttpError(
-      "Your admin session is invalid.",
-      401,
-    );
-  }
-
-  const allowedEmails = (
-    process.env.ADMIN_EMAILS || ""
-  )
-    .split(",")
-    .map((email) => email.trim().toLowerCase())
-    .filter(Boolean);
-
-  if (
-    allowedEmails.length > 0 &&
-    !allowedEmails.includes(
-      (user.email || "").toLowerCase(),
-    )
-  ) {
-    throw new HttpError(
-      "This account is not allowed to run database syncs.",
-      403,
-    );
-  }
-
-  return user;
+  return headers;
 }
 
 async function fetchWithRetry(
@@ -261,9 +360,7 @@ async function fetchWithRetry(
 
       if (
         response.ok ||
-        ![429, 500, 502, 503, 504].includes(
-          response.status,
-        )
+        ![429, 500, 502, 503, 504].includes(response.status)
       ) {
         return response;
       }
@@ -274,11 +371,9 @@ async function fetchWithRetry(
 
       const waitMs = Number.isFinite(retryAfter)
         ? retryAfter * 1000
-        : Math.min(12000, 700 * 2 ** (attempt - 1));
+        : Math.min(15000, 800 * 2 ** (attempt - 1));
 
-      await new Promise((resolve) =>
-        setTimeout(resolve, waitMs),
-      );
+      await new Promise((resolve) => setTimeout(resolve, waitMs));
     } catch (error: unknown) {
       lastError = error;
 
@@ -286,7 +381,7 @@ async function fetchWithRetry(
         await new Promise((resolve) =>
           setTimeout(
             resolve,
-            Math.min(12000, 700 * 2 ** (attempt - 1)),
+            Math.min(15000, 800 * 2 ** (attempt - 1)),
           ),
         );
       }
@@ -295,15 +390,262 @@ async function fetchWithRetry(
 
   throw lastError instanceof Error
     ? lastError
-    : new Error("The external API did not respond.");
+    : new Error("The remote source did not respond.");
+}
+
+function isAllowedSourceFile(filePath: string): boolean {
+  return filePath === SETS_FILE_PATH || CARD_FILE_PATTERN.test(filePath);
+}
+
+function resolveLocalPath(filePath: string): string {
+  if (!isAllowedSourceFile(filePath)) {
+    throw new HttpError("That source file path is not allowed.", 400);
+  }
+
+  const destination = path.resolve(LOCAL_ROOT, filePath);
+  const rootWithSeparator = `${path.resolve(LOCAL_ROOT)}${path.sep}`;
+
+  if (!destination.startsWith(rootWithSeparator)) {
+    throw new HttpError("Unsafe local database path rejected.", 400);
+  }
+
+  return destination;
+}
+
+async function localFileExists(filePath: string): Promise<boolean> {
+  try {
+    await access(resolveLocalPath(filePath));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function getLatestSourceState(): Promise<{
+  commitSha: string;
+  files: SourceFile[];
+}> {
+  const commitResponse = await fetchWithRetry(
+    `https://api.github.com/repos/${REPOSITORY}/commits/${REPOSITORY_BRANCH}`,
+    {
+      headers: githubHeaders(),
+    },
+  );
+
+  if (!commitResponse.ok) {
+    throw new Error(
+      `GitHub commit request failed with ${commitResponse.status}.`,
+    );
+  }
+
+  const commit = (await commitResponse.json()) as GithubCommitResponse;
+  const commitSha = commit.sha?.trim();
+
+  if (!commitSha) {
+    throw new Error("GitHub did not return a source commit SHA.");
+  }
+
+  const treeResponse = await fetchWithRetry(
+    `https://api.github.com/repos/${REPOSITORY}/git/trees/${commitSha}?recursive=1`,
+    {
+      headers: githubHeaders(),
+    },
+  );
+
+  if (!treeResponse.ok) {
+    throw new Error(
+      `GitHub tree request failed with ${treeResponse.status}.`,
+    );
+  }
+
+  const tree = (await treeResponse.json()) as GithubTreeResponse;
+
+  if (tree.truncated) {
+    throw new Error(
+      "GitHub returned a truncated repository tree. Add GITHUB_TOKEN and retry.",
+    );
+  }
+
+  const files = (tree.tree || [])
+    .filter(
+      (entry) =>
+        entry.type === "blob" &&
+        typeof entry.path === "string" &&
+        typeof entry.sha === "string" &&
+        isAllowedSourceFile(entry.path),
+    )
+    .map((entry) => ({
+      path: entry.path as string,
+      sha: entry.sha as string,
+      size: Math.max(0, Number(entry.size) || 0),
+    }))
+    .sort((first, second) => {
+      if (first.path === SETS_FILE_PATH) {
+        return -1;
+      }
+
+      if (second.path === SETS_FILE_PATH) {
+        return 1;
+      }
+
+      return first.path.localeCompare(second.path);
+    });
+
+  if (files.length < 2) {
+    throw new Error("The downloadable card repository looked incomplete.");
+  }
+
+  return {
+    commitSha,
+    files,
+  };
+}
+
+async function downloadSourceFile(
+  commitSha: string,
+  sourceFile: SourceFile,
+): Promise<Buffer> {
+  if (!/^[a-f0-9]{40}$/i.test(commitSha)) {
+    throw new HttpError("Invalid source commit SHA.", 400);
+  }
+
+  const response = await fetchWithRetry(
+    `https://raw.githubusercontent.com/${REPOSITORY}/${commitSha}/${sourceFile.path}`,
+    {
+      headers: {
+        Accept: "application/json,text/plain,*/*",
+        "User-Agent": "PocketPulls-Card-Database",
+      },
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      `${sourceFile.path} download failed with ${response.status}.`,
+    );
+  }
+
+  const content = Buffer.from(await response.arrayBuffer());
+  const calculatedGitSha = gitBlobSha(content);
+
+  if (calculatedGitSha !== sourceFile.sha) {
+    throw new Error(
+      `${sourceFile.path} failed Git blob verification.`,
+    );
+  }
+
+  const destination = resolveLocalPath(sourceFile.path);
+  await mkdir(path.dirname(destination), { recursive: true });
+  await writeFile(destination, content);
+
+  return content;
+}
+
+async function readLocalSets(): Promise<Map<string, LocalSet>> {
+  const content = await readFile(resolveLocalPath(SETS_FILE_PATH), "utf8");
+  const parsed = JSON.parse(content) as unknown;
+
+  if (!Array.isArray(parsed)) {
+    throw new Error("The local sets database is invalid.");
+  }
+
+  const map = new Map<string, LocalSet>();
+
+  for (const item of parsed as LocalSet[]) {
+    if (typeof item.id === "string" && item.id.trim()) {
+      map.set(item.id, item);
+    }
+  }
+
+  return map;
+}
+
+function mapLocalCard(
+  card: LocalCard,
+  set: LocalSet | undefined,
+  sourceFilePath: string,
+) {
+  const storedRecord = {
+    api_id: card.id || null,
+    name: card.name || "Unknown card",
+    rarity: card.rarity || null,
+    set_name: set?.name || null,
+    card_no: card.number || null,
+    image_url: card.images?.small || null,
+    image_url_large: card.images?.large || null,
+    set_id: set?.id || null,
+    set_series: set?.series || null,
+    set_release_date: parseDate(set?.releaseDate),
+    source_updated_at: parseTimestamp(set?.updatedAt),
+    supertype: card.supertype || null,
+    subtypes: Array.isArray(card.subtypes) ? card.subtypes : [],
+    artist: card.artist || null,
+    national_pokedex_numbers: Array.isArray(
+      card.nationalPokedexNumbers,
+    )
+      ? card.nationalPokedexNumbers
+      : null,
+  };
+
+  return {
+    ...storedRecord,
+    source_record_hash: sha256(JSON.stringify(storedRecord)),
+    source_file_path: sourceFilePath,
+  };
+}
+
+async function updateRunProgress(
+  admin: ReturnType<typeof getAdminClient>,
+  runId: string,
+  counts: {
+    received: number;
+    inserted: number;
+    updated: number;
+    skipped: number;
+  },
+) {
+  const { data, error } = await admin
+    .from("card_sync_runs")
+    .select(
+      "current_page,cards_received,cards_inserted,cards_updated,cards_skipped",
+    )
+    .eq("id", runId)
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  const existingSkipped = Math.max(
+    0,
+    Number(data.cards_skipped) || 0,
+  );
+
+  const updatePayload: Record<string, unknown> = {
+    current_page: Math.max(0, Number(data.current_page) || 0) + 1,
+    cards_received:
+      Math.max(0, Number(data.cards_received) || 0) + counts.received,
+    cards_inserted:
+      Math.max(0, Number(data.cards_inserted) || 0) + counts.inserted,
+    cards_updated:
+      Math.max(0, Number(data.cards_updated) || 0) + counts.updated,
+  };
+
+  updatePayload.cards_skipped = existingSkipped + counts.skipped;
+
+  const { error: updateError } = await admin
+    .from("card_sync_runs")
+    .update(updatePayload)
+    .eq("id", runId);
+
+  if (updateError) {
+    throw updateError;
+  }
 }
 
 async function fetchFxRate(
   base: "USD" | "EUR",
-): Promise<{
-  rate: number;
-  date: string;
-}> {
+): Promise<{ rate: number; date: string }> {
   const response = await fetchWithRetry(
     `https://api.frankfurter.dev/v2/rate/${base}/GBP?providers=ECB`,
     {
@@ -325,7 +667,7 @@ async function fetchFxRate(
 
   if (rate === null || !body.date) {
     throw new Error(
-      `The ${base}/GBP exchange rate response was incomplete.`,
+      `The ${base}/GBP exchange-rate response was incomplete.`,
     );
   }
 
@@ -337,11 +679,33 @@ async function fetchFxRate(
 
 async function getRates(
   admin: ReturnType<typeof getAdminClient>,
-): Promise<{
-  usdToGbp: number;
-  eurToGbp: number;
-  date: string;
-}> {
+): Promise<{ usdToGbp: number; eurToGbp: number; date: string }> {
+  const { data: stored, error: storedError } = await admin
+    .from("card_sync_settings")
+    .select("usd_to_gbp,eur_to_gbp,fx_date")
+    .eq("id", 1)
+    .maybeSingle();
+
+  if (storedError) {
+    throw storedError;
+  }
+
+  const today = new Date().toISOString().slice(0, 10);
+  const storedUsd = cleanNumber(stored?.usd_to_gbp);
+  const storedEur = cleanNumber(stored?.eur_to_gbp);
+
+  if (
+    stored?.fx_date === today &&
+    storedUsd !== null &&
+    storedEur !== null
+  ) {
+    return {
+      usdToGbp: storedUsd,
+      eurToGbp: storedEur,
+      date: today,
+    };
+  }
+
   const [usdResult, eurResult] = await Promise.allSettled([
     fetchFxRate("USD"),
     fetchFxRate("EUR"),
@@ -377,37 +741,24 @@ async function getRates(
     };
   }
 
-  const { data, error } = await admin
-    .from("card_sync_settings")
-    .select("usd_to_gbp,eur_to_gbp,fx_date")
-    .eq("id", 1)
-    .maybeSingle();
-
-  if (error) {
-    throw error;
+  if (storedUsd !== null && storedEur !== null) {
+    return {
+      usdToGbp: storedUsd,
+      eurToGbp: storedEur,
+      date:
+        typeof stored?.fx_date === "string"
+          ? stored.fx_date
+          : today,
+    };
   }
 
-  const usdToGbp = cleanNumber(data?.usd_to_gbp);
-  const eurToGbp = cleanNumber(data?.eur_to_gbp);
-
-  if (usdToGbp === null || eurToGbp === null) {
-    throw new Error(
-      "GBP exchange rates could not be loaded and no previous rates are stored.",
-    );
-  }
-
-  return {
-    usdToGbp,
-    eurToGbp,
-    date:
-      typeof data?.fx_date === "string"
-        ? data.fx_date
-        : new Date().toISOString().slice(0, 10),
-  };
+  throw new Error(
+    "GBP exchange rates could not be loaded and no stored fallback exists.",
+  );
 }
 
-function mapCard(
-  card: PokemonCard,
+function mapPriceUpdate(
+  card: PokemonApiCard,
   usdToGbp: number,
   eurToGbp: number,
 ) {
@@ -475,11 +826,7 @@ function mapCard(
 
   const sources: string[] = [];
 
-  if (
-    normalUsd !== null ||
-    holoUsd !== null ||
-    reverseUsd !== null
-  ) {
+  if (normalUsd !== null || holoUsd !== null || reverseUsd !== null) {
     sources.push("TCGplayer");
   }
 
@@ -490,81 +837,513 @@ function mapCard(
     sources.push("Cardmarket");
   }
 
+  const hasPrice = genericGbp !== null;
   const now = new Date().toISOString();
 
   return {
-    api_id: card.id,
-    name: card.name || "Unknown card",
-    rarity: card.rarity || null,
-    set_name: card.set?.name || null,
-    card_no: card.number || null,
-    image_url: card.images?.small || null,
-    image_url_large: card.images?.large || null,
-    market_value: genericGbp || 0,
-    set_id: card.set?.id || null,
-    set_series: card.set?.series || null,
-    set_release_date:
-      parseDate(card.set?.releaseDate),
-    source_updated_at:
-      parseTimestamp(card.set?.updatedAt),
-    supertype: card.supertype || null,
-    subtypes: Array.isArray(card.subtypes)
-      ? card.subtypes
-      : [],
-    artist: card.artist || null,
-    national_pokedex_numbers:
-      Array.isArray(card.nationalPokedexNumbers)
-        ? card.nationalPokedexNumbers
-        : null,
-    tcgplayer_url: card.tcgplayer?.url || null,
-    tcgplayer_updated_at:
-      parseDate(card.tcgplayer?.updatedAt),
-    cardmarket_url: card.cardmarket?.url || null,
-    cardmarket_updated_at:
-      parseDate(card.cardmarket?.updatedAt),
+    hasPrice,
+    market_value: genericGbp,
     price_normal_usd: normalUsd,
     price_holo_usd: holoUsd,
     price_reverse_holo_usd: reverseUsd,
     price_cardmarket_eur: cardmarketMainEur,
-    price_reverse_holo_eur:
-      cardmarketReverseEur,
+    price_reverse_holo_eur: cardmarketReverseEur,
     market_value_normal_gbp: normalGbp,
     market_value_holo_gbp: holoGbp,
-    market_value_reverse_holo_gbp:
-      reverseGbp,
-    price_source:
-      sources.length > 0
-        ? sources.join(" + ")
-        : null,
-    price_updated_at:
-      sources.length > 0 ? now : null,
-    database_synced_at: now,
+    market_value_reverse_holo_gbp: reverseGbp,
+    price_source: sources.length > 0 ? sources.join(" + ") : null,
+    price_updated_at: hasPrice ? now : null,
+    price_checked_at: now,
+    price_status: hasPrice ? "priced" : "unpriced",
+    price_error: null,
+    price_retry_after: null,
+    tcgplayer_url: card.tcgplayer?.url || null,
+    tcgplayer_updated_at: parseDate(card.tcgplayer?.updatedAt),
+    cardmarket_url: card.cardmarket?.url || null,
+    cardmarket_updated_at: parseDate(card.cardmarket?.updatedAt),
   };
 }
 
-function jsonError(
-  error: unknown,
-  fallback: string,
-  status = 500,
+async function prepareLocalSync(
+  admin: ReturnType<typeof getAdminClient>,
+  userId: string,
 ) {
-  const message =
-    error instanceof Error && error.message
-      ? error.message
-      : fallback;
+  const source = await getLatestSourceState();
 
-  const resolvedStatus =
-    error instanceof HttpError
-      ? error.status
-      : status;
+  const { data: trackedRows, error: trackedError } = await admin
+    .from("card_sync_files")
+    .select("file_path,remote_sha")
+    .eq("source", SOURCE_NAME);
 
-  return NextResponse.json(
+  if (trackedError) {
+    throw trackedError;
+  }
+
+  const tracked = new Map<string, string>();
+
+  for (const row of trackedRows || []) {
+    if (
+      typeof row.file_path === "string" &&
+      typeof row.remote_sha === "string"
+    ) {
+      tracked.set(row.file_path, row.remote_sha);
+    }
+  }
+
+  const changedFiles: SourceFile[] = [];
+  const setsSource = source.files.find(
+    (file) => file.path === SETS_FILE_PATH,
+  );
+  const setsSameSha = setsSource
+    ? tracked.get(SETS_FILE_PATH) === setsSource.sha
+    : false;
+  const setsExistsLocally = setsSameSha
+    ? await localFileExists(SETS_FILE_PATH)
+    : false;
+  const setsChanged = !setsSameSha || !setsExistsLocally;
+
+  for (const file of source.files) {
+    const sameSha = tracked.get(file.path) === file.sha;
+    const existsLocally = sameSha
+      ? await localFileExists(file.path)
+      : false;
+    const mustRecalculateCards =
+      setsChanged && CARD_FILE_PATTERN.test(file.path);
+
+    if (!sameSha || !existsLocally || mustRecalculateCards) {
+      changedFiles.push(file);
+    }
+  }
+
+  const completeImmediately = changedFiles.length === 0;
+
+  const { data: run, error: runError } = await admin
+    .from("card_sync_runs")
+    .insert({
+      started_by: userId,
+      mode: "local",
+      status: completeImmediately ? "completed" : "running",
+      current_page: 0,
+      total_pages: changedFiles.length,
+      cards_received: 0,
+      cards_inserted: 0,
+      cards_updated: 0,
+      completed_at: completeImmediately
+        ? new Date().toISOString()
+        : null,
+    })
+    .select("id")
+    .single();
+
+  if (runError) {
+    throw runError;
+  }
+
+  const now = new Date().toISOString();
+  const settingsPayload: Record<string, unknown> = {
+    last_local_check_at: now,
+    local_source_path: LOCAL_ROOT,
+    local_source_file_count: source.files.length,
+    updated_at: now,
+  };
+
+  if (completeImmediately) {
+    settingsPayload.local_source_commit_sha = source.commitSha;
+    settingsPayload.last_local_sync_at = now;
+  }
+
+  const { error: settingsError } = await admin
+    .from("card_sync_settings")
+    .update(settingsPayload)
+    .eq("id", 1);
+
+  if (settingsError) {
+    throw settingsError;
+  }
+
+  return {
+    runId: run.id as string,
+    commitSha: source.commitSha,
+    files: changedFiles,
+    totalFiles: source.files.length,
+    changedFiles: changedFiles.length,
+    unchangedFiles: source.files.length - changedFiles.length,
+    completeImmediately,
+    localPath: LOCAL_ROOT,
+    hasGithubToken: Boolean(process.env.GITHUB_TOKEN),
+  };
+}
+
+async function syncLocalFile(
+  admin: ReturnType<typeof getAdminClient>,
+  body: SyncRequest,
+) {
+  const runId = typeof body.runId === "string" ? body.runId.trim() : "";
+  const commitSha =
+    typeof body.commitSha === "string" ? body.commitSha.trim() : "";
+  const filePath =
+    typeof body.filePath === "string" ? body.filePath.trim() : "";
+  const remoteSha =
+    typeof body.remoteSha === "string" ? body.remoteSha.trim() : "";
+
+  if (!runId || !commitSha || !filePath || !remoteSha) {
+    throw new HttpError("The local sync file request was incomplete.", 400);
+  }
+
+  if (!isAllowedSourceFile(filePath)) {
+    throw new HttpError("That local source file is not allowed.", 400);
+  }
+
+  const sourceFile: SourceFile = {
+    path: filePath,
+    sha: remoteSha,
+    size: 0,
+  };
+
+  const content = await downloadSourceFile(commitSha, sourceFile);
+  const text = content.toString("utf8");
+  const parsed = JSON.parse(text) as unknown;
+
+  if (!Array.isArray(parsed)) {
+    throw new Error(`${filePath} did not contain a JSON array.`);
+  }
+
+  const localHash = sha256(content);
+  let received = 0;
+  let inserted = 0;
+  let updated = 0;
+  let skipped = 0;
+
+  if (filePath !== SETS_FILE_PATH) {
+    const sets = await readLocalSets();
+    const setId = path.basename(filePath, ".json");
+    const set = sets.get(setId);
+    const cards = (parsed as LocalCard[])
+      .filter(
+        (card) =>
+          typeof card.id === "string" &&
+          card.id.trim().length > 0,
+      )
+      .map((card) => mapLocalCard(card, set, filePath));
+
+    const chunkSize = 200;
+
+    for (let index = 0; index < cards.length; index += chunkSize) {
+      const chunk = cards.slice(index, index + chunkSize);
+
+      const { data, error } = await admin.rpc(
+        "merge_local_pokemon_card_batch",
+        {
+          p_cards: chunk,
+          p_source_file_path: filePath,
+          p_source_commit_sha: commitSha,
+        },
+      );
+
+      if (error) {
+        throw error;
+      }
+
+      const row = Array.isArray(data) ? data[0] : data;
+
+      received += Math.max(0, Number(row?.received_count) || 0);
+      inserted += Math.max(0, Number(row?.inserted_count) || 0);
+      updated += Math.max(0, Number(row?.updated_count) || 0);
+      skipped += Math.max(0, Number(row?.skipped_count) || 0);
+    }
+  }
+
+  const { error: fileError } = await admin
+    .from("card_sync_files")
+    .upsert(
+      {
+        source: SOURCE_NAME,
+        file_path: filePath,
+        remote_sha: remoteSha,
+        local_sha256: localHash,
+        source_commit_sha: commitSha,
+        card_count: received,
+        inserted_count: inserted,
+        updated_count: updated,
+        skipped_count: skipped,
+        last_error: null,
+        last_synced_at: new Date().toISOString(),
+      },
+      {
+        onConflict: "source,file_path",
+      },
+    );
+
+  if (fileError) {
+    throw fileError;
+  }
+
+  await updateRunProgress(admin, runId, {
+    received,
+    inserted,
+    updated,
+    skipped,
+  });
+
+  return {
+    runId,
+    filePath,
+    received,
+    inserted,
+    updated,
+    skipped,
+    localHash,
+  };
+}
+
+async function completeLocalSync(
+  admin: ReturnType<typeof getAdminClient>,
+  body: SyncRequest,
+) {
+  const runId = typeof body.runId === "string" ? body.runId.trim() : "";
+  const commitSha =
+    typeof body.commitSha === "string" ? body.commitSha.trim() : "";
+
+  if (!runId || !commitSha) {
+    throw new HttpError("The local sync completion was incomplete.", 400);
+  }
+
+  const now = new Date().toISOString();
+
+  const { error: runError } = await admin
+    .from("card_sync_runs")
+    .update({
+      status: "completed",
+      completed_at: now,
+      error_message: null,
+    })
+    .eq("id", runId);
+
+  if (runError) {
+    throw runError;
+  }
+
+  const { count: fileCount, error: fileCountError } = await admin
+    .from("card_sync_files")
+    .select("file_path", {
+      count: "exact",
+      head: true,
+    })
+    .eq("source", SOURCE_NAME);
+
+  if (fileCountError) {
+    throw fileCountError;
+  }
+
+  const { error: settingsError } = await admin
+    .from("card_sync_settings")
+    .update({
+      local_source_commit_sha: commitSha,
+      local_source_path: LOCAL_ROOT,
+      local_source_file_count: Math.max(0, fileCount || 0),
+      last_local_sync_at: now,
+      last_local_check_at: now,
+      updated_at: now,
+    })
+    .eq("id", 1);
+
+  if (settingsError) {
+    throw settingsError;
+  }
+
+  return {
+    runId,
+    commitSha,
+    completedAt: now,
+    localPath: LOCAL_ROOT,
+  };
+}
+
+async function processPriceBatch(
+  admin: ReturnType<typeof getAdminClient>,
+) {
+  const apiKey = process.env.POKEMON_TCG_API_KEY;
+  const batchSize = apiKey ? 12 : 1;
+
+  const { data: dueRows, error: dueError } = await admin.rpc(
+    "get_due_price_card_ids",
     {
-      error: message,
-    },
-    {
-      status: resolvedStatus,
+      p_limit: batchSize,
+      p_force: false,
     },
   );
+
+  if (dueError) {
+    throw dueError;
+  }
+
+  const ids = (dueRows || [])
+    .map((row: { api_id?: unknown }) =>
+      typeof row.api_id === "string" ? row.api_id.trim() : "",
+    )
+    .filter(Boolean);
+
+  if (ids.length === 0) {
+    const now = new Date().toISOString();
+
+    await admin
+      .from("card_sync_settings")
+      .update({
+        last_price_sync_at: now,
+        updated_at: now,
+      })
+      .eq("id", 1);
+
+    return {
+      processed: 0,
+      priced: 0,
+      unpriced: 0,
+      failed: 0,
+      remaining: 0,
+      done: true,
+      hasPokemonApiKey: Boolean(apiKey),
+    };
+  }
+
+  const rates = await getRates(admin);
+  let priced = 0;
+  let unpriced = 0;
+  let failed = 0;
+
+  for (const id of ids) {
+    try {
+      const headers: Record<string, string> = {
+        Accept: "application/json",
+      };
+
+      if (apiKey) {
+        headers["X-Api-Key"] = apiKey;
+      }
+
+      const response = await fetchWithRetry(
+        `https://api.pokemontcg.io/v2/cards/${encodeURIComponent(id)}`,
+        {
+          headers,
+        },
+        4,
+      );
+
+      const body = (await response.json()) as PokemonCardResponse;
+
+      if (!response.ok || !body.data) {
+        throw new Error(
+          body.error?.message ||
+            `Pokemon TCG API returned ${response.status} for ${id}.`,
+        );
+      }
+
+      const update = mapPriceUpdate(
+        body.data,
+        rates.usdToGbp,
+        rates.eurToGbp,
+      );
+
+      const {
+        hasPrice,
+        ...pricePayload
+      } = update;
+
+      const updatePayload: Record<string, unknown> = {
+        price_checked_at: pricePayload.price_checked_at,
+        price_status: pricePayload.price_status,
+        price_error: null,
+        price_retry_after: null,
+        tcgplayer_url: pricePayload.tcgplayer_url,
+        tcgplayer_updated_at:
+          pricePayload.tcgplayer_updated_at,
+        cardmarket_url: pricePayload.cardmarket_url,
+        cardmarket_updated_at:
+          pricePayload.cardmarket_updated_at,
+      };
+
+      if (hasPrice) {
+        Object.assign(updatePayload, pricePayload);
+      }
+
+      const { error: updateError } = await admin
+        .from("pokemon_cards")
+        .update(updatePayload)
+        .eq("api_id", id);
+
+      if (updateError) {
+        throw updateError;
+      }
+
+      if (hasPrice) {
+        priced += 1;
+      } else {
+        unpriced += 1;
+      }
+    } catch (error: unknown) {
+      failed += 1;
+
+      const checkedAt = new Date();
+      const retryAt = new Date(checkedAt.getTime() + 60 * 60 * 1000);
+
+      await admin
+        .from("pokemon_cards")
+        .update({
+          price_checked_at: checkedAt.toISOString(),
+          price_status: "failed",
+          price_error: getErrorMessage(
+            error,
+            "Price request failed.",
+          ).slice(0, 500),
+          price_retry_after: retryAt.toISOString(),
+        })
+        .eq("api_id", id);
+    }
+
+    if (!apiKey) {
+      await new Promise((resolve) => setTimeout(resolve, 2200));
+    }
+  }
+
+  const { data: statsData, error: statsError } = await admin.rpc(
+    "get_card_database_tracker_stats",
+  );
+
+  if (statsError) {
+    throw statsError;
+  }
+
+  const stats = Array.isArray(statsData) ? statsData[0] : statsData;
+  const remaining = Math.max(0, Number(stats?.due_price_cards) || 0);
+  const done = remaining === 0;
+  const now = new Date().toISOString();
+
+  const settingsUpdate: Record<string, unknown> = {
+    updated_at: now,
+  };
+
+  if (done) {
+    settingsUpdate.last_price_sync_at = now;
+  }
+
+  const { error: settingsError } = await admin
+    .from("card_sync_settings")
+    .update(settingsUpdate)
+    .eq("id", 1);
+
+  if (settingsError) {
+    throw settingsError;
+  }
+
+  return {
+    processed: ids.length,
+    priced,
+    unpriced,
+    failed,
+    remaining,
+    done,
+    hasPokemonApiKey: Boolean(apiKey),
+    rates,
+  };
 }
 
 export async function GET(request: Request) {
@@ -572,19 +1351,24 @@ export async function GET(request: Request) {
     const admin = getAdminClient();
     await requireUser(request, admin);
 
-    const [statsResult, runResult] =
-      await Promise.all([
-        admin.rpc("get_card_database_sync_stats"),
-        admin
-          .from("card_sync_runs")
-          .select(
-            "id,mode,status,current_page,total_pages,cards_received,cards_inserted,cards_updated,error_message,started_at,completed_at",
-          )
-          .order("started_at", {
-            ascending: false,
-          })
-          .limit(10),
-      ]);
+    const [statsResult, runResult, fileResult] = await Promise.all([
+      admin.rpc("get_card_database_tracker_stats"),
+      admin
+        .from("card_sync_runs")
+        .select(
+          "id,mode,status,current_page,total_pages,cards_received,cards_inserted,cards_updated,cards_skipped,error_message,started_at,completed_at",
+        )
+        .order("started_at", { ascending: false })
+        .limit(12),
+      admin
+        .from("card_sync_files")
+        .select(
+          "file_path,remote_sha,source_commit_sha,card_count,inserted_count,updated_count,skipped_count,last_error,last_synced_at",
+        )
+        .eq("source", SOURCE_NAME)
+        .order("last_synced_at", { ascending: false })
+        .limit(12),
+    ]);
 
     if (statsResult.error) {
       throw statsResult.error;
@@ -594,14 +1378,21 @@ export async function GET(request: Request) {
       throw runResult.error;
     }
 
+    if (fileResult.error) {
+      throw fileResult.error;
+    }
+
     return NextResponse.json({
       stats: Array.isArray(statsResult.data)
         ? statsResult.data[0] || null
         : statsResult.data,
       runs: runResult.data || [],
-      hasPokemonApiKey: Boolean(
-        process.env.POKEMON_TCG_API_KEY,
-      ),
+      recentFiles: fileResult.data || [],
+      hasPokemonApiKey: Boolean(process.env.POKEMON_TCG_API_KEY),
+      hasGithubToken: Boolean(process.env.GITHUB_TOKEN),
+      localPath: LOCAL_ROOT,
+      sourceRepository: `https://github.com/${REPOSITORY}`,
+      pkmnCardsReference: "https://pkmncards.com/",
     });
   } catch (error: unknown) {
     return jsonError(
@@ -612,248 +1403,40 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  let runId: string | null = null;
-
   try {
     const admin = getAdminClient();
     const user = await requireUser(request, admin);
     const body = (await request.json()) as SyncRequest;
+    const action = body.action as SyncAction;
 
-    const page = Math.max(
-      1,
-      Math.floor(Number(body.page) || 1),
-    );
+    switch (action) {
+      case "prepare_local":
+        return NextResponse.json(
+          await prepareLocalSync(admin, user.id),
+        );
 
-    const mode: SyncMode =
-      body.mode === "prices" ? "prices" : "full";
+      case "sync_local_file":
+        return NextResponse.json(
+          await syncLocalFile(admin, body),
+        );
 
-    runId =
-      typeof body.runId === "string" &&
-      body.runId.trim()
-        ? body.runId.trim()
-        : null;
+      case "complete_local":
+        return NextResponse.json(
+          await completeLocalSync(admin, body),
+        );
 
-    if (!runId) {
-      const { data, error } = await admin
-        .from("card_sync_runs")
-        .insert({
-          started_by: user.id,
-          mode,
-          status: "running",
-          current_page: 0,
-        })
-        .select("id")
-        .single();
+      case "price_batch":
+        return NextResponse.json(
+          await processPriceBatch(admin),
+        );
 
-      if (error) {
-        throw error;
-      }
-
-      runId = data.id;
+      default:
+        throw new HttpError("Unknown card database action.", 400);
     }
-
-    const rates = await getRates(admin);
-
-    const apiUrl = new URL(
-      "https://api.pokemontcg.io/v2/cards",
-    );
-
-    apiUrl.searchParams.set("page", String(page));
-    apiUrl.searchParams.set("pageSize", "250");
-    apiUrl.searchParams.set("orderBy", "id");
-
-    const headers: Record<string, string> = {
-      Accept: "application/json",
-    };
-
-    const pokemonApiKey =
-      process.env.POKEMON_TCG_API_KEY;
-
-    if (pokemonApiKey) {
-      headers["X-Api-Key"] = pokemonApiKey;
-    }
-
-    const response = await fetchWithRetry(
-      apiUrl.toString(),
-      {
-        headers,
-      },
-    );
-
-    const responseBody =
-      (await response.json()) as PokemonResponse;
-
-    if (!response.ok) {
-      throw new Error(
-        responseBody.error?.message ||
-          `Pokemon TCG API returned ${response.status}.`,
-      );
-    }
-
-    const cards = Array.isArray(responseBody.data)
-      ? responseBody.data
-      : [];
-
-    const mappedCards = cards.map((card) =>
-      mapCard(
-        card,
-        rates.usdToGbp,
-        rates.eurToGbp,
-      ),
-    );
-
-    const { data: merged, error: mergeError } =
-      await admin.rpc(
-        "merge_pokemon_card_sync_batch",
-        {
-          p_cards: mappedCards,
-        },
-      );
-
-    if (mergeError) {
-      throw mergeError;
-    }
-
-    const mergeRow = Array.isArray(merged)
-      ? merged[0]
-      : merged;
-
-    const totalCount = Math.max(
-      0,
-      Number(responseBody.totalCount) || 0,
-    );
-
-    const pageSize = Math.max(
-      1,
-      Number(responseBody.pageSize) || 250,
-    );
-
-    const totalPages = Math.max(
-      1,
-      Math.ceil(totalCount / pageSize),
-    );
-
-    const finalPage =
-      page >= totalPages || cards.length === 0;
-
-    const received = Math.max(
-      0,
-      Number(mergeRow?.received_count) ||
-        cards.length,
-    );
-
-    const inserted = Math.max(
-      0,
-      Number(mergeRow?.inserted_count) || 0,
-    );
-
-    const updated = Math.max(
-      0,
-      Number(mergeRow?.updated_count) || 0,
-    );
-
-    const { data: currentRun, error: runReadError } =
-      await admin
-        .from("card_sync_runs")
-        .select(
-          "cards_received,cards_inserted,cards_updated",
-        )
-        .eq("id", runId)
-        .single();
-
-    if (runReadError) {
-      throw runReadError;
-    }
-
-    const { error: runUpdateError } = await admin
-      .from("card_sync_runs")
-      .update({
-        status: finalPage ? "completed" : "running",
-        current_page: page,
-        total_pages: totalPages,
-        cards_received:
-          Number(currentRun.cards_received || 0) +
-          received,
-        cards_inserted:
-          Number(currentRun.cards_inserted || 0) +
-          inserted,
-        cards_updated:
-          Number(currentRun.cards_updated || 0) +
-          updated,
-        completed_at: finalPage
-          ? new Date().toISOString()
-          : null,
-        error_message: null,
-      })
-      .eq("id", runId);
-
-    if (runUpdateError) {
-      throw runUpdateError;
-    }
-
-    if (finalPage) {
-      const updatePayload =
-        mode === "prices"
-          ? {
-              last_price_sync_at:
-                new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-            }
-          : {
-              last_full_sync_at:
-                new Date().toISOString(),
-              last_price_sync_at:
-                new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-            };
-
-      const { error: settingsError } = await admin
-        .from("card_sync_settings")
-        .update(updatePayload)
-        .eq("id", 1);
-
-      if (settingsError) {
-        throw settingsError;
-      }
-    }
-
-    return NextResponse.json({
-      runId,
-      mode,
-      page,
-      totalPages,
-      totalCount,
-      received,
-      inserted,
-      updated,
-      finalPage,
-      rates,
-      hasPokemonApiKey: Boolean(pokemonApiKey),
-    });
   } catch (error: unknown) {
-    if (runId) {
-      try {
-        const admin = getAdminClient();
-
-        await admin
-          .from("card_sync_runs")
-          .update({
-            status: "failed",
-            error_message:
-              error instanceof Error
-                ? error.message
-                : "Unknown sync error",
-            completed_at: new Date().toISOString(),
-          })
-          .eq("id", runId);
-      } catch {
-        // The original error is more useful.
-      }
-    }
-
     return jsonError(
       error,
-      "The card database sync failed.",
+      "The card database action failed.",
     );
   }
 }
