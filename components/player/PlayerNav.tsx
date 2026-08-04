@@ -23,6 +23,8 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/wishes", label: "Wishes" },
   { href: "/catalogue", label: "Catalogue" },
   { href: "/collection", label: "Collection" },
+  { href: "/friends", label: "Friends" },
+  { href: "/trade", label: "Trade" },
   { href: "/constellation", label: "Stars" },
   { href: "/history", label: "History" },
   { href: "/rewards", label: "Daily Gift" },
