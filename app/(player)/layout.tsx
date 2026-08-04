@@ -19,6 +19,9 @@ type PlayerProfileRow = {
   username: string | null;
   display_name: string | null;
   avatar_url: string | null;
+  is_banned: boolean | null;
+  ban_reason: string | null;
+  banned_at: string | null;
 };
 
 type PlayerWalletRow = {
@@ -31,6 +34,9 @@ type PlayerShellData = {
   displayName: string;
   avatarUrl: string | null;
   wishBalance: number;
+  isBanned: boolean;
+  banReason: string | null;
+  bannedAt: string | null;
 };
 
 function getErrorMessage(error: unknown, fallback: string): string {
@@ -113,7 +119,9 @@ export default function PlayerLayout({ children }: PlayerLayoutProps) {
       const [profileResult, walletResult] = await Promise.all([
         supabase
           .from("player_profiles")
-          .select("user_id,username,display_name,avatar_url")
+          .select(
+            "user_id,username,display_name,avatar_url,is_banned,ban_reason,banned_at",
+          )
           .eq("user_id", session.user.id)
           .maybeSingle(),
 
@@ -175,6 +183,18 @@ export default function PlayerLayout({ children }: PlayerLayoutProps) {
         displayName,
         avatarUrl,
         wishBalance: normaliseWishBalance(wallet?.wish_balance),
+        isBanned:
+          profile.is_banned === true,
+        banReason:
+          typeof profile.ban_reason === "string" &&
+          profile.ban_reason.trim()
+            ? profile.ban_reason.trim()
+            : null,
+        bannedAt:
+          typeof profile.banned_at === "string" &&
+          profile.banned_at.trim()
+            ? profile.banned_at.trim()
+            : null,
       };
 
       if (!mountedRef.current) {
@@ -268,17 +288,49 @@ export default function PlayerLayout({ children }: PlayerLayoutProps) {
       void loadCurrentSession();
     };
 
+    const handleWindowFocus = () => {
+      void loadCurrentSession();
+    };
+
+    const accountCheckTimer =
+      window.setInterval(
+        () => {
+          if (
+            document.visibilityState ===
+            "visible"
+          ) {
+            void loadCurrentSession();
+          }
+        },
+        20000,
+      );
+
     window.addEventListener(
       "pocketpulls:profile-updated",
       handleProfileUpdated,
     );
 
+    window.addEventListener(
+      "focus",
+      handleWindowFocus,
+    );
+
     return () => {
       mountedRef.current = false;
       subscription.unsubscribe();
+
+      window.clearInterval(
+        accountCheckTimer,
+      );
+
       window.removeEventListener(
         "pocketpulls:profile-updated",
         handleProfileUpdated,
+      );
+
+      window.removeEventListener(
+        "focus",
+        handleWindowFocus,
       );
     };
   }, [loadCurrentSession, loadPlayer, redirectToSignIn]);
@@ -307,9 +359,28 @@ export default function PlayerLayout({ children }: PlayerLayoutProps) {
     return <PlayerLoadingScreen />;
   }
 
+  if (player.isBanned) {
+    return (
+      <PlayerBannedScreen
+        displayName={player.displayName}
+        reason={player.banReason}
+        bannedAt={player.bannedAt}
+        onSignOut={() => {
+          void supabase.auth
+            .signOut()
+            .finally(() => {
+              redirectToSignIn();
+            });
+        }}
+      />
+    );
+  }
+
   return (
     <div className="unknown-pulls-shell relative min-h-[100dvh] overflow-x-hidden bg-[#02030d] text-white">
       <UnknownPullsBackdrop />
+
+      <TestOnlyBanner />
 
       <PlayerNav
         username={player.username}
@@ -401,6 +472,21 @@ export default function PlayerLayout({ children }: PlayerLayoutProps) {
   );
 }
 
+function TestOnlyBanner() {
+  return (
+    <div
+      className="relative z-[70] border-b border-yellow-100/20 px-3 py-2 text-center text-[0.68rem] font-black uppercase tracking-[0.14em] text-[#171225] shadow-[0_8px_30px_rgba(0,0,0,0.25)] sm:text-xs"
+      style={{
+        background:
+          "linear-gradient(90deg, rgba(245,158,11,0.96), rgba(253,224,71,0.98), rgba(103,232,249,0.96))",
+      }}
+    >
+      TEST ONLY - wishes are spent and pulled cards are saved to your test
+      collection. Physical stock is never reduced.
+    </div>
+  );
+}
+
 function PlayerLoadingScreen() {
   return (
     <main className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden bg-[#02030d] px-6 text-white">
@@ -446,6 +532,94 @@ function PlayerLoadingScreen() {
           Loading your trainer profile and wish balance.
         </p>
       </div>
+    </main>
+  );
+}
+
+function PlayerBannedScreen({
+  displayName,
+  reason,
+  bannedAt,
+  onSignOut,
+}: {
+  displayName: string;
+  reason: string | null;
+  bannedAt: string | null;
+  onSignOut: () => void;
+}) {
+  const formattedDate = (() => {
+    if (!bannedAt) {
+      return null;
+    }
+
+    const date =
+      new Date(bannedAt);
+
+    if (
+      Number.isNaN(
+        date.getTime(),
+      )
+    ) {
+      return null;
+    }
+
+    return new Intl.DateTimeFormat(
+      "en-GB",
+      {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      },
+    ).format(date);
+  })();
+
+  return (
+    <main className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden bg-[#02030d] px-4 py-12 text-white">
+      <UnknownPullsBackdrop />
+
+      <section className="relative z-10 w-full max-w-xl overflow-hidden rounded-[2.25rem] border border-red-200/15 bg-[#090b27]/95 shadow-[0_35px_120px_rgba(0,0,0,0.68)] backdrop-blur-3xl">
+        <div className="h-1 bg-gradient-to-r from-red-300 via-pink-200 to-yellow-200" />
+
+        <div className="p-7 text-center sm:p-10">
+          <div className="relative mx-auto flex h-24 w-24 items-center justify-center">
+            <div className="absolute inset-2 rounded-full bg-red-300/15 blur-2xl" />
+
+            <img
+              src="/jirachi.png"
+              alt=""
+              draggable={false}
+              className="relative h-20 w-20 object-contain grayscale-[0.35] drop-shadow-[0_12px_16px_rgba(0,0,0,0.45)]"
+            />
+          </div>
+
+          <p className="mt-6 text-xs font-black uppercase tracking-[0.22em] text-red-100/45">
+            Trainer access suspended
+          </p>
+
+          <h1 className="mt-3 text-3xl font-black text-white">
+            {displayName}, this account is currently unavailable.
+          </h1>
+
+          <p className="mt-5 text-sm font-semibold leading-7 text-white/55">
+            {reason ||
+              "This account has been suspended by an Unknown Pulls administrator."}
+          </p>
+
+          {formattedDate ? (
+            <p className="mt-3 text-xs font-bold text-white/28">
+              Suspension recorded {formattedDate}
+            </p>
+          ) : null}
+
+          <button
+            type="button"
+            onClick={onSignOut}
+            className="mt-7 min-h-12 w-full rounded-xl border border-white/10 bg-white/[0.06] px-5 text-sm font-black text-white transition hover:bg-white/[0.1]"
+          >
+            Return to sign in
+          </button>
+        </div>
+      </section>
     </main>
   );
 }
