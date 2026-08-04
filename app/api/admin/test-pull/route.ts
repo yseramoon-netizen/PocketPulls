@@ -218,23 +218,29 @@ export async function POST(
       throw inventoryResult.error;
     }
 
-    const inventory =
-      (
-        inventoryResult.data ||
-        []
+    const inventoryRows:
+      InventoryRow[] =
+      Array.isArray(
+        inventoryResult.data,
       )
-        .map(
-          (row) =>
-            row as InventoryRow,
-        )
-        .filter(
-          (row) =>
-            row.card_id !==
-              null &&
-            toNumber(
-              row.quantity,
-            ) > 0,
-        );
+        ? (
+            inventoryResult.data as
+              InventoryRow[]
+          )
+        : [];
+
+    const inventory =
+      inventoryRows.filter(
+        (
+          row:
+            InventoryRow,
+        ) =>
+          row.card_id !==
+            null &&
+          toNumber(
+            row.quantity,
+          ) > 0,
+      );
 
     if (!inventory.length) {
       return Response.json(
@@ -257,7 +263,10 @@ export async function POST(
       Array.from(
         new Set(
           inventory.map(
-            (row) =>
+            (
+              row:
+                InventoryRow,
+            ) =>
               String(
                 row.card_id,
               ),
@@ -315,14 +324,19 @@ export async function POST(
         throw cardResult.error;
       }
 
+      const cardRows:
+        CardRow[] =
+        Array.isArray(
+          cardResult.data,
+        )
+          ? (
+              cardResult.data as
+                CardRow[]
+            )
+          : [];
+
       cards.push(
-        ...(
-          cardResult.data ||
-          []
-        ).map(
-          (row) =>
-            row as CardRow,
-        ),
+        ...cardRows,
       );
     }
 
@@ -336,9 +350,13 @@ export async function POST(
         ),
       );
 
-    const drawable =
+    const drawable:
+      InventoryRow[] =
       inventory.filter(
-        (row) =>
+        (
+          row:
+            InventoryRow,
+        ) =>
           cardsById.has(
             String(
               row.card_id,

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import {
+  Suspense,
   type FormEvent,
   useEffect,
   useState,
@@ -71,7 +72,7 @@ function getErrorMessage(
   return "The admin sign-in request failed.";
 }
 
-export default function AdminSignInPage() {
+function AdminSignInContent() {
   const router = useRouter();
   const searchParams =
     useSearchParams();
@@ -375,5 +376,34 @@ export default function AdminSignInPage() {
         </div>
       </section>
     </main>
+  );
+}
+
+
+function AdminSignInFallback() {
+  return (
+    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-[#020617] via-[#052e16] to-[#064e3b] px-5 text-white">
+      <ForestBackground />
+
+      <div className="relative z-10 rounded-[2rem] border border-emerald-100/15 bg-black/25 px-8 py-7 text-center backdrop-blur-3xl">
+        <div className="mx-auto h-9 w-9 animate-spin rounded-full border-2 border-emerald-100/20 border-t-emerald-200" />
+
+        <p className="mt-4 text-sm font-black text-emerald-50/70">
+          Opening the forest gateway...
+        </p>
+      </div>
+    </main>
+  );
+}
+
+export default function AdminSignInPage() {
+  return (
+    <Suspense
+      fallback={
+        <AdminSignInFallback />
+      }
+    >
+      <AdminSignInContent />
+    </Suspense>
   );
 }
