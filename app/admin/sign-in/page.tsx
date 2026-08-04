@@ -83,13 +83,6 @@ function AdminSignInContent() {
     );
 
   const [
-    email,
-    setEmail,
-  ] = useState(
-    ADMIN_EMAIL,
-  );
-
-  const [
     password,
     setPassword,
   ] = useState("");
@@ -158,19 +151,7 @@ function AdminSignInContent() {
 
     try {
       const cleanEmail =
-        email
-          .trim()
-          .toLowerCase();
-
-      if (
-        cleanEmail !==
-        ADMIN_EMAIL
-      ) {
-        throw new Error(
-          `This admin gateway is currently assigned to ${ADMIN_EMAIL}.`,
-        );
-      }
-
+        ADMIN_EMAIL;
       const {
         error:
           signInError,
@@ -271,8 +252,15 @@ function AdminSignInContent() {
             </h1>
 
             <p className="mt-4 text-sm font-semibold leading-7 text-emerald-50/55">
-              Sign in with the authorised PocketPulls admin account. The session is refreshed automatically before protected actions.
+              This is the private Shaymin operations portal. Only
+              pullspocket@gmail.com can enter it.
             </p>
+          </div>
+
+          <div className="mt-6 rounded-2xl border border-cyan-100/15 bg-cyan-200/[0.06] px-5 py-4 text-sm font-semibold leading-6 text-cyan-50/70">
+            Friends, testers and normal trainer accounts must use the Jirachi
+            player sign-in instead. Signing into Shaymin with a player account
+            will never grant admin access.
           </div>
 
           {error ? (
@@ -292,15 +280,11 @@ function AdminSignInContent() {
 
               <input
                 type="email"
-                value={email}
-                onChange={(event) =>
-                  setEmail(
-                    event.target.value,
-                  )
-                }
+                value={ADMIN_EMAIL}
+                readOnly
+                aria-readonly="true"
                 autoComplete="username"
-                disabled={signingIn}
-                className="mt-2 min-h-14 w-full rounded-2xl border border-white/15 bg-black/25 px-5 font-bold text-white outline-none placeholder:text-white/25 focus:border-emerald-200/45 disabled:opacity-50"
+                className="mt-2 min-h-14 w-full cursor-not-allowed rounded-2xl border border-white/15 bg-black/25 px-5 font-bold text-white/65 outline-none"
               />
             </label>
 
@@ -358,19 +342,19 @@ function AdminSignInContent() {
             </button>
           </form>
 
-          <div className="mt-6 flex flex-col gap-3 text-center text-xs font-semibold text-white/35 sm:flex-row sm:items-center sm:justify-between sm:text-left">
+          <div className="mt-6 grid gap-3 sm:grid-cols-2">
             <Link
-              href="/forgot-password"
-              className="hover:text-white"
+              href="/sign-in"
+              className="flex min-h-12 items-center justify-center rounded-xl border border-cyan-100/20 bg-cyan-200/[0.08] px-4 text-sm font-black text-cyan-50 transition hover:bg-cyan-200/[0.14]"
             >
-              Reset Supabase password
+              Open Jirachi player sign-in
             </Link>
 
             <Link
-              href="/sign-in"
-              className="hover:text-white"
+              href="/forgot-password"
+              className="flex min-h-12 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] px-4 text-sm font-black text-white/60 transition hover:bg-white/[0.08] hover:text-white"
             >
-              Player sign in
+              Reset admin password
             </Link>
           </div>
         </div>

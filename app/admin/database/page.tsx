@@ -172,6 +172,77 @@ const EMPTY_PRICE_PROGRESS: PriceProgress = {
   updatedAt: null,
 };
 
+
+const PRICE_RETRY_BASE_DELAY_MS = 1500;
+const PRICE_RETRY_MAX_DELAY_MS = 30000;
+
+function getPriceRetryDelay(
+  consecutiveFailures: number,
+): number {
+  const exponent = Math.max(
+    0,
+    Math.min(
+      consecutiveFailures - 1,
+      5,
+    ),
+  );
+
+  return Math.min(
+    PRICE_RETRY_MAX_DELAY_MS,
+    PRICE_RETRY_BASE_DELAY_MS *
+      2 ** exponent,
+  );
+}
+
+function isPermanentPriceError(
+  error: unknown,
+): boolean {
+  const message = getErrorMessage(
+    error,
+    "",
+  )
+    .trim()
+    .toLowerCase();
+
+  if (!message) {
+    return false;
+  }
+
+  return [
+    "admin session",
+    "sign in again",
+    "not authorised",
+    "not authorized",
+    "unauthorised",
+    "unauthorized",
+    "forbidden",
+    "permission denied",
+    "row-level security",
+    "missing server environment",
+    "missing environment",
+    "unknown card database action",
+    "invalid api key",
+    "api key is invalid",
+    "does not exist",
+    "schema cache",
+  ].some((fragment) =>
+    message.includes(fragment),
+  );
+}
+
+async function waitForRetry(
+  milliseconds: number,
+): Promise<void> {
+  await new Promise<void>(
+    (resolve) => {
+      window.setTimeout(
+        resolve,
+        milliseconds,
+      );
+    },
+  );
+}
+
 function toNumber(value: unknown): number {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : 0;
@@ -302,6 +373,12 @@ export default function CardDatabasePage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [logLines, setLogLines] = useState<string[]>([]);
+  const [
+    priceRetryStatus,
+    setPriceRetryStatus,
+  ] = useState<string | null>(
+    null,
+  );
 
   const addLog = useCallback((message: string) => {
     const time = new Date().toLocaleTimeString("en-GB", {
@@ -524,10 +601,14 @@ export default function CardDatabasePage() {
     setSyncingPrices(true);
     setErrorMessage(null);
     setSuccessMessage(null);
+    setPriceRetryStatus(null);
 
     try {
       let aggregate =
         priceProgress;
+
+      let consecutiveFailures =
+        0;
 
       addLog(
         aggregate.processed > 0 &&
@@ -546,13 +627,95 @@ export default function CardDatabasePage() {
               )}-card API batches with public rate-limit spacing.`,
       );
 
+      addLog(
+        "Automatic retry is active. Temporary failures no longer require another button click.",
+      );
+
       while (
         !stopPricesRef.current
       ) {
-        const result =
-          await postAction<PriceResponse>({
-            action: "price_batch",
-          });
+        let result:
+          PriceResponse;
+
+        try {
+          result =
+            await postAction<PriceResponse>({
+              action:
+                "price_batch",
+            });
+
+          consecutiveFailures =
+            0;
+
+          setPriceRetryStatus(
+            null,
+          );
+
+          setErrorMessage(
+            null,
+          );
+        } catch (
+          batchError: unknown
+        ) {
+          const message =
+            getErrorMessage(
+              batchError,
+              "The market price request failed.",
+            );
+
+          if (
+            isPermanentPriceError(
+              batchError,
+            )
+          ) {
+            throw new Error(
+              message,
+            );
+          }
+
+          consecutiveFailures +=
+            1;
+
+          const waitMs =
+            getPriceRetryDelay(
+              consecutiveFailures,
+            );
+
+          const waitSeconds =
+            Math.max(
+              1,
+              Math.ceil(
+                waitMs /
+                  1000,
+              ),
+            );
+
+          const retryMessage =
+            `Temporary market request failure. Retrying automatically in ${waitSeconds}s ` +
+            `(attempt ${consecutiveFailures}).`;
+
+          setPriceRetryStatus(
+            retryMessage,
+          );
+
+          setErrorMessage(
+            null,
+          );
+
+          addLog(
+            `RETRY: ${message}`,
+          );
+
+          addLog(
+            retryMessage,
+          );
+
+          await waitForRetry(
+            waitMs,
+          );
+
+          continue;
+        }
 
         setHasPokemonApiKey(
           result.hasPokemonApiKey,
@@ -605,18 +768,20 @@ export default function CardDatabasePage() {
           break;
         }
 
-        await new Promise(
-          (resolve) =>
-            window.setTimeout(
-              resolve,
-              result.hasPokemonApiKey
-                ? 120
-                : 2200,
-            ),
+        await waitForRetry(
+          result.hasPokemonApiKey
+            ? 120
+            : 2200,
         );
       }
 
-      if (stopPricesRef.current) {
+      if (
+        stopPricesRef.current
+      ) {
+        setPriceRetryStatus(
+          null,
+        );
+
         const paused =
           await postAction<{
             pricePass:
@@ -652,17 +817,34 @@ export default function CardDatabasePage() {
       }
 
       await loadStatus();
-    } catch (error: unknown) {
+    } catch (
+      error: unknown
+    ) {
       const message =
         getErrorMessage(
           error,
           "The tracked price refresh failed.",
         );
 
-      setErrorMessage(message);
-      addLog(`ERROR: ${message}`);
+      setPriceRetryStatus(
+        null,
+      );
+
+      setErrorMessage(
+        message,
+      );
+
+      addLog(
+        `ERROR: ${message}`,
+      );
     } finally {
-      setSyncingPrices(false);
+      setPriceRetryStatus(
+        null,
+      );
+
+      setSyncingPrices(
+        false,
+      );
     }
   }, [
     syncingLocal,
@@ -793,9 +975,11 @@ export default function CardDatabasePage() {
             description="The completed count is stored in Supabase, not in this browser. One Pokemon TCG API search request now returns a whole group of card prices, and one database transaction saves the entire group. Closing the page or pressing Stop no longer resets progress to zero."
             buttonLabel={
               syncingPrices
-                ? `Refreshing from ${formatNumber(
-                    priceProgress.processed,
-                  )}...`
+                ? priceRetryStatus
+                  ? "Retrying automatically..."
+                  : `Refreshing from ${formatNumber(
+                      priceProgress.processed,
+                    )}...`
                 : priceProgress.processed > 0 &&
                     priceProgress.remaining > 0
                   ? `Resume at ${formatNumber(
@@ -857,6 +1041,18 @@ export default function CardDatabasePage() {
                 )}
               />
             </div>
+
+            <InfoBox
+              label="Automatic retry"
+              value={
+                priceRetryStatus ||
+                (
+                  syncingPrices
+                    ? "Active - temporary failures retry without another click"
+                    : "Ready - temporary failures will retry automatically"
+                )
+              }
+            />
 
             <InfoBox
               label="Pokemon API mode"

@@ -81,11 +81,34 @@ type SearchRow = {
     | null;
 };
 
+type PlayerSearchResponse = {
+  ok: true;
+  query: string;
+  results: SearchRow[];
+  selfMatch: boolean;
+  directoryCount: number;
+};
+
 type ViewMode =
   | "friends"
   | "incoming"
   | "sent"
   | "blocked";
+
+type PlayerRpcResult = {
+  data: unknown;
+  error: unknown;
+};
+
+type PlayerRpcClient = {
+  rpc(
+    functionName: string,
+    args?: Record<string, unknown>,
+  ): PromiseLike<PlayerRpcResult>;
+};
+
+const playerRpcClient =
+  supabase as unknown as PlayerRpcClient;
 
 function getErrorMessage(
   error: unknown,
@@ -119,6 +142,84 @@ function getErrorMessage(
   }
 
   return "The friend system could not complete that request.";
+}
+
+function normaliseFriendQuery(
+  value: string,
+): string {
+  return value
+    .trim()
+    .replace(
+      /^@+/,
+      "",
+    )
+    .trim()
+    .slice(
+      0,
+      80,
+    );
+}
+
+async function searchPlayerDirectory(
+  query: string,
+): Promise<PlayerSearchResponse> {
+  const {
+    data,
+    error,
+  } =
+    await supabase.auth
+      .getSession();
+
+  if (
+    error ||
+    !data.session
+  ) {
+    throw new Error(
+      "Your player session expired. Sign in again.",
+    );
+  }
+
+  const response =
+    await fetch(
+      `/api/player/friends/search?q=${encodeURIComponent(
+        normaliseFriendQuery(
+          query,
+        ),
+      )}`,
+      {
+        method: "GET",
+        headers: {
+          Authorization:
+            `Bearer ${data.session.access_token}`,
+        },
+        cache: "no-store",
+      },
+    );
+
+  const payload =
+    (await response.json()) as
+      | PlayerSearchResponse
+      | {
+          ok: false;
+          error?: {
+            message?: string;
+          };
+        };
+
+  if (
+    !response.ok ||
+    payload.ok !== true
+  ) {
+    throw new Error(
+      payload.ok === false
+        ? payload.error
+            ?.message ||
+          "Player search failed."
+        : "Player search failed.",
+    );
+  }
+
+  return payload;
 }
 
 function getInitial(
@@ -214,6 +315,24 @@ export default function FriendsPage() {
     useState(false);
 
   const [
+    selfMatch,
+    setSelfMatch,
+  ] =
+    useState(false);
+
+  const [
+    directoryCount,
+    setDirectoryCount,
+  ] =
+    useState(0);
+
+  const [
+    searchRefresh,
+    setSearchRefresh,
+  ] =
+    useState(0);
+
+  const [
     busyKey,
     setBusyKey,
   ] =
@@ -242,10 +361,7 @@ export default function FriendsPage() {
         setErrorMessage(null);
 
         try {
-          const client =
-            supabase as any;
-
-          await client.rpc(
+          await playerRpcClient.rpc(
             "touch_player_presence",
           );
 
@@ -253,7 +369,7 @@ export default function FriendsPage() {
             data,
             error,
           } =
-            await client.rpc(
+            await playerRpcClient.rpc(
               "get_player_friend_dashboard",
             );
 
@@ -315,62 +431,14 @@ export default function FriendsPage() {
     let active = true;
 
     const cleaned =
-      query.trim();
+      normaliseFriendQuery(
+        query,
+      );
 
-    if (
-      cleaned.length < 1
-    ) {
-      setSearching(true);
-
-      void (async () => {
-        try {
-          const client =
-            supabase as any;
-
-          const {
-            data,
-            error,
-          } =
-            await client.rpc(
-              "search_player_friends",
-              {
-                p_query: "",
-                p_limit: 20,
-              },
-            );
-
-          if (error) {
-            throw error;
-          }
-
-          if (active) {
-            setSearchResults(
-              Array.isArray(data)
-                ? (data as SearchRow[])
-                : [],
-            );
-          }
-        } catch (
-          searchError: unknown
-        ) {
-          if (active) {
-            setErrorMessage(
-              getErrorMessage(
-                searchError,
-              ),
-            );
-          }
-        } finally {
-          if (active) {
-            setSearching(false);
-          }
-        }
-      })();
-
-      return () => {
-        active = false;
-      };
-    }
+    const delay =
+      cleaned
+        ? 180
+        : 0;
 
     const timer =
       window.setTimeout(
@@ -378,65 +446,61 @@ export default function FriendsPage() {
           setSearching(true);
 
           try {
-            const client =
-              supabase as any;
-
-            const {
-              data,
-              error,
-            } =
-              await client.rpc(
-                "search_player_friends",
-                {
-                  p_query:
-                    cleaned,
-                  p_limit:
-                    20,
-                },
+            const response =
+              await searchPlayerDirectory(
+                cleaned,
               );
 
-            if (error) {
-              throw error;
+            if (!active) {
+              return;
             }
 
-            if (active) {
-              setSearchResults(
-                Array.isArray(
-                  data,
-                )
-                  ? (
-                      data as
-                        SearchRow[]
-                    )
-                  : [],
-              );
-            }
+            setSearchResults(
+              response.results,
+            );
+
+            setSelfMatch(
+              response.selfMatch,
+            );
+
+            setDirectoryCount(
+              response.directoryCount,
+            );
           } catch (
-            error: unknown
+            searchError: unknown
           ) {
-            if (active) {
-              setErrorMessage(
-                getErrorMessage(
-                  error,
-                ),
-              );
+            if (!active) {
+              return;
             }
+
+            setSearchResults([]);
+            setSelfMatch(false);
+
+            setErrorMessage(
+              getErrorMessage(
+                searchError,
+              ),
+            );
           } finally {
             if (active) {
               setSearching(false);
             }
           }
         },
-        220,
+        delay,
       );
 
     return () => {
       active = false;
+
       window.clearTimeout(
         timer,
       );
     };
-  }, [query]);
+  }, [
+    query,
+    searchRefresh,
+  ]);
 
   const counts =
     useMemo(
@@ -547,13 +611,10 @@ export default function FriendsPage() {
     setErrorMessage(null);
 
     try {
-      const client =
-        supabase as any;
-
       const {
         error,
       } =
-        await client.rpc(
+        await playerRpcClient.rpc(
           functionName,
           args,
         );
@@ -564,8 +625,15 @@ export default function FriendsPage() {
 
       setQuery("");
       setSearchResults([]);
+      setSelfMatch(false);
+
       await loadFriends(
         true,
+      );
+
+      setSearchRefresh(
+        (current) =>
+          current + 1,
       );
     } catch (
       error: unknown
@@ -690,7 +758,7 @@ export default function FriendsPage() {
                       .value,
                   )
                 }
-                placeholder="Search players or browse suggestions..."
+                placeholder="Username or display name..."
                 className="min-h-14 w-full rounded-2xl border border-white/10 bg-black/20 px-5 pr-14 font-bold text-white outline-none placeholder:text-white/25 focus:border-cyan-200/30"
               />
 
@@ -701,13 +769,32 @@ export default function FriendsPage() {
               ) : null}
             </div>
 
+            <p className="mt-3 text-xs font-semibold leading-5 text-white/32">
+              The leading @ is optional. Your own signed-in account is hidden
+              because a trainer cannot add themselves.
+            </p>
+
             <div className="mt-4 space-y-3">
               {searchResults.length ===
                 0 &&
                 !searching ? (
                 <PlayerEmptyState
-                  title="No trainers found"
-                  description="Try another username or display name."
+                  title={
+                    selfMatch
+                      ? "That is your own account"
+                      : directoryCount ===
+                        0
+                      ? "No other trainer accounts yet"
+                      : "No trainers found"
+                  }
+                  description={
+                    selfMatch
+                      ? "You cannot send a friend request to the account you are currently signed into."
+                      : directoryCount ===
+                        0
+                      ? "Create or confirm a second Jirachi account, then search again."
+                      : "Search by username or display name. The leading @ is optional."
+                  }
                 />
               ) : (
                 searchResults.map(

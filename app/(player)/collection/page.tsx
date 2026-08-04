@@ -78,6 +78,14 @@ type Overview = {
   rarities: string[];
 };
 
+type SignatureSaveResponse = {
+  ok: true;
+  userId: string;
+  username: string;
+  cardId: string;
+  savedAt: string;
+};
+
 type Availability =
   | "all"
   | "available"
@@ -122,6 +130,40 @@ function parseOverview(value: unknown): Overview {
   };
 }
 
+async function getActivePlayerSession() {
+  const {
+    data: sessionData,
+    error: sessionError,
+  } = await supabase.auth.getSession();
+
+  if (
+    sessionError ||
+    !sessionData.session
+  ) {
+    throw new Error(
+      "Your player session expired. Sign in again.",
+    );
+  }
+
+  const {
+    data: userData,
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (
+    userError ||
+    !userData.user ||
+    userData.user.id !==
+      sessionData.session.user.id
+  ) {
+    throw new Error(
+      "Your player session could not be verified. Sign in again.",
+    );
+  }
+
+  return sessionData.session;
+}
+
 function parseRows(value: unknown): {
   cards: CollectionCard[];
   totalCount: number;
@@ -161,9 +203,104 @@ function parseRows(value: unknown): {
   };
 }
 
+async function saveSignatureCard(
+  cardId: string,
+  expectedUserId: string,
+): Promise<SignatureSaveResponse> {
+  const session =
+    await getActivePlayerSession();
+
+  if (
+    session.user.id !==
+    expectedUserId
+  ) {
+    throw new Error(
+      "The signed-in player changed while this collection was open. Reload the page before choosing a signature card.",
+    );
+  }
+
+  const response =
+    await fetch(
+      "/api/player/profile/signature",
+      {
+        method:
+          "POST",
+
+        headers: {
+          Authorization:
+            `Bearer ${session.access_token}`,
+
+          "Content-Type":
+            "application/json",
+        },
+
+        body:
+          JSON.stringify({
+            cardId,
+          }),
+
+        cache:
+          "no-store",
+      },
+    );
+
+  const payload =
+    (await response.json()) as
+      | SignatureSaveResponse
+      | {
+          ok: false;
+          error?: {
+            message?:
+              string;
+          };
+        };
+
+  if (
+    !response.ok ||
+    payload.ok !==
+      true
+  ) {
+    throw new Error(
+      payload.ok === false
+        ? payload.error
+            ?.message ||
+          "Your signature card could not be saved."
+        : "Your signature card could not be saved.",
+    );
+  }
+
+  if (
+    payload.userId !==
+    expectedUserId
+  ) {
+    throw new Error(
+      "The server refused the update because it resolved to a different player account.",
+    );
+  }
+
+  const latestSession =
+    await getActivePlayerSession();
+
+  if (
+    latestSession.user.id !==
+      expectedUserId
+  ) {
+    throw new Error(
+      "The signed-in player changed during the save. Reload the collection before trying again.",
+    );
+  }
+
+  return payload;
+}
+
 export default function CollectionPage() {
   const requestRef = useRef(0);
   const searchTimerRef = useRef<number | null>(null);
+
+  const collectionOwnerRef =
+    useRef<string | null>(
+      null,
+    );
 
   const [cards, setCards] = useState<CollectionCard[]>([]);
   const [overview, setOverview] =
@@ -184,6 +321,15 @@ export default function CollectionPage() {
   const [signatureBusy, setSignatureBusy] = useState(false);
   const [errorMessage, setErrorMessage] =
     useState<string | null>(null);
+
+  const [
+    signatureMessage,
+    setSignatureMessage,
+  ] =
+    useState<string | null>(
+      null,
+    );
+
   const [selectedCard, setSelectedCard] =
     useState<CollectionCard | null>(null);
 
@@ -200,12 +346,45 @@ export default function CollectionPage() {
     sort !== "name";
 
   const loadOverview = useCallback(async () => {
+    const activeSession =
+      await getActivePlayerSession();
+
+    const activeUserId =
+      activeSession.user.id;
+
+    const currentOwner =
+      collectionOwnerRef.current;
+
+    if (
+      currentOwner &&
+      currentOwner !== activeUserId
+    ) {
+      throw new Error(
+        "The signed-in player changed. Reload the collection before continuing.",
+      );
+    }
+
+    collectionOwnerRef.current =
+      activeUserId;
+
     const { data, error } = await supabase.rpc(
       "get_player_collection_overview",
     );
 
     if (error) {
       throw error;
+    }
+
+    const verifiedSession =
+      await getActivePlayerSession();
+
+    if (
+      verifiedSession.user.id !==
+      activeUserId
+    ) {
+      throw new Error(
+        "The signed-in player changed while the collection overview was loading.",
+      );
     }
 
     setOverview(parseOverview(data));
@@ -225,6 +404,28 @@ export default function CollectionPage() {
       setErrorMessage(null);
 
       try {
+        const activeSession =
+          await getActivePlayerSession();
+
+        const activeUserId =
+          activeSession.user.id;
+
+        if (
+          collectionOwnerRef
+            .current &&
+          collectionOwnerRef
+            .current !==
+            activeUserId
+        ) {
+          throw new Error(
+            "The signed-in player changed. Reload the collection before continuing.",
+          );
+        }
+
+        collectionOwnerRef
+          .current =
+            activeUserId;
+
         const { data, error } = await supabase.rpc(
           "get_player_collection",
           {
@@ -316,6 +517,46 @@ export default function CollectionPage() {
   }, [loadCards, loadOverview]);
 
   useEffect(() => {
+    const {
+      data: {
+        subscription,
+      },
+    } =
+      supabase.auth
+        .onAuthStateChange(
+          (
+            event,
+            session,
+          ) => {
+            if (
+              event ===
+                "SIGNED_OUT" ||
+              !session
+            ) {
+              return;
+            }
+
+            const currentOwner =
+              collectionOwnerRef
+                .current;
+
+            if (
+              currentOwner &&
+              currentOwner !==
+                session.user.id
+            ) {
+              window.location.reload();
+            }
+          },
+        );
+
+    return () => {
+      subscription
+        .unsubscribe();
+    };
+  }, []);
+
+  useEffect(() => {
     if (searchTimerRef.current !== null) {
       window.clearTimeout(searchTimerRef.current);
     }
@@ -343,46 +584,86 @@ export default function CollectionPage() {
   }, []);
 
   const setSignature = useCallback(
-    async (card: CollectionCard) => {
-      if (signatureBusy || card.isSignature) {
+    async (
+      card:
+        CollectionCard,
+    ) => {
+      if (
+        signatureBusy ||
+        card.isSignature
+      ) {
         return;
       }
 
-      setSignatureBusy(true);
-      setErrorMessage(null);
+      const expectedUserId =
+        collectionOwnerRef
+          .current;
+
+      if (!expectedUserId) {
+        setErrorMessage(
+          "The collection owner has not finished loading. Reload the page and try again.",
+        );
+
+        return;
+      }
+
+      setSignatureBusy(
+        true,
+      );
+
+      setErrorMessage(
+        null,
+      );
+
+      setSignatureMessage(
+        null,
+      );
 
       try {
-        const { error } = await supabase.rpc(
-          "set_player_signature_card",
-          {
-            p_card_id: card.id,
-          },
+        const saved =
+          await saveSignatureCard(
+            card.id,
+            expectedUserId,
+          );
+
+        await Promise.all([
+          loadCards(true),
+          loadOverview(),
+        ]);
+
+        setSelectedCard(
+          (current) =>
+            current
+              ? {
+                  ...current,
+                  isSignature:
+                    current.id ===
+                    card.id,
+                }
+              : null,
         );
 
-        if (error) {
-          throw error;
-        }
-
-        setCards((current) =>
-          current.map((item) => ({
-            ...item,
-            isSignature: item.id === card.id,
-          })),
-        );
-
-        setSelectedCard((current) =>
-          current
-            ? {
-                ...current,
-                isSignature: current.id === card.id,
-              }
-            : null,
+        setSignatureMessage(
+          `Signature card saved and verified for @${saved.username}.`,
         );
 
         window.dispatchEvent(
-          new CustomEvent("pocketpulls:profile-updated"),
+          new CustomEvent(
+            "pocketpulls:profile-updated",
+          ),
         );
-      } catch (error: unknown) {
+
+        window.setTimeout(
+          () => {
+            setSignatureMessage(
+              null,
+            );
+          },
+          4000,
+        );
+      } catch (
+        error: unknown
+      ) {
         setErrorMessage(
           getErrorMessage(
             error,
@@ -390,10 +671,16 @@ export default function CollectionPage() {
           ),
         );
       } finally {
-        setSignatureBusy(false);
+        setSignatureBusy(
+          false,
+        );
       }
     },
-    [signatureBusy],
+    [
+      signatureBusy,
+      loadCards,
+      loadOverview,
+    ],
   );
 
   const filterOptions = useMemo(
@@ -440,6 +727,12 @@ export default function CollectionPage() {
         message={errorMessage}
         onRetry={() => void refresh()}
       />
+
+      {signatureMessage ? (
+        <div className="mt-6 rounded-2xl border border-emerald-100/20 bg-emerald-300/[0.08] px-5 py-4 text-sm font-black text-emerald-50">
+          {signatureMessage}
+        </div>
+      ) : null}
 
       <div className="mt-7 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
         <PlayerStatCard

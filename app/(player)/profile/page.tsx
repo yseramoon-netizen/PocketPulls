@@ -5,6 +5,7 @@ import {
   type FormEvent,
   useCallback,
   useEffect,
+  useRef,
   useState,
 } from "react";
 
@@ -145,7 +146,25 @@ function parseProfile(value: unknown): ProfileData {
   };
 }
 
+async function getVerifiedPlayerUser() {
+  const {
+    data,
+    error,
+  } = await supabase.auth.getUser();
+
+  if (error || !data.user) {
+    throw new Error(
+      "Your player session expired. Sign in again.",
+    );
+  }
+
+  return data.user;
+}
+
 export default function ProfilePage() {
+  const profileOwnerRef =
+    useRef<string | null>(null);
+
   const [profile, setProfile] =
     useState<ProfileData>(EMPTY_PROFILE);
   const [form, setForm] =
@@ -163,6 +182,21 @@ export default function ProfilePage() {
     setErrorMessage(null);
 
     try {
+      const activeUser =
+        await getVerifiedPlayerUser();
+
+      const currentOwner =
+        profileOwnerRef.current;
+
+      if (
+        currentOwner &&
+        currentOwner !== activeUser.id
+      ) {
+        throw new Error(
+          "The signed-in player changed. Reload the profile before continuing.",
+        );
+      }
+
       const { data, error } = await supabase.rpc(
         "get_player_profile_dashboard",
       );
@@ -172,6 +206,19 @@ export default function ProfilePage() {
       }
 
       const parsed = parseProfile(data);
+
+      if (
+        !parsed.userId ||
+        parsed.userId !== activeUser.id
+      ) {
+        throw new Error(
+          "The profile response belonged to a different player account.",
+        );
+      }
+
+      profileOwnerRef.current =
+        activeUser.id;
+
       setProfile(parsed);
       setForm(parsed);
     } catch (error: unknown) {
@@ -189,6 +236,47 @@ export default function ProfilePage() {
 
   useEffect(() => {
     void loadProfile();
+
+    const handleProfileUpdated = () => {
+      void loadProfile();
+    };
+
+    window.addEventListener(
+      "pocketpulls:profile-updated",
+      handleProfileUpdated,
+    );
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        if (
+          event === "SIGNED_OUT" ||
+          !session
+        ) {
+          return;
+        }
+
+        const currentOwner =
+          profileOwnerRef.current;
+
+        if (
+          currentOwner &&
+          currentOwner !== session.user.id
+        ) {
+          window.location.reload();
+        }
+      },
+    );
+
+    return () => {
+      window.removeEventListener(
+        "pocketpulls:profile-updated",
+        handleProfileUpdated,
+      );
+
+      subscription.unsubscribe();
+    };
   }, [loadProfile]);
 
   const saveProfile = useCallback(
@@ -204,6 +292,20 @@ export default function ProfilePage() {
       setErrorMessage(null);
 
       try {
+        const activeUser =
+          await getVerifiedPlayerUser();
+
+        if (
+          !profileOwnerRef.current ||
+          profileOwnerRef.current !==
+            activeUser.id ||
+          form.userId !== activeUser.id
+        ) {
+          throw new Error(
+            "The signed-in player changed. Reload the profile before saving.",
+          );
+        }
+
         const { error } = await supabase.rpc(
           "update_player_profile",
           {
