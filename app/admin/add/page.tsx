@@ -11,6 +11,7 @@ import {
 } from "react";
 
 import { supabase } from "@/lib/supabase";
+import { adminFetch } from "@/lib/admin/client-auth";
 
 import AdminNav from "@/components/AdminNav";
 import CardScanner, {
@@ -54,6 +55,25 @@ type AddResult = {
   finalQuantity: number;
   location: string;
   finish: CardFinish;
+};
+
+type AddInventoryApiResponse = {
+  ok: true;
+  result: {
+    inventoryId: string;
+    cardId: string;
+    cardName: string;
+    quantityAdded: number;
+    finalQuantity: number;
+    location: string;
+    finish: CardFinish;
+    adminEmail: string;
+  };
+};
+
+type InventoryLookupApiResponse = {
+  ok: true;
+  inventory: InventoryRow | null;
 };
 
 type FinishOption = {
@@ -398,39 +418,21 @@ export default function AddCardsPage() {
         setExistingInventory(null);
 
         try {
-          /*
-           * limit(1) prevents duplicate historical rows
-           * from causing maybeSingle() to fail.
-           */
-
-          const {
-            data,
-            error: inventoryError,
-          } = await supabase
-            .from("inventory")
-            .select(`
-              id,
-              quantity,
-              location,
-              status,
-              finish
-            `)
-            .eq("card_id", card.id)
-            .eq("finish", selectedFinish)
-            .order("created_at", {
-              ascending: true,
-            })
-            .limit(1)
-            .maybeSingle();
-
-          if (inventoryError) {
-            throw inventoryError;
-          }
+          const response =
+            await adminFetch<InventoryLookupApiResponse>(
+              `/api/admin/inventory/add?cardId=${encodeURIComponent(
+                String(card.id),
+              )}&finish=${encodeURIComponent(
+                selectedFinish,
+              )}`,
+            );
 
           const row =
-            data as InventoryRow | null;
+            response.inventory;
 
-          setExistingInventory(row);
+          setExistingInventory(
+            row,
+          );
 
           if (
             row?.location &&
@@ -661,155 +663,57 @@ export default function AddCardsPage() {
     setResult(null);
 
     try {
-      const {
-        data: { user },
-        error: userError,
-      } =
-        await supabase.auth.getUser();
-
-      if (userError || !user) {
-        throw new Error(
-          "Your admin session could not be verified.",
+      const response =
+        await adminFetch<AddInventoryApiResponse>(
+          "/api/admin/inventory/add",
+          {
+            method: "POST",
+            body: JSON.stringify({
+              cardId:
+                String(
+                  selectedCard.id,
+                ),
+              quantity:
+                safeQuantity,
+              location:
+                safeLocation,
+              finish,
+            }),
+          },
         );
-      }
 
-      const {
-        data: currentInventory,
-        error: currentInventoryError,
-      } = await supabase
-        .from("inventory")
-        .select(`
-          id,
-          quantity,
-          location,
-          status,
-          finish
-        `)
-        .eq(
-          "card_id",
-          selectedCard.id,
-        )
-        .eq("finish", finish)
-        .order("created_at", {
-          ascending: true,
-        })
-        .limit(1)
-        .maybeSingle();
-
-      if (currentInventoryError) {
-        throw currentInventoryError;
-      }
-
-      let finalQuantity =
-        safeQuantity;
-
-      let inventoryId = "";
-
-      if (currentInventory) {
-        finalQuantity =
-          toNumber(
-            currentInventory.quantity,
-          ) + safeQuantity;
-
-        inventoryId =
-          currentInventory.id;
-
-        const {
-          error: updateError,
-        } = await supabase
-          .from("inventory")
-          .update({
-            quantity:
-              finalQuantity,
-
-            location:
-              safeLocation,
-
-            status:
-              "in_stock",
-
-            finish,
-
-            added_by:
-              user.email ||
-              "Admin",
-
-            added_by_user_id:
-              user.id,
-          })
-          .eq(
-            "id",
-            currentInventory.id,
-          );
-
-        if (updateError) {
-          throw updateError;
-        }
-      } else {
-        const {
-          data: insertedInventory,
-          error: insertError,
-        } = await supabase
-          .from("inventory")
-          .insert({
-            card_id:
-              selectedCard.id,
-
-            quantity:
-              safeQuantity,
-
-            location:
-              safeLocation,
-
-            status:
-              "in_stock",
-
-            finish,
-
-            added_by:
-              user.email ||
-              "Admin",
-
-            added_by_user_id:
-              user.id,
-          })
-          .select("id")
-          .single();
-
-        if (insertError) {
-          throw insertError;
-        }
-
-        inventoryId =
-          insertedInventory.id;
-      }
+      const added =
+        response.result;
 
       window.localStorage.setItem(
         LAST_LOCATION_KEY,
-        safeLocation,
+        added.location,
       );
 
       setExistingInventory({
-        id: inventoryId,
-        quantity: finalQuantity,
-        location: safeLocation,
-        status: "in_stock",
-        finish,
+        id:
+          added.inventoryId,
+        quantity:
+          added.finalQuantity,
+        location:
+          added.location,
+        status:
+          "in_stock",
+        finish:
+          added.finish,
       });
 
       setResult({
         cardName:
-          selectedCard.name,
-
+          added.cardName,
         quantityAdded:
-          safeQuantity,
-
-        finalQuantity,
-
+          added.quantityAdded,
+        finalQuantity:
+          added.finalQuantity,
         location:
-          safeLocation,
-
-        finish,
+          added.location,
+        finish:
+          added.finish,
       });
 
       setQuantity(1);
@@ -1045,6 +949,31 @@ export default function AddCardsPage() {
                   </span>
 
                   Sync database
+                </Link>
+
+                <Link
+                  href="/admin/sign-in?next=/admin/add"
+                  className="
+                    inline-flex
+                    min-h-14
+                    items-center
+                    justify-center
+                    gap-3
+                    rounded-2xl
+                    border
+                    border-emerald-100/20
+                    bg-black/20
+                    px-6
+                    font-black
+                    text-emerald-50/75
+                    transition
+                    hover:-translate-y-0.5
+                    hover:bg-white/10
+                    hover:text-white
+                  "
+                >
+                  <span>🔐</span>
+                  Admin sign-in
                 </Link>
 
               <button
