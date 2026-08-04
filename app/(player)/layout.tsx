@@ -111,9 +111,15 @@ export default function PlayerLayout({ children }: PlayerLayoutProps) {
     router.replace(`/sign-in?next=${encodeURIComponent(nextPath)}`);
   }, [pathname, router]);
 
-  const loadPlayer = useCallback(async (session: Session) => {
-    setLoading(true);
-    setErrorMessage(null);
+  const loadPlayer = useCallback(
+    async (
+      session: Session,
+      background = false,
+    ) => {
+      if (!background) {
+        setLoading(true);
+        setErrorMessage(null);
+      }
 
     try {
       const [profileResult, walletResult] = await Promise.all([
@@ -209,20 +215,35 @@ export default function PlayerLayout({ children }: PlayerLayoutProps) {
         return;
       }
 
-      setPlayer(null);
-      setErrorMessage(
-        getErrorMessage(error, "The player account could not be loaded."),
-      );
+      if (!background) {
+        setPlayer(null);
+        setErrorMessage(
+          getErrorMessage(
+            error,
+            "The player account could not be loaded.",
+          ),
+        );
+      }
     } finally {
-      if (mountedRef.current) {
+      if (
+        mountedRef.current &&
+        !background
+      ) {
         setLoading(false);
       }
     }
-  }, []);
+  },
+  [],
+);
 
-  const loadCurrentSession = useCallback(async () => {
-    setLoading(true);
-    setErrorMessage(null);
+  const loadCurrentSession = useCallback(
+    async (
+      background = false,
+    ) => {
+      if (!background) {
+        setLoading(true);
+        setErrorMessage(null);
+      }
 
     try {
       const {
@@ -241,7 +262,10 @@ export default function PlayerLayout({ children }: PlayerLayoutProps) {
         return;
       }
 
-      await loadPlayer(session);
+      await loadPlayer(
+        session,
+        background,
+      );
     } catch (error: unknown) {
       console.error("Player session error:", error);
 
@@ -249,13 +273,20 @@ export default function PlayerLayout({ children }: PlayerLayoutProps) {
         return;
       }
 
-      setPlayer(null);
-      setErrorMessage(
-        getErrorMessage(error, "Your session could not be verified."),
-      );
-      setLoading(false);
+      if (!background) {
+        setPlayer(null);
+        setErrorMessage(
+          getErrorMessage(
+            error,
+            "Your session could not be verified.",
+          ),
+        );
+        setLoading(false);
+      }
     }
-  }, [loadPlayer, redirectToSignIn]);
+  },
+  [loadPlayer, redirectToSignIn],
+);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -285,11 +316,11 @@ export default function PlayerLayout({ children }: PlayerLayoutProps) {
     });
 
     const handleProfileUpdated = () => {
-      void loadCurrentSession();
+      void loadCurrentSession(true);
     };
 
     const handleWindowFocus = () => {
-      void loadCurrentSession();
+      void loadCurrentSession(true);
     };
 
     const accountCheckTimer =
@@ -299,10 +330,10 @@ export default function PlayerLayout({ children }: PlayerLayoutProps) {
             document.visibilityState ===
             "visible"
           ) {
-            void loadCurrentSession();
+            void loadCurrentSession(true);
           }
         },
-        20000,
+        60000,
       );
 
     window.addEventListener(
@@ -389,7 +420,7 @@ export default function PlayerLayout({ children }: PlayerLayoutProps) {
         wishBalance={player.wishBalance}
       />
 
-      <main className="relative z-10 min-h-[calc(100dvh-5rem)]">
+      <main className="relative z-10 min-h-[calc(100dvh-5rem)] pb-28 md:pb-0">
         {children}
       </main>
 

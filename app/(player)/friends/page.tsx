@@ -301,7 +301,7 @@ export default function FriendsPage() {
             true,
           );
         },
-        8000,
+        20000,
       );
 
     return () => {
@@ -312,18 +312,65 @@ export default function FriendsPage() {
   }, [loadFriends]);
 
   useEffect(() => {
+    let active = true;
+
     const cleaned =
       query.trim();
 
     if (
-      cleaned.length < 2
+      cleaned.length < 1
     ) {
-      setSearchResults([]);
-      setSearching(false);
-      return;
-    }
+      setSearching(true);
 
-    let active = true;
+      void (async () => {
+        try {
+          const client =
+            supabase as any;
+
+          const {
+            data,
+            error,
+          } =
+            await client.rpc(
+              "search_player_friends",
+              {
+                p_query: "",
+                p_limit: 20,
+              },
+            );
+
+          if (error) {
+            throw error;
+          }
+
+          if (active) {
+            setSearchResults(
+              Array.isArray(data)
+                ? (data as SearchRow[])
+                : [],
+            );
+          }
+        } catch (
+          searchError: unknown
+        ) {
+          if (active) {
+            setErrorMessage(
+              getErrorMessage(
+                searchError,
+              ),
+            );
+          }
+        } finally {
+          if (active) {
+            setSearching(false);
+          }
+        }
+      })();
+
+      return () => {
+        active = false;
+      };
+    }
 
     const timer =
       window.setTimeout(
@@ -380,7 +427,7 @@ export default function FriendsPage() {
             }
           }
         },
-        300,
+        220,
       );
 
     return () => {
@@ -643,7 +690,7 @@ export default function FriendsPage() {
                       .value,
                   )
                 }
-                placeholder="Type at least two characters..."
+                placeholder="Search players or browse suggestions..."
                 className="min-h-14 w-full rounded-2xl border border-white/10 bg-black/20 px-5 pr-14 font-bold text-white outline-none placeholder:text-white/25 focus:border-cyan-200/30"
               />
 
@@ -655,13 +702,7 @@ export default function FriendsPage() {
             </div>
 
             <div className="mt-4 space-y-3">
-              {query.trim().length <
-              2 ? (
-                <PlayerEmptyState
-                  title="Search by username"
-                  description="Friend requests are sent directly to the trainer account you choose."
-                />
-              ) : searchResults.length ===
+              {searchResults.length ===
                 0 &&
                 !searching ? (
                 <PlayerEmptyState
