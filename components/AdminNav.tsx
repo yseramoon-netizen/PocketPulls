@@ -3,11 +3,16 @@
 import Link from "next/link";
 import {
   usePathname,
+  useRouter,
 } from "next/navigation";
 import {
   useEffect,
   useState,
 } from "react";
+
+import {
+  signOutAdmin,
+} from "@/lib/admin/client-auth";
 
 type AdminNavItem = {
   href: string;
@@ -38,8 +43,8 @@ const ADMIN_ITEMS: AdminNavItem[] = [
   },
   {
     href: "/admin/tree",
-    label: "Wallet",
-    shortLabel: "Wallet",
+    label: "The Tree We Grow",
+    shortLabel: "Our Tree",
   },
   {
     href: "/admin/players",
@@ -68,11 +73,42 @@ export default function AdminNav() {
   const pathname =
     usePathname();
 
+  const router =
+    useRouter();
+
   const [
     mobileOpen,
     setMobileOpen,
   ] =
     useState(false);
+
+  const [
+    signingOut,
+    setSigningOut,
+  ] =
+    useState(false);
+
+  async function handleSignOut() {
+    if (signingOut) {
+      return;
+    }
+
+    setSigningOut(true);
+
+    try {
+      await signOutAdmin();
+    } catch (error: unknown) {
+      console.error(
+        "Admin sign-out error:",
+        error,
+      );
+
+      router.replace(
+        "/admin/sign-in",
+      );
+      router.refresh();
+    }
+  }
 
   useEffect(() => {
     setMobileOpen(false);
@@ -267,6 +303,19 @@ export default function AdminNav() {
         <button
           type="button"
           onClick={() =>
+            void handleSignOut()
+          }
+          disabled={signingOut}
+          className="hidden min-h-11 items-center justify-center rounded-xl border border-rose-200/15 bg-rose-300/[0.06] px-4 text-xs font-black text-rose-50/80 transition hover:bg-rose-300/[0.12] disabled:opacity-45 xl:inline-flex"
+        >
+          {signingOut
+            ? "Logging out..."
+            : "Log out"}
+        </button>
+
+        <button
+          type="button"
+          onClick={() =>
             setMobileOpen(
               (current) =>
                 !current,
@@ -359,6 +408,19 @@ export default function AdminNav() {
           >
             Database
           </Link>
+
+          <button
+            type="button"
+            onClick={() =>
+              void handleSignOut()
+            }
+            disabled={signingOut}
+            className="flex min-h-12 items-center justify-center rounded-xl border border-rose-200/15 bg-rose-300/[0.07] px-3 text-sm font-black text-rose-50/80 disabled:opacity-45"
+          >
+            {signingOut
+              ? "Leaving..."
+              : "Log out"}
+          </button>
         </div>
       ) : null}
     </nav>

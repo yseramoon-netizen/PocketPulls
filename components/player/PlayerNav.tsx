@@ -107,12 +107,6 @@ const ALL_ITEMS = [
   PROFILE_ITEM,
 ];
 
-const MOBILE_DOCK_ITEMS = [
-  PRIMARY_ITEMS[0],
-  PRIMARY_ITEMS[2],
-  PRIMARY_ITEMS[3],
-  PRIMARY_ITEMS[4],
-];
 
 const DRAWER_GROUPS: NavGroup[] = [
   {
@@ -913,87 +907,6 @@ export default function PlayerNav({
         </div>
       </header>
 
-      <nav
-        aria-label="Mobile primary navigation"
-        className="
-          fixed
-          inset-x-0
-          bottom-0
-          z-[90]
-          grid
-          grid-cols-5
-          gap-1
-          border-t
-          border-violet-200/15
-          bg-[#080a24]/96
-          px-2
-          pb-[max(0.5rem,env(safe-area-inset-bottom))]
-          pt-1.5
-          shadow-[0_-18px_55px_rgba(0,0,0,0.48)]
-          backdrop-blur-3xl
-          md:hidden
-        "
-      >
-        {MOBILE_DOCK_ITEMS.map(
-          (item) => (
-            <DockLink
-              key={item.href}
-              item={item}
-              active={isActive(
-                pathname,
-                item.href,
-              )}
-            />
-          ),
-        )}
-
-        <button
-          type="button"
-          onClick={() =>
-            setDrawerOpen(true)
-          }
-          className="
-            relative
-            flex
-            min-h-[3.75rem]
-            flex-col
-            items-center
-            justify-center
-            gap-1
-            rounded-[1.15rem]
-            text-white/45
-            transition
-            hover:bg-white/[0.055]
-            hover:text-white
-          "
-        >
-          {rewardReady ? (
-            <span
-              className="
-                absolute
-                right-3
-                top-2
-                h-2
-                w-2
-                animate-pulse
-                rounded-full
-                bg-yellow-200
-              "
-            />
-          ) : null}
-
-          <span
-            aria-hidden="true"
-            className="text-lg font-black"
-          >
-            ☰
-          </span>
-
-          <span className="text-[0.58rem] font-black">
-            Menu
-          </span>
-        </button>
-      </nav>
 
       <div
         className={[

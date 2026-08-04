@@ -41,14 +41,6 @@ type CardFinish =
   | "holo"
   | "reverse_holo";
 
-type InventoryRow = {
-  id: string;
-  quantity: number | string | null;
-  location: string | null;
-  status: string | null;
-  finish: CardFinish | null;
-};
-
 type AddResult = {
   cardName: string;
   quantityAdded: number;
@@ -71,11 +63,6 @@ type AddInventoryApiResponse = {
   };
 };
 
-type InventoryLookupApiResponse = {
-  ok: true;
-  inventory: InventoryRow | null;
-};
-
 type SetOption = {
   setName: string;
   cardCount: number | null;
@@ -84,29 +71,6 @@ type SetOption = {
 type CardSetRpcRow = {
   set_name?: unknown;
   card_count?: unknown;
-};
-
-type ManualCardDraft = {
-  name: string;
-  setName: string;
-  cardNumber: string;
-  rarity: string;
-  imageUrl: string;
-  marketValue: string;
-};
-
-type ManualCardApiResponse = {
-  ok: true;
-  card: AddPageCard;
-};
-
-const EMPTY_MANUAL_CARD: ManualCardDraft = {
-  name: "",
-  setName: "",
-  cardNumber: "",
-  rarity: "",
-  imageUrl: "",
-  marketValue: "",
 };
 
 type FinishOption = {
@@ -386,16 +350,6 @@ export default function AddCardsPage() {
     null,
   );
 
-  const [
-    existingInventory,
-    setExistingInventory,
-  ] = useState<InventoryRow | null>(
-    null,
-  );
-
-  const [checkingStock, setCheckingStock] =
-    useState(false);
-
   const [quantity, setQuantity] =
     useState(1);
 
@@ -407,23 +361,6 @@ export default function AddCardsPage() {
 
   const [adding, setAdding] =
     useState(false);
-
-  const [
-    manualCardOpen,
-    setManualCardOpen,
-  ] = useState(false);
-
-  const [
-    manualCard,
-    setManualCard,
-  ] = useState<ManualCardDraft>(
-    EMPTY_MANUAL_CARD,
-  );
-
-  const [
-    creatingManualCard,
-    setCreatingManualCard,
-  ] = useState(false);
 
   const [error, setError] =
     useState("");
@@ -665,60 +602,6 @@ export default function AddCardsPage() {
     };
   }, [scannerOpen]);
 
-  const loadExistingInventory =
-    useCallback(
-      async (
-        card: AddPageCard,
-        selectedFinish: CardFinish,
-      ) => {
-        setCheckingStock(true);
-        setExistingInventory(null);
-
-        try {
-          const response =
-            await adminFetch<InventoryLookupApiResponse>(
-              `/api/admin/inventory/add?cardId=${encodeURIComponent(
-                String(card.id),
-              )}&finish=${encodeURIComponent(
-                selectedFinish,
-              )}`,
-            );
-
-          const row =
-            response.inventory;
-
-          setExistingInventory(
-            row,
-          );
-
-          if (
-            row?.location &&
-            row.location.trim()
-          ) {
-            setLocation(
-              row.location,
-            );
-          }
-        } catch (
-          inventoryError: unknown
-        ) {
-          console.error(
-            "Inventory lookup error:",
-            inventoryError,
-          );
-
-          setError(
-            inventoryError instanceof Error
-              ? inventoryError.message
-              : "The existing inventory could not be checked.",
-          );
-        } finally {
-          setCheckingStock(false);
-        }
-      },
-      [],
-    );
-
   const selectCard =
     useCallback(
       (
@@ -732,10 +615,6 @@ export default function AddCardsPage() {
         setError("");
         setSearchResults([]);
 
-        void loadExistingInventory(
-          card,
-          "normal",
-        );
 
         if (scrollToForm) {
           window.setTimeout(() => {
@@ -748,7 +627,7 @@ export default function AddCardsPage() {
           }, 100);
         }
       },
-      [loadExistingInventory],
+      [],
     );
 
   useEffect(() => {
@@ -890,23 +769,14 @@ export default function AddCardsPage() {
   ) {
     if (
       adding ||
-      checkingStock ||
       finish === nextFinish
     ) {
       return;
     }
 
     setFinish(nextFinish);
-    setExistingInventory(null);
     setResult(null);
     setError("");
-
-    if (selectedCard) {
-      void loadExistingInventory(
-        selectedCard,
-        nextFinish,
-      );
-    }
   }
 
   function openScanner() {
@@ -988,19 +858,6 @@ export default function AddCardsPage() {
         added.location,
       );
 
-      setExistingInventory({
-        id:
-          added.inventoryId,
-        quantity:
-          added.finalQuantity,
-        location:
-          added.location,
-        status:
-          "in_stock",
-        finish:
-          added.finish,
-      });
-
       setResult({
         cardName:
           added.cardName,
@@ -1033,165 +890,8 @@ export default function AddCardsPage() {
     }
   }
 
-  async function createManualCard(
-    event: FormEvent<HTMLFormElement>,
-  ) {
-    event.preventDefault();
-
-    if (creatingManualCard) {
-      return;
-    }
-
-    const name =
-      manualCard.name.trim();
-
-    const setName =
-      manualCard.setName.trim();
-
-    const cardNumber =
-      manualCard.cardNumber.trim();
-
-    if (
-      !name ||
-      !setName ||
-      !cardNumber
-    ) {
-      setError(
-        "Name, set and collector number are required.",
-      );
-      return;
-    }
-
-    setCreatingManualCard(true);
-    setError("");
-    setResult(null);
-
-    try {
-      const response =
-        await adminFetch<ManualCardApiResponse>(
-          "/api/admin/cards/manual",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type":
-                "application/json",
-            },
-            body: JSON.stringify({
-              name,
-              setName,
-              cardNumber,
-              rarity:
-                manualCard.rarity.trim(),
-              imageUrl:
-                manualCard.imageUrl.trim(),
-              marketValue:
-                manualCard.marketValue,
-            }),
-          },
-        );
-
-      const createdCard =
-        response.card;
-
-      setManualCard(
-        EMPTY_MANUAL_CARD,
-      );
-
-      setManualCardOpen(false);
-      setSearch(createdCard.name);
-      setSelectedSet(
-        createdCard.set_name || "",
-      );
-
-      setSetOptions(
-        (current) => {
-          const createdSet =
-            createdCard.set_name?.trim();
-
-          if (!createdSet) {
-            return current;
-          }
-
-          const existingIndex =
-            current.findIndex(
-              (option) =>
-                option.setName ===
-                createdSet,
-            );
-
-          if (
-            existingIndex === -1
-          ) {
-            return [
-              ...current,
-              {
-                setName:
-                  createdSet,
-                cardCount: 1,
-              },
-            ].sort(
-              (
-                left,
-                right,
-              ) =>
-                left.setName.localeCompare(
-                  right.setName,
-                  "en-GB",
-                  {
-                    sensitivity:
-                      "base",
-                    numeric: true,
-                  },
-                ),
-            );
-          }
-
-          return current.map(
-            (
-              option,
-              index,
-            ) =>
-              index ===
-              existingIndex
-                ? {
-                    ...option,
-                    cardCount:
-                      option.cardCount ===
-                      null
-                        ? null
-                        : option.cardCount +
-                          1,
-                  }
-                : option,
-          );
-        },
-      );
-
-      selectCard(
-        createdCard,
-        true,
-      );
-    } catch (
-      manualError: unknown
-    ) {
-      console.error(
-        "Manual card creation error:",
-        manualError,
-      );
-
-      setError(
-        manualError instanceof Error
-          ? manualError.message
-          : "The missing card could not be created.",
-      );
-    } finally {
-      setCreatingManualCard(false);
-    }
-  }
-
   function clearSelection() {
     setSelectedCard(null);
-    setExistingInventory(null);
     setQuantity(1);
     setFinish("normal");
     setResult(null);
@@ -1405,74 +1105,7 @@ export default function AddCardsPage() {
                   Sync database
                 </Link>
 
-                <button
-                  type="button"
-                  onClick={() =>
-                    setManualCardOpen(
-                      (current) =>
-                        !current,
-                    )
-                  }
-                  className="
-                    inline-flex
-                    min-h-14
-                    items-center
-                    justify-center
-                    gap-3
-                    rounded-2xl
-                    border
-                    border-amber-100/25
-                    bg-amber-200/15
-                    px-6
-                    font-black
-                    text-amber-50
-                    transition
-                    hover:-translate-y-0.5
-                    hover:bg-amber-200/20
-                  "
-                >
-                  <span
-                    className="
-                      flex
-                      h-8
-                      w-8
-                      items-center
-                      justify-center
-                      rounded-xl
-                      bg-amber-950/15
-                      text-lg
-                    "
-                  >
-                    +
-                  </span>
 
-                  Add missing card
-                </button>
-
-                <Link
-                  href="/admin/sign-in?next=/admin/add"
-                  className="
-                    inline-flex
-                    min-h-14
-                    items-center
-                    justify-center
-                    gap-3
-                    rounded-2xl
-                    border
-                    border-emerald-100/20
-                    bg-black/20
-                    px-6
-                    font-black
-                    text-emerald-50/75
-                    transition
-                    hover:-translate-y-0.5
-                    hover:bg-white/10
-                    hover:text-white
-                  "
-                >
-                  <span>🔐</span>
-                  Admin sign-in
-                </Link>
 
               <button
                   type="button"
@@ -1628,255 +1261,6 @@ export default function AddCardsPage() {
                 Add another card
               </button>
             </div>
-          )}
-
-          {manualCardOpen && (
-            <section
-              className="
-                relative
-                mt-8
-                overflow-hidden
-                rounded-[2.5rem]
-                border
-                border-amber-100/20
-                bg-amber-200/[0.075]
-                p-6
-                shadow-[0_30px_100px_rgba(0,0,0,0.28)]
-                backdrop-blur-3xl
-                md:p-8
-              "
-            >
-              <div
-                className="
-                  pointer-events-none
-                  absolute
-                  -right-20
-                  -top-24
-                  h-56
-                  w-56
-                  rounded-full
-                  bg-amber-200/10
-                  blur-[90px]
-                "
-              />
-
-              <div className="relative">
-                <div
-                  className="
-                    flex
-                    flex-col
-                    gap-4
-                    lg:flex-row
-                    lg:items-end
-                    lg:justify-between
-                  "
-                >
-                  <div>
-                    <p
-                      className="
-                        text-xs
-                        font-black
-                        uppercase
-                        tracking-[0.2em]
-                        text-amber-100/55
-                      "
-                    >
-                      Missing catalogue entry
-                    </p>
-
-                    <h2
-                      className="
-                        mt-2
-                        text-3xl
-                        font-black
-                        tracking-tight
-                        text-white
-                      "
-                    >
-                      Add a card manually
-                    </h2>
-
-                    <p
-                      className="
-                        mt-2
-                        max-w-3xl
-                        text-sm
-                        font-semibold
-                        leading-6
-                        text-white/45
-                      "
-                    >
-                      Create the catalogue record first.
-                      The new card is selected immediately,
-                      ready for quantity, finish and storage
-                      location.
-                    </p>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setManualCardOpen(false)
-                    }
-                    disabled={creatingManualCard}
-                    className="
-                      min-h-11
-                      rounded-xl
-                      border
-                      border-white/10
-                      bg-black/20
-                      px-5
-                      text-sm
-                      font-black
-                      text-white/55
-                      transition
-                      hover:bg-white/10
-                      hover:text-white
-                      disabled:opacity-40
-                    "
-                  >
-                    Close
-                  </button>
-                </div>
-
-                <form
-                  onSubmit={createManualCard}
-                  className="
-                    mt-7
-                    grid
-                    gap-4
-                    md:grid-cols-2
-                    xl:grid-cols-3
-                  "
-                >
-                  <ManualField
-                    label="Card name"
-                    required
-                    value={manualCard.name}
-                    onChange={(value) =>
-                      setManualCard(
-                        (current) => ({
-                          ...current,
-                          name: value,
-                        }),
-                      )
-                    }
-                    placeholder="Example: Pikachu ex"
-                  />
-
-                  <ManualField
-                    label="Set"
-                    required
-                    value={manualCard.setName}
-                    onChange={(value) =>
-                      setManualCard(
-                        (current) => ({
-                          ...current,
-                          setName: value,
-                        }),
-                      )
-                    }
-                    placeholder="Example: Surging Sparks"
-                    list="unknown-pulls-set-options"
-                  />
-
-                  <datalist id="unknown-pulls-set-options">
-                    {setOptions.map(
-                      (option) => (
-                        <option
-                          key={option.setName}
-                          value={option.setName}
-                        />
-                      ),
-                    )}
-                  </datalist>
-
-                  <ManualField
-                    label="Collector number"
-                    required
-                    value={manualCard.cardNumber}
-                    onChange={(value) =>
-                      setManualCard(
-                        (current) => ({
-                          ...current,
-                          cardNumber: value,
-                        }),
-                      )
-                    }
-                    placeholder="Example: 238/191"
-                  />
-
-                  <ManualField
-                    label="Rarity"
-                    value={manualCard.rarity}
-                    onChange={(value) =>
-                      setManualCard(
-                        (current) => ({
-                          ...current,
-                          rarity: value,
-                        }),
-                      )
-                    }
-                    placeholder="Example: Special Illustration Rare"
-                  />
-
-                  <ManualField
-                    label="Market value in GBP"
-                    value={manualCard.marketValue}
-                    onChange={(value) =>
-                      setManualCard(
-                        (current) => ({
-                          ...current,
-                          marketValue: value,
-                        }),
-                      )
-                    }
-                    placeholder="Example: 12.50"
-                    inputMode="decimal"
-                  />
-
-                  <ManualField
-                    label="Card image URL"
-                    value={manualCard.imageUrl}
-                    onChange={(value) =>
-                      setManualCard(
-                        (current) => ({
-                          ...current,
-                          imageUrl: value,
-                        }),
-                      )
-                    }
-                    placeholder="https://..."
-                  />
-
-                  <button
-                    type="submit"
-                    disabled={creatingManualCard}
-                    className="
-                      min-h-16
-                      rounded-2xl
-                      border
-                      border-amber-100/30
-                      bg-amber-200
-                      px-6
-                      text-lg
-                      font-black
-                      text-amber-950
-                      shadow-[0_0_36px_rgba(253,230,138,0.12)]
-                      transition
-                      hover:-translate-y-0.5
-                      hover:bg-amber-100
-                      disabled:cursor-not-allowed
-                      disabled:opacity-50
-                    "
-                  >
-                    {creatingManualCard
-                      ? "Creating card..."
-                      : "Create and select card"}
-                  </button>
-                </form>
-              </div>
-            </section>
           )}
 
           <section
@@ -2671,56 +2055,7 @@ export default function AddCardsPage() {
                             : ""}
                         </p>
 
-                        <div
-                          className="
-                            mt-5
-                            rounded-2xl
-                            border
-                            border-white/10
-                            bg-black/15
-                            p-4
-                          "
-                        >
-                          <p
-                            className="
-                              text-xs
-                              font-black
-                              uppercase
-                              tracking-[0.14em]
-                              text-white/35
-                            "
-                          >
-                            Existing{" "}
-                            {getFinishLabel(finish)}{" "}
-                            stock
-                          </p>
 
-                          {checkingStock ? (
-                            <p
-                              className="
-                                mt-2
-                                font-black
-                                text-cyan-100
-                              "
-                            >
-                              Checking inventory...
-                            </p>
-                          ) : (
-                            <p
-                              className="
-                                mt-2
-                                text-xl
-                                font-black
-                              "
-                            >
-                              {existingInventory
-                                ? `${toNumber(
-                                    existingInventory.quantity,
-                                  )} cards`
-                                : "Not currently stocked"}
-                            </p>
-                          )}
-                        </div>
                       </div>
                     </div>
 
@@ -2777,10 +2112,7 @@ export default function AddCardsPage() {
                                       option.value,
                                     )
                                   }
-                                  disabled={
-                                    adding ||
-                                    checkingStock
-                                  }
+                                  disabled={adding}
                                   aria-pressed={
                                     active
                                   }
@@ -3054,10 +2386,7 @@ export default function AddCardsPage() {
 
                       <button
                         type="submit"
-                        disabled={
-                          adding ||
-                          checkingStock
-                        }
+                        disabled={adding}
                         className="
                           mt-7
                           flex
@@ -3089,12 +2418,6 @@ export default function AddCardsPage() {
                             </span>
 
                             Adding to inventory
-                          </>
-                        ) : existingInventory ? (
-                          <>
-                            Add {quantity} more{" "}
-                            {getFinishLabel(finish)}
-                            <span>+</span>
                           </>
                         ) : (
                           <>
@@ -3246,79 +2569,5 @@ export default function AddCardsPage() {
         </div>
       )}
     </>
-  );
-}
-
-function ManualField({
-  label,
-  value,
-  onChange,
-  placeholder,
-  required = false,
-  list,
-  inputMode,
-}: {
-  label: string;
-  value: string;
-  onChange: (
-    value: string,
-  ) => void;
-  placeholder: string;
-  required?: boolean;
-  list?: string;
-  inputMode?:
-    | "text"
-    | "decimal";
-}) {
-  return (
-    <label className="block">
-      <span
-        className="
-          mb-2
-          block
-          text-xs
-          font-black
-          uppercase
-          tracking-[0.14em]
-          text-white/45
-        "
-      >
-        {label}
-        {required ? (
-          <span className="text-amber-200">
-            {" "}
-            *
-          </span>
-        ) : null}
-      </span>
-
-      <input
-        value={value}
-        onChange={(event) =>
-          onChange(
-            event.target.value,
-          )
-        }
-        placeholder={placeholder}
-        required={required}
-        list={list}
-        inputMode={inputMode}
-        className="
-          min-h-16
-          w-full
-          rounded-2xl
-          border
-          border-white/15
-          bg-black/20
-          px-5
-          font-bold
-          text-white
-          outline-none
-          placeholder:text-white/25
-          focus:border-amber-200/45
-          focus:shadow-[0_0_30px_rgba(253,230,138,0.07)]
-        "
-      />
-    </label>
   );
 }

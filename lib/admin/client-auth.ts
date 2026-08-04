@@ -2,6 +2,15 @@
 
 import { supabase } from "@/lib/supabase";
 
+const ADMIN_GATE_KEY =
+  "pocketpulls:shaymin-admin-gate:v8";
+
+export type AdminGate = {
+  userId: string;
+  email: string;
+  verifiedAt: number;
+};
+
 export class AdminClientError extends Error {
   readonly status: number;
   readonly code: string | null;
@@ -18,22 +27,98 @@ export class AdminClientError extends Error {
   }
 }
 
+export function readAdminGate(): AdminGate | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  const stored =
+    window.sessionStorage.getItem(
+      ADMIN_GATE_KEY,
+    );
+
+  if (!stored) {
+    return null;
+  }
+
+  try {
+    const value = JSON.parse(
+      stored,
+    ) as Partial<AdminGate>;
+
+    if (
+      typeof value.userId !== "string" ||
+      !value.userId.trim() ||
+      typeof value.email !== "string" ||
+      !value.email.trim() ||
+      typeof value.verifiedAt !== "number" ||
+      !Number.isFinite(value.verifiedAt)
+    ) {
+      throw new Error(
+        "Invalid admin gate.",
+      );
+    }
+
+    return {
+      userId: value.userId,
+      email: value.email,
+      verifiedAt: value.verifiedAt,
+    };
+  } catch {
+    window.sessionStorage.removeItem(
+      ADMIN_GATE_KEY,
+    );
+    return null;
+  }
+}
+
+export function writeAdminGate(
+  gate: AdminGate,
+): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.sessionStorage.setItem(
+    ADMIN_GATE_KEY,
+    JSON.stringify(gate),
+  );
+}
+
+export function clearAdminGate(): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.sessionStorage.removeItem(
+    ADMIN_GATE_KEY,
+  );
+}
+
 async function getAccessToken(
   forceRefresh = false,
 ): Promise<string> {
+  const gate = readAdminGate();
+
+  if (!gate) {
+    throw new AdminClientError(
+      "Shaymin is locked. Sign in through the admin gateway first.",
+      401,
+      "admin_fresh_login_required",
+    );
+  }
+
   if (forceRefresh) {
     const {
       data,
       error,
-    } =
-      await supabase.auth
-        .refreshSession();
+    } = await supabase.auth.refreshSession();
 
     if (
       error ||
-      !data.session
-        ?.access_token
+      !data.session?.access_token
     ) {
+      clearAdminGate();
       throw new AdminClientError(
         "Your admin session expired. Sign in again.",
         401,
@@ -41,22 +126,31 @@ async function getAccessToken(
       );
     }
 
-    return data.session
-      .access_token;
+    if (
+      data.session.user.id !==
+      gate.userId
+    ) {
+      clearAdminGate();
+      throw new AdminClientError(
+        "The active account changed. Sign in to Shaymin again.",
+        401,
+        "admin_session_changed",
+      );
+    }
+
+    return data.session.access_token;
   }
 
   const {
     data,
     error,
-  } =
-    await supabase.auth
-      .getSession();
+  } = await supabase.auth.getSession();
 
   if (
     error ||
-    !data.session
-      ?.access_token
+    !data.session?.access_token
   ) {
+    clearAdminGate();
     throw new AdminClientError(
       "No active Shaymin administrator session was found. Sign in again.",
       401,
@@ -64,9 +158,21 @@ async function getAccessToken(
     );
   }
 
+  if (
+    data.session.user.id !==
+    gate.userId
+  ) {
+    clearAdminGate();
+    throw new AdminClientError(
+      "The active account no longer matches the administrator who unlocked Shaymin.",
+      401,
+      "admin_session_changed",
+    );
+  }
+
   const expiresAt =
-    typeof data.session
-      .expires_at === "number"
+    typeof data.session.expires_at ===
+      "number"
       ? data.session.expires_at
       : 0;
 
@@ -79,15 +185,13 @@ async function getAccessToken(
     return getAccessToken(true);
   }
 
-  return data.session
-    .access_token;
+  return data.session.access_token;
 }
 
 async function readResponseBody(
   response: Response,
 ): Promise<unknown> {
-  const text =
-    await response.text();
+  const text = await response.text();
 
   if (!text.trim()) {
     return null;
@@ -121,15 +225,13 @@ function extractMessage(
     typeof body === "object" &&
     body !== null
   ) {
-    const record =
-      body as Record<
-        string,
-        unknown
-      >;
+    const record = body as Record<
+      string,
+      unknown
+    >;
 
     const error =
-      typeof record.error ===
-        "object" &&
+      typeof record.error === "object" &&
       record.error !== null
         ? (record.error as Record<
             string,
@@ -138,20 +240,16 @@ function extractMessage(
         : null;
 
     const message =
-      typeof error?.message ===
-        "string"
+      typeof error?.message === "string"
         ? error.message
-        : typeof record.message ===
-            "string"
+        : typeof record.message === "string"
           ? record.message
           : fallback;
 
     const code =
-      typeof error?.code ===
-        "string"
+      typeof error?.code === "string"
         ? error.code
-        : typeof record.code ===
-            "string"
+        : typeof record.code === "string"
           ? record.code
           : null;
 
@@ -171,54 +269,48 @@ export async function adminFetch<T>(
   input: string,
   init: RequestInit = {},
 ): Promise<T> {
-  const makeRequest =
-    async (
-      forceRefresh: boolean,
-    ) => {
-      const token =
-        await getAccessToken(
-          forceRefresh,
-        );
+  const makeRequest = async (
+    forceRefresh: boolean,
+  ) => {
+    const token = await getAccessToken(
+      forceRefresh,
+    );
 
-      const headers =
-        new Headers(init.headers);
+    const headers = new Headers(
+      init.headers,
+    );
 
+    headers.set(
+      "Authorization",
+      `Bearer ${token}`,
+    );
+
+    if (
+      init.body &&
+      !headers.has("Content-Type")
+    ) {
       headers.set(
-        "Authorization",
-        `Bearer ${token}`,
+        "Content-Type",
+        "application/json",
       );
+    }
 
-      if (
-        init.body &&
-        !headers.has(
-          "Content-Type",
-        )
-      ) {
-        headers.set(
-          "Content-Type",
-          "application/json",
-        );
-      }
+    return fetch(input, {
+      ...init,
+      headers,
+      cache: "no-store",
+    });
+  };
 
-      return fetch(input, {
-        ...init,
-        headers,
-        cache: "no-store",
-      });
-    };
-
-  let response =
-    await makeRequest(false);
+  let response = await makeRequest(false);
 
   if (response.status === 401) {
-    response =
-      await makeRequest(true);
+    response = await makeRequest(true);
   }
 
-  const body =
-    await readResponseBody(
-      response,
-    );
+  const body = await readResponseBody(
+    response,
+  );
 
   if (!response.ok) {
     const {
@@ -228,6 +320,10 @@ export async function adminFetch<T>(
       body,
       `Admin request returned HTTP ${response.status}.`,
     );
+
+    if (response.status === 401) {
+      clearAdminGate();
+    }
 
     throw new AdminClientError(
       message,
@@ -239,9 +335,14 @@ export async function adminFetch<T>(
   return body as T;
 }
 
-export async function signOutAdmin() {
-  await supabase.auth.signOut();
-  window.location.assign(
-    "/admin/sign-in",
-  );
+export async function signOutAdmin(): Promise<void> {
+  clearAdminGate();
+
+  try {
+    await supabase.auth.signOut();
+  } finally {
+    window.location.assign(
+      "/admin/sign-in",
+    );
+  }
 }

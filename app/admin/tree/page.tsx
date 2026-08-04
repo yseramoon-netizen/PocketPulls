@@ -3,73 +3,52 @@
 import {
   useCallback,
   useEffect,
-  useMemo,
   useState,
 } from "react";
 
 import AdminNav from "@/components/AdminNav";
 import ForestBackground from "@/components/ForestBackground";
-import { supabase } from "@/lib/supabase";
+import {
+  adminFetch,
+} from "@/lib/admin/client-auth";
 
-type TreeMilestone = {
-  value: number;
-  label: string;
-  reached: boolean;
-  reachedAt: string | null;
+type Branch = {
+  name: string;
+  email: string;
+  cardsPlanted: number;
+  plantingSessions: number;
+  lastPlantedAt: string | null;
 };
 
 type TreeResponse = {
-  success: boolean;
-
-  currentValue: number;
-  peakValue: number;
-  targetValue: number;
-  percentage: number;
-
-  totalUnits: number;
-  uniqueCards: number;
-
-  stage: {
-    value: number;
-    label: string;
+  ok: true;
+  viewerEmail: string;
+  generatedAt: string;
+  tree: {
+    stage: string;
+    growthScore: number;
+    stockCards: number;
+    trainers: number;
+    cardsFound: number;
+    availableWishes: number;
+    wishesSpent: number;
+    valueShared: number;
+    sharedCards: number;
+    branches: Branch[];
   };
-
-  nextMilestone: {
-    value: number;
-    label: string;
-  } | null;
-
-  milestones: TreeMilestone[];
-  updatedAt: string;
-
-  error?: string;
 };
 
-function toNumber(
-  value: unknown,
-): number {
-  const parsed = Number(value);
-
-  return Number.isFinite(parsed)
-    ? parsed
-    : 0;
-}
-
-function clamp(
+function formatNumber(
   value: number,
-  minimum: number,
-  maximum: number,
-): number {
-  return Math.min(
-    maximum,
-    Math.max(
-      minimum,
-      value,
-    ),
+): string {
+  return new Intl.NumberFormat(
+    "en-GB",
+  ).format(
+    Math.max(0, value),
   );
 }
 
-function formatCurrency(
+function formatMoney(
   value: number,
 ): string {
   return new Intl.NumberFormat(
@@ -77,479 +56,146 @@ function formatCurrency(
     {
       style: "currency",
       currency: "GBP",
-
-      maximumFractionDigits:
-        value >= 100_000
-          ? 0
-          : 2,
+      maximumFractionDigits: 2,
     },
-  ).format(value);
+  ).format(
+    Math.max(0, value),
+  );
 }
 
 function formatDate(
   value: string | null,
 ): string {
   if (!value) {
-    return "Still growing";
+    return "No planting recorded yet";
   }
 
-  const date =
-    new Date(value);
+  const date = new Date(value);
 
   if (
-    Number.isNaN(
-      date.getTime(),
-    )
+    Number.isNaN(date.getTime())
   ) {
-    return "Date unavailable";
+    return "Planting date unavailable";
   }
 
   return new Intl.DateTimeFormat(
     "en-GB",
     {
       day: "numeric",
-      month: "long",
+      month: "short",
       year: "numeric",
     },
   ).format(date);
 }
 
-function TreeVisual({
-  progress,
+function Metric({
+  label,
+  value,
+  detail,
 }: {
-  progress: number;
+  label: string;
+  value: string;
+  detail: string;
 }) {
-  const safeProgress =
-    clamp(progress, 0, 1);
+  return (
+    <article className="rounded-[1.75rem] border border-emerald-100/12 bg-[#092219]/78 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] backdrop-blur-2xl">
+      <p className="text-[0.62rem] font-black uppercase tracking-[0.18em] text-emerald-100/38">
+        {label}
+      </p>
 
-  const trunkHeight =
-    70 +
-    safeProgress * 410;
+      <p className="mt-3 text-3xl font-black tracking-tight text-white">
+        {value}
+      </p>
 
-  const trunkTop =
-    530 - trunkHeight;
+      <p className="mt-2 text-xs font-semibold leading-5 text-white/40">
+        {detail}
+      </p>
+    </article>
+  );
+}
 
-  const trunkWidth =
-    28 +
-    safeProgress * 74;
-
-  const branchOpacity =
-    clamp(
-      (safeProgress - 0.1) /
-        0.25,
-      0,
-      1,
-    );
-
-  const canopyOpacity =
-    clamp(
-      (safeProgress - 0.2) /
-        0.35,
-      0,
-      1,
-    );
-
-  const crownOpacity =
-    clamp(
-      (safeProgress - 0.72) /
-        0.28,
-      0,
-      1,
-    );
+function BranchCard({
+  branch,
+  index,
+}: {
+  branch: Branch;
+  index: number;
+}) {
+  const isFirst = index === 0;
 
   return (
-    <div
-      className="
-        relative
-        mx-auto
-        h-[38rem]
-        w-full
-        max-w-3xl
-        overflow-hidden
-        rounded-[2.5rem]
-        border
-        border-emerald-200/10
-        bg-gradient-to-b
-        from-[#03150f]
-        via-[#052e16]
-        to-[#020b08]
-      "
-    >
+    <article className="relative overflow-hidden rounded-[2rem] border border-emerald-100/14 bg-gradient-to-br from-[#0a2a1d]/95 via-[#0b241b]/92 to-[#071812]/95 p-6 shadow-[0_25px_80px_rgba(0,0,0,0.25)]">
       <div
-        className="
-          absolute
-          inset-x-0
-          top-0
-          h-1/2
-          bg-[radial-gradient(circle_at_center,rgba(110,231,183,0.12),transparent_65%)]
-        "
+        className={[
+          "pointer-events-none absolute -right-10 -top-10 h-36 w-36 rounded-full blur-3xl",
+          isFirst
+            ? "bg-lime-300/12"
+            : "bg-pink-300/10",
+        ].join(" ")}
       />
 
-      <div
-        className="
-          absolute
-          bottom-0
-          left-1/2
-          h-20
-          w-[80%]
-          -translate-x-1/2
-          rounded-[50%]
-          bg-black/45
-          blur-sm
-        "
-      />
-
-      <div
-        className="
-          absolute
-          bottom-12
-          left-1/2
-          h-8
-          w-[56%]
-          -translate-x-1/2
-          rounded-[50%]
-          bg-emerald-400/10
-          blur-xl
-        "
-      />
-
-      <div
-        className="
-          absolute
-          left-1/2
-          rounded-t-[45%]
-          rounded-b-[30%]
-          bg-gradient-to-r
-          from-[#3b2114]
-          via-[#8a572d]
-          to-[#2b180f]
-          shadow-[0_0_35px_rgba(74,222,128,0.08)]
-          transition-all
-          duration-1000
-        "
-        style={{
-          bottom: "58px",
-
-          width: `${trunkWidth}px`,
-
-          height: `${trunkHeight}px`,
-
-          transform:
-            "translateX(-50%)",
-        }}
-      />
-
-      <div
-        className="
-          absolute
-          left-1/2
-          h-9
-          w-56
-          origin-right
-          rounded-full
-          bg-gradient-to-r
-          from-[#3b2114]
-          to-[#79502c]
-          transition-opacity
-          duration-1000
-        "
-        style={{
-          bottom:
-            `${Math.max(
-              170,
-              530 -
-                trunkTop *
-                  0.42,
-            )}px`,
-
-          transform:
-            "translateX(-95%) rotate(24deg)",
-
-          opacity:
-            branchOpacity,
-        }}
-      />
-
-      <div
-        className="
-          absolute
-          left-1/2
-          h-9
-          w-56
-          origin-left
-          rounded-full
-          bg-gradient-to-l
-          from-[#3b2114]
-          to-[#79502c]
-          transition-opacity
-          duration-1000
-        "
-        style={{
-          bottom:
-            `${Math.max(
-              200,
-              530 -
-                trunkTop *
-                  0.5,
-            )}px`,
-
-          transform:
-            "translateX(-5%) rotate(-28deg)",
-
-          opacity:
-            branchOpacity,
-        }}
-      />
-
-      <div
-        className="
-          absolute
-          left-1/2
-          h-8
-          w-48
-          origin-right
-          rounded-full
-          bg-gradient-to-r
-          from-[#3b2114]
-          to-[#79502c]
-          transition-opacity
-          duration-1000
-        "
-        style={{
-          bottom:
-            `${Math.max(
-              275,
-              530 -
-                trunkTop *
-                  0.64,
-            )}px`,
-
-          transform:
-            "translateX(-95%) rotate(38deg)",
-
-          opacity:
-            branchOpacity,
-        }}
-      />
-
-      <div
-        className="
-          absolute
-          left-1/2
-          h-8
-          w-48
-          origin-left
-          rounded-full
-          bg-gradient-to-l
-          from-[#3b2114]
-          to-[#79502c]
-          transition-opacity
-          duration-1000
-        "
-        style={{
-          bottom:
-            `${Math.max(
-              300,
-              530 -
-                trunkTop *
-                  0.68,
-            )}px`,
-
-          transform:
-            "translateX(-5%) rotate(-38deg)",
-
-          opacity:
-            branchOpacity,
-        }}
-      />
-
-      <div
-        className="
-          absolute
-          left-[26%]
-          top-[23%]
-          h-48
-          w-48
-          rounded-full
-          bg-emerald-500/75
-          shadow-[0_0_55px_rgba(52,211,153,0.2)]
-          blur-[1px]
-          transition-opacity
-          duration-1000
-        "
-        style={{
-          opacity:
-            canopyOpacity,
-        }}
-      />
-
-      <div
-        className="
-          absolute
-          right-[24%]
-          top-[20%]
-          h-52
-          w-52
-          rounded-full
-          bg-emerald-600/80
-          shadow-[0_0_55px_rgba(52,211,153,0.2)]
-          blur-[1px]
-          transition-opacity
-          duration-1000
-        "
-        style={{
-          opacity:
-            canopyOpacity,
-        }}
-      />
-
-      <div
-        className="
-          absolute
-          left-1/2
-          top-[10%]
-          h-64
-          w-64
-          -translate-x-1/2
-          rounded-full
-          bg-gradient-to-b
-          from-emerald-300/85
-          to-emerald-700/90
-          shadow-[0_0_70px_rgba(110,231,183,0.25)]
-          transition-opacity
-          duration-1000
-        "
-        style={{
-          opacity:
-            canopyOpacity,
-        }}
-      />
-
-      <div
-        className="
-          absolute
-          left-1/2
-          top-[7%]
-          h-40
-          w-40
-          -translate-x-1/2
-          rounded-full
-          bg-yellow-200/35
-          shadow-[0_0_80px_rgba(253,230,138,0.5)]
-          transition-opacity
-          duration-1000
-        "
-        style={{
-          opacity:
-            crownOpacity,
-        }}
-      />
-
-      <div
-        className="
-          absolute
-          bottom-52
-          left-1/2
-          -translate-x-1/2
-          rounded-full
-          border
-          border-amber-100/20
-          bg-[#24150f]/80
-          px-5
-          py-2
-          text-center
-          shadow-xl
-        "
-        style={{
-          opacity:
-            clamp(
-              safeProgress * 4,
-              0,
-              1,
-            ),
-        }}
-      >
-        <p
-          className="
-            text-xs
-            font-black
-            uppercase
-            tracking-[0.2em]
-            text-amber-100
-          "
-        >
-          L + S
-        </p>
-
-        <p
-          className="
-            mt-1
-            text-[0.55rem]
-            font-black
-            uppercase
-            tracking-[0.15em]
-            text-amber-100/55
-          "
-        >
-          PocketPulls
-        </p>
-      </div>
-
-      {safeProgress < 0.1 && (
+      <div className="relative flex items-start gap-4">
         <div
-          className="
-            absolute
-            bottom-16
-            left-1/2
-            -translate-x-1/2
-            text-center
-          "
+          className={[
+            "flex h-14 w-14 flex-none items-center justify-center rounded-2xl border text-2xl",
+            isFirst
+              ? "border-lime-100/20 bg-lime-300/10"
+              : "border-pink-100/20 bg-pink-300/10",
+          ].join(" ")}
         >
-          <div
-            className="
-              mx-auto
-              h-7
-              w-10
-              rounded-[50%]
-              bg-amber-800
-            "
-          />
-
-          <div
-            className="
-              mx-auto
-              -mt-1
-              h-14
-              w-2
-              rounded-full
-              bg-emerald-300
-            "
-          />
+          {isFirst ? "🌱" : "🌸"}
         </div>
-      )}
 
-      <div
-        className="
-          absolute
-          bottom-5
-          left-1/2
-          -translate-x-1/2
-          whitespace-nowrap
-          text-[0.65rem]
-          font-black
-          uppercase
-          tracking-[0.25em]
-          text-emerald-100/30
-        "
-      >
-        
+        <div className="min-w-0">
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-100/35">
+            Keeper of a branch
+          </p>
+
+          <h2 className="mt-1 truncate text-2xl font-black text-white">
+            {branch.name}
+          </h2>
+
+          <p className="mt-1 truncate text-xs font-semibold text-white/32">
+            {branch.email}
+          </p>
+        </div>
       </div>
-    </div>
+
+      <div className="relative mt-6 grid grid-cols-2 gap-3">
+        <div className="rounded-2xl border border-white/8 bg-black/15 p-4">
+          <p className="text-xs font-black text-white/35">
+            Cards planted
+          </p>
+          <p className="mt-2 text-2xl font-black text-emerald-100">
+            {formatNumber(
+              branch.cardsPlanted,
+            )}
+          </p>
+        </div>
+
+        <div className="rounded-2xl border border-white/8 bg-black/15 p-4">
+          <p className="text-xs font-black text-white/35">
+            Planting sessions
+          </p>
+          <p className="mt-2 text-2xl font-black text-cyan-100">
+            {formatNumber(
+              branch.plantingSessions,
+            )}
+          </p>
+        </div>
+      </div>
+
+      <p className="relative mt-4 text-xs font-semibold text-white/35">
+        Last contribution: {formatDate(
+          branch.lastPlantedAt,
+        )}
+      </p>
+    </article>
   );
 }
 
 export default function TreePage() {
-  const [tree, setTree] =
+  const [data, setData] =
     useState<TreeResponse | null>(
       null,
     );
@@ -557,932 +203,224 @@ export default function TreePage() {
   const [loading, setLoading] =
     useState(true);
 
-  const [refreshing, setRefreshing] =
-    useState(false);
-
   const [error, setError] =
     useState("");
 
-  const loadTree =
-    useCallback(
-      async (
-        background = false,
-      ) => {
-        if (background) {
-          setRefreshing(true);
-        } else {
-          setLoading(true);
-        }
+  const loadTree = useCallback(
+    async () => {
+      setLoading(true);
+      setError("");
 
-        setError("");
-
-        try {
-          const {
-            data: { session },
-            error: sessionError,
-          } =
-            await supabase.auth.getSession();
-
-          if (
-            sessionError ||
-            !session?.access_token
-          ) {
-            throw new Error(
-              "Your admin session could not be found.",
-            );
-          }
-
-          const response =
-            await fetch(
-              "/api/tree/progress",
-              {
-                method: "GET",
-
-                headers: {
-                  Authorization:
-                    `Bearer ${session.access_token}`,
-                },
-
-                cache: "no-store",
-              },
-            );
-
-          const responseText =
-            await response.text();
-
-          let payload:
-            TreeResponse;
-
-          try {
-            payload =
-              JSON.parse(
-                responseText,
-              ) as TreeResponse;
-          } catch {
-            console.error(
-              "Invalid tree API response:",
-              responseText,
-            );
-
-            throw new Error(
-              `The tree API returned an invalid response with status ${response.status}. Check the terminal for the server error.`,
-            );
-          }
-
-          if (
-            !response.ok ||
-            !payload.success
-          ) {
-            throw new Error(
-              payload.error ||
-                "The tree could not be loaded.",
-            );
-          }
-
-          setTree(payload);
-        } catch (
-          loadError: unknown
-        ) {
-          console.error(
-            "Tree loading error:",
-            loadError,
+      try {
+        const response =
+          await adminFetch<TreeResponse>(
+            "/api/admin/tree",
           );
 
-          setError(
-            loadError instanceof Error
-              ? loadError.message
-              : "The tree could not be loaded.",
-          );
-        } finally {
-          setLoading(false);
-          setRefreshing(false);
-        }
-      },
-      [],
-    );
+        setData(response);
+      } catch (
+        loadError: unknown
+      ) {
+        setError(
+          loadError instanceof Error
+            ? loadError.message
+            : "The shared tree could not be measured.",
+        );
+      } finally {
+        setLoading(false);
+      }
+    },
+    [],
+  );
 
   useEffect(() => {
-    void loadTree(false);
-
-    const intervalId =
-      window.setInterval(() => {
-        void loadTree(true);
-      }, 60_000);
-
-    function handleVisibility() {
-      if (
-        document.visibilityState ===
-        "visible"
-      ) {
-        void loadTree(true);
-      }
-    }
-
-    document.addEventListener(
-      "visibilitychange",
-      handleVisibility,
-    );
-
-    return () => {
-      window.clearInterval(
-        intervalId,
-      );
-
-      document.removeEventListener(
-        "visibilitychange",
-        handleVisibility,
-      );
-    };
+    void loadTree();
   }, [loadTree]);
 
-  const progress =
-    useMemo(() => {
-      return clamp(
-        toNumber(
-          tree?.percentage,
-        ) / 100,
-        0,
-        1,
-      );
-    }, [tree]);
-
-  const amountToTarget =
-    Math.max(
-      0,
-      toNumber(
-        tree?.targetValue,
-      ) -
-        toNumber(
-          tree?.peakValue,
-        ),
-    );
-
-  const amountToNext =
-    tree?.nextMilestone
-      ? Math.max(
-          0,
-          tree.nextMilestone.value -
-            tree.peakValue,
-        )
-      : 0;
+  const tree = data?.tree;
 
   return (
-    <main
-      className="
-        relative
-        min-h-screen
-        overflow-x-hidden
-        bg-gradient-to-b
-        from-[#010806]
-        via-[#031a12]
-        to-[#020617]
-        px-4
-        pb-24
-        pt-4
-        text-white
-        md:px-8
-        md:pt-8
-      "
-    >
+    <main className="relative min-h-[100dvh] overflow-hidden bg-[#03130d] px-4 py-5 text-white sm:px-6 lg:px-8">
       <ForestBackground />
 
-      <div
-        className="
-          pointer-events-none
-          absolute
-          inset-0
-        "
-      >
-        <div
-          className="
-            absolute
-            left-1/2
-            top-32
-            h-[50rem]
-            w-[50rem]
-            -translate-x-1/2
-            rounded-full
-            bg-emerald-400/[0.08]
-            blur-[170px]
-          "
-        />
+      <div className="pointer-events-none absolute inset-0">
+        <div className="absolute left-1/2 top-32 h-[30rem] w-[30rem] -translate-x-1/2 rounded-full bg-lime-300/8 blur-[140px]" />
       </div>
 
-      <div
-        className="
-          relative
-          z-10
-          mx-auto
-          max-w-[1500px]
-        "
-      >
+      <div className="relative z-10 mx-auto max-w-[1500px]">
         <AdminNav />
 
-        <header
-          className="
-            mt-10
-            text-center
-          "
-        >
-          <p
-            className="
-              text-xs
-              font-black
-              uppercase
-              tracking-[0.3em]
-              text-emerald-200/50
-            "
-          >
-            A hidden place for two founders
-          </p>
+        <header className="relative mt-8 overflow-hidden rounded-[2.75rem] border border-emerald-100/15 bg-[#082219]/88 p-7 shadow-[0_35px_120px_rgba(0,0,0,0.35)] backdrop-blur-3xl sm:p-10">
+          <div className="pointer-events-none absolute -right-20 -top-24 h-72 w-72 rounded-full bg-lime-300/10 blur-[90px]" />
 
-          <h1
-            className="
-              mt-5
-              text-4xl
-              font-black
-              tracking-[-0.05em]
-              md:text-7xl
-            "
-          >
-            The Tree We
-            <span
-              className="
-                text-emerald-300
-              "
-            >
-              {" "}
-              Grow
-            </span>
-          </h1>
+          <div className="relative grid gap-8 lg:grid-cols-[1fr_auto] lg:items-end">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.24em] text-lime-100/45">
+                Lukas &amp; Skye · shared stewardship
+              </p>
 
-          <p
-            className="
-              mx-auto
-              mt-5
-              max-w-3xl
-              text-base
-              font-medium
-              leading-8
-              text-emerald-50/55
-              md:text-lg
-            "
-          >
-            
-          </p>
-        </header>
+              <h1 className="mt-4 max-w-4xl text-4xl font-black tracking-tight text-white sm:text-6xl">
+                The Tree We Grow
+              </h1>
 
-        {error && (
-          <div
-            className="
-              mx-auto
-              mt-8
-              max-w-3xl
-              rounded-[1.75rem]
-              border
-              border-red-300/20
-              bg-red-500/10
-              px-6
-              py-5
-              text-center
-              font-bold
-              text-red-100
-            "
-          >
-            {error}
-          </div>
-        )}
-
-        {loading || !tree ? (
-          <div
-            className="
-              mt-10
-              flex
-              min-h-[38rem]
-              items-center
-              justify-center
-              rounded-[3rem]
-              border
-              border-white/10
-              bg-white/[0.04]
-              backdrop-blur-3xl
-            "
-          >
-            <div className="text-center">
-              <div
-                className="
-                  mx-auto
-                  h-14
-                  w-14
-                  animate-spin
-                  rounded-full
-                  border-4
-                  border-white/10
-                  border-t-emerald-300
-                "
-              />
-
-              <p
-                className="
-                  mt-5
-                  font-black
-                  text-emerald-100
-                "
-              >
-                Listening beneath the soil
+              <p className="mt-5 max-w-3xl text-sm font-semibold leading-7 text-emerald-50/55 sm:text-base">
+                Not a wallet. This is the living record of what you and Skye
+                are building together: every card planted, every trainer
+                reached, and every wish that leaves the forest as something
+                real.
               </p>
             </div>
-          </div>
-        ) : (
-          <>
-            <section
-              className="
-                mt-10
-                grid
-                gap-6
-                xl:grid-cols-[1.15fr_0.85fr]
-              "
+
+            <button
+              type="button"
+              onClick={() =>
+                void loadTree()
+              }
+              disabled={loading}
+              className="min-h-12 rounded-2xl border border-emerald-100/18 bg-emerald-200/[0.08] px-5 text-sm font-black text-emerald-50 transition hover:bg-emerald-200/[0.14] disabled:opacity-45"
             >
-              <div
-                className="
-                  rounded-[3rem]
-                  border
-                  border-emerald-200/15
-                  bg-white/[0.05]
-                  p-4
-                  shadow-[0_50px_160px_rgba(0,0,0,0.5)]
-                  backdrop-blur-3xl
-                  md:p-7
-                "
-              >
-                <TreeVisual
-                  progress={progress}
-                />
+              {loading
+                ? "Reading the rings..."
+                : "Refresh the tree"}
+            </button>
+          </div>
+        </header>
 
-                <div
-                  className="
-                    mt-6
-                    text-center
-                  "
-                >
-                  <p
-                    className="
-                      text-xs
-                      font-black
-                      uppercase
-                      tracking-[0.2em]
-                      text-emerald-200/45
-                    "
-                  >
-                    Current form
-                  </p>
+        {error ? (
+          <div className="mt-6 rounded-2xl border border-red-200/20 bg-red-400/[0.08] px-5 py-4 text-sm font-bold text-red-100">
+            {error}
+          </div>
+        ) : null}
 
-                  <h2
-                    className="
-                      mt-2
-                      text-2xl
-                      font-black
-                      text-emerald-100
-                      md:text-3xl
-                    "
-                  >
-                    {tree.stage.label}
-                  </h2>
-                </div>
-              </div>
+        {tree ? (
+          <>
+            <section className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              <Metric
+                label="Canopy stage"
+                value={tree.stage}
+                detail={`${formatNumber(
+                  tree.growthScore,
+                )} growth rings across the whole project.`}
+              />
 
-              <div className="space-y-6">
-                <section
-                  className="
-                    rounded-[2.5rem]
-                    border
-                    border-white/15
-                    bg-white/[0.075]
-                    p-6
-                    shadow-[0_30px_100px_rgba(0,0,0,0.35)]
-                    backdrop-blur-3xl
-                    md:p-8
-                  "
-                >
-                  <div
-                    className="
-                      flex
-                      items-start
-                      justify-between
-                      gap-5
-                    "
-                  >
-                    <div>
-                      <p
-                        className="
-                          text-xs
-                          font-black
-                          uppercase
-                          tracking-[0.18em]
-                          text-emerald-200/45
-                        "
-                      >
-                        Highest value built
-                      </p>
+              <Metric
+                label="Cards in the roots"
+                value={formatNumber(
+                  tree.stockCards,
+                )}
+                detail="Physical stock currently supporting future pulls."
+              />
 
-                      <p
-                        className="
-                          mt-3
-                          text-4xl
-                          font-black
-                          tracking-tight
-                          text-emerald-200
-                          md:text-5xl
-                        "
-                      >
-                        {formatCurrency(
-                          tree.peakValue,
-                        )}
-                      </p>
-                    </div>
+              <Metric
+                label="Trainers beneath it"
+                value={formatNumber(
+                  tree.trainers,
+                )}
+                detail="Player profiles now connected to the forest."
+              />
 
-                    <button
-                      type="button"
-                      onClick={() =>
-                        void loadTree(
-                          true,
-                        )
-                      }
-                      disabled={
-                        refreshing
-                      }
-                      className="
-                        flex
-                        h-12
-                        w-12
-                        items-center
-                        justify-center
-                        rounded-2xl
-                        border
-                        border-white/10
-                        bg-white/[0.06]
-                        text-xl
-                        text-white/60
-                        transition
-                        hover:bg-white/10
-                        disabled:opacity-40
-                      "
-                    >
-                      <span
-                        className={
-                          refreshing
-                            ? "animate-spin"
-                            : ""
-                        }
-                      >
-                        R
-                      </span>
-                    </button>
-                  </div>
-
-                  <div
-                    className="
-                      mt-7
-                      h-4
-                      overflow-hidden
-                      rounded-full
-                      border
-                      border-white/10
-                      bg-black/30
-                      p-1
-                    "
-                  >
-                    <div
-                      className="
-                        h-full
-                        rounded-full
-                        bg-gradient-to-r
-                        from-emerald-700
-                        via-emerald-300
-                        to-yellow-200
-                        shadow-[0_0_25px_rgba(110,231,183,0.4)]
-                        transition-[width]
-                        duration-1000
-                      "
-                      style={{
-                        width:
-                          `${clamp(
-                            tree.percentage,
-                            0,
-                            100,
-                          )}%`,
-                      }}
-                    />
-                  </div>
-
-                  <div
-                    className="
-                      mt-3
-                      flex
-                      items-center
-                      justify-between
-                      gap-4
-                      text-sm
-                      font-black
-                    "
-                  >
-                    <span
-                      className="
-                        text-white/40
-                      "
-                    >
-                      {tree.percentage.toFixed(
-                        4,
-                      )}
-                      %
-                    </span>
-
-                    <span
-                      className="
-                        text-emerald-100/65
-                      "
-                    >
-                      Goal{" "}
-                      {formatCurrency(
-                        tree.targetValue,
-                      )}
-                    </span>
-                  </div>
-
-                  {tree.nextMilestone ? (
-                    <div
-                      className="
-                        mt-7
-                        rounded-[1.5rem]
-                        border
-                        border-emerald-200/15
-                        bg-emerald-300/[0.06]
-                        p-5
-                      "
-                    >
-                      <p
-                        className="
-                          text-xs
-                          font-black
-                          uppercase
-                          tracking-[0.14em]
-                          text-emerald-200/45
-                        "
-                      >
-                        Next transformation
-                      </p>
-
-                      <p
-                        className="
-                          mt-2
-                          text-lg
-                          font-black
-                          text-emerald-100
-                        "
-                      >
-                        {
-                          tree.nextMilestone
-                            .label
-                        }
-                      </p>
-
-                      <p
-                        className="
-                          mt-2
-                          text-sm
-                          font-semibold
-                          text-white/40
-                        "
-                      >
-                        Another{" "}
-                        {formatCurrency(
-                          amountToNext,
-                        )}{" "}
-                        unlocks the next stage.
-                      </p>
-                    </div>
-                  ) : (
-                    <div
-                      className="
-                        mt-7
-                        rounded-[1.5rem]
-                        border
-                        border-yellow-200/25
-                        bg-yellow-300/10
-                        p-5
-                        text-center
-                      "
-                    >
-                      <p
-                        className="
-                          text-xl
-                          font-black
-                          text-yellow-100
-                        "
-                      >
-                        The World Tree is complete.
-                      </p>
-
-                      <p
-                        className="
-                          mt-2
-                          text-sm
-                          font-semibold
-                          text-yellow-50/55
-                        "
-                      >
-                        Lukas and Skye built a
-                        million pound Pokemon inventory.
-                      </p>
-                    </div>
-                  )}
-                </section>
-
-                <section
-                  className="
-                    grid
-                    gap-4
-                    sm:grid-cols-2
-                  "
-                >
-                  <ValueCard
-                    label="Value today"
-                    value={formatCurrency(
-                      tree.currentValue,
-                    )}
-                    caption="Live inventory value"
-                  />
-
-                  <ValueCard
-                    label="Still to grow"
-                    value={formatCurrency(
-                      amountToTarget,
-                    )}
-                    caption="Until the final crown"
-                  />
-
-                  <ValueCard
-                    label="Physical cards"
-                    value={tree.totalUnits.toLocaleString(
-                      "en-GB",
-                    )}
-                    caption="Units in the vault"
-                  />
-
-                  <ValueCard
-                    label="Unique cards"
-                    value={tree.uniqueCards.toLocaleString(
-                      "en-GB",
-                    )}
-                    caption="Different printings"
-                  />
-                </section>
-              </div>
+              <Metric
+                label="Value already shared"
+                value={formatMoney(
+                  tree.valueShared,
+                )}
+                detail={`${formatNumber(
+                  tree.cardsFound,
+                )} cards have already found a trainer.`}
+              />
             </section>
 
-            <section
-              className="
-                mt-8
-                overflow-hidden
-                rounded-[3rem]
-                border
-                border-white/15
-                bg-white/[0.065]
-                shadow-[0_35px_110px_rgba(0,0,0,0.35)]
-                backdrop-blur-3xl
-              "
-            >
-              <div
-                className="
-                  border-b
-                  border-white/10
-                  p-6
-                  md:p-8
-                "
-              >
-                <p
-                  className="
-                    text-xs
-                    font-black
-                    uppercase
-                    tracking-[0.22em]
-                    text-emerald-200/45
-                  "
-                >
-                  The growth journal
+            <section className="mt-6 grid gap-5 lg:grid-cols-2">
+              {tree.branches.map(
+                (branch, index) => (
+                  <BranchCard
+                    key={branch.email}
+                    branch={branch}
+                    index={index}
+                  />
+                ),
+              )}
+            </section>
+
+            <section className="mt-6 grid gap-5 lg:grid-cols-[1.2fr_0.8fr]">
+              <article className="rounded-[2.25rem] border border-emerald-100/14 bg-[#071d15]/88 p-6 shadow-[0_25px_90px_rgba(0,0,0,0.25)] backdrop-blur-3xl sm:p-8">
+                <p className="text-xs font-black uppercase tracking-[0.2em] text-emerald-100/38">
+                  What the roots are holding
                 </p>
 
-                <h2
-                  className="
-                    mt-2
-                    text-3xl
-                    font-black
-                    tracking-tight
-                  "
-                >
-                  Every stage of the journey
-                </h2>
-              </div>
+                <div className="mt-6 grid gap-4 sm:grid-cols-3">
+                  <div className="rounded-2xl border border-white/8 bg-white/[0.035] p-5">
+                    <p className="text-xs font-bold text-white/38">
+                      Shared planting
+                    </p>
+                    <p className="mt-2 text-3xl font-black text-lime-100">
+                      {formatNumber(
+                        tree.sharedCards,
+                      )}
+                    </p>
+                    <p className="mt-2 text-xs font-semibold leading-5 text-white/30">
+                      Older or unassigned stock belonging to both branches.
+                    </p>
+                  </div>
 
-              <div
-                className="
-                  grid
-                  gap-3
-                  p-4
-                  md:grid-cols-2
-                  md:p-8
-                  xl:grid-cols-3
-                "
-              >
-                {tree.milestones.map(
-                  (
-                    milestone,
-                    index,
-                  ) => (
-                    <article
-                      key={
-                        milestone.value
-                      }
-                      className={`
-                        rounded-[1.75rem]
-                        border
-                        p-5
-                        ${
-                          milestone.reached
-                            ? `
-                              border-emerald-200/20
-                              bg-emerald-300/[0.08]
-                            `
-                            : `
-                              border-white/10
-                              bg-black/15
-                              opacity-60
-                            `
-                        }
-                      `}
-                    >
-                      <span
-                        className={`
-                          flex
-                          h-10
-                          w-10
-                          items-center
-                          justify-center
-                          rounded-xl
-                          text-sm
-                          font-black
-                          ${
-                            milestone.reached
-                              ? `
-                                bg-emerald-300
-                                text-emerald-950
-                              `
-                              : `
-                                border
-                                border-white/10
-                                bg-white/[0.05]
-                                text-white/35
-                              `
-                          }
-                        `}
-                      >
-                        {milestone.reached
-                          ? "OK"
-                          : index + 1}
-                      </span>
+                  <div className="rounded-2xl border border-white/8 bg-white/[0.035] p-5">
+                    <p className="text-xs font-bold text-white/38">
+                      Wishes waiting
+                    </p>
+                    <p className="mt-2 text-3xl font-black text-cyan-100">
+                      {formatNumber(
+                        tree.availableWishes,
+                      )}
+                    </p>
+                    <p className="mt-2 text-xs font-semibold leading-5 text-white/30">
+                      Wishes currently held by trainers across the site.
+                    </p>
+                  </div>
 
-                      <p
-                        className="
-                          mt-5
-                          text-xl
-                          font-black
-                        "
-                      >
-                        {milestone.label}
-                      </p>
+                  <div className="rounded-2xl border border-white/8 bg-white/[0.035] p-5">
+                    <p className="text-xs font-bold text-white/38">
+                      Wishes fulfilled
+                    </p>
+                    <p className="mt-2 text-3xl font-black text-pink-100">
+                      {formatNumber(
+                        tree.wishesSpent,
+                      )}
+                    </p>
+                    <p className="mt-2 text-xs font-semibold leading-5 text-white/30">
+                      The lifetime number of wishes spent by trainers.
+                    </p>
+                  </div>
+                </div>
+              </article>
 
-                      <p
-                        className="
-                          mt-2
-                          font-black
-                          text-emerald-200
-                        "
-                      >
-                        {formatCurrency(
-                          milestone.value,
-                        )}
-                      </p>
+              <aside className="relative overflow-hidden rounded-[2.25rem] border border-lime-100/16 bg-gradient-to-br from-lime-300/[0.09] via-[#0a251a]/92 to-[#071811]/95 p-7 shadow-[0_25px_90px_rgba(0,0,0,0.25)]">
+                <div className="pointer-events-none absolute -bottom-20 -right-20 h-56 w-56 rounded-full bg-lime-300/12 blur-[80px]" />
 
-                      <p
-                        className="
-                          mt-4
-                          text-sm
-                          font-semibold
-                          text-white/40
-                        "
-                      >
-                        {milestone.reached
-                          ? `Reached ${formatDate(
-                              milestone.reachedAt,
-                            )}`
-                          : "Waiting beneath the soil"}
-                      </p>
-                    </article>
-                  ),
-                )}
-              </div>
+                <p className="relative text-xs font-black uppercase tracking-[0.2em] text-lime-100/45">
+                  The promise behind it
+                </p>
+
+                <p className="relative mt-5 text-2xl font-black leading-tight text-white">
+                  Two keepers. One tree. Every branch feeds the same future.
+                </p>
+
+                <p className="relative mt-5 text-sm font-semibold leading-7 text-white/48">
+                  The point is not which of you planted more. The point is that
+                  Lukas and Skye can see the thing you are growing together get
+                  stronger, one real operation at a time.
+                </p>
+              </aside>
             </section>
-
-            <footer
-              className="
-                py-12
-                text-center
-              "
-            >
-              <p
-                className="
-                  text-xl
-                  italic
-                  text-emerald-100/45
-                  md:text-2xl
-                "
-              >
-                
-              </p>
-
-              <p
-                className="
-                  mt-3
-                  text-xs
-                  font-black
-                  uppercase
-                  tracking-[0.28em]
-                  text-white/20
-                "
-              >
-                
-              </p>
-            </footer>
           </>
-        )}
+        ) : loading ? (
+          <section className="mt-6 rounded-[2.25rem] border border-emerald-100/12 bg-[#071d15]/80 p-12 text-center backdrop-blur-3xl">
+            <div className="mx-auto h-10 w-10 animate-spin rounded-full border-2 border-emerald-100/15 border-t-lime-200" />
+            <p className="mt-5 font-black text-white/55">
+              Reading the tree rings...
+            </p>
+          </section>
+        ) : null}
       </div>
     </main>
-  );
-}
-
-function ValueCard({
-  label,
-  value,
-  caption,
-}: {
-  label: string;
-  value: string;
-  caption: string;
-}) {
-  return (
-    <article
-      className="
-        rounded-[1.75rem]
-        border
-        border-white/10
-        bg-white/[0.055]
-        p-5
-        backdrop-blur-2xl
-      "
-    >
-      <p
-        className="
-          text-xs
-          font-black
-          uppercase
-          tracking-[0.14em]
-          text-white/35
-        "
-      >
-        {label}
-      </p>
-
-      <p
-        className="
-          mt-3
-          text-2xl
-          font-black
-          text-white
-        "
-      >
-        {value}
-      </p>
-
-      <p
-        className="
-          mt-2
-          text-sm
-          font-semibold
-          text-white/30
-        "
-      >
-        {caption}
-      </p>
-    </article>
   );
 }

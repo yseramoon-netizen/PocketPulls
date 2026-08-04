@@ -15,6 +15,8 @@ import {
 import ForestBackground from "@/components/ForestBackground";
 import {
   adminFetch,
+  clearAdminGate,
+  writeAdminGate,
 } from "@/lib/admin/client-auth";
 import { supabase } from "@/lib/supabase";
 
@@ -25,9 +27,8 @@ function safeNextPath(
     !value ||
     !value.startsWith("/") ||
     value.startsWith("//") ||
-    !value.startsWith(
-      "/admin",
-    )
+    !value.startsWith("/admin") ||
+    value === "/admin/sign-in"
   ) {
     return "/admin/add";
   }
@@ -50,12 +51,11 @@ function getErrorMessage(
     error !== null &&
     "message" in error
   ) {
-    const message =
-      (
-        error as {
-          message?: unknown;
-        }
-      ).message;
+    const message = (
+      error as {
+        message?: unknown;
+      }
+    ).message;
 
     if (
       typeof message === "string" &&
@@ -70,96 +70,64 @@ function getErrorMessage(
 
 function AdminSignInContent() {
   const router = useRouter();
-  const searchParams =
-    useSearchParams();
+  const searchParams = useSearchParams();
 
-  const nextPath =
-    safeNextPath(
-      searchParams.get("next"),
-    );
-
-  const [
-    email,
-    setEmail,
-  ] = useState(
-    searchParams.get("email") ||
-      "",
+  const nextPath = safeNextPath(
+    searchParams.get("next"),
   );
 
-  const [
-    password,
-    setPassword,
-  ] = useState("");
+  const [email, setEmail] =
+    useState("");
 
-  const [
-    showPassword,
-    setShowPassword,
-  ] = useState(false);
+  const [password, setPassword] =
+    useState("");
 
-  const [
-    checking,
-    setChecking,
-  ] = useState(true);
+  const [showPassword, setShowPassword] =
+    useState(false);
 
-  const [
-    signingIn,
-    setSigningIn,
-  ] = useState(false);
+  const [preparing, setPreparing] =
+    useState(true);
 
-  const [
-    error,
-    setError,
-  ] = useState("");
+  const [signingIn, setSigningIn] =
+    useState(false);
+
+  const [error, setError] =
+    useState("");
 
   useEffect(() => {
     let active = true;
 
-    async function checkExistingSession() {
-      try {
-        await adminFetch(
-          "/api/admin/session",
-        );
+    async function lockBeforeEntry() {
+      clearAdminGate();
 
-        if (!active) {
-          return;
-        }
+      await supabase.auth
+        .signOut()
+        .catch(() => undefined);
 
-        router.replace(
-          nextPath,
-        );
-
-        router.refresh();
-      } catch {
-        if (active) {
-          setChecking(false);
-        }
+      if (active) {
+        setPreparing(false);
       }
     }
 
-    void checkExistingSession();
+    void lockBeforeEntry();
 
     return () => {
       active = false;
     };
-  }, [
-    nextPath,
-    router,
-  ]);
+  }, []);
 
   async function handleSubmit(
-    event:
-      FormEvent<HTMLFormElement>,
+    event: FormEvent<HTMLFormElement>,
   ) {
     event.preventDefault();
 
-    if (signingIn) {
+    if (signingIn || preparing) {
       return;
     }
 
-    const cleanEmail =
-      email
-        .trim()
-        .toLowerCase();
+    const cleanEmail = email
+      .trim()
+      .toLowerCase();
 
     if (!cleanEmail) {
       setError(
@@ -173,19 +141,32 @@ function AdminSignInContent() {
 
     try {
       const {
-        error:
-          signInError,
-      } =
-        await supabase.auth
-          .signInWithPassword({
-            email:
-              cleanEmail,
-            password,
-          });
+        data,
+        error: signInError,
+      } = await supabase.auth
+        .signInWithPassword({
+          email: cleanEmail,
+          password,
+        });
 
-      if (signInError) {
-        throw signInError;
+      if (
+        signInError ||
+        !data.session ||
+        !data.user
+      ) {
+        throw (
+          signInError ||
+          new Error(
+            "Supabase did not return an administrator session.",
+          )
+        );
       }
+
+      writeAdminGate({
+        userId: data.user.id,
+        email: cleanEmail,
+        verifiedAt: Date.now(),
+      });
 
       const session =
         await adminFetch<{
@@ -194,26 +175,20 @@ function AdminSignInContent() {
             userId: string;
             email: string;
           };
-        }>(
-          "/api/admin/session",
-        );
+        }>("/api/admin/session");
 
       if (
+        session.admin.userId !==
+          data.user.id ||
         session.admin.email !==
-        cleanEmail
+          cleanEmail
       ) {
-        await supabase.auth
-          .signOut();
-
         throw new Error(
-          "The verified administrator session did not match the email entered.",
+          "The verified administrator did not match the account entered.",
         );
       }
 
-      router.replace(
-        nextPath,
-      );
-
+      router.replace(nextPath);
       router.refresh();
     } catch (
       signInFailure: unknown
@@ -222,6 +197,8 @@ function AdminSignInContent() {
         "Admin sign-in error:",
         signInFailure,
       );
+
+      clearAdminGate();
 
       await supabase.auth
         .signOut()
@@ -232,29 +209,12 @@ function AdminSignInContent() {
           signInFailure,
         ),
       );
-
       setSigningIn(false);
     }
   }
 
-  if (checking) {
-    return (
-      <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-[#020617] via-[#052e16] to-[#064e3b] px-5 text-white">
-        <ForestBackground />
-
-        <div className="relative z-10 rounded-[2rem] border border-emerald-100/15 bg-black/25 px-8 py-7 text-center backdrop-blur-3xl">
-          <div className="mx-auto h-9 w-9 animate-spin rounded-full border-2 border-emerald-100/20 border-t-emerald-200" />
-
-          <p className="mt-4 text-sm font-black text-emerald-50/70">
-            Checking the forest key...
-          </p>
-        </div>
-      </main>
-    );
-  }
-
   return (
-    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-[#020617] via-[#052e16] to-[#064e3b] px-4 py-12 text-white">
+    <main className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden bg-gradient-to-br from-[#020617] via-[#052e16] to-[#064e3b] px-4 py-12 text-white">
       <ForestBackground />
 
       <div className="pointer-events-none absolute inset-0">
@@ -280,15 +240,14 @@ function AdminSignInContent() {
             </h1>
 
             <p className="mx-auto mt-4 max-w-md text-sm font-semibold leading-7 text-emerald-50/55">
-              Every active Shaymin administrator signs in with their own
-              Supabase email and password.
+              Shaymin always starts locked. Lukas and Skye each enter with
+              their own administrator email and password.
             </p>
           </div>
 
-          <div className="mt-7 rounded-2xl border border-cyan-100/15 bg-cyan-200/[0.06] px-5 py-4 text-sm font-semibold leading-6 text-cyan-50/70">
-            Lukas and Skye can both manage the same admin site. Access is
-            controlled from Shaymin → Player accounts, not by one hardcoded
-            email address.
+          <div className="mt-7 rounded-2xl border border-emerald-100/15 bg-emerald-200/[0.06] px-5 py-4 text-sm font-semibold leading-6 text-emerald-50/70">
+            No saved account is reused here. Opening the Shaymin side signs
+            out any old browser session and requires a fresh admin login.
           </div>
 
           {error ? (
@@ -298,9 +257,7 @@ function AdminSignInContent() {
           ) : null}
 
           <form
-            onSubmit={
-              handleSubmit
-            }
+            onSubmit={handleSubmit}
             className="mt-7 space-y-5"
           >
             <label className="block">
@@ -312,12 +269,10 @@ function AdminSignInContent() {
                 type="email"
                 value={email}
                 onChange={(event) =>
-                  setEmail(
-                    event.target.value,
-                  )
+                  setEmail(event.target.value)
                 }
                 autoComplete="username"
-                disabled={signingIn}
+                disabled={signingIn || preparing}
                 placeholder="you@example.com"
                 className="mt-2 min-h-14 w-full rounded-2xl border border-white/15 bg-black/25 px-5 font-bold text-white outline-none placeholder:text-white/25 focus:border-emerald-200/45 disabled:opacity-50"
               />
@@ -342,7 +297,7 @@ function AdminSignInContent() {
                     )
                   }
                   autoComplete="current-password"
-                  disabled={signingIn}
+                  disabled={signingIn || preparing}
                   className="min-h-14 w-full rounded-2xl border border-white/15 bg-black/25 px-5 pr-20 font-bold text-white outline-none focus:border-emerald-200/45 disabled:opacity-50"
                 />
 
@@ -350,11 +305,11 @@ function AdminSignInContent() {
                   type="button"
                   onClick={() =>
                     setShowPassword(
-                      (current) =>
-                        !current,
+                      (current) => !current,
                     )
                   }
-                  className="absolute inset-y-0 right-0 px-5 text-xs font-black uppercase tracking-[0.12em] text-white/45 hover:text-white"
+                  disabled={preparing}
+                  className="absolute inset-y-0 right-0 px-5 text-xs font-black uppercase tracking-[0.12em] text-white/45 hover:text-white disabled:opacity-40"
                 >
                   {showPassword
                     ? "Hide"
@@ -366,15 +321,18 @@ function AdminSignInContent() {
             <button
               type="submit"
               disabled={
+                preparing ||
                 signingIn ||
                 !email.trim() ||
                 !password
               }
               className="min-h-14 w-full rounded-2xl bg-gradient-to-r from-emerald-300 via-cyan-200 to-lime-200 px-6 text-base font-black text-[#09251a] shadow-[0_18px_55px_rgba(52,211,153,0.18)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-45"
             >
-              {signingIn
-                ? "Verifying administrator..."
-                : "Enter the admin site"}
+              {preparing
+                ? "Locking previous session..."
+                : signingIn
+                  ? "Verifying administrator..."
+                  : "Enter the admin site"}
             </button>
           </form>
 
@@ -412,9 +370,7 @@ function AdminSignInFallback() {
 export default function AdminSignInPage() {
   return (
     <Suspense
-      fallback={
-        <AdminSignInFallback />
-      }
+      fallback={<AdminSignInFallback />}
     >
       <AdminSignInContent />
     </Suspense>
