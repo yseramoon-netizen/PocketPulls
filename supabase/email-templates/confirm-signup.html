@@ -1,21 +1,133 @@
 <!doctype html>
 <html lang="en">
-  <body style="margin:0;background:#040617;color:#ffffff;font-family:Arial,sans-serif;">
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#040617;padding:32px 16px;">
-      <tr><td align="center">
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:620px;border:1px solid rgba(165,243,252,.22);border-radius:24px;background:#090b27;overflow:hidden;">
-          <tr><td style="height:5px;background:linear-gradient(90deg,#fde68a,#a5f3fc,#c4b5fd,#f9a8d4);"></td></tr>
-          <tr><td style="padding:36px;">
-            <p style="margin:0;color:#a5f3fc;font-size:12px;font-weight:800;letter-spacing:2px;text-transform:uppercase;">Unknown Pulls</p>
-            <h1 style="margin:14px 0 0;font-size:30px;line-height:1.2;">Confirm your trainer symbol</h1>
-            <p style="margin:18px 0 0;color:rgba(255,255,255,.66);font-size:15px;line-height:1.7;">Your account is ready to join the constellation. Confirm this email address to connect your wish wallet and physical-card collection.</p>
-            <p style="margin:28px 0 0;">
-              <a href="{{ .ConfirmationURL }}" style="display:inline-block;border-radius:12px;background:#a5f3fc;color:#111329;padding:15px 24px;font-weight:900;text-decoration:none;">Confirm account</a>
-            </p>
-            <p style="margin:28px 0 0;color:rgba(255,255,255,.34);font-size:12px;line-height:1.6;">This message was sent because someone created an Unknown Pulls account using this email address.</p>
-          </td></tr>
-        </table>
-      </td></tr>
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1"
+    />
+    <title>Confirm your Unknown Pulls account</title>
+  </head>
+
+  <body
+    style="
+      margin: 0;
+      padding: 32px 16px;
+      background: #07091f;
+      color: #ffffff;
+      font-family: Arial, Helvetica, sans-serif;
+    "
+  >
+    <table
+      role="presentation"
+      width="100%"
+      cellspacing="0"
+      cellpadding="0"
+      border="0"
+    >
+      <tr>
+        <td align="center">
+          <table
+            role="presentation"
+            width="100%"
+            cellspacing="0"
+            cellpadding="0"
+            border="0"
+            style="
+              max-width: 560px;
+              border: 1px solid rgba(165, 243, 252, 0.18);
+              border-radius: 24px;
+              background: #0b0d2b;
+              overflow: hidden;
+            "
+          >
+            <tr>
+              <td
+                style="
+                  height: 5px;
+                  background: #a5f3fc;
+                "
+              ></td>
+            </tr>
+
+            <tr>
+              <td
+                style="
+                  padding: 36px 30px;
+                  text-align: center;
+                "
+              >
+                <p
+                  style="
+                    margin: 0;
+                    color: #a5f3fc;
+                    font-size: 12px;
+                    font-weight: 800;
+                    letter-spacing: 2px;
+                    text-transform: uppercase;
+                  "
+                >
+                  Unknown Pulls
+                </p>
+
+                <h1
+                  style="
+                    margin: 16px 0 0;
+                    color: #ffffff;
+                    font-size: 30px;
+                    line-height: 1.15;
+                  "
+                >
+                  Confirm your trainer symbol
+                </h1>
+
+                <p
+                  style="
+                    margin: 18px auto 0;
+                    max-width: 430px;
+                    color: #c4c7dc;
+                    font-size: 15px;
+                    line-height: 1.7;
+                  "
+                >
+                  Confirm this email address to finish creating
+                  your Unknown Pulls trainer account.
+                </p>
+
+                <p style="margin: 28px 0 0;">
+                  <a
+                    href="{{ .SiteURL }}/auth/callback?token_hash={{ .TokenHash }}&type=email&next=%2Fwishes"
+                    style="
+                      display: inline-block;
+                      padding: 15px 24px;
+                      border-radius: 14px;
+                      background: #a5f3fc;
+                      color: #111329;
+                      font-size: 15px;
+                      font-weight: 800;
+                      text-decoration: none;
+                    "
+                  >
+                    Confirm email address
+                  </a>
+                </p>
+
+                <p
+                  style="
+                    margin: 24px 0 0;
+                    color: #777b98;
+                    font-size: 12px;
+                    line-height: 1.6;
+                  "
+                >
+                  This link uses the public Site URL configured
+                  in Supabase Authentication settings.
+                </p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
     </table>
   </body>
 </html>

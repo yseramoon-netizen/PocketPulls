@@ -3,11 +3,16 @@
 import Link from "next/link";
 import {
   usePathname,
+  useRouter,
 } from "next/navigation";
 import {
   useEffect,
   useState,
 } from "react";
+
+import {
+  supabase,
+} from "@/lib/supabase";
 
 type AdminNavItem = {
   href: string;
@@ -68,15 +73,54 @@ export default function AdminNav() {
   const pathname =
     usePathname();
 
+  const router =
+    useRouter();
+
   const [
     mobileOpen,
     setMobileOpen,
   ] =
     useState(false);
 
+  const [
+    signingOut,
+    setSigningOut,
+  ] =
+    useState(false);
+
   useEffect(() => {
     setMobileOpen(false);
   }, [pathname]);
+
+  async function handleSignOut() {
+    if (signingOut) {
+      return;
+    }
+
+    setSigningOut(true);
+
+    const {
+      error,
+    } =
+      await supabase.auth
+        .signOut();
+
+    if (error) {
+      console.error(
+        "Admin sign-out failed:",
+        error,
+      );
+
+      setSigningOut(false);
+      return;
+    }
+
+    router.replace(
+      "/admin/sign-in",
+    );
+
+    router.refresh();
+  }
 
   return (
     <nav
@@ -267,6 +311,37 @@ export default function AdminNav() {
         <button
           type="button"
           onClick={() =>
+            void handleSignOut()
+          }
+          disabled={signingOut}
+          className="
+            hidden
+            min-h-11
+            items-center
+            justify-center
+            rounded-xl
+            border
+            border-red-200/15
+            bg-red-400/[0.07]
+            px-4
+            text-xs
+            font-black
+            text-red-100
+            transition
+            hover:bg-red-400/[0.13]
+            disabled:cursor-not-allowed
+            disabled:opacity-40
+            lg:inline-flex
+          "
+        >
+          {signingOut
+            ? "Signing out..."
+            : "Log out"}
+        </button>
+
+        <button
+          type="button"
+          onClick={() =>
             setMobileOpen(
               (current) =>
                 !current,
@@ -359,6 +434,35 @@ export default function AdminNav() {
           >
             Database
           </Link>
+
+          <button
+            type="button"
+            onClick={() =>
+              void handleSignOut()
+            }
+            disabled={signingOut}
+            className="
+              flex
+              min-h-12
+              items-center
+              justify-center
+              rounded-xl
+              border
+              border-red-200/15
+              bg-red-400/[0.08]
+              px-3
+              text-sm
+              font-black
+              text-red-100
+              transition
+              hover:bg-red-400/[0.14]
+              disabled:opacity-40
+            "
+          >
+            {signingOut
+              ? "Signing out..."
+              : "Log out"}
+          </button>
         </div>
       ) : null}
     </nav>

@@ -1,76 +1,140 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import {
+  useRouter,
+} from "next/navigation";
 import {
   useEffect,
   useState,
 } from "react";
+import type {
+  EmailOtpType,
+} from "@supabase/supabase-js";
 
 import AuthLoading from "@/components/auth/AuthLoading";
 import AuthMessage from "@/components/auth/AuthMessage";
 import AuthShell from "@/components/auth/AuthShell";
 import {
-  getAuthErrorDetails,
+  getAuthErrorMessage,
 } from "@/lib/auth/helpers";
 import {
   normaliseNextPath,
 } from "@/lib/auth/navigation";
-import { supabase } from "@/lib/supabase";
+import {
+  supabase,
+} from "@/lib/supabase";
+
+const ALLOWED_EMAIL_TYPES =
+  new Set<EmailOtpType>([
+    "email",
+    "invite",
+    "recovery",
+    "email_change",
+  ]);
+
+function readHashParameters():
+  URLSearchParams {
+  if (
+    typeof window ===
+    "undefined"
+  ) {
+    return new URLSearchParams();
+  }
+
+  return new URLSearchParams(
+    window.location.hash
+      .replace(/^#/, ""),
+  );
+}
+
+function parseEmailType(
+  value:
+    | string
+    | null,
+): EmailOtpType {
+  return value &&
+    ALLOWED_EMAIL_TYPES.has(
+      value as EmailOtpType,
+    )
+    ? (value as EmailOtpType)
+    : "email";
+}
 
 export default function AuthCallbackPage() {
-  const router = useRouter();
+  const router =
+    useRouter();
 
   const [
     errorMessage,
     setErrorMessage,
-  ] = useState<string | null>(null);
-
-  const [
-    technicalMessage,
-    setTechnicalMessage,
-  ] = useState<string | null>(null);
+  ] =
+    useState<string | null>(
+      null,
+    );
 
   useEffect(() => {
     let active = true;
 
     async function complete() {
       try {
-        const query =
+        const search =
           new URLSearchParams(
             window.location.search,
           );
 
-        const fragment =
-          new URLSearchParams(
-            window.location.hash.replace(
-              /^#/,
-              "",
-            ),
-          );
-
-        const code = query.get("code");
+        const hash =
+          readHashParameters();
 
         const nextPath =
           normaliseNextPath(
-            query.get("next"),
+            search.get("next"),
           );
 
         const callbackError =
-          query.get(
+          search.get(
             "error_description",
           ) ||
-          query.get("error") ||
-          fragment.get(
+          search.get("error") ||
+          hash.get(
             "error_description",
           ) ||
-          fragment.get("error");
+          hash.get("error");
 
         if (callbackError) {
-          throw new Error(callbackError);
+          throw new Error(
+            callbackError,
+          );
         }
 
-        if (code) {
+        const tokenHash =
+          search.get(
+            "token_hash",
+          );
+
+        const code =
+          search.get("code");
+
+        if (tokenHash) {
+          const {
+            error,
+          } =
+            await supabase.auth
+              .verifyOtp({
+                token_hash:
+                  tokenHash,
+                type:
+                  parseEmailType(
+                    search.get(
+                      "type",
+                    ),
+                  ),
+              });
+
+          if (error) {
+            throw error;
+          }
+        } else if (code) {
           const {
             error,
           } =
@@ -86,7 +150,8 @@ export default function AuthCallbackPage() {
 
         const {
           data,
-          error: sessionError,
+          error:
+            sessionError,
         } =
           await supabase.auth
             .getSession();
@@ -97,18 +162,21 @@ export default function AuthCallbackPage() {
 
         if (!data.session) {
           throw new Error(
-            "The confirmation link did not create a valid session. It may have expired or the redirect URL is not allowed in Supabase.",
+            "The confirmation link did not create a valid session. It may have expired or already been used.",
           );
         }
 
         const {
           error:
             registrationError,
-        } = await supabase.rpc(
-          "complete_player_registration",
-        );
+        } =
+          await supabase.rpc(
+            "complete_player_registration",
+          );
 
-        if (registrationError) {
+        if (
+          registrationError
+        ) {
           throw registrationError;
         }
 
@@ -123,41 +191,18 @@ export default function AuthCallbackPage() {
         );
 
         router.refresh();
-      } catch (error: unknown) {
+      } catch (
+        error: unknown
+      ) {
         if (!active) {
           return;
         }
 
-        console.error(
-          "Unknown Pulls callback failure:",
-          error,
-        );
-
-        const details =
-          getAuthErrorDetails(
+        setErrorMessage(
+          getAuthErrorMessage(
             error,
             "The account confirmation could not be completed.",
-          );
-
-        setErrorMessage(
-          details.message,
-        );
-
-        setTechnicalMessage(
-          [
-            details.code
-              ? `Code: ${details.code}`
-              : null,
-            details.status
-              ? `Status: ${details.status}`
-              : null,
-            details.details,
-            details.hint,
-            details.rawSummary,
-          ]
-            .filter(Boolean)
-            .join(" | ") ||
-            null,
+          ),
         );
       }
     }
@@ -171,7 +216,9 @@ export default function AuthCallbackPage() {
 
   if (!errorMessage) {
     return (
-      <AuthLoading title="Binding your trainer symbol" />
+      <AuthLoading
+        title="Binding your trainer symbol"
+      />
     );
   }
 
@@ -185,18 +232,6 @@ export default function AuthCallbackPage() {
         <AuthMessage tone="error">
           {errorMessage}
         </AuthMessage>
-
-        {technicalMessage ? (
-          <details className="rounded-xl border border-white/10 bg-black/20 p-4 text-xs text-white/45">
-            <summary className="cursor-pointer font-black text-white/65">
-              Technical details
-            </summary>
-
-            <p className="mt-3 break-words font-mono leading-5">
-              {technicalMessage}
-            </p>
-          </details>
-        ) : null}
 
         <Link
           href="/sign-in"

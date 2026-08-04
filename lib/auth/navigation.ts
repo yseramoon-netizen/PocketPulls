@@ -35,7 +35,7 @@ function normalisePublicOrigin(
   }
 }
 
-function getConfiguredPublicOrigin():
+export function getConfiguredPublicOrigin():
   | string
   | null {
   return (
@@ -100,7 +100,7 @@ export function normaliseNextPath(
 
 export function buildAuthCallbackUrl(
   nextPath: string,
-): string | undefined {
+): string {
   const configuredOrigin =
     getConfiguredPublicOrigin();
 
@@ -111,47 +111,21 @@ export function buildAuthCallbackUrl(
   }
 
   if (
-    typeof window ===
+    typeof window !==
     "undefined"
   ) {
-    return undefined;
+    return `${window.location.origin}/auth/callback?next=${encodeURIComponent(
+      nextPath,
+    )}`;
   }
 
-  const currentOrigin =
-    normalisePublicOrigin(
-      window.location.origin,
-    );
-
-  const hostname =
-    window.location.hostname
-      .trim()
-      .toLowerCase();
-
-  const isLocalHost =
-    hostname === "localhost" ||
-    hostname === "127.0.0.1" ||
-    hostname === "::1";
-
-  /*
-   * When developing locally and no public URL is configured,
-   * omit emailRedirectTo. Supabase will then use the hosted
-   * Site URL configured in Authentication > URL Configuration
-   * instead of emailing a localhost link.
-   */
-  if (isLocalHost) {
-    return undefined;
-  }
-
-  return currentOrigin
-    ? `${currentOrigin}/auth/callback?next=${encodeURIComponent(
-        nextPath,
-      )}`
-    : undefined;
+  return `/auth/callback?next=${encodeURIComponent(
+    nextPath,
+  )}`;
 }
 
 export function buildPasswordRecoveryUrl():
-  | string
-  | undefined {
+  string {
   const configuredOrigin =
     getConfiguredPublicOrigin();
 
@@ -160,25 +134,11 @@ export function buildPasswordRecoveryUrl():
   }
 
   if (
-    typeof window ===
+    typeof window !==
     "undefined"
   ) {
-    return undefined;
+    return `${window.location.origin}/update-password`;
   }
 
-  const hostname =
-    window.location.hostname
-      .trim()
-      .toLowerCase();
-
-  const isLocalHost =
-    hostname === "localhost" ||
-    hostname === "127.0.0.1" ||
-    hostname === "::1";
-
-  if (isLocalHost) {
-    return undefined;
-  }
-
-  return `${window.location.origin}/update-password`;
+  return "/update-password";
 }
