@@ -76,6 +76,16 @@ type InventoryLookupApiResponse = {
   inventory: InventoryRow | null;
 };
 
+type SetOption = {
+  setName: string;
+  cardCount: number | null;
+};
+
+type CardSetRpcRow = {
+  set_name?: unknown;
+  card_count?: unknown;
+};
+
 type FinishOption = {
   value: CardFinish;
   label: string;
@@ -332,6 +342,21 @@ export default function AddCardsPage() {
     useState(false);
 
   const [
+    setOptions,
+    setSetOptions,
+  ] = useState<SetOption[]>([]);
+
+  const [
+    selectedSet,
+    setSelectedSet,
+  ] = useState("");
+
+  const [
+    loadingSets,
+    setLoadingSets,
+  ] = useState(true);
+
+  const [
     selectedCard,
     setSelectedCard,
   ] = useState<AddPageCard | null>(
@@ -389,6 +414,198 @@ export default function AddCardsPage() {
     if (storedLocation) {
       setLocation(storedLocation);
     }
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadSetOptions() {
+      setLoadingSets(true);
+
+      try {
+        const rpcClient =
+          supabase as any;
+
+        const {
+          data: rpcData,
+          error: rpcError,
+        } = await rpcClient.rpc(
+          "get_pokemon_card_sets",
+        );
+
+        if (
+          !rpcError &&
+          Array.isArray(rpcData)
+        ) {
+          const options =
+            (
+              rpcData as CardSetRpcRow[]
+            )
+              .map((row) => {
+                const setName =
+                  typeof row.set_name ===
+                    "string"
+                    ? row.set_name.trim()
+                    : "";
+
+                const parsedCount =
+                  Number(row.card_count);
+
+                return {
+                  setName,
+                  cardCount:
+                    Number.isFinite(
+                      parsedCount,
+                    )
+                      ? parsedCount
+                      : null,
+                };
+              })
+              .filter(
+                (option) =>
+                  option.setName,
+              )
+              .sort((left, right) =>
+                left.setName.localeCompare(
+                  right.setName,
+                  "en-GB",
+                  {
+                    sensitivity: "base",
+                    numeric: true,
+                  },
+                ),
+              );
+
+          if (active) {
+            setSetOptions(options);
+          }
+
+          return;
+        }
+
+        if (rpcError) {
+          console.warn(
+            "Set catalogue RPC unavailable; using paged fallback:",
+            rpcError,
+          );
+        }
+
+        /*
+         * Fallback for projects where the repair
+         * migration has not been run yet. It pages
+         * through only the set_name column and
+         * deduplicates locally.
+         */
+        const setCounts =
+          new Map<string, number>();
+
+        const batchSize = 1000;
+        let offset = 0;
+
+        while (active) {
+          const {
+            data,
+            error: pageError,
+          } = await supabase
+            .from("pokemon_cards")
+            .select("set_name")
+            .not("set_name", "is", null)
+            .range(
+              offset,
+              offset + batchSize - 1,
+            );
+
+          if (pageError) {
+            throw pageError;
+          }
+
+          const rows =
+            (data || []) as Array<{
+              set_name:
+                | string
+                | null;
+            }>;
+
+          for (const row of rows) {
+            const setName =
+              row.set_name?.trim();
+
+            if (!setName) {
+              continue;
+            }
+
+            setCounts.set(
+              setName,
+              (
+                setCounts.get(
+                  setName,
+                ) || 0
+              ) + 1,
+            );
+          }
+
+          if (
+            rows.length < batchSize
+          ) {
+            break;
+          }
+
+          offset += batchSize;
+        }
+
+        if (active) {
+          setSetOptions(
+            Array.from(
+              setCounts.entries(),
+            )
+              .map(
+                ([
+                  setName,
+                  cardCount,
+                ]) => ({
+                  setName,
+                  cardCount,
+                }),
+              )
+              .sort((left, right) =>
+                left.setName.localeCompare(
+                  right.setName,
+                  "en-GB",
+                  {
+                    sensitivity: "base",
+                    numeric: true,
+                  },
+                ),
+              ),
+          );
+        }
+      } catch (
+        setLoadError: unknown
+      ) {
+        console.error(
+          "Card set catalogue error:",
+          setLoadError,
+        );
+
+        if (active) {
+          setError(
+            setLoadError instanceof Error
+              ? setLoadError.message
+              : "The card set list could not be loaded.",
+          );
+        }
+      } finally {
+        if (active) {
+          setLoadingSets(false);
+        }
+      }
+    }
+
+    void loadSetOptions();
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -498,14 +715,24 @@ export default function AddCardsPage() {
     const cleanedSearch =
       cleanSearchValue(search);
 
+    const cleanSelectedSet =
+      selectedSet.trim();
+
     const requestId =
       searchRequestRef.current + 1;
 
     searchRequestRef.current =
       requestId;
 
+    const hasTextSearch =
+      cleanedSearch.length >= 2;
+
+    const hasSetFilter =
+      cleanSelectedSet.length > 0;
+
     if (
-      cleanedSearch.length < 2
+      !hasTextSearch &&
+      !hasSetFilter
     ) {
       setSearchResults([]);
       setSearching(false);
@@ -519,21 +746,52 @@ export default function AddCardsPage() {
           setError("");
 
           try {
+            let query = supabase
+              .from("pokemon_cards")
+              .select(CARD_SELECT);
+
+            if (hasSetFilter) {
+              query = query.eq(
+                "set_name",
+                cleanSelectedSet,
+              );
+            }
+
+            if (hasTextSearch) {
+              const searchParts =
+                hasSetFilter
+                  ? [
+                      `name.ilike.%${cleanedSearch}%`,
+                      `card_no.ilike.%${cleanedSearch}%`,
+                    ]
+                  : [
+                      `name.ilike.%${cleanedSearch}%`,
+                      `set_name.ilike.%${cleanedSearch}%`,
+                      `card_no.ilike.%${cleanedSearch}%`,
+                    ];
+
+              query = query.or(
+                searchParts.join(","),
+              );
+            }
+
             const {
               data,
               error: searchError,
-            } = await supabase
-              .from("pokemon_cards")
-              .select(CARD_SELECT)
-              .or(
-                [
-                  `name.ilike.%${cleanedSearch}%`,
-                  `set_name.ilike.%${cleanedSearch}%`,
-                  `card_no.ilike.%${cleanedSearch}%`,
-                ].join(","),
+            } = await query
+              .order(
+                hasSetFilter
+                  ? "card_no"
+                  : "name",
+                {
+                  ascending: true,
+                },
               )
-              .order("name")
-              .limit(30);
+              .limit(
+                hasSetFilter
+                  ? 120
+                  : 60,
+              );
 
             if (searchError) {
               throw searchError;
@@ -579,13 +837,13 @@ export default function AddCardsPage() {
             }
           }
         },
-        300,
+        260,
       );
 
     return () => {
       window.clearTimeout(timer);
     };
-  }, [search]);
+  }, [search, selectedSet]);
 
   function chooseFinish(
     nextFinish: CardFinish,
@@ -1194,63 +1452,213 @@ export default function AddCardsPage() {
                   number.
                 </p>
 
-                <div className="relative mt-6">
-                  <span
-                    className="
-                      pointer-events-none
-                      absolute
-                      left-5
-                      top-1/2
-                      -translate-y-1/2
-                      text-xl
-                      text-emerald-100/45
-                    "
-                  >
-                    ⌕
-                  </span>
-
-                  <input
-                    value={search}
-                    onChange={(event) =>
-                      setSearch(
-                        event.target.value,
-                      )
-                    }
-                    placeholder="Start typing a card name..."
-                    className="
-                      min-h-16
-                      w-full
-                      rounded-2xl
-                      border
-                      border-white/15
-                      bg-black/20
-                      py-4
-                      pl-14
-                      pr-14
-                      font-bold
-                      text-white
-                      outline-none
-                      placeholder:text-white/25
-                      focus:border-emerald-300/45
-                      focus:shadow-[0_0_30px_rgba(52,211,153,0.08)]
-                    "
-                  />
-
-                  {searching && (
+                <div
+                  className="
+                    mt-6
+                    grid
+                    gap-3
+                    xl:grid-cols-[minmax(0,1fr)_21rem]
+                  "
+                >
+                  <div className="relative">
                     <span
                       className="
+                        pointer-events-none
+                        absolute
+                        left-5
+                        top-1/2
+                        -translate-y-1/2
+                        text-xl
+                        text-emerald-100/45
+                      "
+                    >
+                      ⌕
+                    </span>
+
+                    <input
+                      value={search}
+                      onChange={(event) =>
+                        setSearch(
+                          event.target.value,
+                        )
+                      }
+                      placeholder={
+                        selectedSet
+                          ? `Search within ${selectedSet}...`
+                          : "Start typing a card name..."
+                      }
+                      className="
+                        min-h-16
+                        w-full
+                        rounded-2xl
+                        border
+                        border-white/15
+                        bg-black/20
+                        py-4
+                        pl-14
+                        pr-14
+                        font-bold
+                        text-white
+                        outline-none
+                        placeholder:text-white/25
+                        focus:border-emerald-300/45
+                        focus:shadow-[0_0_30px_rgba(52,211,153,0.08)]
+                      "
+                    />
+
+                    {searching && (
+                      <span
+                        className="
+                          absolute
+                          right-5
+                          top-1/2
+                          -translate-y-1/2
+                          animate-spin
+                          text-emerald-200
+                        "
+                      >
+                        ◌
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="relative">
+                    <span
+                      className="
+                        pointer-events-none
+                        absolute
+                        left-5
+                        top-1/2
+                        -translate-y-1/2
+                        text-lg
+                        text-cyan-100/55
+                      "
+                    >
+                      ◫
+                    </span>
+
+                    <select
+                      value={selectedSet}
+                      onChange={(event) => {
+                        setSelectedSet(
+                          event.target.value,
+                        );
+
+                        setSearchResults([]);
+                        setError("");
+                      }}
+                      disabled={loadingSets}
+                      aria-label="Filter cards by set"
+                      className="
+                        min-h-16
+                        w-full
+                        appearance-none
+                        rounded-2xl
+                        border
+                        border-cyan-100/20
+                        bg-[#061b1b]
+                        py-4
+                        pl-14
+                        pr-12
+                        font-black
+                        text-cyan-50
+                        outline-none
+                        focus:border-cyan-200/45
+                        disabled:cursor-wait
+                        disabled:opacity-50
+                      "
+                    >
+                      <option value="">
+                        {loadingSets
+                          ? "Loading all sets..."
+                          : `All sets (${setOptions.length})`}
+                      </option>
+
+                      {setOptions.map(
+                        (option) => (
+                          <option
+                            key={
+                              option.setName
+                            }
+                            value={
+                              option.setName
+                            }
+                          >
+                            {option.setName}
+                            {option.cardCount !==
+                            null
+                              ? ` (${option.cardCount})`
+                              : ""}
+                          </option>
+                        ),
+                      )}
+                    </select>
+
+                    <span
+                      className="
+                        pointer-events-none
                         absolute
                         right-5
                         top-1/2
                         -translate-y-1/2
-                        animate-spin
-                        text-emerald-200
+                        text-cyan-100/45
                       "
                     >
-                      ◌
+                      ▾
                     </span>
-                  )}
+                  </div>
                 </div>
+
+                {selectedSet && (
+                  <div
+                    className="
+                      mt-3
+                      flex
+                      flex-wrap
+                      items-center
+                      gap-3
+                    "
+                  >
+                    <span
+                      className="
+                        rounded-full
+                        border
+                        border-cyan-100/20
+                        bg-cyan-200/10
+                        px-3
+                        py-1.5
+                        text-xs
+                        font-black
+                        text-cyan-50
+                      "
+                    >
+                      Set: {selectedSet}
+                    </span>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setSelectedSet("")
+                      }
+                      className="
+                        rounded-full
+                        border
+                        border-white/10
+                        bg-white/[0.04]
+                        px-3
+                        py-1.5
+                        text-xs
+                        font-black
+                        text-white/55
+                        transition
+                        hover:bg-white/[0.08]
+                        hover:text-white
+                      "
+                    >
+                      Clear set filter
+                    </button>
+                  </div>
+                )}
               </div>
 
               <div
@@ -1260,7 +1668,8 @@ export default function AddCardsPage() {
                   md:p-6
                 "
               >
-                {search.trim().length < 2 ? (
+                {cleanSearchValue(search).length < 2 &&
+                !selectedSet ? (
                   <div
                     className="
                       flex
@@ -1309,9 +1718,9 @@ export default function AddCardsPage() {
                         text-white/40
                       "
                     >
-                      Enter at least two characters or use
-                      the Scan card button for camera-based
-                      identification.
+                      Enter at least two characters, choose
+                      a set from the dropdown, or use the Scan
+                      card button for camera-based identification.
                     </p>
                   </div>
                 ) : !searching &&
@@ -1349,8 +1758,8 @@ export default function AddCardsPage() {
                         text-white/40
                       "
                     >
-                      Try a Pokémon name, set title or
-                      collector number.
+                      Try another Pokémon name or collector
+                      number, or select a different set.
                     </p>
                   </div>
                 ) : (

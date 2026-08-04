@@ -25,6 +25,13 @@ type InventoryRow = {
   finish?: string | null;
 };
 
+type MasterCardRow = {
+  id: string | number;
+  name: string | null;
+  set_name: string | null;
+  card_no: string | null;
+};
+
 const ALLOWED_FINISHES =
   new Set([
     "normal",
@@ -353,16 +360,24 @@ export async function POST(
       );
     }
 
-    const {
-      data: card,
-      error: cardError,
-    } = await admin
-      .from("pokemon_cards")
-      .select(
-        "id,name,set_name,card_no",
-      )
-      .eq("id", cardId)
-      .maybeSingle();
+    const cardResult =
+      await admin
+        .from("pokemon_cards")
+        .select(
+          "id,name,set_name,card_no",
+        )
+        .eq("id", cardId)
+        .maybeSingle();
+
+    const card =
+      (
+        cardResult.data || null
+      ) as
+        | MasterCardRow
+        | null;
+
+    const cardError =
+      cardResult.error;
 
     if (
       cardError ||
@@ -384,6 +399,12 @@ export async function POST(
         },
       );
     }
+
+    const cardName =
+      typeof card.name === "string" &&
+      card.name.trim()
+        ? card.name.trim()
+        : "Unknown card";
 
     let finishSupported = true;
 
@@ -484,8 +505,12 @@ export async function POST(
       payload:
         Record<string, unknown>,
     ) {
-      return admin
-        .from("inventory")
+      const inventoryTable =
+        admin.from(
+          "inventory",
+        ) as any;
+
+      return inventoryTable
         .update(payload)
         .eq(
           "id",
@@ -497,8 +522,12 @@ export async function POST(
       payload:
         Record<string, unknown>,
     ) {
-      return admin
-        .from("inventory")
+      const inventoryTable =
+        admin.from(
+          "inventory",
+        ) as any;
+
+      return inventoryTable
         .insert({
           card_id: cardId,
           ...payload,
@@ -591,11 +620,13 @@ export async function POST(
      * write audit history must not undo a
      * valid inventory addition.
      */
+    const auditTable =
+      admin.from(
+        "admin_inventory_events",
+      ) as any;
+
     const auditResult =
-      await admin
-        .from(
-          "admin_inventory_events",
-        )
+      await auditTable
         .insert({
           admin_user_id:
             user.id,
@@ -614,7 +645,7 @@ export async function POST(
             "inventory_add",
           metadata: {
             card_name:
-              card.name,
+              cardName,
             location,
           },
         });
@@ -636,9 +667,7 @@ export async function POST(
             String(inventoryId),
           cardId:
             String(cardId),
-          cardName:
-            card.name ||
-            "Unknown card",
+          cardName,
           quantityAdded:
             quantity,
           finalQuantity,

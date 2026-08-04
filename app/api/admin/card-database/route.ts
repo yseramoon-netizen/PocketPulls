@@ -7,8 +7,12 @@ import {
 } from "node:fs/promises";
 import path from "node:path";
 
-import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
+
+import {
+  adminErrorResponse,
+  requireAdmin,
+} from "@/lib/admin/server-auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -25,6 +29,10 @@ const LOCAL_ROOT = path.join(
   "pokemon-tcg-data",
 );
 
+type AdminClient = Awaited<
+  ReturnType<typeof requireAdmin>
+>["admin"];
+
 class HttpError extends Error {
   readonly status: number;
 
@@ -39,7 +47,8 @@ type SyncAction =
   | "prepare_local"
   | "sync_local_file"
   | "complete_local"
-  | "price_batch";
+  | "price_batch"
+  | "pause_prices";
 
 type SyncRequest = {
   action?: unknown;
@@ -147,76 +156,43 @@ type PokemonCardResponse = {
   };
 };
 
+type PokemonCardSearchResponse = {
+  data?: PokemonApiCard[];
+  page?: number;
+  pageSize?: number;
+  count?: number;
+  totalCount?: number;
+  error?: {
+    message?: string;
+    code?: number;
+  };
+};
+
+type PricePassRow = {
+  price_pass_status?: string | null;
+  price_pass_started_at?: string | null;
+  price_pass_updated_at?: string | null;
+  price_pass_completed_at?: string | null;
+  price_pass_total?: number | string | null;
+  price_pass_processed?: number | string | null;
+  price_pass_priced?: number | string | null;
+  price_pass_unpriced?: number | string | null;
+  price_pass_failed?: number | string | null;
+};
+
+type ApplyPriceRefreshBatchRow = {
+  processed_count?: number | string | null;
+  priced_count?: number | string | null;
+  unpriced_count?: number | string | null;
+  failed_count?: number | string | null;
+};
+
 type FxRateResponse = {
   date?: string;
   base?: string;
   quote?: string;
   rate?: number;
 };
-
-function getAdminClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-  if (!url || !serviceKey) {
-    throw new Error(
-      "NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is missing.",
-    );
-  }
-
-  return createClient(url, serviceKey, {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
-    },
-  });
-}
-
-async function requireUser(
-  request: Request,
-  admin: ReturnType<typeof getAdminClient>,
-) {
-  const header = request.headers.get("authorization") || "";
-  const token = header.replace(/^Bearer\s+/i, "").trim();
-
-  if (!token) {
-    throw new HttpError("Missing authentication token.", 401);
-  }
-
-  const {
-    data: { user },
-    error,
-  } = await admin.auth.getUser(token);
-
-  if (error || !user) {
-    console.warn(
-      "Card database authentication rejected:",
-      error?.message || "No authenticated user returned.",
-    );
-
-    throw new HttpError(
-      "Your admin session expired or became invalid.",
-      401,
-    );
-  }
-
-  const allowedEmails = (process.env.ADMIN_EMAILS || "")
-    .split(",")
-    .map((email) => email.trim().toLowerCase())
-    .filter(Boolean);
-
-  if (
-    allowedEmails.length > 0 &&
-    !allowedEmails.includes((user.email || "").toLowerCase())
-  ) {
-    throw new HttpError(
-      "This account is not allowed to run database syncs.",
-      403,
-    );
-  }
-
-  return user;
-}
 
 function getErrorMessage(error: unknown, fallback: string): string {
   if (error instanceof Error && error.message.trim()) {
@@ -247,6 +223,30 @@ function jsonError(
     {
       status: error instanceof HttpError ? error.status : status,
     },
+  );
+}
+
+function routeErrorResponse(
+  error: unknown,
+  fallback: string,
+) {
+  if (error instanceof HttpError) {
+    return jsonError(
+      error,
+      fallback,
+      error.status,
+    );
+  }
+
+  return adminErrorResponse(
+    error instanceof Error
+      ? error
+      : new Error(
+          getErrorMessage(
+            error,
+            fallback,
+          ),
+        ),
   );
 }
 
@@ -595,7 +595,7 @@ function mapLocalCard(
 }
 
 async function updateRunProgress(
-  admin: ReturnType<typeof getAdminClient>,
+  admin: AdminClient,
   runId: string,
   counts: {
     received: number;
@@ -678,7 +678,7 @@ async function fetchFxRate(
 }
 
 async function getRates(
-  admin: ReturnType<typeof getAdminClient>,
+  admin: AdminClient,
 ): Promise<{ usdToGbp: number; eurToGbp: number; date: string }> {
   const { data: stored, error: storedError } = await admin
     .from("card_sync_settings")
@@ -865,7 +865,7 @@ function mapPriceUpdate(
 }
 
 async function prepareLocalSync(
-  admin: ReturnType<typeof getAdminClient>,
+  admin: AdminClient,
   userId: string,
 ) {
   const source = await getLatestSourceState();
@@ -975,7 +975,7 @@ async function prepareLocalSync(
 }
 
 async function syncLocalFile(
-  admin: ReturnType<typeof getAdminClient>,
+  admin: AdminClient,
   body: SyncRequest,
 ) {
   const runId = typeof body.runId === "string" ? body.runId.trim() : "";
@@ -1097,7 +1097,7 @@ async function syncLocalFile(
 }
 
 async function completeLocalSync(
-  admin: ReturnType<typeof getAdminClient>,
+  admin: AdminClient,
   body: SyncRequest,
 ) {
   const runId = typeof body.runId === "string" ? body.runId.trim() : "";
@@ -1159,13 +1159,384 @@ async function completeLocalSync(
   };
 }
 
-async function processPriceBatch(
-  admin: ReturnType<typeof getAdminClient>,
-) {
-  const apiKey = process.env.POKEMON_TCG_API_KEY;
-  const batchSize = apiKey ? 12 : 1;
+function getPriceBatchSize(
+  hasApiKey: boolean,
+): number {
+  return hasApiKey ? 100 : 25;
+}
 
-  const { data: dueRows, error: dueError } = await admin.rpc(
+function buildPriceSearchUrl(
+  ids: string[],
+): string {
+  const safeIds = ids.filter(
+    (id) =>
+      /^[A-Za-z0-9._-]+$/.test(id),
+  );
+
+  if (safeIds.length === 0) {
+    throw new HttpError(
+      "The due price batch contained no valid API IDs.",
+      400,
+    );
+  }
+
+  const query = safeIds
+    .map((id) => `id:"${id}"`)
+    .join(" OR ");
+
+  const url = new URL(
+    "https://api.pokemontcg.io/v2/cards",
+  );
+
+  url.searchParams.set(
+    "q",
+    `(${query})`,
+  );
+
+  url.searchParams.set(
+    "page",
+    "1",
+  );
+
+  url.searchParams.set(
+    "pageSize",
+    String(safeIds.length),
+  );
+
+  url.searchParams.set(
+    "select",
+    "id,tcgplayer,cardmarket",
+  );
+
+  return url.toString();
+}
+
+function createMissingPriceUpdate(
+  id: string,
+) {
+  const now =
+    new Date().toISOString();
+
+  return {
+    api_id: id,
+    has_price: false,
+    market_value: null,
+    price_normal_usd: null,
+    price_holo_usd: null,
+    price_reverse_holo_usd: null,
+    price_cardmarket_eur: null,
+    price_reverse_holo_eur: null,
+    market_value_normal_gbp: null,
+    market_value_holo_gbp: null,
+    market_value_reverse_holo_gbp:
+      null,
+    price_source: null,
+    price_updated_at: null,
+    price_checked_at: now,
+    price_status: "unpriced",
+    price_error: null,
+    price_retry_after: null,
+    tcgplayer_url: null,
+    tcgplayer_updated_at: null,
+    cardmarket_url: null,
+    cardmarket_updated_at: null,
+  };
+}
+
+async function getPricePass(
+  admin: AdminClient,
+): Promise<PricePassRow> {
+  const {
+    data,
+    error,
+  } = await admin
+    .from("card_sync_settings")
+    .select(
+      [
+        "price_pass_status",
+        "price_pass_started_at",
+        "price_pass_updated_at",
+        "price_pass_completed_at",
+        "price_pass_total",
+        "price_pass_processed",
+        "price_pass_priced",
+        "price_pass_unpriced",
+        "price_pass_failed",
+      ].join(","),
+    )
+    .eq("id", 1)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return (data ||
+    {}) as PricePassRow;
+}
+
+async function ensurePricePass(
+  admin: AdminClient,
+  dueCount: number,
+): Promise<PricePassRow> {
+  const current =
+    await getPricePass(admin);
+
+  const status =
+    typeof current.price_pass_status ===
+      "string"
+      ? current.price_pass_status
+      : "idle";
+
+  const total = Math.max(
+    0,
+    Number(
+      current.price_pass_total,
+    ) || 0,
+  );
+
+  const processed = Math.max(
+    0,
+    Number(
+      current.price_pass_processed,
+    ) || 0,
+  );
+
+  const canResume =
+    dueCount > 0 &&
+    total > 0 &&
+    processed < total &&
+    (
+      status === "running" ||
+      status === "paused"
+    );
+
+  if (
+    dueCount === 0 &&
+    total > 0 &&
+    processed >= total
+  ) {
+    return current;
+  }
+
+  if (canResume) {
+    if (status === "paused") {
+      const now =
+        new Date().toISOString();
+
+      const { error } =
+        await admin
+          .from(
+            "card_sync_settings",
+          )
+          .update({
+            price_pass_status:
+              "running",
+            price_pass_updated_at:
+              now,
+            updated_at: now,
+          })
+          .eq("id", 1);
+
+      if (error) {
+        throw error;
+      }
+    }
+
+    return {
+      ...current,
+      price_pass_status:
+        "running",
+    };
+  }
+
+  const now =
+    new Date().toISOString();
+
+  const next: PricePassRow = {
+    price_pass_status:
+      dueCount > 0
+        ? "running"
+        : "completed",
+    price_pass_started_at: now,
+    price_pass_updated_at: now,
+    price_pass_completed_at:
+      dueCount > 0 ? null : now,
+    price_pass_total: dueCount,
+    price_pass_processed: 0,
+    price_pass_priced: 0,
+    price_pass_unpriced: 0,
+    price_pass_failed: 0,
+  };
+
+  const { error } =
+    await admin
+      .from("card_sync_settings")
+      .update({
+        ...next,
+        updated_at: now,
+        ...(dueCount === 0
+          ? {
+              last_price_sync_at:
+                now,
+            }
+          : {}),
+      })
+      .eq("id", 1);
+
+  if (error) {
+    throw error;
+  }
+
+  return next;
+}
+
+async function completePricePass(
+  admin: AdminClient,
+) {
+  const now =
+    new Date().toISOString();
+
+  const { error } =
+    await admin
+      .from("card_sync_settings")
+      .update({
+        price_pass_status:
+          "completed",
+        price_pass_updated_at:
+          now,
+        price_pass_completed_at:
+          now,
+        last_price_sync_at: now,
+        updated_at: now,
+      })
+      .eq("id", 1);
+
+  if (error) {
+    throw error;
+  }
+}
+
+async function pausePricePass(
+  admin: AdminClient,
+) {
+  const now =
+    new Date().toISOString();
+
+  const { error } =
+    await admin
+      .from("card_sync_settings")
+      .update({
+        price_pass_status:
+          "paused",
+        price_pass_updated_at:
+          now,
+        updated_at: now,
+      })
+      .eq("id", 1);
+
+  if (error) {
+    throw error;
+  }
+
+  return getPricePass(admin);
+}
+
+async function getDuePriceCount(
+  admin: AdminClient,
+): Promise<number> {
+  const {
+    data,
+    error,
+  } = await admin.rpc(
+    "get_due_price_card_count",
+  );
+
+  if (error) {
+    throw error;
+  }
+
+  const value =
+    Array.isArray(data)
+      ? data[0]
+      : data;
+
+  if (
+    typeof value === "object" &&
+    value !== null
+  ) {
+    const record =
+      value as Record<
+        string,
+        unknown
+      >;
+
+    return Math.max(
+      0,
+      Number(
+        record
+          .get_due_price_card_count ??
+          Object.values(record)[0],
+      ) || 0,
+    );
+  }
+
+  return Math.max(
+    0,
+    Number(value) || 0,
+  );
+}
+
+async function processPriceBatch(
+  admin: AdminClient,
+) {
+  const apiKey =
+    process.env.POKEMON_TCG_API_KEY;
+
+  const hasApiKey =
+    Boolean(apiKey);
+
+  const batchSize =
+    getPriceBatchSize(
+      hasApiKey,
+    );
+
+  const dueBefore =
+    await getDuePriceCount(admin);
+
+  await ensurePricePass(
+    admin,
+    dueBefore,
+  );
+
+  if (dueBefore === 0) {
+    /*
+     * Keep the completed pass counters visible. A no-work click must not
+     * replace a finished 6,000/6,000 pass with 0/0.
+     */
+    await completePricePass(admin);
+
+    const pricePass =
+      await getPricePass(admin);
+
+    return {
+      processed: 0,
+      priced: 0,
+      unpriced: 0,
+      failed: 0,
+      remaining: 0,
+      done: true,
+      hasPokemonApiKey:
+        hasApiKey,
+      batchSize,
+      pricePass,
+    };
+  }
+
+  const {
+    data: dueRows,
+    error: dueError,
+  } = await admin.rpc(
     "get_due_price_card_ids",
     {
       p_limit: batchSize,
@@ -1177,22 +1548,32 @@ async function processPriceBatch(
     throw dueError;
   }
 
-  const ids = (dueRows || [])
-    .map((row: { api_id?: unknown }) =>
-      typeof row.api_id === "string" ? row.api_id.trim() : "",
-    )
-    .filter(Boolean);
+  const ids: string[] =
+    Array.from(
+      new Set<string>(
+        (
+          (dueRows ||
+            []) as Array<{
+            api_id?: unknown;
+          }>
+        )
+          .map((row) =>
+            typeof row.api_id ===
+              "string"
+              ? row.api_id.trim()
+              : "",
+          )
+          .filter(
+            (id): id is string =>
+              id.length > 0,
+          ),
+      ),
+    );
 
   if (ids.length === 0) {
-    const now = new Date().toISOString();
-
-    await admin
-      .from("card_sync_settings")
-      .update({
-        last_price_sync_at: now,
-        updated_at: now,
-      })
-      .eq("id", 1);
+    await completePricePass(
+      admin,
+    );
 
     return {
       processed: 0,
@@ -1201,173 +1582,257 @@ async function processPriceBatch(
       failed: 0,
       remaining: 0,
       done: true,
-      hasPokemonApiKey: Boolean(apiKey),
+      hasPokemonApiKey:
+        hasApiKey,
+      batchSize,
+      pricePass:
+        await getPricePass(
+          admin,
+        ),
     };
   }
 
-  const rates = await getRates(admin);
-  let priced = 0;
-  let unpriced = 0;
-  let failed = 0;
+  const rates =
+    await getRates(admin);
 
-  for (const id of ids) {
-    try {
-      const headers: Record<string, string> = {
-        Accept: "application/json",
-      };
+  const headers:
+    Record<string, string> = {
+      Accept: "application/json",
+    };
 
-      if (apiKey) {
-        headers["X-Api-Key"] = apiKey;
-      }
+  if (apiKey) {
+    headers["X-Api-Key"] =
+      apiKey;
+  }
 
-      const response = await fetchWithRetry(
-        `https://api.pokemontcg.io/v2/cards/${encodeURIComponent(id)}`,
-        {
-          headers,
-        },
-        4,
+  const response =
+    await fetchWithRetry(
+      buildPriceSearchUrl(ids),
+      {
+        headers,
+      },
+      4,
+    );
+
+  const rawText =
+    await response.text();
+
+  let body:
+    | PokemonCardSearchResponse
+    | null = null;
+
+  try {
+    body =
+      JSON.parse(
+        rawText,
+      ) as PokemonCardSearchResponse;
+  } catch {
+    body = null;
+  }
+
+  if (
+    !response.ok ||
+    !Array.isArray(body?.data)
+  ) {
+    throw new Error(
+      body?.error?.message ||
+        rawText.trim() ||
+        `Pokemon TCG API returned ${response.status} for a ${ids.length}-card price batch.`,
+    );
+  }
+
+  const cardsById =
+    new Map<string, PokemonApiCard>();
+
+  for (const card of body.data) {
+    if (
+      typeof card.id === "string" &&
+      card.id.trim()
+    ) {
+      cardsById.set(
+        card.id.trim(),
+        card,
       );
+    }
+  }
 
-      const body = (await response.json()) as PokemonCardResponse;
+  const updates =
+    ids.map((id) => {
+      const card =
+        cardsById.get(id);
 
-      if (!response.ok || !body.data) {
-        throw new Error(
-          body.error?.message ||
-            `Pokemon TCG API returned ${response.status} for ${id}.`,
+      if (!card) {
+        return createMissingPriceUpdate(
+          id,
         );
       }
 
-      const update = mapPriceUpdate(
-        body.data,
+      const {
+        hasPrice,
+        ...priceUpdate
+      } = mapPriceUpdate(
+        card,
         rates.usdToGbp,
         rates.eurToGbp,
       );
 
-      const {
-        hasPrice,
-        ...pricePayload
-      } = update;
-
-      const updatePayload: Record<string, unknown> = {
-        price_checked_at: pricePayload.price_checked_at,
-        price_status: pricePayload.price_status,
-        price_error: null,
-        price_retry_after: null,
-        tcgplayer_url: pricePayload.tcgplayer_url,
-        tcgplayer_updated_at:
-          pricePayload.tcgplayer_updated_at,
-        cardmarket_url: pricePayload.cardmarket_url,
-        cardmarket_updated_at:
-          pricePayload.cardmarket_updated_at,
+      return {
+        api_id: id,
+        has_price: hasPrice,
+        ...priceUpdate,
       };
+    });
 
-      if (hasPrice) {
-        Object.assign(updatePayload, pricePayload);
-      }
-
-      const { error: updateError } = await admin
-        .from("pokemon_cards")
-        .update(updatePayload)
-        .eq("api_id", id);
-
-      if (updateError) {
-        throw updateError;
-      }
-
-      if (hasPrice) {
-        priced += 1;
-      } else {
-        unpriced += 1;
-      }
-    } catch (error: unknown) {
-      failed += 1;
-
-      const checkedAt = new Date();
-      const retryAt = new Date(checkedAt.getTime() + 60 * 60 * 1000);
-
-      await admin
-        .from("pokemon_cards")
-        .update({
-          price_checked_at: checkedAt.toISOString(),
-          price_status: "failed",
-          price_error: getErrorMessage(
-            error,
-            "Price request failed.",
-          ).slice(0, 500),
-          price_retry_after: retryAt.toISOString(),
-        })
-        .eq("api_id", id);
-    }
-
-    if (!apiKey) {
-      await new Promise((resolve) => setTimeout(resolve, 2200));
-    }
-  }
-
-  const { data: statsData, error: statsError } = await admin.rpc(
-    "get_card_database_tracker_stats",
+  const {
+    data: applyData,
+    error: applyError,
+  } = await admin.rpc(
+    "apply_price_refresh_batch",
+    {
+      p_updates: updates,
+    },
   );
 
-  if (statsError) {
-    throw statsError;
+  if (applyError) {
+    throw applyError;
   }
 
-  const stats = Array.isArray(statsData) ? statsData[0] : statsData;
-  const remaining = Math.max(0, Number(stats?.due_price_cards) || 0);
-  const done = remaining === 0;
-  const now = new Date().toISOString();
+  const rawApplyRow =
+    Array.isArray(applyData)
+      ? applyData[0]
+      : applyData;
 
-  const settingsUpdate: Record<string, unknown> = {
-    updated_at: now,
-  };
+  const applyRow:
+    | ApplyPriceRefreshBatchRow
+    | null =
+    typeof rawApplyRow === "object" &&
+    rawApplyRow !== null
+      ? (
+          rawApplyRow as
+            ApplyPriceRefreshBatchRow
+        )
+      : null;
+
+  const processed =
+    Math.max(
+      0,
+      Number(
+        applyRow?.processed_count,
+      ) || 0,
+    );
+
+  const priced =
+    Math.max(
+      0,
+      Number(
+        applyRow?.priced_count,
+      ) || 0,
+    );
+
+  const unpriced =
+    Math.max(
+      0,
+      Number(
+        applyRow?.unpriced_count,
+      ) || 0,
+    );
+
+  const failed =
+    Math.max(
+      0,
+      Number(
+        applyRow?.failed_count,
+      ) || 0,
+    );
+
+  const remaining =
+    await getDuePriceCount(
+      admin,
+    );
+
+  const done =
+    remaining === 0;
 
   if (done) {
-    settingsUpdate.last_price_sync_at = now;
-  }
-
-  const { error: settingsError } = await admin
-    .from("card_sync_settings")
-    .update(settingsUpdate)
-    .eq("id", 1);
-
-  if (settingsError) {
-    throw settingsError;
+    await completePricePass(
+      admin,
+    );
   }
 
   return {
-    processed: ids.length,
+    processed,
     priced,
     unpriced,
     failed,
     remaining,
     done,
-    hasPokemonApiKey: Boolean(apiKey),
+    hasPokemonApiKey:
+      hasApiKey,
+    batchSize,
     rates,
+    pricePass:
+      await getPricePass(
+        admin,
+      ),
   };
 }
 
 export async function GET(request: Request) {
   try {
-    const admin = getAdminClient();
-    await requireUser(request, admin);
+    const {
+      admin,
+    } = await requireAdmin(request);
 
-    const [statsResult, runResult, fileResult] = await Promise.all([
-      admin.rpc("get_card_database_tracker_stats"),
+    const [
+      statsResult,
+      runResult,
+      fileResult,
+      settingsResult,
+    ] = await Promise.all([
+      admin.rpc(
+        "get_card_database_tracker_stats",
+      ),
+
       admin
         .from("card_sync_runs")
         .select(
           "id,mode,status,current_page,total_pages,cards_received,cards_inserted,cards_updated,cards_skipped,error_message,started_at,completed_at",
         )
-        .order("started_at", { ascending: false })
+        .order("started_at", {
+          ascending: false,
+        })
         .limit(12),
+
       admin
         .from("card_sync_files")
         .select(
           "file_path,remote_sha,source_commit_sha,card_count,inserted_count,updated_count,skipped_count,last_error,last_synced_at",
         )
         .eq("source", SOURCE_NAME)
-        .order("last_synced_at", { ascending: false })
+        .order("last_synced_at", {
+          ascending: false,
+        })
         .limit(12),
+
+      admin
+        .from(
+          "card_sync_settings",
+        )
+        .select(
+          [
+            "price_pass_status",
+            "price_pass_started_at",
+            "price_pass_updated_at",
+            "price_pass_completed_at",
+            "price_pass_total",
+            "price_pass_processed",
+            "price_pass_priced",
+            "price_pass_unpriced",
+            "price_pass_failed",
+          ].join(","),
+        )
+        .eq("id", 1)
+        .maybeSingle(),
     ]);
 
     if (statsResult.error) {
@@ -1382,20 +1847,59 @@ export async function GET(request: Request) {
       throw fileResult.error;
     }
 
+    if (settingsResult.error) {
+      throw settingsResult.error;
+    }
+
     return NextResponse.json({
-      stats: Array.isArray(statsResult.data)
-        ? statsResult.data[0] || null
-        : statsResult.data,
-      runs: runResult.data || [],
-      recentFiles: fileResult.data || [],
-      hasPokemonApiKey: Boolean(process.env.POKEMON_TCG_API_KEY),
-      hasGithubToken: Boolean(process.env.GITHUB_TOKEN),
-      localPath: LOCAL_ROOT,
-      sourceRepository: `https://github.com/${REPOSITORY}`,
-      pkmnCardsReference: "https://pkmncards.com/",
+      stats:
+        Array.isArray(
+          statsResult.data,
+        )
+          ? statsResult.data[0] ||
+            null
+          : statsResult.data,
+
+      pricePass:
+        settingsResult.data ||
+        null,
+
+      runs:
+        runResult.data || [],
+
+      recentFiles:
+        fileResult.data || [],
+
+      hasPokemonApiKey:
+        Boolean(
+          process.env
+            .POKEMON_TCG_API_KEY,
+        ),
+
+      priceBatchSize:
+        getPriceBatchSize(
+          Boolean(
+            process.env
+              .POKEMON_TCG_API_KEY,
+          ),
+        ),
+
+      hasGithubToken:
+        Boolean(
+          process.env.GITHUB_TOKEN,
+        ),
+
+      localPath:
+        LOCAL_ROOT,
+
+      sourceRepository:
+        `https://github.com/${REPOSITORY}`,
+
+      pkmnCardsReference:
+        "https://pkmncards.com/",
     });
   } catch (error: unknown) {
-    return jsonError(
+    return routeErrorResponse(
       error,
       "Card database status could not be loaded.",
     );
@@ -1404,37 +1908,67 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const admin = getAdminClient();
-    const user = await requireUser(request, admin);
-    const body = (await request.json()) as SyncRequest;
-    const action = body.action as SyncAction;
+    const {
+      admin,
+      user,
+    } = await requireAdmin(
+      request,
+    );
+
+    const body =
+      (await request.json()) as SyncRequest;
+
+    const action =
+      body.action as SyncAction;
 
     switch (action) {
       case "prepare_local":
         return NextResponse.json(
-          await prepareLocalSync(admin, user.id),
+          await prepareLocalSync(
+            admin,
+            user.id,
+          ),
         );
 
       case "sync_local_file":
         return NextResponse.json(
-          await syncLocalFile(admin, body),
+          await syncLocalFile(
+            admin,
+            body,
+          ),
         );
 
       case "complete_local":
         return NextResponse.json(
-          await completeLocalSync(admin, body),
+          await completeLocalSync(
+            admin,
+            body,
+          ),
         );
 
       case "price_batch":
         return NextResponse.json(
-          await processPriceBatch(admin),
+          await processPriceBatch(
+            admin,
+          ),
         );
 
+      case "pause_prices":
+        return NextResponse.json({
+          pricePass:
+            await pausePricePass(
+              admin,
+            ),
+        });
+
       default:
-        throw new HttpError("Unknown card database action.", 400);
+        throw new HttpError(
+          "Unknown card database action.",
+          400,
+        );
     }
   } catch (error: unknown) {
-    return jsonError(
+    return routeErrorResponse(
       error,
       "The card database action failed.",
     );

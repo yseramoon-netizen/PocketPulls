@@ -10,7 +10,7 @@ import {
 
 import AdminNav from "@/components/AdminNav";
 import ForestBackground from "@/components/ForestBackground";
-import { supabase } from "@/lib/supabase";
+import { adminFetch } from "@/lib/admin/client-auth";
 
 type TrackerStats = {
   total_cards: number | string | null;
@@ -63,8 +63,22 @@ type SourceFile = {
   size: number;
 };
 
+type PricePass = {
+  price_pass_status: string | null;
+  price_pass_started_at: string | null;
+  price_pass_updated_at: string | null;
+  price_pass_completed_at: string | null;
+  price_pass_total: number | string | null;
+  price_pass_processed: number | string | null;
+  price_pass_priced: number | string | null;
+  price_pass_unpriced: number | string | null;
+  price_pass_failed: number | string | null;
+};
+
 type StatusResponse = {
   stats: TrackerStats | null;
+  pricePass: PricePass | null;
+  priceBatchSize: number;
   runs: SyncRun[];
   recentFiles: TrackedFile[];
   hasPokemonApiKey: boolean;
@@ -107,6 +121,8 @@ type PriceResponse = {
   remaining: number;
   done: boolean;
   hasPokemonApiKey: boolean;
+  batchSize: number;
+  pricePass: PricePass;
   error?: string;
 };
 
@@ -122,11 +138,15 @@ type LocalProgress = {
 };
 
 type PriceProgress = {
+  status: string;
+  total: number;
   processed: number;
   priced: number;
   unpriced: number;
   failed: number;
   remaining: number;
+  startedAt: string | null;
+  updatedAt: string | null;
 };
 
 const EMPTY_LOCAL_PROGRESS: LocalProgress = {
@@ -141,11 +161,15 @@ const EMPTY_LOCAL_PROGRESS: LocalProgress = {
 };
 
 const EMPTY_PRICE_PROGRESS: PriceProgress = {
+  status: "idle",
+  total: 0,
   processed: 0,
   priced: 0,
   unpriced: 0,
   failed: 0,
   remaining: 0,
+  startedAt: null,
+  updatedAt: null,
 };
 
 function toNumber(value: unknown): number {
@@ -179,6 +203,64 @@ function formatDateTime(value: string | null | undefined): string {
   }).format(date);
 }
 
+function normalisePricePass(
+  pass: PricePass | null | undefined,
+  fallbackRemaining = 0,
+): PriceProgress {
+  const total = Math.max(
+    0,
+    toNumber(pass?.price_pass_total),
+  );
+
+  const processed = Math.min(
+    total || Number.MAX_SAFE_INTEGER,
+    Math.max(
+      0,
+      toNumber(
+        pass?.price_pass_processed,
+      ),
+    ),
+  );
+
+  return {
+    status:
+      pass?.price_pass_status ||
+      "idle",
+    total,
+    processed,
+    priced: Math.max(
+      0,
+      toNumber(
+        pass?.price_pass_priced,
+      ),
+    ),
+    unpriced: Math.max(
+      0,
+      toNumber(
+        pass?.price_pass_unpriced,
+      ),
+    ),
+    failed: Math.max(
+      0,
+      toNumber(
+        pass?.price_pass_failed,
+      ),
+    ),
+    remaining: Math.max(
+      0,
+      total > 0
+        ? total - processed
+        : fallbackRemaining,
+    ),
+    startedAt:
+      pass?.price_pass_started_at ||
+      null,
+    updatedAt:
+      pass?.price_pass_updated_at ||
+      null,
+  };
+}
+
 function getErrorMessage(value: unknown, fallback: string): string {
   if (
     typeof value === "object" &&
@@ -204,6 +286,7 @@ export default function CardDatabasePage() {
   const [runs, setRuns] = useState<SyncRun[]>([]);
   const [recentFiles, setRecentFiles] = useState<TrackedFile[]>([]);
   const [hasPokemonApiKey, setHasPokemonApiKey] = useState(false);
+  const [priceBatchSize, setPriceBatchSize] = useState(25);
   const [hasGithubToken, setHasGithubToken] = useState(false);
   const [localPath, setLocalPath] = useState("");
   const [sourceRepository, setSourceRepository] = useState("");
@@ -232,139 +315,79 @@ export default function CardDatabasePage() {
     );
   }, []);
 
-  const getToken = useCallback(
-    async (forceRefresh = false): Promise<string> => {
-      if (forceRefresh) {
-        const { data, error } = await supabase.auth.refreshSession();
-
-        if (error || !data.session?.access_token) {
-          throw new Error(
-            "Your admin session expired. Sign out and sign in again.",
-          );
-        }
-
-        return data.session.access_token;
-      }
-
-      const {
-        data: { session },
-        error,
-      } = await supabase.auth.getSession();
-
-      if (error || !session?.access_token) {
-        throw new Error("Your admin session could not be verified.");
-      }
-
-      const expiresAt =
-        typeof session.expires_at === "number" ? session.expires_at : 0;
-
-      if (
-        expiresAt > 0 &&
-        expiresAt * 1000 <= Date.now() + 120_000
-      ) {
-        const { data, error: refreshError } =
-          await supabase.auth.refreshSession();
-
-        if (refreshError || !data.session?.access_token) {
-          throw new Error(
-            "Your admin session expired. Sign out and sign in again.",
-          );
-        }
-
-        return data.session.access_token;
-      }
-
-      return session.access_token;
-    },
-    [],
-  );
-
-  const authenticatedFetch = useCallback(
-    async (
-      input: RequestInfo | URL,
-      init: RequestInit = {},
-    ): Promise<Response> => {
-      const makeRequest = async (forceRefresh: boolean) => {
-        const token = await getToken(forceRefresh);
-        const headers = new Headers(init.headers);
-        headers.set("Authorization", `Bearer ${token}`);
-
-        return fetch(input, {
-          ...init,
-          headers,
-          cache: "no-store",
-        });
-      };
-
-      let response = await makeRequest(false);
-
-      if (response.status === 401) {
-        addLog("Session refreshed; retrying the same database action.");
-        response = await makeRequest(true);
-      }
-
-      return response;
-    },
-    [addLog, getToken],
-  );
-
   const postAction = useCallback(
-    async <T,>(body: Record<string, unknown>): Promise<T> => {
-      const response = await authenticatedFetch(
+    async <T,>(
+      body: Record<string, unknown>,
+    ): Promise<T> => {
+      return adminFetch<T>(
         "/api/admin/card-database",
         {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
           body: JSON.stringify(body),
         },
       );
-
-      const data = (await response.json()) as T & { error?: string };
-
-      if (!response.ok) {
-        throw new Error(
-          data.error || "The database action was rejected.",
-        );
-      }
-
-      return data;
     },
-    [authenticatedFetch],
+    [],
   );
 
   const loadStatus = useCallback(async () => {
     setLoadingStatus(true);
 
     try {
-      const response = await authenticatedFetch(
-        "/api/admin/card-database",
-      );
-      const body = (await response.json()) as StatusResponse;
-
-      if (!response.ok) {
-        throw new Error(
-          body.error || "Database status could not be loaded.",
+      const body =
+        await adminFetch<StatusResponse>(
+          "/api/admin/card-database",
         );
-      }
 
       setStats(body.stats);
       setRuns(body.runs || []);
-      setRecentFiles(body.recentFiles || []);
-      setHasPokemonApiKey(body.hasPokemonApiKey);
-      setHasGithubToken(body.hasGithubToken);
-      setLocalPath(body.localPath || "");
-      setSourceRepository(body.sourceRepository || "");
-      setPkmnCardsReference(body.pkmnCardsReference || "");
+      setRecentFiles(
+        body.recentFiles || [],
+      );
+      setHasPokemonApiKey(
+        body.hasPokemonApiKey,
+      );
+      setPriceBatchSize(
+        Math.max(
+          1,
+          toNumber(
+            body.priceBatchSize,
+          ) || 25,
+        ),
+      );
+      setHasGithubToken(
+        body.hasGithubToken,
+      );
+      setLocalPath(
+        body.localPath || "",
+      );
+      setSourceRepository(
+        body.sourceRepository || "",
+      );
+      setPkmnCardsReference(
+        body.pkmnCardsReference || "",
+      );
+
+      setPriceProgress(
+        normalisePricePass(
+          body.pricePass,
+          toNumber(
+            body.stats
+              ?.due_price_cards,
+          ),
+        ),
+      );
     } catch (error: unknown) {
       setErrorMessage(
-        getErrorMessage(error, "Database status could not be loaded."),
+        getErrorMessage(
+          error,
+          "Database status could not be loaded.",
+        ),
       );
     } finally {
       setLoadingStatus(false);
     }
-  }, [authenticatedFetch]);
+  }, []);
 
   useEffect(() => {
     void loadStatus();
@@ -490,7 +513,10 @@ export default function CardDatabasePage() {
   ]);
 
   const refreshDuePrices = useCallback(async () => {
-    if (syncingLocal || syncingPrices) {
+    if (
+      syncingLocal ||
+      syncingPrices
+    ) {
       return;
     }
 
@@ -498,77 +524,141 @@ export default function CardDatabasePage() {
     setSyncingPrices(true);
     setErrorMessage(null);
     setSuccessMessage(null);
-    setPriceProgress({
-      ...EMPTY_PRICE_PROGRESS,
-      remaining: Math.max(0, toNumber(stats?.due_price_cards)),
-    });
 
     try {
-      let aggregate: PriceProgress = {
-        ...EMPTY_PRICE_PROGRESS,
-        remaining: Math.max(0, toNumber(stats?.due_price_cards)),
-      };
-      let sessionProcessed = 0;
-      const sessionLimit = hasPokemonApiKey ? 600 : 30;
+      let aggregate =
+        priceProgress;
 
       addLog(
-        hasPokemonApiKey
-          ? "Refreshing only missing or seven-day-old prices in tracked batches."
-          : "No Pokemon API key found. Refreshing one due card at a time safely.",
+        aggregate.processed > 0 &&
+        aggregate.remaining > 0
+          ? `Resuming the saved price pass at ${formatNumber(
+              aggregate.processed,
+            )}/${formatNumber(
+              aggregate.total,
+            )}.`
+          : hasPokemonApiKey
+            ? `Starting fast price refresh in ${formatNumber(
+                priceBatchSize,
+              )}-card API batches.`
+            : `Starting tracked price refresh in ${formatNumber(
+                priceBatchSize,
+              )}-card API batches with public rate-limit spacing.`,
       );
 
-      while (!stopPricesRef.current && sessionProcessed < sessionLimit) {
-        const result = await postAction<PriceResponse>({
-          action: "price_batch",
-        });
+      while (
+        !stopPricesRef.current
+      ) {
+        const result =
+          await postAction<PriceResponse>({
+            action: "price_batch",
+          });
 
-        setHasPokemonApiKey(result.hasPokemonApiKey);
-
-        aggregate = {
-          processed: aggregate.processed + result.processed,
-          priced: aggregate.priced + result.priced,
-          unpriced: aggregate.unpriced + result.unpriced,
-          failed: aggregate.failed + result.failed,
-          remaining: result.remaining,
-        };
-        sessionProcessed += result.processed;
-        setPriceProgress(aggregate);
-
-        addLog(
-          `Price batch: ${result.priced} priced, ${result.unpriced} without market data, ` +
-            `${result.failed} deferred after errors, ${result.remaining} currently due.`,
+        setHasPokemonApiKey(
+          result.hasPokemonApiKey,
         );
 
-        if (result.done || result.processed === 0) {
+        setPriceBatchSize(
+          Math.max(
+            1,
+            result.batchSize || 1,
+          ),
+        );
+
+        aggregate = {
+          ...normalisePricePass(
+            result.pricePass,
+            result.remaining,
+          ),
+          remaining:
+            result.remaining,
+        };
+
+        setPriceProgress(
+          aggregate,
+        );
+
+        addLog(
+          `Fast batch: ${result.processed} checked in one API request; ` +
+            `${result.priced} priced, ${result.unpriced} without source pricing, ` +
+            `${formatNumber(
+              aggregate.processed,
+            )}/${formatNumber(
+              aggregate.total,
+            )} saved.`,
+        );
+
+        if (
+          result.done ||
+          result.processed === 0
+        ) {
           setSuccessMessage(
-            `Price tracker is current. ${formatNumber(aggregate.priced)} cards received prices ` +
-              `and ${formatNumber(aggregate.unpriced)} were confirmed without source pricing.`,
+            `Price pass completed. ${formatNumber(
+              aggregate.processed,
+            )} cards were checked, ${formatNumber(
+              aggregate.priced,
+            )} received prices and ${formatNumber(
+              aggregate.unpriced,
+            )} had no current source value.`,
           );
+
           break;
         }
 
-        if (!result.hasPokemonApiKey) {
-          await new Promise((resolve) => window.setTimeout(resolve, 300));
-        }
+        await new Promise(
+          (resolve) =>
+            window.setTimeout(
+              resolve,
+              result.hasPokemonApiKey
+                ? 120
+                : 2200,
+            ),
+        );
       }
 
       if (stopPricesRef.current) {
-        setSuccessMessage(
-          "Price refresh paused safely. Every processed card is tracked, so the next run resumes with the remaining due cards.",
+        const paused =
+          await postAction<{
+            pricePass:
+              PricePass;
+          }>({
+            action:
+              "pause_prices",
+          });
+
+        aggregate =
+          normalisePricePass(
+            paused.pricePass,
+            aggregate.remaining,
+          );
+
+        setPriceProgress(
+          aggregate,
         );
-      } else if (sessionProcessed >= sessionLimit && aggregate.remaining > 0) {
+
         setSuccessMessage(
-          `This safe session processed ${formatNumber(sessionProcessed)} cards. ` +
-            `${formatNumber(aggregate.remaining)} due cards remain and the next run will continue from them.`,
+          `Price refresh paused at ${formatNumber(
+            aggregate.processed,
+          )}/${formatNumber(
+            aggregate.total,
+          )}. The next run resumes from this saved point.`,
+        );
+
+        addLog(
+          `Paused safely at ${formatNumber(
+            aggregate.processed,
+          )} completed cards.`,
         );
       }
 
       await loadStatus();
     } catch (error: unknown) {
-      const message = getErrorMessage(
-        error,
-        "The tracked price refresh failed.",
-      );
+      const message =
+        getErrorMessage(
+          error,
+          "The tracked price refresh failed.",
+        );
+
       setErrorMessage(message);
       addLog(`ERROR: ${message}`);
     } finally {
@@ -577,8 +667,9 @@ export default function CardDatabasePage() {
   }, [
     syncingLocal,
     syncingPrices,
-    stats?.due_price_cards,
+    priceProgress,
     hasPokemonApiKey,
+    priceBatchSize,
     addLog,
     postAction,
     loadStatus,
@@ -592,13 +683,25 @@ export default function CardDatabasePage() {
         )
       : 0;
 
-  const dueAtStart = Math.max(
-    priceProgress.processed + priceProgress.remaining,
-    toNumber(stats?.due_price_cards),
-  );
+  const priceTotal =
+    Math.max(
+      priceProgress.total,
+      priceProgress.processed +
+        priceProgress.remaining,
+      toNumber(
+        stats?.due_price_cards,
+      ),
+    );
+
   const pricePercent =
-    dueAtStart > 0
-      ? Math.min(100, (priceProgress.processed / dueAtStart) * 100)
+    priceTotal > 0
+      ? Math.min(
+          100,
+          (
+            priceProgress.processed /
+            priceTotal
+          ) * 100,
+        )
       : 0;
 
   return (
@@ -685,25 +788,116 @@ export default function CardDatabasePage() {
           </SyncPanel>
 
           <SyncPanel
-            eyebrow="Resumable price queue"
-            title="Refresh only prices that are due"
-            description="This never walks every card automatically. It selects only cards with no previous check, prices older than seven days, or failed cards whose retry delay has expired. Every result is saved before the next request."
-            buttonLabel={syncingPrices ? "Refreshing due prices..." : "Refresh due prices"}
-            disabled={syncingLocal || syncingPrices || toNumber(stats?.due_price_cards) <= 0}
-            onStart={() => void refreshDuePrices()}
-            onStop={syncingPrices ? () => { stopPricesRef.current = true; } : undefined}
+            eyebrow="Persistent fast price pass"
+            title="Resume exactly where pricing stopped"
+            description="The completed count is stored in Supabase, not in this browser. One Pokemon TCG API search request now returns a whole group of card prices, and one database transaction saves the entire group. Closing the page or pressing Stop no longer resets progress to zero."
+            buttonLabel={
+              syncingPrices
+                ? `Refreshing from ${formatNumber(
+                    priceProgress.processed,
+                  )}...`
+                : priceProgress.processed > 0 &&
+                    priceProgress.remaining > 0
+                  ? `Resume at ${formatNumber(
+                      priceProgress.processed,
+                    )}/${formatNumber(
+                      priceProgress.total,
+                    )}`
+                  : "Start fast price refresh"
+            }
+            disabled={
+              syncingLocal ||
+              syncingPrices ||
+              Math.max(
+                priceProgress.remaining,
+                toNumber(
+                  stats?.due_price_cards,
+                ),
+              ) <= 0
+            }
+            onStart={() =>
+              void refreshDuePrices()
+            }
+            onStop={
+              syncingPrices
+                ? () => {
+                    stopPricesRef.current =
+                      true;
+                  }
+                : undefined
+            }
             progress={pricePercent}
           >
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-              <MiniStat label="Processed" value={formatNumber(priceProgress.processed)} />
-              <MiniStat label="Priced" value={formatNumber(priceProgress.priced)} />
-              <MiniStat label="No price" value={formatNumber(priceProgress.unpriced)} />
-              <MiniStat label="Remaining" value={formatNumber(priceProgress.remaining || stats?.due_price_cards)} />
+              <MiniStat
+                label="Saved progress"
+                value={`${formatNumber(
+                  priceProgress.processed,
+                )}/${formatNumber(
+                  priceTotal,
+                )}`}
+              />
+              <MiniStat
+                label="Priced"
+                value={formatNumber(
+                  priceProgress.priced,
+                )}
+              />
+              <MiniStat
+                label="No price"
+                value={formatNumber(
+                  priceProgress.unpriced,
+                )}
+              />
+              <MiniStat
+                label="Remaining"
+                value={formatNumber(
+                  priceProgress.remaining ||
+                    stats?.due_price_cards,
+                )}
+              />
             </div>
 
-            <InfoBox label="Pokemon API mode" value={hasPokemonApiKey ? "API key active - 12 tracked cards per batch" : "No API key - 1 tracked card per batch"} />
-            <InfoBox label="Last completed price pass" value={formatDateTime(stats?.last_price_sync_at)} />
-            <InfoBox label="Exchange rates" value={`USD ${toNumber(stats?.usd_to_gbp).toFixed(4)} · EUR ${toNumber(stats?.eur_to_gbp).toFixed(4)} · ${stats?.fx_date || "not loaded"}`} />
+            <InfoBox
+              label="Pokemon API mode"
+              value={
+                hasPokemonApiKey
+                  ? `API key active - ${formatNumber(
+                      priceBatchSize,
+                    )} cards per API request`
+                  : `Public mode - ${formatNumber(
+                      priceBatchSize,
+                    )} cards per API request with safe spacing`
+              }
+            />
+
+            <InfoBox
+              label="Saved pass state"
+              value={`${priceProgress.status} · started ${formatDateTime(
+                priceProgress.startedAt,
+              )} · saved ${formatDateTime(
+                priceProgress.updatedAt,
+              )}`}
+            />
+
+            <InfoBox
+              label="Last completed price pass"
+              value={formatDateTime(
+                stats?.last_price_sync_at,
+              )}
+            />
+
+            <InfoBox
+              label="Exchange rates"
+              value={`USD ${toNumber(
+                stats?.usd_to_gbp,
+              ).toFixed(4)} · EUR ${toNumber(
+                stats?.eur_to_gbp,
+              ).toFixed(4)} · ${
+                stats?.fx_date ||
+                "not loaded"
+              }`}
+            />
           </SyncPanel>
         </section>
 

@@ -1,0 +1,36 @@
+-- RUN THIS IN:
+-- Supabase Dashboard > Logs > Log Explorer
+--
+-- This is Log Explorer SQL, not Postgres SQL Editor syntax.
+--
+-- Retry signup once immediately before running it. Set the dashboard time
+-- range to the last 15 minutes.
+
+select
+  cast(
+    metadata.timestamp
+    as datetime
+  )
+    as timestamp,
+
+  msg,
+  event_message,
+  status,
+  path,
+  level
+
+from auth_logs
+
+cross join unnest(metadata)
+  as metadata
+
+where
+  status::int = 500
+
+  or regexp_contains(
+    level,
+    'error|fatal'
+  )
+
+order by
+  timestamp desc;

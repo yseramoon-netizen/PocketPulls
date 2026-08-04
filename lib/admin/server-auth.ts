@@ -3,10 +3,41 @@ import {
   type User,
 } from "@supabase/supabase-js";
 
+export type ServerAdminClient = {
+  auth: {
+    getUser(
+      token?: string,
+    ): Promise<{
+      data: {
+        user: User | null;
+      };
+      error:
+        | {
+            message?: string;
+          }
+        | null;
+    }>;
+  };
+
+  from(
+    relation: string,
+  ): any;
+
+  rpc(
+    functionName: string,
+    arguments_?:
+      | Record<string, unknown>
+      | undefined,
+  ): Promise<{
+    data: any;
+    error: any;
+  }>;
+};
+
 type AdminContext = {
   user: User;
   email: string;
-  admin: ReturnType<typeof createClient>;
+  admin: ServerAdminClient;
 };
 
 export class AdminAccessError extends Error {
@@ -48,7 +79,8 @@ function requireEnvironment(
   );
 }
 
-function getAdminClient() {
+function getAdminClient():
+  ServerAdminClient {
   const url = requireEnvironment([
     "NEXT_PUBLIC_SUPABASE_URL",
     "SUPABASE_URL",
@@ -59,13 +91,17 @@ function getAdminClient() {
     "SUPABASE_SECRET_KEY",
   ]);
 
-  return createClient(url, serviceKey, {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
-      detectSessionInUrl: false,
+  return createClient(
+    url,
+    serviceKey,
+    {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+        detectSessionInUrl: false,
+      },
     },
-  });
+  ) as unknown as ServerAdminClient;
 }
 
 function getBearerToken(
@@ -109,9 +145,7 @@ function getConfiguredAdminEmails(): Set<string> {
 }
 
 async function isDatabaseAdmin(
-  admin: ReturnType<
-    typeof createClient
-  >,
+  admin: ServerAdminClient,
   user: User,
   email: string,
 ): Promise<boolean> {
@@ -146,8 +180,12 @@ async function isDatabaseAdmin(
      * The email is still the authority; user_id
      * simply makes later checks faster.
      */
-    await admin
-      .from("admin_users")
+    const adminUsersTable =
+      admin.from(
+        "admin_users",
+      ) as any;
+
+    await adminUsersTable
       .update({
         user_id: user.id,
         last_verified_at:

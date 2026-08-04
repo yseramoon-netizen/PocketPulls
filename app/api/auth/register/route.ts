@@ -38,6 +38,8 @@ class RegisterRouteError extends Error {
   readonly details: string | null;
   readonly upstreamStatus: number | null;
   readonly rawBody: string | null;
+  readonly upstreamRequestId:
+    string | null;
 
   constructor({
     message,
@@ -46,6 +48,7 @@ class RegisterRouteError extends Error {
     details = null,
     upstreamStatus = null,
     rawBody = null,
+    upstreamRequestId = null,
   }: {
     message: string;
     status: number;
@@ -53,6 +56,8 @@ class RegisterRouteError extends Error {
     details?: string | null;
     upstreamStatus?: number | null;
     rawBody?: string | null;
+    upstreamRequestId?:
+      string | null;
   }) {
     super(message);
     this.name = "RegisterRouteError";
@@ -61,6 +66,8 @@ class RegisterRouteError extends Error {
     this.details = details;
     this.upstreamStatus = upstreamStatus;
     this.rawBody = rawBody;
+    this.upstreamRequestId =
+      upstreamRequestId;
   }
 }
 
@@ -252,12 +259,12 @@ function extractUpstreamError(
     return {
       code:
         code ||
-        "database_signup_trigger_failure",
+        "database_signup_transaction_failure",
       message:
         upstreamMessage ||
-        "A custom database trigger prevented Supabase from saving the new user.",
+        "Supabase could not commit the new Auth user.",
       details:
-        "Run 20260804_unknown_pulls_core_access_repair.sql. It archives and removes every non-internal trigger attached to auth.users, so player setup happens safely after authentication instead of inside the Auth transaction.",
+        "The public Auth API intentionally hides the underlying Postgres error. Possible causes include a custom trigger on any Auth table, a constraint on auth.users, damaged auth-schema ownership or privileges, forced RLS, or a configured Before User Created Hook. Run 20260804_unknown_pulls_auth_transaction_repair.sql, retry once, then use the included Auth and Postgres Log Explorer queries if the 500 remains.",
     };
   }
 
@@ -320,6 +327,8 @@ function errorResponse(
           upstreamStatus:
             error.upstreamStatus,
           rawBody: error.rawBody,
+          upstreamRequestId:
+            error.upstreamRequestId,
           requestId,
         },
       },
@@ -403,7 +412,9 @@ export async function GET() {
             apikey: publicKey,
             Accept: "application/json",
             "X-Client-Info":
-              "unknown-pulls-auth-gateway/1.0",
+              "unknown-pulls-auth-gateway/1.1",
+            "X-Request-ID":
+              requestId,
           },
         },
         10000,
@@ -430,6 +441,20 @@ export async function GET() {
     const rawText =
       await response.text();
 
+    const upstreamRequestId =
+      response.headers.get(
+        "x-request-id",
+      ) ||
+      response.headers.get(
+        "sb-request-id",
+      ) ||
+      response.headers.get(
+        "x-supabase-request-id",
+      ) ||
+      response.headers.get(
+        "cf-ray",
+      );
+
     const payload =
       parseJsonBody(rawText);
 
@@ -452,6 +477,7 @@ export async function GET() {
           rawText.trim()
             ? rawText.slice(0, 1200)
             : null,
+        upstreamRequestId,
       });
     }
 
@@ -469,6 +495,7 @@ export async function GET() {
             "healthy",
         },
         requestId,
+        upstreamRequestId,
       },
       200,
       requestId,
@@ -620,7 +647,9 @@ export async function POST(
               "application/json",
             Accept: "application/json",
             "X-Client-Info":
-              "unknown-pulls-auth-gateway/1.0",
+              "unknown-pulls-auth-gateway/1.1",
+            "X-Request-ID":
+              requestId,
           },
           body: JSON.stringify({
             email,
@@ -657,6 +686,20 @@ export async function POST(
     const rawText =
       await response.text();
 
+    const upstreamRequestId =
+      response.headers.get(
+        "x-request-id",
+      ) ||
+      response.headers.get(
+        "sb-request-id",
+      ) ||
+      response.headers.get(
+        "x-supabase-request-id",
+      ) ||
+      response.headers.get(
+        "cf-ray",
+      );
+
     const payload =
       parseJsonBody(rawText);
 
@@ -683,6 +726,7 @@ export async function POST(
           rawText.trim()
             ? rawText.slice(0, 1200)
             : null,
+        upstreamRequestId,
       });
     }
 
@@ -761,6 +805,7 @@ export async function POST(
         confirmationRequired:
           !session,
         requestId,
+        upstreamRequestId,
       },
       200,
       requestId,
