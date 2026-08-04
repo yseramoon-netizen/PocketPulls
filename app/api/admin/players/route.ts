@@ -1,16 +1,26 @@
 import {
+  type User,
+} from "@supabase/supabase-js";
+
+import {
   adminErrorResponse,
   requireAdmin,
+  type ServerAdminClient,
 } from "@/lib/admin/server-auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
+const FOUNDER_ADMIN_EMAIL =
+  "pullspocket@gmail.com";
+
 type PlayerAction =
   | "adjust_wishes"
   | "adjust_card"
-  | "set_ban";
+  | "set_ban"
+  | "resend_confirmation"
+  | "set_admin";
 
 type ActionBody = {
   action?: unknown;
@@ -18,6 +28,7 @@ type ActionBody = {
   delta?: unknown;
   cardId?: unknown;
   banned?: unknown;
+  adminEnabled?: unknown;
   reason?: unknown;
 };
 
@@ -51,6 +62,17 @@ type PlayerAccountRow = {
   last_sign_in_at: string | null;
   last_seen_at: string | null;
 };
+
+type EnrichedPlayerAccount =
+  PlayerAccountRow & {
+    email_confirmed_at:
+      | string
+      | null;
+    is_admin: boolean;
+    admin_display_name:
+      | string
+      | null;
+  };
 
 type PlayerInventoryRow = {
   card_id: string;
@@ -88,6 +110,13 @@ type CardSearchRow = {
     | string
     | null;
   image_url: string | null;
+};
+
+type AdminUserRow = {
+  email: string;
+  user_id: string | null;
+  display_name: string | null;
+  is_active: boolean | null;
 };
 
 function readString(
@@ -138,7 +167,11 @@ function parseAction(
     value ===
       "adjust_card" ||
     value ===
-      "set_ban"
+      "set_ban" ||
+    value ===
+      "resend_confirmation" ||
+    value ===
+      "set_admin"
     ? value
     : null;
 }
@@ -147,7 +180,14 @@ function asRows<T>(
   value: unknown,
 ): T[] {
   return Array.isArray(value)
-    ? (value as T[])
+    ? (
+        value.filter(
+          (row) =>
+            typeof row ===
+              "object" &&
+            row !== null,
+        ) as T[]
+      )
     : [];
 }
 
@@ -155,10 +195,17 @@ function asSingle<T>(
   value: unknown,
 ): T | null {
   if (Array.isArray(value)) {
-    return (
-      (value[0] as T | undefined) ||
-      null
-    );
+    const first =
+      value.find(
+        (row) =>
+          typeof row ===
+            "object" &&
+          row !== null,
+      );
+
+    return first
+      ? (first as T)
+      : null;
   }
 
   return typeof value ===
@@ -175,6 +222,399 @@ function cleanSearch(
     .replace(/[,%()]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function normaliseEmail(
+  value:
+    | string
+    | null
+    | undefined,
+): string {
+  return (
+    value || ""
+  )
+    .trim()
+    .toLowerCase();
+}
+
+function getAuthConfirmedAt(
+  user:
+    | User
+    | null
+    | undefined,
+): string | null {
+  if (!user) {
+    return null;
+  }
+
+  const value =
+    (
+      user as User & {
+        email_confirmed_at?:
+          | string
+          | null;
+        confirmed_at?:
+          | string
+          | null;
+      }
+    ).email_confirmed_at ||
+    (
+      user as User & {
+        confirmed_at?:
+          | string
+          | null;
+      }
+    ).confirmed_at;
+
+  return typeof value ===
+      "string" &&
+    value.trim()
+    ? value
+    : null;
+}
+
+function getAuthLastSignInAt(
+  user:
+    | User
+    | null
+    | undefined,
+): string | null {
+  if (!user) {
+    return null;
+  }
+
+  const value =
+    (
+      user as User & {
+        last_sign_in_at?:
+          | string
+          | null;
+      }
+    ).last_sign_in_at;
+
+  return typeof value ===
+      "string" &&
+    value.trim()
+    ? value
+    : null;
+}
+
+async function getAuthUser(
+  admin: ServerAdminClient,
+  userId: string,
+): Promise<User> {
+  const {
+    data,
+    error,
+  } =
+    await admin.auth.admin
+      .getUserById(
+        userId,
+      );
+
+  if (
+    error ||
+    !data.user
+  ) {
+    throw new Error(
+      error?.message ||
+      "The Supabase Auth account could not be loaded.",
+    );
+  }
+
+  return data.user;
+}
+
+async function listAuthUsers(
+  admin: ServerAdminClient,
+): Promise<User[]> {
+  const users:
+    User[] = [];
+
+  const perPage =
+    200;
+
+  for (
+    let page = 1;
+    page <= 10;
+    page += 1
+  ) {
+    const {
+      data,
+      error,
+    } =
+      await admin.auth.admin
+        .listUsers({
+          page,
+          perPage,
+        });
+
+    if (error) {
+      throw new Error(
+        error.message ||
+        "Supabase Auth users could not be listed.",
+      );
+    }
+
+    const pageUsers =
+      Array.isArray(
+        data.users,
+      )
+        ? data.users
+        : [];
+
+    users.push(
+      ...pageUsers,
+    );
+
+    if (
+      pageUsers.length <
+      perPage
+    ) {
+      break;
+    }
+  }
+
+  return users;
+}
+
+async function listActiveAdmins(
+  admin: ServerAdminClient,
+): Promise<AdminUserRow[]> {
+  const table =
+    admin.from(
+      "admin_users",
+    ) as any;
+
+  const {
+    data,
+    error,
+  } =
+    await table
+      .select(
+        "email,user_id,display_name,is_active",
+      )
+      .eq(
+        "is_active",
+        true,
+      );
+
+  if (error) {
+    throw error;
+  }
+
+  return asRows<AdminUserRow>(
+    data,
+  );
+}
+
+function buildAdminIndexes(
+  rows: AdminUserRow[],
+) {
+  const byUserId =
+    new Map<
+      string,
+      AdminUserRow
+    >();
+
+  const byEmail =
+    new Map<
+      string,
+      AdminUserRow
+    >();
+
+  for (const row of rows) {
+    if (
+      row.user_id
+    ) {
+      byUserId.set(
+        row.user_id,
+        row,
+      );
+    }
+
+    const email =
+      normaliseEmail(
+        row.email,
+      );
+
+    if (email) {
+      byEmail.set(
+        email,
+        row,
+      );
+    }
+  }
+
+  return {
+    byUserId,
+    byEmail,
+  };
+}
+
+function enrichPlayer(
+  account:
+    PlayerAccountRow,
+  authUser:
+    | User
+    | null,
+  adminIndexes:
+    ReturnType<
+      typeof buildAdminIndexes
+    >,
+): EnrichedPlayerAccount {
+  const email =
+    normaliseEmail(
+      authUser?.email ||
+      account.email,
+    );
+
+  const adminRow =
+    adminIndexes.byUserId.get(
+      account.user_id,
+    ) ||
+    adminIndexes.byEmail.get(
+      email,
+    ) ||
+    null;
+
+  return {
+    ...account,
+    email:
+      authUser?.email ||
+      account.email,
+    created_at:
+      (
+        authUser as
+          | (
+              User & {
+                created_at?:
+                  | string
+                  | null;
+              }
+            )
+          | null
+      )?.created_at ||
+      account.created_at,
+    last_sign_in_at:
+      getAuthLastSignInAt(
+        authUser,
+      ) ||
+      account.last_sign_in_at,
+    email_confirmed_at:
+      getAuthConfirmedAt(
+        authUser,
+      ),
+    is_admin:
+      Boolean(
+        adminRow &&
+        adminRow.is_active !==
+          false,
+      ),
+    admin_display_name:
+      adminRow
+        ?.display_name ||
+      null,
+  };
+}
+
+function getPublicOrigin(
+  request: Request,
+): string {
+  const configured = [
+    process.env
+      .NEXT_PUBLIC_SITE_URL,
+    process.env
+      .NEXT_PUBLIC_APP_URL,
+    process.env.SITE_URL,
+    process.env
+      .VERCEL_PROJECT_PRODUCTION_URL,
+    process.env
+      .VERCEL_URL,
+  ];
+
+  for (
+    const value
+    of configured
+  ) {
+    const cleaned =
+      value?.trim();
+
+    if (!cleaned) {
+      continue;
+    }
+
+    const candidate =
+      /^https?:\/\//i.test(
+        cleaned,
+      )
+        ? cleaned
+        : `https://${cleaned}`;
+
+    try {
+      return new URL(
+        candidate,
+      ).origin;
+    } catch {
+      // Try the next configured value.
+    }
+  }
+
+  return new URL(
+    request.url,
+  ).origin;
+}
+
+async function writeAdminAudit(
+  admin: ServerAdminClient,
+  values: {
+    actorUserId: string;
+    actorEmail: string;
+    targetUserId: string;
+    targetEmail: string;
+    enabled: boolean;
+    reason: string;
+  },
+): Promise<void> {
+  try {
+    const table =
+      admin.from(
+        "admin_access_events",
+      ) as any;
+
+    const {
+      error,
+    } =
+      await table.insert({
+        actor_user_id:
+          values.actorUserId,
+        actor_email:
+          values.actorEmail,
+        target_user_id:
+          values.targetUserId,
+        target_email:
+          values.targetEmail,
+        access_enabled:
+          values.enabled,
+        reason:
+          values.reason ||
+          null,
+      });
+
+    if (error) {
+      console.warn(
+        "Admin access audit could not be written:",
+        error,
+      );
+    }
+  } catch (
+    auditError: unknown
+  ) {
+    console.warn(
+      "Admin access audit failed:",
+      auditError,
+    );
+  }
 }
 
 export async function GET(
@@ -257,10 +697,21 @@ export async function GET(
       );
     }
 
+    const activeAdmins =
+      await listActiveAdmins(
+        admin,
+      );
+
+    const adminIndexes =
+      buildAdminIndexes(
+        activeAdmins,
+      );
+
     if (userId) {
       const [
         accountResult,
         inventoryResult,
+        authUser,
       ] =
         await Promise.all([
           admin.rpc(
@@ -277,6 +728,11 @@ export async function GET(
               p_user_id:
                 userId,
             },
+          ),
+
+          getAuthUser(
+            admin,
+            userId,
           ),
         ]);
 
@@ -317,7 +773,12 @@ export async function GET(
       return Response.json(
         {
           ok: true,
-          account,
+          account:
+            enrichPlayer(
+              account,
+              authUser,
+              adminIndexes,
+            ),
           inventory:
             asRows<PlayerInventoryRow>(
               inventoryResult.data,
@@ -349,31 +810,64 @@ export async function GET(
         250,
       ) || 100;
 
-    const {
-      data,
-      error,
-    } =
-      await admin.rpc(
-        "admin_search_player_accounts",
-        {
-          p_query:
-            query,
-          p_limit:
-            limit,
-        },
+    const [
+      accountResult,
+      authUsers,
+    ] =
+      await Promise.all([
+        admin.rpc(
+          "admin_search_player_accounts",
+          {
+            p_query:
+              query,
+            p_limit:
+              limit,
+          },
+        ),
+
+        listAuthUsers(
+          admin,
+        ),
+      ]);
+
+    if (
+      accountResult.error
+    ) {
+      throw accountResult.error;
+    }
+
+    const authById =
+      new Map<
+        string,
+        User
+      >(
+        authUsers.map(
+          (authUser) => [
+            authUser.id,
+            authUser,
+          ],
+        ),
       );
 
-    if (error) {
-      throw error;
-    }
+    const players =
+      asRows<PlayerAccountRow>(
+        accountResult.data,
+      ).map(
+        (account) =>
+          enrichPlayer(
+            account,
+            authById.get(
+              account.user_id,
+            ) ||
+              null,
+            adminIndexes,
+          ),
+      );
 
     return Response.json(
       {
         ok: true,
-        players:
-          asRows<PlayerAccountRow>(
-            data,
-          ),
+        players,
       },
       {
         headers: {
@@ -461,6 +955,337 @@ export async function POST(
           status: 400,
         },
       );
+    }
+
+    if (
+      action ===
+      "resend_confirmation"
+    ) {
+      const target =
+        await getAuthUser(
+          admin,
+          userId,
+        );
+
+      const targetEmail =
+        normaliseEmail(
+          target.email,
+        );
+
+      if (!targetEmail) {
+        return Response.json(
+          {
+            ok: false,
+            error: {
+              code:
+                "player_email_missing",
+              message:
+                "This account has no email address to confirm.",
+            },
+          },
+          {
+            status: 409,
+          },
+        );
+      }
+
+      if (
+        getAuthConfirmedAt(
+          target,
+        )
+      ) {
+        return Response.json({
+          ok: true,
+          action,
+          email:
+            targetEmail,
+          alreadyConfirmed:
+            true,
+        });
+      }
+
+      const origin =
+        getPublicOrigin(
+          request,
+        );
+
+      const callbackUrl =
+        `${origin}/auth/callback?next=${encodeURIComponent(
+          "/wishes",
+        )}`;
+
+      const {
+        error:
+          resendError,
+      } =
+        await admin.auth
+          .resend({
+            type:
+              "signup",
+            email:
+              targetEmail,
+            options: {
+              emailRedirectTo:
+                callbackUrl,
+            },
+          });
+
+      if (resendError) {
+        throw new Error(
+          resendError.message ||
+          "Supabase could not resend the confirmation email.",
+        );
+      }
+
+      return Response.json({
+        ok: true,
+        action,
+        email:
+          targetEmail,
+        alreadyConfirmed:
+          false,
+      });
+    }
+
+    if (
+      action ===
+      "set_admin"
+    ) {
+      const target =
+        await getAuthUser(
+          admin,
+          userId,
+        );
+
+      const targetEmail =
+        normaliseEmail(
+          target.email,
+        );
+
+      if (!targetEmail) {
+        return Response.json(
+          {
+            ok: false,
+            error: {
+              code:
+                "admin_target_email_missing",
+              message:
+                "This player has no email address and cannot become an administrator.",
+            },
+          },
+          {
+            status: 409,
+          },
+        );
+      }
+
+      const enabled =
+        body.adminEnabled ===
+        true;
+
+      if (
+        !enabled &&
+        targetEmail ===
+          FOUNDER_ADMIN_EMAIL
+      ) {
+        return Response.json(
+          {
+            ok: false,
+            error: {
+              code:
+                "founder_admin_protected",
+              message:
+                "The founder administrator cannot be disabled from the player manager.",
+            },
+          },
+          {
+            status: 409,
+          },
+        );
+      }
+
+      if (
+        !enabled &&
+        userId ===
+          user.id
+      ) {
+        return Response.json(
+          {
+            ok: false,
+            error: {
+              code:
+                "admin_self_revoke_blocked",
+              message:
+                "You cannot remove your own active admin access while signed in.",
+            },
+          },
+          {
+            status: 409,
+          },
+        );
+      }
+
+      const adminsTable =
+        admin.from(
+          "admin_users",
+        ) as any;
+
+      if (enabled) {
+        const displayName =
+          typeof target
+            .user_metadata
+            ?.display_name ===
+              "string"
+            ? target
+                .user_metadata
+                .display_name
+                .trim()
+            : "";
+
+        const existing =
+          await adminsTable
+            .select(
+              "email,user_id,is_active",
+            )
+            .eq(
+              "user_id",
+              userId,
+            )
+            .maybeSingle();
+
+        if (
+          !existing.error &&
+          existing.data
+        ) {
+          const {
+            error:
+              updateError,
+          } =
+            await adminsTable
+              .update({
+                email:
+                  targetEmail,
+                display_name:
+                  displayName ||
+                  targetEmail
+                    .split("@")[0],
+                is_active:
+                  true,
+                last_verified_at:
+                  new Date()
+                    .toISOString(),
+                updated_at:
+                  new Date()
+                    .toISOString(),
+              })
+              .eq(
+                "user_id",
+                userId,
+              );
+
+          if (updateError) {
+            throw updateError;
+          }
+        } else {
+          const {
+            error:
+              upsertError,
+          } =
+            await adminsTable
+              .upsert(
+                {
+                  email:
+                    targetEmail,
+                  user_id:
+                    userId,
+                  display_name:
+                    displayName ||
+                    targetEmail
+                      .split("@")[0],
+                  is_active:
+                    true,
+                  last_verified_at:
+                    new Date()
+                      .toISOString(),
+                  updated_at:
+                    new Date()
+                      .toISOString(),
+                },
+                {
+                  onConflict:
+                    "email",
+                },
+              );
+
+          if (upsertError) {
+            throw upsertError;
+          }
+        }
+      } else {
+        const byUser =
+          await adminsTable
+            .update({
+              is_active:
+                false,
+              updated_at:
+                new Date()
+                  .toISOString(),
+            })
+            .eq(
+              "user_id",
+              userId,
+            );
+
+        if (
+          byUser.error
+        ) {
+          throw byUser.error;
+        }
+
+        const byEmail =
+          await adminsTable
+            .update({
+              is_active:
+                false,
+              updated_at:
+                new Date()
+                  .toISOString(),
+            })
+            .eq(
+              "email",
+              targetEmail,
+            );
+
+        if (
+          byEmail.error
+        ) {
+          throw byEmail.error;
+        }
+      }
+
+      await writeAdminAudit(
+        admin,
+        {
+          actorUserId:
+            user.id,
+          actorEmail:
+            email,
+          targetUserId:
+            userId,
+          targetEmail,
+          enabled,
+          reason,
+        },
+      );
+
+      return Response.json({
+        ok: true,
+        action,
+        isAdmin:
+          enabled,
+        email:
+          targetEmail,
+      });
     }
 
     if (

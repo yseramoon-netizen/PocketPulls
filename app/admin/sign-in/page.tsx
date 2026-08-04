@@ -18,9 +18,6 @@ import {
 } from "@/lib/admin/client-auth";
 import { supabase } from "@/lib/supabase";
 
-const ADMIN_EMAIL =
-  "pullspocket@gmail.com";
-
 function safeNextPath(
   value: string | null,
 ): string {
@@ -61,8 +58,7 @@ function getErrorMessage(
       ).message;
 
     if (
-      typeof message ===
-        "string" &&
+      typeof message === "string" &&
       message.trim()
     ) {
       return message.trim();
@@ -81,6 +77,14 @@ function AdminSignInContent() {
     safeNextPath(
       searchParams.get("next"),
     );
+
+  const [
+    email,
+    setEmail,
+  ] = useState(
+    searchParams.get("email") ||
+      "",
+  );
 
   const [
     password,
@@ -120,7 +124,10 @@ function AdminSignInContent() {
           return;
         }
 
-        router.replace(nextPath);
+        router.replace(
+          nextPath,
+        );
+
         router.refresh();
       } catch {
         if (active) {
@@ -134,7 +141,10 @@ function AdminSignInContent() {
     return () => {
       active = false;
     };
-  }, [nextPath, router]);
+  }, [
+    nextPath,
+    router,
+  ]);
 
   async function handleSubmit(
     event:
@@ -146,12 +156,22 @@ function AdminSignInContent() {
       return;
     }
 
+    const cleanEmail =
+      email
+        .trim()
+        .toLowerCase();
+
+    if (!cleanEmail) {
+      setError(
+        "Enter your administrator email address.",
+      );
+      return;
+    }
+
     setSigningIn(true);
     setError("");
 
     try {
-      const cleanEmail =
-        ADMIN_EMAIL;
       const {
         error:
           signInError,
@@ -171,6 +191,7 @@ function AdminSignInContent() {
         await adminFetch<{
           ok: true;
           admin: {
+            userId: string;
             email: string;
           };
         }>(
@@ -179,17 +200,20 @@ function AdminSignInContent() {
 
       if (
         session.admin.email !==
-        ADMIN_EMAIL
+        cleanEmail
       ) {
         await supabase.auth
           .signOut();
 
         throw new Error(
-          "The signed-in account is not the PocketPulls admin account.",
+          "The verified administrator session did not match the email entered.",
         );
       }
 
-      router.replace(nextPath);
+      router.replace(
+        nextPath,
+      );
+
       router.refresh();
     } catch (
       signInFailure: unknown
@@ -198,6 +222,10 @@ function AdminSignInContent() {
         "Admin sign-in error:",
         signInFailure,
       );
+
+      await supabase.auth
+        .signOut()
+        .catch(() => undefined);
 
       setError(
         getErrorMessage(
@@ -247,30 +275,32 @@ function AdminSignInContent() {
               Shaymin administration
             </p>
 
-            <h1 className="mt-3 text-3xl font-black tracking-tight sm:text-4xl">
+            <h1 className="mt-3 text-4xl font-black tracking-tight text-white">
               Unlock the Forest Vault
             </h1>
 
-            <p className="mt-4 text-sm font-semibold leading-7 text-emerald-50/55">
-              This is the private Shaymin operations portal. Only
-              pullspocket@gmail.com can enter it.
+            <p className="mx-auto mt-4 max-w-md text-sm font-semibold leading-7 text-emerald-50/55">
+              Every active Shaymin administrator signs in with their own
+              Supabase email and password.
             </p>
           </div>
 
-          <div className="mt-6 rounded-2xl border border-cyan-100/15 bg-cyan-200/[0.06] px-5 py-4 text-sm font-semibold leading-6 text-cyan-50/70">
-            Friends, testers and normal trainer accounts must use the Jirachi
-            player sign-in instead. Signing into Shaymin with a player account
-            will never grant admin access.
+          <div className="mt-7 rounded-2xl border border-cyan-100/15 bg-cyan-200/[0.06] px-5 py-4 text-sm font-semibold leading-6 text-cyan-50/70">
+            Lukas and Skye can both manage the same admin site. Access is
+            controlled from Shaymin → Player accounts, not by one hardcoded
+            email address.
           </div>
 
           {error ? (
-            <div className="mt-6 rounded-2xl border border-red-200/20 bg-red-400/10 px-5 py-4 text-sm font-bold leading-6 text-red-50">
+            <div className="mt-6 rounded-2xl border border-red-200/20 bg-red-400/[0.09] px-5 py-4 text-sm font-bold leading-6 text-red-100">
               {error}
             </div>
           ) : null}
 
           <form
-            onSubmit={handleSubmit}
+            onSubmit={
+              handleSubmit
+            }
             className="mt-7 space-y-5"
           >
             <label className="block">
@@ -280,11 +310,16 @@ function AdminSignInContent() {
 
               <input
                 type="email"
-                value={ADMIN_EMAIL}
-                readOnly
-                aria-readonly="true"
+                value={email}
+                onChange={(event) =>
+                  setEmail(
+                    event.target.value,
+                  )
+                }
                 autoComplete="username"
-                className="mt-2 min-h-14 w-full cursor-not-allowed rounded-2xl border border-white/15 bg-black/25 px-5 font-bold text-white/65 outline-none"
+                disabled={signingIn}
+                placeholder="you@example.com"
+                className="mt-2 min-h-14 w-full rounded-2xl border border-white/15 bg-black/25 px-5 font-bold text-white outline-none placeholder:text-white/25 focus:border-emerald-200/45 disabled:opacity-50"
               />
             </label>
 
@@ -308,7 +343,7 @@ function AdminSignInContent() {
                   }
                   autoComplete="current-password"
                   disabled={signingIn}
-                  className="min-h-14 w-full rounded-2xl border border-white/15 bg-black/25 px-5 pr-20 font-bold text-white outline-none placeholder:text-white/25 focus:border-emerald-200/45 disabled:opacity-50"
+                  className="min-h-14 w-full rounded-2xl border border-white/15 bg-black/25 px-5 pr-20 font-bold text-white outline-none focus:border-emerald-200/45 disabled:opacity-50"
                 />
 
                 <button
@@ -319,7 +354,7 @@ function AdminSignInContent() {
                         !current,
                     )
                   }
-                  className="absolute inset-y-0 right-0 px-5 text-xs font-black uppercase tracking-[0.1em] text-white/40 hover:text-white"
+                  className="absolute inset-y-0 right-0 px-5 text-xs font-black uppercase tracking-[0.12em] text-white/45 hover:text-white"
                 >
                   {showPassword
                     ? "Hide"
@@ -332,12 +367,13 @@ function AdminSignInContent() {
               type="submit"
               disabled={
                 signingIn ||
+                !email.trim() ||
                 !password
               }
-              className="flex min-h-15 w-full items-center justify-center rounded-2xl border border-emerald-100/25 bg-emerald-300 px-6 text-base font-black text-emerald-950 shadow-[0_0_45px_rgba(110,231,183,0.2)] transition hover:-translate-y-0.5 hover:bg-emerald-200 disabled:cursor-not-allowed disabled:opacity-50"
+              className="min-h-14 w-full rounded-2xl bg-gradient-to-r from-emerald-300 via-cyan-200 to-lime-200 px-6 text-base font-black text-[#09251a] shadow-[0_18px_55px_rgba(52,211,153,0.18)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-45"
             >
               {signingIn
-                ? "Verifying admin access..."
+                ? "Verifying administrator..."
                 : "Enter the admin site"}
             </button>
           </form>
@@ -363,19 +399,12 @@ function AdminSignInContent() {
   );
 }
 
-
 function AdminSignInFallback() {
   return (
-    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-[#020617] via-[#052e16] to-[#064e3b] px-5 text-white">
-      <ForestBackground />
-
-      <div className="relative z-10 rounded-[2rem] border border-emerald-100/15 bg-black/25 px-8 py-7 text-center backdrop-blur-3xl">
-        <div className="mx-auto h-9 w-9 animate-spin rounded-full border-2 border-emerald-100/20 border-t-emerald-200" />
-
-        <p className="mt-4 text-sm font-black text-emerald-50/70">
-          Opening the forest gateway...
-        </p>
-      </div>
+    <main className="flex min-h-screen items-center justify-center bg-[#04130d] text-white">
+      <p className="font-black text-white/55">
+        Preparing Shaymin sign-in...
+      </p>
     </main>
   );
 }

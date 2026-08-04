@@ -47,6 +47,13 @@ type PlayerAccount = {
   created_at: string | null;
   last_sign_in_at: string | null;
   last_seen_at: string | null;
+  email_confirmed_at:
+    | string
+    | null;
+  is_admin: boolean;
+  admin_display_name:
+    | string
+    | null;
 };
 
 type PlayerInventoryCard = {
@@ -109,6 +116,9 @@ type ActionResponse = {
   finalWishBalance?: number;
   finalQuantity?: number;
   banned?: boolean;
+  isAdmin?: boolean;
+  email?: string;
+  alreadyConfirmed?: boolean;
 };
 
 function toNumber(
@@ -809,7 +819,7 @@ export default function AdminPlayersPage() {
                   text-yellow-100
                 "
               >
-                Jirachi pulls are persistent tests
+                Jirachi pulls are read-only tests
               </span>
             </div>
 
@@ -838,7 +848,9 @@ export default function AdminPlayersPage() {
                 text-emerald-50/62
               "
             >
-              Search every Jirachi account, suspend access, adjust wish balances and add or remove cards. Test pulls spend wishes and save cards to player collections without reducing the physical Forest Vault.
+              Search every Jirachi account, suspend access,
+              adjust wish balances and add or remove cards
+              without touching the physical Forest Vault.
             </p>
           </section>
 
@@ -1271,9 +1283,182 @@ export default function AdminPlayersPage() {
                   "
                 >
                   <Panel
+                    eyebrow="Email verification"
+                    title={
+                      selectedPlayer.email_confirmed_at
+                        ? "Email confirmed"
+                        : "Confirmation pending"
+                    }
+                    description={
+                      selectedPlayer.email_confirmed_at
+                        ? `Confirmed ${formatDate(
+                            selectedPlayer.email_confirmed_at,
+                          )}.`
+                        : "Send a fresh Supabase signup-confirmation email to this player's account address."
+                    }
+                  >
+                    <div className="mt-5 flex flex-wrap items-center gap-3">
+                      <span
+                        className={[
+                          "rounded-full border px-3 py-2 text-xs font-black",
+                          selectedPlayer.email_confirmed_at
+                            ? "border-emerald-100/20 bg-emerald-200/[0.08] text-emerald-100"
+                            : "border-yellow-100/20 bg-yellow-200/[0.08] text-yellow-100",
+                        ].join(" ")}
+                      >
+                        {selectedPlayer.email_confirmed_at
+                          ? "Verified"
+                          : "Awaiting confirmation"}
+                      </span>
+
+                      {!selectedPlayer.email_confirmed_at ? (
+                        <ActionButton
+                          disabled={
+                            Boolean(
+                              actionKey,
+                            ) ||
+                            !selectedPlayer.email
+                          }
+                          onClick={() =>
+                            void runAction(
+                              "resend-confirmation",
+                              {
+                                action:
+                                  "resend_confirmation",
+                              },
+                              `Confirmation email sent to ${
+                                selectedPlayer.email ||
+                                "the player"
+                              }.`,
+                            )
+                          }
+                        >
+                          {actionKey ===
+                          "resend-confirmation"
+                            ? "Sending..."
+                            : "Resend confirmation email"}
+                        </ActionButton>
+                      ) : null}
+                    </div>
+
+                    <p className="mt-4 break-all text-xs font-semibold leading-5 text-white/35">
+                      {selectedPlayer.email ||
+                        "This account has no email address."}
+                    </p>
+                  </Panel>
+
+                  <Panel
+                    eyebrow="Shaymin permissions"
+                    title={
+                      selectedPlayer.is_admin
+                        ? "Administrator access active"
+                        : "Player access only"
+                    }
+                    description={
+                      selectedPlayer.is_admin
+                        ? "This account can sign into Shaymin with its own email and password."
+                        : "Granting access lets this player manage the same Shaymin admin site as Lukas."
+                    }
+                  >
+                    <div className="mt-5 flex flex-wrap items-center gap-3">
+                      <span
+                        className={[
+                          "rounded-full border px-3 py-2 text-xs font-black",
+                          selectedPlayer.is_admin
+                            ? "border-cyan-100/20 bg-cyan-200/[0.08] text-cyan-50"
+                            : "border-white/10 bg-white/[0.04] text-white/45",
+                        ].join(" ")}
+                      >
+                        {selectedPlayer.is_admin
+                          ? "Shaymin admin"
+                          : "Not an admin"}
+                      </span>
+
+                      {selectedPlayer.is_admin ? (
+                        <ActionButton
+                          tone="danger"
+                          disabled={
+                            Boolean(
+                              actionKey,
+                            ) ||
+                            selectedPlayer.email?.toLowerCase() ===
+                              "pullspocket@gmail.com"
+                          }
+                          onClick={() =>
+                            void runAction(
+                              "revoke-admin",
+                              {
+                                action:
+                                  "set_admin",
+                                adminEnabled:
+                                  false,
+                              },
+                              `Removed Shaymin administrator access from ${
+                                selectedPlayer.email ||
+                                getName(
+                                  selectedPlayer,
+                                )
+                              }.`,
+                            )
+                          }
+                        >
+                          {actionKey ===
+                          "revoke-admin"
+                            ? "Removing..."
+                            : "Remove admin access"}
+                        </ActionButton>
+                      ) : (
+                        <ActionButton
+                          disabled={
+                            Boolean(
+                              actionKey,
+                            ) ||
+                            !selectedPlayer.email
+                          }
+                          onClick={() =>
+                            void runAction(
+                              "grant-admin",
+                              {
+                                action:
+                                  "set_admin",
+                                adminEnabled:
+                                  true,
+                              },
+                              `${
+                                selectedPlayer.email ||
+                                getName(
+                                  selectedPlayer,
+                                )
+                              } can now sign into Shaymin.`,
+                            )
+                          }
+                        >
+                          {actionKey ===
+                          "grant-admin"
+                            ? "Granting..."
+                            : "Grant Shaymin admin access"}
+                        </ActionButton>
+                      )}
+                    </div>
+
+                    <p className="mt-4 text-xs font-semibold leading-5 text-white/35">
+                      Each administrator keeps a separate Supabase login. No
+                      shared password or hardcoded email is required.
+                    </p>
+                  </Panel>
+                </section>
+
+                <section
+                  className="
+                    grid
+                    gap-6
+                    2xl:grid-cols-2
+                  "
+                >
+                  <Panel
                     eyebrow="Wallet"
                     title="Adjust wishes"
-                    description="Test pulls spend this balance normally while leaving physical stock untouched."
+                    description="Test pulls currently return this balance unchanged."
                   >
                     <div
                       className="
@@ -2006,6 +2191,27 @@ function PlayerHeader({
                 ? "Suspended"
                 : "Active"}
             </span>
+
+            <span
+              className={[
+                "rounded-full border px-3 py-1 text-[0.62rem] font-black uppercase tracking-[0.12em]",
+                player.email_confirmed_at
+                  ? "border-emerald-100/20 bg-emerald-200/[0.08] text-emerald-100"
+                  : "border-yellow-100/20 bg-yellow-200/[0.08] text-yellow-100",
+              ].join(
+                " ",
+              )}
+            >
+              {player.email_confirmed_at
+                ? "Email verified"
+                : "Email pending"}
+            </span>
+
+            {player.is_admin ? (
+              <span className="rounded-full border border-cyan-100/20 bg-cyan-200/[0.08] px-3 py-1 text-[0.62rem] font-black uppercase tracking-[0.12em] text-cyan-50">
+                Shaymin admin
+              </span>
+            ) : null}
           </div>
 
           <p

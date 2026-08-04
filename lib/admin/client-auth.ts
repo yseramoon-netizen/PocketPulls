@@ -58,7 +58,7 @@ async function getAccessToken(
       ?.access_token
   ) {
     throw new AdminClientError(
-      "No active admin session was found. Sign in with pullspocket@gmail.com.",
+      "No active Shaymin administrator session was found. Sign in again.",
       401,
       "admin_session_missing",
     );

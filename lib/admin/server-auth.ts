@@ -3,20 +3,52 @@ import {
   type User,
 } from "@supabase/supabase-js";
 
+type AuthErrorLike = {
+  message?: string;
+  status?: number;
+  code?: string;
+};
+
+type AuthResult<T> = Promise<{
+  data: T;
+  error: AuthErrorLike | null;
+}>;
+
 export type ServerAdminClient = {
   auth: {
     getUser(
       token?: string,
-    ): Promise<{
-      data: {
-        user: User | null;
-      };
-      error:
-        | {
-            message?: string;
-          }
-        | null;
+    ): AuthResult<{
+      user: User | null;
     }>;
+
+    resend(
+      credentials: {
+        type: "signup";
+        email: string;
+        options?: {
+          emailRedirectTo?: string;
+        };
+      },
+    ): AuthResult<Record<string, unknown>>;
+
+    admin: {
+      getUserById(
+        userId: string,
+      ): AuthResult<{
+        user: User | null;
+      }>;
+
+      listUsers(
+        parameters?: {
+          page?: number;
+          perPage?: number;
+        },
+      ): AuthResult<{
+        users: User[];
+        aud?: string;
+      }>;
+    };
   };
 
   from(
@@ -34,7 +66,7 @@ export type ServerAdminClient = {
   }>;
 };
 
-type AdminContext = {
+export type AdminContext = {
   user: User;
   email: string;
   admin: ServerAdminClient;
@@ -79,7 +111,7 @@ function requireEnvironment(
   );
 }
 
-function getAdminClient():
+export function getAdminClient():
   ServerAdminClient {
   const url = requireEnvironment([
     "NEXT_PUBLIC_SUPABASE_URL",
@@ -149,12 +181,25 @@ async function isDatabaseAdmin(
   user: User,
   email: string,
 ): Promise<boolean> {
-  const byUserId = await admin
-    .from("admin_users")
-    .select("email,is_active")
-    .eq("user_id", user.id)
-    .eq("is_active", true)
-    .maybeSingle();
+  const table =
+    admin.from(
+      "admin_users",
+    ) as any;
+
+  const byUserId =
+    await table
+      .select(
+        "email,user_id,is_active",
+      )
+      .eq(
+        "user_id",
+        user.id,
+      )
+      .eq(
+        "is_active",
+        true,
+      )
+      .maybeSingle();
 
   if (
     !byUserId.error &&
@@ -163,42 +208,71 @@ async function isDatabaseAdmin(
     return true;
   }
 
-  const byEmail = await admin
-    .from("admin_users")
-    .select("email,is_active")
-    .eq("email", email)
-    .eq("is_active", true)
-    .maybeSingle();
+  const byEmail =
+    await table
+      .select(
+        "email,user_id,is_active",
+      )
+      .eq(
+        "email",
+        email,
+      )
+      .eq(
+        "is_active",
+        true,
+      )
+      .maybeSingle();
 
   if (
     !byEmail.error &&
     byEmail.data
   ) {
-    /*
-     * Bind the allowlisted email to the first
-     * successfully authenticated Supabase user.
-     * The email is still the authority; user_id
-     * simply makes later checks faster.
-     */
-    const adminUsersTable =
-      admin.from(
-        "admin_users",
-      ) as any;
+    const existingUserId =
+      typeof byEmail.data
+        .user_id === "string"
+        ? byEmail.data
+            .user_id
+        : null;
 
-    await adminUsersTable
-      .update({
-        user_id: user.id,
-        last_verified_at:
-          new Date().toISOString(),
-      })
-      .eq("email", email);
+    if (
+      !existingUserId ||
+      existingUserId !==
+        user.id
+    ) {
+      const bindResult =
+        await table
+          .update({
+            user_id:
+              user.id,
+            last_verified_at:
+              new Date()
+                .toISOString(),
+            updated_at:
+              new Date()
+                .toISOString(),
+          })
+          .eq(
+            "email",
+            email,
+          );
+
+      if (
+        bindResult.error
+      ) {
+        console.warn(
+          "Admin account binding failed:",
+          bindResult.error,
+        );
+      }
+    }
 
     return true;
   }
 
   /*
-   * Keep the named founder account usable even
-   * before the migration's schema cache reloads.
+   * Founder and optional environment allowlist
+   * remain a safe bootstrap path. Every other
+   * administrator is managed through admin_users.
    */
   if (
     getConfiguredAdminEmails().has(
@@ -211,7 +285,9 @@ async function isDatabaseAdmin(
         byEmail.error.message || "",
       )
         .toLowerCase()
-        .includes("admin_users")
+        .includes(
+          "admin_users",
+        )
     ) {
       console.warn(
         "Admin allowlist lookup failed:",
@@ -228,13 +304,19 @@ async function isDatabaseAdmin(
 export async function requireAdmin(
   request: Request,
 ): Promise<AdminContext> {
-  const token = getBearerToken(request);
-  const admin = getAdminClient();
+  const token =
+    getBearerToken(request);
+
+  const admin =
+    getAdminClient();
 
   const {
     data,
     error,
-  } = await admin.auth.getUser(token);
+  } =
+    await admin.auth.getUser(
+      token,
+    );
 
   if (
     error ||
@@ -275,7 +357,7 @@ export async function requireAdmin(
 
   if (!allowed) {
     throw new AdminAccessError(
-      `${email} is signed in but is not authorised for the Shaymin admin site.`,
+      `${email} is signed in but does not have active Shaymin administrator access.`,
       403,
       "admin_email_not_allowed",
     );
@@ -298,14 +380,18 @@ export function adminErrorResponse(
       {
         ok: false,
         error: {
-          code: error.code,
-          message: error.message,
+          code:
+            error.code,
+          message:
+            error.message,
         },
       },
       {
-        status: error.status,
+        status:
+          error.status,
         headers: {
-          "Cache-Control": "no-store",
+          "Cache-Control":
+            "no-store",
         },
       },
     );
@@ -334,7 +420,8 @@ export function adminErrorResponse(
     {
       status: 500,
       headers: {
-        "Cache-Control": "no-store",
+        "Cache-Control":
+          "no-store",
       },
     },
   );
