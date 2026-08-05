@@ -102,7 +102,7 @@ async function getAccessToken(
 
   if (!gate) {
     throw new AdminClientError(
-      "Shaymin is locked. Sign in through the admin gateway first.",
+      "The administration area is locked. Sign in through the administrator gateway first.",
       401,
       "admin_fresh_login_required",
     );
@@ -132,7 +132,7 @@ async function getAccessToken(
     ) {
       clearAdminGate();
       throw new AdminClientError(
-        "The active account changed. Sign in to Shaymin again.",
+        "The active account changed. Sign in to the administration area again.",
         401,
         "admin_session_changed",
       );
@@ -152,7 +152,7 @@ async function getAccessToken(
   ) {
     clearAdminGate();
     throw new AdminClientError(
-      "No active Shaymin administrator session was found. Sign in again.",
+      "No active administrator session was found. Sign in again.",
       401,
       "admin_session_missing",
     );
@@ -164,7 +164,7 @@ async function getAccessToken(
   ) {
     clearAdminGate();
     throw new AdminClientError(
-      "The active account no longer matches the administrator who unlocked Shaymin.",
+      "The active account no longer matches the administrator who unlocked this session.",
       401,
       "admin_session_changed",
     );

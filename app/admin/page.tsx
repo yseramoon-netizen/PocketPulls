@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import {
   useCallback,
   useEffect,
@@ -10,33 +11,29 @@ import {
 import AdminNav from "@/components/AdminNav";
 import ForestBackground from "@/components/ForestBackground";
 import { adminFetch } from "@/lib/admin/client-auth";
-import {
-  getShayminMood,
-  SHAYMIN_MOOD_KEYS,
-  type ShayminMoodKey,
-} from "@/lib/admin/shaymin-moods";
 
-type MoodResponse = {
+type Branch = {
+  name: string;
+  email: string;
+  cardsPlanted: number;
+  plantingSessions: number;
+  lastPlantedAt: string | null;
+  activeThisWeek: boolean;
+};
+
+type TreeResponse = {
   ok: true;
-  viewer: {
-    email: string;
-    name: string;
-  };
-  mood: {
-    key: ShayminMoodKey;
-    label: string;
-    whisper: string;
-    reason: string;
-    mode: "automatic" | "manual";
-    note: string;
-    updatedBy: string;
-    updatedAt: string | null;
-    recommendedKey: ShayminMoodKey;
-  };
+  viewerEmail: string;
+  generatedAt: string;
   tree: {
     stage: string;
     stageIndex: number;
     growthScore: number;
+    rawGrowthScore: number;
+    gardenVisits: number;
+    persistentGrowth: boolean;
+    stageFloor: number;
+    nextStageScore: number;
     stageProgress: number;
     stockCards: number;
     trainers: number;
@@ -44,15 +41,51 @@ type MoodResponse = {
     availableWishes: number;
     wishesSpent: number;
     valueShared: number;
+    sharedCards: number;
     cardsPlantedToday: number;
     wishesToday: number;
+    latestActivityAt: string | null;
     bothActiveThisWeek: boolean;
+    branches: Branch[];
   };
 };
 
+const QUICK_LINKS = [
+  {
+    href: "/admin/add",
+    title: "Add cards",
+    detail: "Scan, search and place new stock into inventory.",
+    icon: "+",
+  },
+  {
+    href: "/admin/inventory",
+    title: "Inventory",
+    detail: "Review quantities, values, finishes and locations.",
+    icon: "▦",
+  },
+  {
+    href: "/admin/pulls",
+    title: "Pull operations",
+    detail: "Test and manage the card distribution flow.",
+    icon: "✦",
+  },
+  {
+    href: "/admin/players",
+    title: "Player accounts",
+    detail: "Manage access, balances, cards and account status.",
+    icon: "◎",
+  },
+  {
+    href: "/admin/database",
+    title: "Card database",
+    detail: "Synchronise source data and refresh market values.",
+    icon: "⌁",
+  },
+] as const;
+
 function formatNumber(value: number): string {
   return new Intl.NumberFormat("en-GB").format(
-    Math.max(0, value),
+    Math.max(0, Math.round(value)),
   );
 }
 
@@ -64,7 +97,22 @@ function formatMoney(value: number): string {
   }).format(Math.max(0, value));
 }
 
-function greeting(name: string): string {
+function formatTime(timestamp: string | null): string {
+  if (!timestamp) return "No recent activity";
+
+  const date = new Date(timestamp);
+
+  if (!Number.isFinite(date.getTime())) {
+    return "No recent activity";
+  }
+
+  return new Intl.DateTimeFormat("en-GB", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(date);
+}
+
+function greeting(email: string): string {
   const hour = new Date().getHours();
   const moment =
     hour < 12
@@ -72,6 +120,15 @@ function greeting(name: string): string {
       : hour < 18
         ? "Good afternoon"
         : "Good evening";
+  const normalised = email.toLowerCase();
+  const name =
+    normalised === "pullspocket@gmail.com" ||
+    normalised.includes("lukas")
+      ? "Lukas"
+      : normalised.includes("skye")
+        ? "Skye"
+        : email.split("@")[0] || "Admin";
+
   return `${moment}, ${name}`;
 }
 
@@ -79,20 +136,25 @@ function Metric({
   label,
   value,
   detail,
+  accent,
 }: {
   label: string;
   value: string;
   detail: string;
+  accent: string;
 }) {
   return (
-    <article className="rounded-[1.6rem] border border-white/10 bg-white/[0.045] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
-      <p className="text-[0.62rem] font-black uppercase tracking-[0.18em] text-emerald-100/35">
+    <article className="relative overflow-hidden rounded-[1.8rem] border border-white/10 bg-[#071b14]/84 p-5 shadow-[0_24px_80px_rgba(0,0,0,0.28)] backdrop-blur-2xl">
+      <div
+        className={`pointer-events-none absolute -right-12 -top-12 h-36 w-36 rounded-full ${accent} blur-[52px]`}
+      />
+      <p className="relative text-[0.62rem] font-black uppercase tracking-[0.18em] text-emerald-100/36">
         {label}
       </p>
-      <p className="mt-3 text-2xl font-black tracking-tight text-white">
+      <p className="relative mt-3 text-3xl font-black tracking-tight text-white">
         {value}
       </p>
-      <p className="mt-2 text-xs font-semibold leading-5 text-white/35">
+      <p className="relative mt-2 text-xs font-semibold leading-5 text-white/34">
         {detail}
       </p>
     </article>
@@ -101,31 +163,24 @@ function Metric({
 
 export default function AdminHomePage() {
   const [data, setData] =
-    useState<MoodResponse | null>(null);
+    useState<TreeResponse | null>(null);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const [note, setNote] = useState("");
-  const [showPalette, setShowPalette] =
-    useState(false);
-  const [petCount, setPetCount] = useState(0);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError("");
 
     try {
-      const response =
-        await adminFetch<MoodResponse>(
-          "/api/admin/shaymin",
-        );
+      const response = await adminFetch<TreeResponse>(
+        "/api/admin/tree",
+      );
       setData(response);
-      setNote(response.mood.note);
     } catch (loadError: unknown) {
       setError(
         loadError instanceof Error
           ? loadError.message
-          : "Shaymin could not read the garden today.",
+          : "The operations overview could not be loaded.",
       );
     } finally {
       setLoading(false);
@@ -136,84 +191,56 @@ export default function AdminHomePage() {
     void load();
   }, [load]);
 
-  async function saveMood(
-    mode: "automatic" | "manual",
-    mood?: ShayminMoodKey,
-  ) {
-    if (saving) return;
-    setSaving(true);
-    setError("");
-
-    try {
-      const response =
-        await adminFetch<MoodResponse>(
-          "/api/admin/shaymin",
-          {
-            method: "POST",
-            body: JSON.stringify({
-              mode,
-              mood,
-              note,
-            }),
-          },
-        );
-
-      setData(response);
-      setNote(response.mood.note);
-      setShowPalette(false);
-
-      window.dispatchEvent(
-        new CustomEvent(
-          "pocketpulls:shaymin-mood",
-          {
-            detail: {
-              mood: response.mood.key,
-            },
-          },
-        ),
-      );
-    } catch (saveError: unknown) {
-      setError(
-        saveError instanceof Error
-          ? saveError.message
-          : "Shaymin's mood could not be saved.",
-      );
-    } finally {
-      setSaving(false);
+  const activitySummary = useMemo(() => {
+    if (!data) {
+      return "Loading the latest operating position.";
     }
-  }
 
-  const mood = getShayminMood(
-    data?.mood.key,
-  );
+    if (
+      data.tree.cardsPlantedToday === 0 &&
+      data.tree.wishesToday === 0
+    ) {
+      return "No card or wish activity has been recorded today yet.";
+    }
 
-  const pulseMessage = useMemo(() => {
-    if (!data) return "Listening to the roots...";
-    if (data.tree.wishesToday > 0) {
-      return `${data.tree.wishesToday} wish${
-        data.tree.wishesToday === 1 ? "" : "es"
-      } found a home today.`;
-    }
-    if (data.tree.cardsPlantedToday > 0) {
-      return `${data.tree.cardsPlantedToday} cards were planted today.`;
-    }
-    if (data.tree.bothActiveThisWeek) {
-      return "Both keeper branches have touched the garden this week.";
-    }
-    return "The garden is quiet, steady and waiting for your next small step.";
+    return `${formatNumber(
+      data.tree.cardsPlantedToday,
+    )} cards added and ${formatNumber(
+      data.tree.wishesToday,
+    )} wishes completed today.`;
   }, [data]);
 
   return (
     <main className="relative min-h-[100dvh] overflow-hidden bg-[#03130d] px-4 py-5 text-white sm:px-6 lg:px-8">
       <ForestBackground />
 
-      <div className="pointer-events-none absolute inset-0">
-        <div className="absolute left-[12%] top-28 h-80 w-80 rounded-full bg-lime-300/8 blur-[120px]" />
-        <div className="absolute right-[8%] top-52 h-96 w-96 rounded-full bg-cyan-300/7 blur-[150px]" />
-      </div>
-
-      <div className="relative z-10 mx-auto max-w-[1500px]">
+      <div className="relative z-10 mx-auto w-full max-w-[1680px]">
         <AdminNav />
+
+        <header className="mt-8 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.24em] text-emerald-100/38">
+              Operations overview
+            </p>
+            <h1 className="mt-3 text-4xl font-black tracking-tight text-white sm:text-6xl">
+              {data
+                ? greeting(data.viewerEmail)
+                : "PocketPulls administration"}
+            </h1>
+            <p className="mt-4 max-w-3xl text-sm font-semibold leading-7 text-emerald-50/42 sm:text-base">
+              A concise view of stock, players, fulfilment and the work completed today.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => void load()}
+            disabled={loading}
+            className="min-h-11 rounded-xl border border-white/10 bg-white/[0.045] px-5 text-sm font-black text-white/60 transition hover:bg-white/[0.08] hover:text-white disabled:opacity-40"
+          >
+            {loading ? "Refreshing..." : "Refresh overview"}
+          </button>
+        </header>
 
         {error ? (
           <div className="mt-5 rounded-2xl border border-red-200/20 bg-red-400/[0.08] px-5 py-4 text-sm font-bold text-red-100">
@@ -221,205 +248,137 @@ export default function AdminHomePage() {
           </div>
         ) : null}
 
-        <section className="relative mt-6 overflow-hidden rounded-[2.8rem] border border-emerald-100/15 bg-[#071f16]/88 shadow-[0_40px_140px_rgba(0,0,0,0.38)] backdrop-blur-3xl">
-          <div className={`pointer-events-none absolute inset-0 bg-gradient-to-br ${mood.aura}`} />
-          <div className="pointer-events-none absolute -right-24 -top-24 h-96 w-96 rounded-full bg-lime-200/10 blur-[100px]" />
-
-          <div className="relative grid min-h-[34rem] gap-8 p-7 sm:p-10 lg:grid-cols-[1fr_32rem] lg:items-center lg:p-14">
-            <div>
-              <p className="text-xs font-black uppercase tracking-[0.24em] text-lime-100/45">
-                The living heart of Shaymin operations
-              </p>
-
-              <h1 className="mt-4 text-4xl font-black tracking-tight text-white sm:text-6xl">
-                {data
-                  ? greeting(data.viewer.name)
-                  : "Shaymin is waking up..."}
-              </h1>
-
-              <p className="mt-6 max-w-2xl text-base font-semibold leading-8 text-emerald-50/58">
-                {data?.mood.whisper ||
-                  "Reading the cards, wishes and roots that keep PocketPulls alive."}
-              </p>
-
-              <div className="mt-6 inline-flex max-w-2xl items-start gap-3 rounded-2xl border border-white/10 bg-black/15 px-4 py-3 text-sm font-semibold leading-6 text-white/45">
-                <span className="mt-0.5 text-lime-100">✦</span>
-                <span>
-                  <strong className="text-white/72">Why this mood:</strong>{" "}
-                  {data?.mood.reason || "Shaymin is still listening."}
-                </span>
-              </div>
-
-              <div className="mt-7 flex flex-wrap gap-3">
-                <button
-                  type="button"
-                  onClick={() => setShowPalette((value) => !value)}
-                  disabled={loading || saving}
-                  className="min-h-12 rounded-2xl border border-lime-100/20 bg-lime-200/[0.1] px-5 text-sm font-black text-lime-50 transition hover:bg-lime-200/[0.16] disabled:opacity-45"
-                >
-                  Choose Shaymin's mood
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => void saveMood("automatic")}
-                  disabled={loading || saving}
-                  className="min-h-12 rounded-2xl border border-white/10 bg-white/[0.05] px-5 text-sm font-black text-white/62 transition hover:bg-white/[0.09] hover:text-white disabled:opacity-45"
-                >
-                  Let the garden decide
-                </button>
-              </div>
-
-              <p className="mt-5 text-xs font-bold text-white/25">
-                Press and hold the small Shaymin in the navigation to enter The Tree We Grow.
-              </p>
-            </div>
-
-            <div className="relative mx-auto flex w-full max-w-md items-center justify-center">
-              <div className="absolute h-80 w-80 animate-pulse rounded-full bg-emerald-200/10 blur-[70px]" />
-              <button
-                type="button"
-                onClick={() => setPetCount((value) => value + 1)}
-                className="group relative h-[24rem] w-full max-w-[24rem] overflow-hidden rounded-[3rem] border border-emerald-100/18 bg-black/12 shadow-[0_30px_100px_rgba(0,0,0,0.34),inset_0_0_70px_rgba(110,231,183,0.05)] outline-none focus-visible:ring-2 focus-visible:ring-lime-200"
-                aria-label="Give Shaymin a little pat"
-              >
-                <div className={`absolute inset-0 bg-gradient-to-br ${mood.aura}`} />
-                <img
-                  src={mood.image}
-                  alt={mood.label}
-                  draggable={false}
-                  className="relative h-full w-full object-contain p-5 transition duration-500 group-hover:scale-[1.03] group-active:scale-95"
-                />
-
-                {Array.from({ length: Math.min(8, petCount) }).map((_, index) => (
-                  <span
-                    key={`${petCount}-${index}`}
-                    className="pointer-events-none absolute animate-bounce text-xl"
-                    style={{
-                      left: `${15 + ((index * 19) % 70)}%`,
-                      top: `${10 + ((index * 17) % 65)}%`,
-                      animationDelay: `${index * 80}ms`,
-                    }}
-                  >
-                    {index % 3 === 0 ? "♡" : index % 3 === 1 ? "✦" : "❀"}
-                  </span>
-                ))}
-
-                <div className="absolute inset-x-5 bottom-5 rounded-2xl border border-white/10 bg-[#061810]/82 px-4 py-3 text-left backdrop-blur-xl">
-                  <p className="text-xs font-black uppercase tracking-[0.18em] text-lime-100/45">
-                    {mood.label}
-                  </p>
-                  <p className="mt-1 text-sm font-bold text-white/55">
-                    {petCount > 0
-                      ? `${petCount} tiny pat${petCount === 1 ? "" : "s"}. Shaymin approves.`
-                      : "Tap for a tiny pat."}
-                  </p>
-                </div>
-              </button>
-            </div>
-          </div>
-        </section>
-
-        {showPalette ? (
-          <section className="mt-5 rounded-[2.4rem] border border-emerald-100/15 bg-[#071c14]/92 p-6 shadow-[0_30px_100px_rgba(0,0,0,0.35)] backdrop-blur-3xl sm:p-8">
-            <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-              <div>
-                <p className="text-xs font-black uppercase tracking-[0.2em] text-lime-100/42">
-                  Shared mood garden
-                </p>
-                <h2 className="mt-2 text-3xl font-black tracking-tight text-white">
-                  How should Shaymin feel?
-                </h2>
-                <p className="mt-2 max-w-2xl text-sm font-semibold leading-6 text-white/40">
-                  A manual mood is shared between you and Skye. Switch back to automatic whenever you want the business itself to choose.
-                </p>
-              </div>
-
-              <label className="block w-full max-w-xl">
-                <span className="text-xs font-black uppercase tracking-[0.16em] text-white/30">
-                  A note from either keeper
-                </span>
-                <input
-                  value={note}
-                  onChange={(event) => setNote(event.target.value.slice(0, 180))}
-                  placeholder="Today felt like..."
-                  className="mt-2 min-h-12 w-full rounded-2xl border border-white/10 bg-black/18 px-4 text-sm font-bold text-white outline-none placeholder:text-white/22 focus:border-lime-100/35"
-                />
-              </label>
-            </div>
-
-            <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
-              {SHAYMIN_MOOD_KEYS.map((key) => {
-                const option = getShayminMood(key);
-                const active = data?.mood.key === key;
-
-                return (
-                  <button
-                    key={key}
-                    type="button"
-                    onClick={() => void saveMood("manual", key)}
-                    disabled={saving}
-                    className={`group flex min-h-28 items-center gap-3 rounded-2xl border p-3 text-left transition disabled:opacity-40 ${
-                      active
-                        ? "border-lime-100/35 bg-lime-200/[0.11]"
-                        : "border-white/10 bg-white/[0.035] hover:border-emerald-100/20 hover:bg-white/[0.065]"
-                    }`}
-                  >
-                    <span className="h-16 w-16 flex-none overflow-hidden rounded-2xl border border-white/10 bg-black/15">
-                      <img
-                        src={option.image}
-                        alt=""
-                        className="h-full w-full object-cover transition group-hover:scale-105"
-                      />
-                    </span>
-                    <span className="min-w-0">
-                      <span className="block text-sm font-black text-white">
-                        {option.label}
-                      </span>
-                      <span className="mt-1 block line-clamp-2 text-[0.65rem] font-semibold leading-4 text-white/32">
-                        {option.whisper}
-                      </span>
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </section>
-        ) : null}
-
         <section className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <Metric
-            label="The tree today"
-            value={data?.tree.stage || "Reading the rings"}
-            detail={`${data?.tree.stageProgress || 0}% toward the next chapter.`}
-          />
-          <Metric
-            label="Cards in the roots"
+            label="Cards in stock"
             value={formatNumber(data?.tree.stockCards || 0)}
-            detail={`${formatNumber(data?.tree.cardsPlantedToday || 0)} planted today.`}
+            detail={`${formatNumber(
+              data?.tree.cardsPlantedToday || 0,
+            )} added today.`}
+            accent="bg-emerald-300/12"
           />
           <Metric
-            label="Trainers beneath it"
+            label="Player accounts"
             value={formatNumber(data?.tree.trainers || 0)}
-            detail={`${formatNumber(data?.tree.cardsFound || 0)} cards have found a home.`}
+            detail={`${formatNumber(
+              data?.tree.availableWishes || 0,
+            )} wishes currently available.`}
+            accent="bg-cyan-300/10"
           />
           <Metric
-            label="Value shared"
+            label="Cards fulfilled"
+            value={formatNumber(data?.tree.cardsFound || 0)}
+            detail={`${formatNumber(
+              data?.tree.wishesToday || 0,
+            )} completed today.`}
+            accent="bg-violet-300/10"
+          />
+          <Metric
+            label="Value distributed"
             value={formatMoney(data?.tree.valueShared || 0)}
-            detail={`${formatNumber(data?.tree.availableWishes || 0)} wishes are currently waiting.`}
+            detail={`${formatNumber(
+              data?.tree.wishesSpent || 0,
+            )} lifetime wishes spent.`}
+            accent="bg-yellow-300/10"
           />
         </section>
 
-        <section className="mt-6 rounded-[2.2rem] border border-white/10 bg-[#071b14]/78 p-6 backdrop-blur-2xl sm:p-8">
-          <p className="text-xs font-black uppercase tracking-[0.2em] text-emerald-100/35">
-            Garden pulse
-          </p>
-          <p className="mt-3 text-xl font-black text-white">
-            {pulseMessage}
-          </p>
-          <p className="mt-2 text-sm font-semibold leading-6 text-white/35">
-            Shaymin now changes with the time of day, new wishes, recent card planting, shared keeper activity and the growth of PocketPulls itself.
-          </p>
+        <section className="mt-5 grid gap-5 xl:grid-cols-[1.15fr_.85fr]">
+          <article className="rounded-[2.2rem] border border-white/10 bg-[#071b14]/84 p-6 shadow-[0_30px_100px_rgba(0,0,0,0.3)] backdrop-blur-2xl sm:p-8">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <p className="text-[0.62rem] font-black uppercase tracking-[0.18em] text-emerald-100/36">
+                  Primary actions
+                </p>
+                <h2 className="mt-2 text-2xl font-black tracking-tight text-white">
+                  Continue operating
+                </h2>
+              </div>
+              <p className="text-xs font-bold text-white/26">
+                {activitySummary}
+              </p>
+            </div>
+
+            <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {QUICK_LINKS.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className="group rounded-[1.45rem] border border-white/10 bg-white/[0.035] p-5 transition hover:border-emerald-100/22 hover:bg-white/[0.065]"
+                >
+                  <div className="flex items-start gap-4">
+                    <span className="flex h-11 w-11 flex-none items-center justify-center rounded-xl border border-white/10 bg-black/18 text-lg font-black text-emerald-100/70 transition group-hover:scale-105">
+                      {item.icon}
+                    </span>
+                    <div className="min-w-0">
+                      <p className="text-sm font-black text-white">
+                        {item.title}
+                      </p>
+                      <p className="mt-1 text-[0.67rem] font-semibold leading-5 text-white/30">
+                        {item.detail}
+                      </p>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </article>
+
+          <article className="rounded-[2.2rem] border border-white/10 bg-[#071b14]/84 p-6 shadow-[0_30px_100px_rgba(0,0,0,0.3)] backdrop-blur-2xl sm:p-8">
+            <p className="text-[0.62rem] font-black uppercase tracking-[0.18em] text-emerald-100/36">
+              Operating pulse
+            </p>
+            <h2 className="mt-2 text-2xl font-black tracking-tight text-white">
+              Latest position
+            </h2>
+
+            <div className="mt-6 space-y-3">
+              <div className="rounded-[1.35rem] border border-white/10 bg-white/[0.035] p-4">
+                <p className="text-[0.58rem] font-black uppercase tracking-[0.15em] text-white/28">
+                  Last activity
+                </p>
+                <p className="mt-2 text-sm font-black text-white/72">
+                  {formatTime(data?.tree.latestActivityAt || null)}
+                </p>
+              </div>
+
+              <div className="rounded-[1.35rem] border border-white/10 bg-white/[0.035] p-4">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-[0.58rem] font-black uppercase tracking-[0.15em] text-white/28">
+                      Shared admin activity
+                    </p>
+                    <p className="mt-2 text-sm font-black text-white/72">
+                      {data?.tree.bothActiveThisWeek
+                        ? "Both administrators active this week"
+                        : "One administrator branch still quiet"}
+                    </p>
+                  </div>
+                  <span
+                    className={`h-3 w-3 rounded-full ${
+                      data?.tree.bothActiveThisWeek
+                        ? "bg-emerald-300 shadow-[0_0_14px_rgba(110,231,183,0.75)]"
+                        : "bg-white/20"
+                    }`}
+                  />
+                </div>
+              </div>
+
+              <div className="rounded-[1.35rem] border border-white/10 bg-white/[0.035] p-4">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-[0.58rem] font-black uppercase tracking-[0.15em] text-white/28">
+                      Long-term growth score
+                    </p>
+                    <p className="mt-2 text-sm font-black text-white/72">
+                      {formatNumber(data?.tree.growthScore || 0)}
+                    </p>
+                  </div>
+                  <span className="text-lg text-lime-100/55">↗</span>
+                </div>
+              </div>
+            </div>
+          </article>
         </section>
       </div>
     </main>

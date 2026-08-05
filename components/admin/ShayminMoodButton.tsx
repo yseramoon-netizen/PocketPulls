@@ -1,6 +1,8 @@
 "use client";
 
 import {
+  type KeyboardEvent,
+  type MouseEvent,
   useCallback,
   useEffect,
   useRef,
@@ -12,17 +14,13 @@ import { adminFetch } from "@/lib/admin/client-auth";
 import {
   getShayminMood,
   type ShayminMoodKey,
-} from "@/lib/admin/shaymin-moods";
+} from "@/lib/admin/shaymin-care";
 import { openTreeGate } from "@/lib/admin/tree-gate";
 
 type ShayminResponse = {
   ok: true;
   mood: {
     key: ShayminMoodKey;
-    label: string;
-    whisper: string;
-    reason: string;
-    mode: "automatic" | "manual";
   };
 };
 
@@ -34,13 +32,13 @@ export default function ShayminMoodButton() {
   const frameRef = useRef<number | null>(null);
   const startRef = useRef(0);
   const heldRef = useRef(false);
+  const pointerActiveRef = useRef(false);
 
   const [moodKey, setMoodKey] =
     useState<ShayminMoodKey>("content");
   const [holdProgress, setHoldProgress] =
     useState(0);
   const [hint, setHint] = useState(false);
-  const [sparkle, setSparkle] = useState(false);
 
   const loadMood = useCallback(async () => {
     try {
@@ -50,7 +48,7 @@ export default function ShayminMoodButton() {
         );
       setMoodKey(response.mood.key);
     } catch {
-      // The nav should remain usable even if the mood endpoint is unavailable.
+      // Navigation remains usable while the care endpoint is unavailable.
     }
   }, []);
 
@@ -90,7 +88,7 @@ export default function ShayminMoodButton() {
     };
   }, [loadMood]);
 
-  const cancelHold = useCallback(() => {
+  const cancelTimers = useCallback(() => {
     if (timerRef.current !== null) {
       window.clearTimeout(timerRef.current);
       timerRef.current = null;
@@ -100,18 +98,26 @@ export default function ShayminMoodButton() {
       window.cancelAnimationFrame(frameRef.current);
       frameRef.current = null;
     }
-
-    setHoldProgress(0);
   }, []);
 
+  const resetHold = useCallback(() => {
+    cancelTimers();
+    pointerActiveRef.current = false;
+    setHoldProgress(0);
+  }, [cancelTimers]);
+
   useEffect(
-    () => () => cancelHold(),
-    [cancelHold],
+    () => () => resetHold(),
+    [resetHold],
   );
 
   function animateHold() {
     const elapsed = Date.now() - startRef.current;
-    const progress = Math.min(100, (elapsed / HOLD_MS) * 100);
+    const progress = Math.min(
+      100,
+      (elapsed / HOLD_MS) * 100,
+    );
+
     setHoldProgress(progress);
 
     if (progress < 100) {
@@ -122,18 +128,19 @@ export default function ShayminMoodButton() {
   }
 
   function beginHold() {
-    cancelHold();
+    resetHold();
+    pointerActiveRef.current = true;
     heldRef.current = false;
     startRef.current = Date.now();
     setHint(false);
-    setSparkle(true);
-    window.setTimeout(() => setSparkle(false), 500);
+
     frameRef.current = window.requestAnimationFrame(
       animateHold,
     );
 
     timerRef.current = window.setTimeout(() => {
       heldRef.current = true;
+      pointerActiveRef.current = false;
       setHoldProgress(100);
       openTreeGate();
       router.push("/admin/tree");
@@ -141,12 +148,16 @@ export default function ShayminMoodButton() {
   }
 
   function finishHold() {
+    if (!pointerActiveRef.current && heldRef.current) {
+      resetHold();
+      return;
+    }
+
     const completed = heldRef.current;
-    cancelHold();
+    resetHold();
 
     if (!completed) {
-      setHint(true);
-      window.setTimeout(() => setHint(false), 2600);
+      router.push("/admin/shaymin");
     }
   }
 
@@ -156,13 +167,17 @@ export default function ShayminMoodButton() {
     <div className="relative flex flex-none items-center">
       <button
         type="button"
-        aria-label={`${mood.label}. Press and hold Shaymin to open The Tree We Grow.`}
+        aria-label={`${mood.label}. Click for companion care. Press and hold for The Tree We Grow.`}
         onPointerDown={beginHold}
         onPointerUp={finishHold}
-        onPointerCancel={cancelHold}
-        onPointerLeave={finishHold}
-        onContextMenu={(event) => event.preventDefault()}
-        onKeyDown={(event) => {
+        onPointerCancel={resetHold}
+        onPointerLeave={() => {
+          if (pointerActiveRef.current) {
+            resetHold();
+          }
+        }}
+        onContextMenu={(event: MouseEvent<HTMLButtonElement>) => event.preventDefault()}
+        onKeyDown={(event: KeyboardEvent<HTMLButtonElement>) => {
           if (
             !event.repeat &&
             (event.key === " " || event.key === "Enter")
@@ -171,19 +186,21 @@ export default function ShayminMoodButton() {
             beginHold();
           }
         }}
-        onKeyUp={(event) => {
+        onKeyUp={(event: KeyboardEvent<HTMLButtonElement>) => {
           if (event.key === " " || event.key === "Enter") {
             event.preventDefault();
             finishHold();
           }
         }}
+        onMouseEnter={() => setHint(true)}
+        onMouseLeave={() => setHint(false)}
         className="group relative flex h-12 w-12 select-none items-center justify-center rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-lime-200"
         style={{ touchAction: "manipulation" }}
       >
         <span
-          className="absolute -inset-1 rounded-[1.2rem] opacity-80 blur-md transition group-hover:opacity-100"
+          className="absolute -inset-1 rounded-[1.2rem] opacity-75 blur-md transition group-hover:opacity-100"
           style={{
-            background: `conic-gradient(rgba(190,242,100,0.9) ${holdProgress}%, rgba(255,255,255,0.06) ${holdProgress}% 100%)`,
+            background: `conic-gradient(${mood.accent} ${holdProgress}%, rgba(255,255,255,0.055) ${holdProgress}% 100%)`,
           }}
         />
 
@@ -195,23 +212,22 @@ export default function ShayminMoodButton() {
             src={mood.image}
             alt=""
             draggable={false}
-            className="relative h-full w-full object-cover object-center transition duration-300 group-hover:scale-105"
+            className="relative h-full w-full object-cover transition duration-300 group-hover:scale-105"
           />
         </span>
-
-        {sparkle ? (
-          <>
-            <span className="pointer-events-none absolute -right-1 -top-1 animate-ping text-sm text-yellow-100">✦</span>
-            <span className="pointer-events-none absolute -bottom-1 -left-1 animate-ping text-xs text-lime-100">✧</span>
-          </>
-        ) : null}
       </button>
 
       {hint ? (
-        <div className="pointer-events-none absolute left-0 top-[3.55rem] z-[90] w-52 rounded-2xl border border-lime-100/20 bg-[#071c14]/96 px-4 py-3 text-xs font-bold leading-5 text-emerald-50 shadow-[0_20px_70px_rgba(0,0,0,0.45)] backdrop-blur-2xl">
-          <span className="font-black text-lime-100">A tiny secret:</span>
+        <div className="pointer-events-none absolute left-0 top-[3.55rem] z-[120] w-56 rounded-2xl border border-emerald-100/20 bg-[#061a13]/97 px-4 py-3 text-xs font-bold leading-5 text-emerald-50 shadow-[0_20px_70px_rgba(0,0,0,0.48)] backdrop-blur-2xl">
+          <span className="font-black text-lime-100">
+            Click:
+          </span>{" "}
+          open the care room.
           <br />
-          Hold Shaymin to visit the tree you and Skye grow together.
+          <span className="font-black text-pink-100">
+            Hold:
+          </span>{" "}
+          visit your shared tree.
         </div>
       ) : null}
     </div>

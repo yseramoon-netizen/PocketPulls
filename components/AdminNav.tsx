@@ -161,7 +161,7 @@ export default function AdminNav() {
             </p>
 
             <p className="mt-0.5 truncate text-[0.58rem] font-black uppercase tracking-[0.17em] text-emerald-100/38">
-              Shaymin operations
+              Operations console
             </p>
           </Link>
         </div>

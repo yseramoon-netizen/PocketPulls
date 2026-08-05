@@ -98,7 +98,7 @@ export default function AdminLayout({
           gate.userId
         ) {
           throw new Error(
-            "The active admin did not match the account that unlocked Shaymin.",
+            "The active admin did not match the account that unlocked the administrator gateway.",
           );
         }
 
@@ -125,7 +125,7 @@ export default function AdminLayout({
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(
-      (event) => {
+      (event: string) => {
         if (
           event === "SIGNED_OUT" &&
           active
@@ -162,7 +162,7 @@ export default function AdminLayout({
           <div className="mx-auto h-10 w-10 animate-spin rounded-full border-2 border-emerald-100/15 border-t-lime-200" />
 
           <p className="mt-5 text-sm font-black text-emerald-50/75">
-            Returning to the Shaymin gate...
+            Verifying administrator access...
           </p>
         </section>
       </main>
