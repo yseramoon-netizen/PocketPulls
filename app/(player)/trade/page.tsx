@@ -322,6 +322,20 @@ export default function TradePage() {
     useState(false);
 
   const [
+    completing,
+    setCompleting,
+  ] =
+    useState(false);
+
+  const [
+    successMessage,
+    setSuccessMessage,
+  ] =
+    useState<string | null>(
+      null,
+    );
+
+  const [
     now,
     setNow,
   ] =
@@ -448,76 +462,41 @@ export default function TradePage() {
     useCallback(
       async (
         tradeId: string,
-        background =
-          false,
-      ) => {
+        background = false,
+      ): Promise<TradeSummary | null> => {
         if (!tradeId) {
-          return;
+          return null;
         }
 
         if (!background) {
-          setTradeLoading(
-            true,
-          );
+          setTradeLoading(true);
         }
 
         try {
           const client =
             supabase as any;
 
-          const [
-            summaryResult,
-            itemsResult,
-            inventoryResult,
-          ] =
-            await Promise.all([
-              client.rpc(
-                "get_player_trade_summary",
-                {
-                  p_trade_id:
-                    tradeId,
-                },
-              ),
-              client.rpc(
-                "get_player_trade_items",
-                {
-                  p_trade_id:
-                    tradeId,
-                },
-              ),
-              client.rpc(
-                "get_player_trade_inventory",
-                {
-                  p_trade_id:
-                    tradeId,
-                },
-              ),
-            ]);
+          /*
+           * Load the summary first. A completed trade must be allowed to
+           * update the screen even if a secondary inventory request fails.
+           * The old Promise.all path could hide a successful final transfer
+           * behind an unrelated refresh error.
+           */
+          const summaryResult =
+            await client.rpc(
+              "get_player_trade_summary",
+              {
+                p_trade_id: tradeId,
+              },
+            );
 
-          if (
-            summaryResult.error
-          ) {
+          if (summaryResult.error) {
             throw summaryResult.error;
           }
 
-          if (
-            itemsResult.error
-          ) {
-            throw itemsResult.error;
-          }
-
-          if (
-            inventoryResult.error
-          ) {
-            throw inventoryResult.error;
-          }
-
           const summaryRow =
-            Array.isArray(
-              summaryResult.data,
-            )
-              ? summaryResult
-                  .data[0]
+            Array.isArray(summaryResult.data)
+              ? summaryResult.data[0]
               : summaryResult.data;
 
           if (!summaryRow) {
@@ -526,45 +505,67 @@ export default function TradePage() {
             );
           }
 
-          setSummary(
-            summaryRow as
-              TradeSummary,
-          );
+          const nextSummary =
+            summaryRow as TradeSummary;
+
+          setSummary(nextSummary);
+
+          const itemsResult =
+            await client.rpc(
+              "get_player_trade_items",
+              {
+                p_trade_id: tradeId,
+              },
+            );
+
+          if (itemsResult.error) {
+            throw itemsResult.error;
+          }
 
           setItems(
-            Array.isArray(
-              itemsResult.data,
-            )
-              ? (
-                  itemsResult.data as
-                    TradeItem[]
-                )
+            Array.isArray(itemsResult.data)
+              ? (itemsResult.data as TradeItem[])
               : [],
           );
 
-          setInventory(
-            Array.isArray(
-              inventoryResult.data,
-            )
-              ? (
-                  inventoryResult.data as
-                    InventoryCard[]
-                )
-              : [],
-          );
-        } catch (
-          error: unknown
-        ) {
+          if (
+            nextSummary.status === "open" ||
+            nextSummary.status === "countdown"
+          ) {
+            const inventoryResult =
+              await client.rpc(
+                "get_player_trade_inventory",
+                {
+                  p_trade_id: tradeId,
+                },
+              );
+
+            if (inventoryResult.error) {
+              console.warn(
+                "Trade inventory refresh failed:",
+                inventoryResult.error,
+              );
+            } else {
+              setInventory(
+                Array.isArray(inventoryResult.data)
+                  ? (inventoryResult.data as InventoryCard[])
+                  : [],
+              );
+            }
+          } else {
+            setInventory([]);
+          }
+
+          setErrorMessage(null);
+          return nextSummary;
+        } catch (error: unknown) {
           setErrorMessage(
-            getErrorMessage(
-              error,
-            ),
+            getErrorMessage(error),
           );
+          return null;
         } finally {
           if (!background) {
-            setTradeLoading(
-              false,
-            );
+            setTradeLoading(false);
           }
         }
       },
@@ -656,13 +657,60 @@ export default function TradePage() {
             true,
           );
         },
-        1500,
+        summary?.status === "countdown"
+          ? 700
+          : 1800,
       );
 
     return () => {
       window.clearInterval(
         timer,
       );
+    };
+  }, [
+    activeTradeId,
+    loadLists,
+    loadTrade,
+    summary?.status,
+  ]);
+
+  useEffect(() => {
+    if (!activeTradeId) {
+      return;
+    }
+
+    const client = supabase as any;
+    const channel = client
+      .channel(`player-trade-${activeTradeId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "player_trades",
+          filter: `id=eq.${activeTradeId}`,
+        },
+        () => {
+          void loadTrade(activeTradeId, true);
+          void loadLists(true);
+        },
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "player_trade_items",
+          filter: `trade_id=eq.${activeTradeId}`,
+        },
+        () => {
+          void loadTrade(activeTradeId, true);
+        },
+      )
+      .subscribe();
+
+    return () => {
+      void client.removeChannel(channel);
     };
   }, [
     activeTradeId,
@@ -776,11 +824,7 @@ export default function TradePage() {
 
   async function runTradeAction(
     functionName: string,
-    args:
-      Record<
-        string,
-        unknown
-      >,
+    args: Record<string, unknown>,
   ) {
     if (
       busy ||
@@ -789,43 +833,119 @@ export default function TradePage() {
       return;
     }
 
+    const finalConfirmation =
+      functionName ===
+      "set_player_trade_ready";
+
     setBusy(true);
+    setCompleting(
+      finalConfirmation,
+    );
     setErrorMessage(null);
+    setSuccessMessage(null);
 
     try {
       const client =
         supabase as any;
 
       const {
+        data,
         error,
-      } =
-        await client.rpc(
-          functionName,
-          args,
-        );
+      } = await client.rpc(
+        functionName,
+        args,
+      );
 
       if (error) {
         throw error;
       }
 
-      await Promise.all([
-        loadTrade(
+      const result =
+        typeof data === "string"
+          ? data
+          : Array.isArray(data)
+            ? String(data[0] || "")
+            : String(data || "");
+
+      if (
+        finalConfirmation &&
+        result === "completed"
+      ) {
+        /*
+         * Reflect completion immediately, then confirm it from the server.
+         * This prevents the second trainer from seeing a frozen countdown
+         * while the normal polling cycle catches up.
+         */
+        setSummary((current) =>
+          current
+            ? {
+                ...current,
+                status: "completed",
+                completed_at:
+                  new Date().toISOString(),
+                initiator_ready: true,
+                recipient_ready: true,
+              }
+            : current,
+        );
+
+        setSuccessMessage(
+          "Trade complete — both collections were transferred safely.",
+        );
+
+        window.dispatchEvent(
+          new CustomEvent(
+            "pocketpulls:collection-changed",
+          ),
+        );
+      } else if (
+        finalConfirmation &&
+        result === "waiting"
+      ) {
+        setSuccessMessage(
+          "Your final confirmation is saved. Waiting for the other trainer.",
+        );
+      }
+
+      /*
+       * The transaction has committed before the RPC resolves. A short retry
+       * loop handles PostgREST/cache latency without requiring another click.
+       */
+      let loaded: TradeSummary | null = null;
+
+      for (
+        let attempt = 0;
+        attempt < 4;
+        attempt += 1
+      ) {
+        loaded = await loadTrade(
           activeTradeId,
           true,
-        ),
-        loadLists(
-          true,
-        ),
-      ]);
-    } catch (
-      error: unknown
-    ) {
+        );
+
+        if (
+          !finalConfirmation ||
+          result !== "completed" ||
+          loaded?.status === "completed"
+        ) {
+          break;
+        }
+
+        await new Promise<void>((resolve) => {
+          window.setTimeout(
+            resolve,
+            220 * (attempt + 1),
+          );
+        });
+      }
+
+      await loadLists(true);
+    } catch (error: unknown) {
       setErrorMessage(
-        getErrorMessage(
-          error,
-        ),
+        getErrorMessage(error),
       );
     } finally {
+      setCompleting(false);
       setBusy(false);
     }
   }
@@ -1070,6 +1190,12 @@ export default function TradePage() {
           }
         }}
       />
+
+      {successMessage ? (
+        <div className="mt-4 rounded-2xl border border-emerald-200/20 bg-emerald-300/[0.08] px-5 py-4 text-sm font-black text-emerald-100">
+          {successMessage}
+        </div>
+      ) : null}
 
       {summary ? (
         <section className="mt-6 grid gap-4 md:grid-cols-4">
@@ -1532,9 +1658,15 @@ export default function TradePage() {
                                 selfReady
                               }
                             >
-                              {selfReady
-                                ? "Trade pressed"
-                                : "Trade"}
+                              {completing
+                                ? otherReady
+                                  ? "Completing trade..."
+                                  : "Saving confirmation..."
+                                : selfReady
+                                  ? "Trade pressed"
+                                  : otherReady
+                                    ? "Complete trade"
+                                    : "Trade"}
                             </PlayerPrimaryButton>
 
                             {!selfReady ? (

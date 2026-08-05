@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+
+import ShayminMoodButton from "@/components/admin/ShayminMoodButton";
 import {
   usePathname,
   useRouter,
@@ -40,11 +42,6 @@ const ADMIN_ITEMS: AdminNavItem[] = [
     href: "/admin/pulls",
     label: "Pull",
     shortLabel: "Pull",
-  },
-  {
-    href: "/admin/tree",
-    label: "The Tree We Grow",
-    shortLabel: "Our Tree",
   },
   {
     href: "/admin/players",
@@ -152,79 +149,22 @@ export default function AdminNav() {
           gap-3
         "
       >
-        <Link
-          href="/admin"
-          className="
-            flex
-            min-w-0
-            items-center
-            gap-3
-            rounded-2xl
-            px-2
-            py-1
-            outline-none
-            focus-visible:ring-2
-            focus-visible:ring-emerald-200
-          "
-        >
-          <div
-            className="
-              relative
-              flex
-              h-12
-              w-12
-              flex-none
-              items-center
-              justify-center
-              overflow-hidden
-              rounded-2xl
-              border
-              border-emerald-100/20
-              bg-emerald-200/10
-              shadow-[inset_0_0_20px_rgba(110,231,183,0.08)]
-            "
-          >
-            <img
-              src="/shaymin-moods/lukas.png"
-              alt=""
-              draggable={false}
-              className="
-                h-full
-                w-full
-                object-cover
-                object-center
-              "
-            />
-          </div>
+        <div className="flex min-w-0 items-center gap-3 px-2 py-1">
+          <ShayminMoodButton />
 
-          <div className="hidden min-w-0 sm:block">
-            <p
-              className="
-                truncate
-                text-sm
-                font-black
-                tracking-tight
-                text-white
-              "
-            >
+          <Link
+            href="/admin"
+            className="hidden min-w-0 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-emerald-200 sm:block"
+          >
+            <p className="truncate text-sm font-black tracking-tight text-white">
               PocketPulls
             </p>
 
-            <p
-              className="
-                mt-0.5
-                truncate
-                text-[0.58rem]
-                font-black
-                uppercase
-                tracking-[0.17em]
-                text-emerald-100/38
-              "
-            >
+            <p className="mt-0.5 truncate text-[0.58rem] font-black uppercase tracking-[0.17em] text-emerald-100/38">
               Shaymin operations
             </p>
-          </div>
-        </Link>
+          </Link>
+        </div>
 
         <div
           className="
