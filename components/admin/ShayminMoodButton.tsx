@@ -3,6 +3,7 @@
 import {
   type KeyboardEvent,
   type MouseEvent,
+  type PointerEvent,
   useCallback,
   useEffect,
   useRef,
@@ -32,20 +33,19 @@ export default function ShayminMoodButton() {
   const frameRef = useRef<number | null>(null);
   const startRef = useRef(0);
   const heldRef = useRef(false);
-  const pointerActiveRef = useRef(false);
+  const activeRef = useRef(false);
+  const pointerIdRef = useRef<number | null>(null);
 
   const [moodKey, setMoodKey] =
     useState<ShayminMoodKey>("content");
-  const [holdProgress, setHoldProgress] =
-    useState(0);
+  const [holdProgress, setHoldProgress] = useState(0);
   const [hint, setHint] = useState(false);
 
   const loadMood = useCallback(async () => {
     try {
-      const response =
-        await adminFetch<ShayminResponse>(
-          "/api/admin/shaymin",
-        );
+      const response = await adminFetch<ShayminResponse>(
+        "/api/admin/shaymin",
+      );
       setMoodKey(response.mood.key);
     } catch {
       // Navigation remains usable while the care endpoint is unavailable.
@@ -55,10 +55,11 @@ export default function ShayminMoodButton() {
   useEffect(() => {
     void loadMood();
 
-    const timer = window.setInterval(
-      () => void loadMood(),
-      60_000,
-    );
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === "visible") {
+        void loadMood();
+      }
+    }, 60_000);
 
     const handleMoodChange = (event: Event) => {
       const detail = (
@@ -74,10 +75,13 @@ export default function ShayminMoodButton() {
       }
     };
 
+    const handleFocus = () => void loadMood();
+
     window.addEventListener(
       "pocketpulls:shaymin-mood",
       handleMoodChange,
     );
+    window.addEventListener("focus", handleFocus);
 
     return () => {
       window.clearInterval(timer);
@@ -85,6 +89,7 @@ export default function ShayminMoodButton() {
         "pocketpulls:shaymin-mood",
         handleMoodChange,
       );
+      window.removeEventListener("focus", handleFocus);
     };
   }, [loadMood]);
 
@@ -102,7 +107,8 @@ export default function ShayminMoodButton() {
 
   const resetHold = useCallback(() => {
     cancelTimers();
-    pointerActiveRef.current = false;
+    activeRef.current = false;
+    pointerIdRef.current = null;
     setHoldProgress(0);
   }, [cancelTimers]);
 
@@ -111,7 +117,7 @@ export default function ShayminMoodButton() {
     [resetHold],
   );
 
-  function animateHold() {
+  const animateHold = useCallback(() => {
     const elapsed = Date.now() - startRef.current;
     const progress = Math.min(
       100,
@@ -120,16 +126,16 @@ export default function ShayminMoodButton() {
 
     setHoldProgress(progress);
 
-    if (progress < 100) {
+    if (progress < 100 && activeRef.current) {
       frameRef.current = window.requestAnimationFrame(
         animateHold,
       );
     }
-  }
+  }, []);
 
   function beginHold() {
     resetHold();
-    pointerActiveRef.current = true;
+    activeRef.current = true;
     heldRef.current = false;
     startRef.current = Date.now();
     setHint(false);
@@ -140,7 +146,7 @@ export default function ShayminMoodButton() {
 
     timerRef.current = window.setTimeout(() => {
       heldRef.current = true;
-      pointerActiveRef.current = false;
+      activeRef.current = false;
       setHoldProgress(100);
       openTreeGate();
       router.push("/admin/tree");
@@ -148,11 +154,6 @@ export default function ShayminMoodButton() {
   }
 
   function finishHold() {
-    if (!pointerActiveRef.current && heldRef.current) {
-      resetHold();
-      return;
-    }
-
     const completed = heldRef.current;
     resetHold();
 
@@ -168,15 +169,26 @@ export default function ShayminMoodButton() {
       <button
         type="button"
         aria-label={`${mood.label}. Click for companion care. Press and hold for The Tree We Grow.`}
-        onPointerDown={beginHold}
-        onPointerUp={finishHold}
-        onPointerCancel={resetHold}
-        onPointerLeave={() => {
-          if (pointerActiveRef.current) {
-            resetHold();
-          }
+        onPointerDown={(event: PointerEvent<HTMLButtonElement>) => {
+          pointerIdRef.current = event.pointerId;
+          event.currentTarget.setPointerCapture(event.pointerId);
+          beginHold();
         }}
-        onContextMenu={(event: MouseEvent<HTMLButtonElement>) => event.preventDefault()}
+        onPointerUp={(event: PointerEvent<HTMLButtonElement>) => {
+          if (
+            pointerIdRef.current !== null &&
+            event.currentTarget.hasPointerCapture(pointerIdRef.current)
+          ) {
+            event.currentTarget.releasePointerCapture(
+              pointerIdRef.current,
+            );
+          }
+          finishHold();
+        }}
+        onPointerCancel={resetHold}
+        onContextMenu={(event: MouseEvent<HTMLButtonElement>) =>
+          event.preventDefault()
+        }
         onKeyDown={(event: KeyboardEvent<HTMLButtonElement>) => {
           if (
             !event.repeat &&
@@ -195,7 +207,7 @@ export default function ShayminMoodButton() {
         onMouseEnter={() => setHint(true)}
         onMouseLeave={() => setHint(false)}
         className="group relative flex h-12 w-12 select-none items-center justify-center rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-lime-200"
-        style={{ touchAction: "manipulation" }}
+        style={{ touchAction: "none" }}
       >
         <span
           className="absolute -inset-1 rounded-[1.2rem] opacity-75 blur-md transition group-hover:opacity-100"
@@ -209,25 +221,23 @@ export default function ShayminMoodButton() {
             className={`absolute inset-0 bg-gradient-to-br ${mood.aura}`}
           />
           <img
+            key={mood.key}
             src={mood.image}
             alt=""
             draggable={false}
-            className="relative h-full w-full object-cover transition duration-300 group-hover:scale-105"
+            className="relative h-full w-full select-none object-contain p-0.5 transition duration-300 group-hover:scale-105"
           />
         </span>
       </button>
 
       {hint ? (
-        <div className="pointer-events-none absolute left-0 top-[3.55rem] z-[120] w-56 rounded-2xl border border-emerald-100/20 bg-[#061a13]/97 px-4 py-3 text-xs font-bold leading-5 text-emerald-50 shadow-[0_20px_70px_rgba(0,0,0,0.48)] backdrop-blur-2xl">
-          <span className="font-black text-lime-100">
-            Click:
-          </span>{" "}
-          open the care room.
-          <br />
-          <span className="font-black text-pink-100">
-            Hold:
-          </span>{" "}
-          visit your shared tree.
+        <div className="pointer-events-none absolute left-0 top-[3.55rem] z-[120] w-60 rounded-2xl border border-emerald-100/20 bg-[#061a13]/97 px-4 py-3 text-xs font-bold leading-5 text-emerald-50 shadow-[0_20px_70px_rgba(0,0,0,0.48)] backdrop-blur-2xl">
+          <p className="font-black text-white">
+            {mood.label}
+          </p>
+          <p className="mt-1 text-white/45">
+            Click for care. Hold for the shared tree.
+          </p>
         </div>
       ) : null}
     </div>

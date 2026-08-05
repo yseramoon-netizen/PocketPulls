@@ -2,6 +2,7 @@
 
 import {
   type ChangeEvent,
+  type CSSProperties,
   type MouseEvent,
   useCallback,
   useEffect,
@@ -14,9 +15,11 @@ import AdminNav from "@/components/AdminNav";
 import ForestBackground from "@/components/ForestBackground";
 import { adminFetch } from "@/lib/admin/client-auth";
 import {
+  SHAYMIN_MOOD_LIST,
   SHAYMIN_SNACKS,
   type ShayminActionKey,
   type ShayminMoodDefinition,
+  type ShayminMoodKey,
   type ShayminSnackKey,
 } from "@/lib/admin/shaymin-care";
 import styles from "./care.module.css";
@@ -48,6 +51,15 @@ type CareEvent = {
   createdAt: string;
 };
 
+type CareNeed = {
+  key: "affection" | "fullness" | "energy" | "comfort" | "balanced";
+  label: string;
+  message: string;
+  action: ShayminActionKey;
+  actionLabel: string;
+  icon: string;
+};
+
 type CareResponse = {
   ok: true;
   viewer: {
@@ -67,7 +79,11 @@ type CareResponse = {
     bondLevel: number;
     bondTitle: string;
     bondProgress: number;
+    bondPointsRemaining: number;
+    careBalance: number;
+    need: CareNeed;
     dailySecret: string;
+    lastSyncedAt: string;
   };
   recentEvents: CareEvent[];
   tree: {
@@ -95,57 +111,93 @@ type Reaction =
   | "groom"
   | "talk"
   | "boop"
+  | "cheer"
   | null;
 
-const ACTION_COPY: Record<
-  ShayminActionKey,
-  {
-    label: string;
-    icon: string;
-    message: string;
-  }
-> = {
+type ActionCopy = {
+  label: string;
+  icon: string;
+  detail: string;
+  message: string;
+};
+
+const ACTION_COPY: Record<ShayminActionKey, ActionCopy> = {
   pat: {
     label: "Pat",
     icon: "♡",
+    detail: "Affection, comfort and one tiny happy wiggle.",
     message: "A tiny happy wiggle followed the pat.",
   },
   feed: {
     label: "Feed",
     icon: "❧",
+    detail: "Open the shared tray and choose a proper treat.",
     message: "The snack inspection was extremely thorough.",
   },
   play: {
     label: "Play",
     icon: "✦",
+    detail: "Big affection gain, some energy spent, possible zoomies.",
     message: "A very serious game has begun.",
   },
   groom: {
     label: "Brush leaves",
     icon: "❀",
+    detail: "Restore comfort and put every leaf back in place.",
     message: "Every leaf is sitting perfectly again.",
   },
   nap: {
     label: "Tuck in",
     icon: "☾",
+    detail: "Restore energy and make the care room quiet.",
     message: "The care room has become wonderfully quiet.",
   },
   talk: {
     label: "Talk",
     icon: "…",
+    detail: "Leave a shared note that both keepers can read.",
     message: "Your words were tucked safely beneath the flowers.",
   },
   boop: {
     label: "Boop",
     icon: "•",
+    detail: "The hidden nose target. Tiny gain, enormous importance.",
     message: "One tiny nose boop. Completely worth it.",
   },
   cheer: {
-    label: "Keeper cape",
+    label: "Keeper call",
     icon: "✧",
-    message: "The official keeper-on-duty outfit is ready.",
+    detail: "Call one of the two keeper branches into the room.",
+    message: "The keeper branches are ready for the next mission.",
   },
 };
+
+const STAT_META = {
+  affection: {
+    label: "Affection",
+    icon: "♡",
+    detail: "Pats, play, treats and kind words grow the shared bond.",
+    fill: "from-pink-300 to-rose-200",
+  },
+  fullness: {
+    label: "Fullness",
+    icon: "❧",
+    detail: "A gentle meter that changes slowly and never punishes absence.",
+    fill: "from-lime-300 to-emerald-200",
+  },
+  energy: {
+    label: "Energy",
+    icon: "✦",
+    detail: "Play spends it; rest and warm tea help bring it back.",
+    fill: "from-sky-300 to-cyan-200",
+  },
+  comfort: {
+    label: "Comfort",
+    icon: "☾",
+    detail: "Brushes, tea and conversation keep the little room cosy.",
+    fill: "from-violet-300 to-fuchsia-200",
+  },
+} as const;
 
 function clampPercent(value: number): number {
   return Math.max(0, Math.min(100, Math.round(value)));
@@ -206,9 +258,8 @@ function eventSentence(event: CareEvent): string {
   }
 
   if (event.action === "cheer") {
-    const keeper =
-      event.item === "skye" ? "Skye" : "Lukas";
-    return `${event.actorName} called for ${keeper}'s keeper cape.`;
+    const keeper = event.item === "skye" ? "Skye" : "Lukas";
+    return `${event.actorName} called the ${keeper} keeper branch.`;
   }
 
   const sentences: Record<
@@ -226,40 +277,45 @@ function eventSentence(event: CareEvent): string {
 }
 
 function reactionClass(reaction: Reaction): string {
-  if (reaction === "pat") return styles.reactPat;
-  if (reaction === "feed") return styles.reactFeed;
-  if (reaction === "play") return styles.reactPlay;
-  if (reaction === "nap") return styles.reactNap;
-  if (reaction === "groom") return styles.reactGroom;
-  if (reaction === "talk") return styles.reactTalk;
-  if (reaction === "boop") return styles.reactBoop;
+  if (reaction === "pat") return styles.reactPat ?? "";
+  if (reaction === "feed") return styles.reactFeed ?? "";
+  if (reaction === "play") return styles.reactPlay ?? "";
+  if (reaction === "nap") return styles.reactNap ?? "";
+  if (reaction === "groom") return styles.reactGroom ?? "";
+  if (reaction === "talk") return styles.reactTalk ?? "";
+  if (reaction === "boop") return styles.reactBoop ?? "";
+  if (reaction === "cheer") return styles.reactCheer ?? "";
   return "";
 }
 
+function motionClass(motion: ShayminMoodDefinition["motion"]): string {
+  if (motion === "bounce") return styles.motionBounce ?? "";
+  if (motion === "dash") return styles.motionDash ?? "";
+  if (motion === "sleep") return styles.motionSleep ?? "";
+  if (motion === "settle") return styles.motionSettle ?? "";
+  if (motion === "wiggle") return styles.motionWiggle ?? "";
+  return styles.motionBreathe ?? "";
+}
+
 function Meter({
-  label,
+  stat,
   value,
-  icon,
-  detail,
-  fill,
 }: {
-  label: string;
+  stat: keyof typeof STAT_META;
   value: number;
-  icon: string;
-  detail: string;
-  fill: string;
 }) {
+  const meta = STAT_META[stat];
   const safeValue = clampPercent(value);
 
   return (
-    <article className="rounded-[1.45rem] border border-white/10 bg-black/15 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.035)]">
+    <article className="rounded-[1.35rem] border border-white/10 bg-black/15 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.035)]">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <span className="text-base" aria-hidden="true">
-            {icon}
+            {meta.icon}
           </span>
-          <p className="text-[0.64rem] font-black uppercase tracking-[0.17em] text-white/45">
-            {label}
+          <p className="text-[0.64rem] font-black uppercase tracking-[0.17em] text-white/48">
+            {meta.label}
           </p>
         </div>
         <p className="text-sm font-black text-white">
@@ -267,15 +323,22 @@ function Meter({
         </p>
       </div>
 
-      <div className="mt-3 h-2.5 overflow-hidden rounded-full border border-white/10 bg-black/30">
+      <div
+        className="mt-3 h-2.5 overflow-hidden rounded-full border border-white/10 bg-black/30"
+        role="progressbar"
+        aria-label={meta.label}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={safeValue}
+      >
         <div
-          className={`h-full rounded-full bg-gradient-to-r ${fill} transition-[width] duration-700`}
+          className={`h-full rounded-full bg-gradient-to-r ${meta.fill} transition-[width] duration-700`}
           style={{ width: `${safeValue}%` }}
         />
       </div>
 
-      <p className="mt-2 text-[0.66rem] font-semibold leading-5 text-white/28">
-        {detail}
+      <p className="mt-2 text-[0.64rem] font-semibold leading-5 text-white/30">
+        {meta.detail}
       </p>
     </article>
   );
@@ -283,16 +346,14 @@ function Meter({
 
 function ActionButton({
   action,
-  detail,
   onClick,
   disabled,
-  emphasis = false,
+  recommended = false,
 }: {
   action: ShayminActionKey;
-  detail: string;
   onClick: () => void;
   disabled: boolean;
-  emphasis?: boolean;
+  recommended?: boolean;
 }) {
   const copy = ACTION_COPY[action];
 
@@ -302,9 +363,9 @@ function ActionButton({
       onClick={onClick}
       disabled={disabled}
       className={[
-        "group min-h-20 rounded-[1.4rem] border p-4 text-left transition duration-200 disabled:cursor-not-allowed disabled:opacity-40",
-        emphasis
-          ? "border-pink-100/20 bg-gradient-to-br from-pink-300/[0.12] to-white/[0.035] hover:border-pink-100/35 hover:from-pink-300/[0.18]"
+        "group min-h-24 rounded-[1.35rem] border p-4 text-left transition duration-200 disabled:cursor-not-allowed disabled:opacity-40",
+        recommended
+          ? "border-lime-100/25 bg-gradient-to-br from-lime-300/[0.13] to-white/[0.04] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] hover:border-lime-100/40"
           : "border-white/10 bg-white/[0.035] hover:border-emerald-100/20 hover:bg-white/[0.065]",
       ].join(" ")}
     >
@@ -313,11 +374,16 @@ function ActionButton({
           {copy.icon}
         </span>
         <span className="min-w-0">
-          <span className="block text-sm font-black text-white">
+          <span className="flex items-center gap-2 text-sm font-black text-white">
             {copy.label}
+            {recommended ? (
+              <span className="rounded-full border border-lime-100/20 bg-lime-300/10 px-2 py-0.5 text-[0.5rem] uppercase tracking-[0.12em] text-lime-50/75">
+                Best now
+              </span>
+            ) : null}
           </span>
-          <span className="mt-1 block text-[0.66rem] font-semibold leading-5 text-white/30">
-            {detail}
+          <span className="mt-1 block text-[0.65rem] font-semibold leading-5 text-white/32">
+            {copy.detail}
           </span>
         </span>
       </div>
@@ -336,10 +402,72 @@ function LoadingPanel() {
   );
 }
 
+function MoodGarden({
+  currentMood,
+}: {
+  currentMood: ShayminMoodKey;
+}) {
+  return (
+    <section className="mt-5 rounded-[2.2rem] border border-white/10 bg-[#071b14]/84 p-5 shadow-[0_25px_90px_rgba(0,0,0,0.3)] backdrop-blur-2xl sm:p-7">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className="text-[0.62rem] font-black uppercase tracking-[0.2em] text-pink-100/42">
+            Permanent Land Forme collection
+          </p>
+          <h2 className="mt-2 text-2xl font-black tracking-tight text-white sm:text-3xl">
+            The complete Shaymin mood garden
+          </h2>
+          <p className="mt-2 max-w-3xl text-sm font-semibold leading-6 text-white/35">
+            Every mood uses the approved Normal Form artwork, kept as a full transparent cutout with no forced crop or background.
+          </p>
+        </div>
+        <span className="w-fit rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-xs font-black text-white/48">
+          18 moods · current highlighted
+        </span>
+      </div>
+
+      <div className="mt-5 grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-9">
+        {SHAYMIN_MOOD_LIST.map((mood) => {
+          const active = mood.key === currentMood;
+
+          return (
+            <article
+              key={mood.key}
+              title={mood.label}
+              className={[
+                "relative min-w-0 overflow-hidden rounded-[1.15rem] border p-2.5 text-center transition",
+                active
+                  ? "border-lime-100/35 bg-lime-300/[0.12] shadow-[0_0_35px_rgba(190,242,100,0.08)]"
+                  : "border-white/8 bg-white/[0.025]",
+              ].join(" ")}
+            >
+              <div className="relative mx-auto aspect-square w-full">
+                <img
+                  src={mood.image}
+                  alt=""
+                  loading="lazy"
+                  draggable={false}
+                  className="absolute inset-0 h-full w-full select-none object-contain p-1"
+                />
+              </div>
+              <p className="truncate text-[0.58rem] font-black text-white/55">
+                {mood.shortLabel}
+              </p>
+              {active ? (
+                <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-lime-200 shadow-[0_0_10px_rgba(190,242,100,0.9)]" />
+              ) : null}
+            </article>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
 export default function ShayminCarePage() {
-  const [data, setData] =
-    useState<CareResponse | null>(null);
+  const [data, setData] = useState<CareResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
   const [busyAction, setBusyAction] =
     useState<ShayminActionKey | null>(null);
@@ -347,48 +475,71 @@ export default function ShayminCarePage() {
   const [talkOpen, setTalkOpen] = useState(false);
   const [note, setNote] = useState("");
   const [toast, setToast] = useState("");
-  const [reaction, setReaction] =
-    useState<Reaction>(null);
-  const [particles, setParticles] =
-    useState<Particle[]>([]);
-  const [flyingSnack, setFlyingSnack] =
-    useState<string | null>(null);
-  const [pressed, setPressed] = useState(false);
+  const [reaction, setReaction] = useState<Reaction>(null);
+  const [particles, setParticles] = useState<Particle[]>([]);
+  const [flyingSnack, setFlyingSnack] = useState<string | null>(null);
   const particleIdRef = useRef(0);
   const reactionTimerRef = useRef<number | null>(null);
   const toastTimerRef = useRef<number | null>(null);
+  const mountedRef = useRef(true);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (silent = false) => {
+    if (silent) {
+      setRefreshing(true);
+    } else {
+      setLoading(true);
+    }
     setError("");
 
     try {
-      const response =
-        await adminFetch<CareResponse>(
-          "/api/admin/shaymin",
-        );
-      setData(response);
-    } catch (loadError: unknown) {
-      setError(
-        loadError instanceof Error
-          ? loadError.message
-          : "The care room could not be opened.",
+      const response = await adminFetch<CareResponse>(
+        "/api/admin/shaymin",
       );
+
+      if (mountedRef.current) {
+        setData(response);
+      }
+    } catch (loadError: unknown) {
+      if (mountedRef.current) {
+        setError(
+          loadError instanceof Error
+            ? loadError.message
+            : "The care room could not be opened.",
+        );
+      }
     } finally {
-      setLoading(false);
+      if (mountedRef.current) {
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
   }, []);
 
   useEffect(() => {
+    mountedRef.current = true;
     void load();
 
-    const timer = window.setInterval(
-      () => void load(),
-      90_000,
-    );
+    const interval = window.setInterval(() => {
+      if (document.visibilityState === "visible") {
+        void load(true);
+      }
+    }, 90_000);
+
+    const refreshOnFocus = () => void load(true);
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") {
+        void load(true);
+      }
+    };
+
+    window.addEventListener("focus", refreshOnFocus);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
 
     return () => {
-      window.clearInterval(timer);
+      mountedRef.current = false;
+      window.clearInterval(interval);
+      window.removeEventListener("focus", refreshOnFocus);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
 
       if (reactionTimerRef.current !== null) {
         window.clearTimeout(reactionTimerRef.current);
@@ -399,6 +550,13 @@ export default function ShayminCarePage() {
       }
     };
   }, [load]);
+
+  useEffect(() => {
+    for (const mood of SHAYMIN_MOOD_LIST) {
+      const image = new window.Image();
+      image.src = mood.image;
+    }
+  }, []);
 
   function showToast(message: string) {
     setToast(message);
@@ -426,19 +584,16 @@ export default function ShayminCarePage() {
 
     reactionTimerRef.current = window.setTimeout(
       () => setReaction(null),
-      900,
+      920,
     );
   }
 
-  function burst(
-    symbols: string[],
-    count = 8,
-  ) {
+  function burst(symbols: string[], count = 8) {
     const created = Array.from(
       { length: count },
       (_, index): Particle => ({
         id: ++particleIdRef.current,
-        symbol: symbols[index % symbols.length],
+        symbol: symbols[index % symbols.length] ?? "✦",
         left: 24 + ((index * 17 + Math.random() * 9) % 56),
         top: 28 + ((index * 11 + Math.random() * 8) % 32),
         size: 16 + ((index * 3) % 10),
@@ -470,15 +625,13 @@ export default function ShayminCarePage() {
 
     setBusyAction(action);
     setError("");
-
-    const nextReaction: Reaction =
-      action === "cheer" ? "play" : action;
-    startReaction(nextReaction);
+    startReaction(action);
 
     if (action === "feed") {
-      const snack = item && item in SHAYMIN_SNACKS
-        ? SHAYMIN_SNACKS[item as ShayminSnackKey]
-        : null;
+      const snack =
+        item && item in SHAYMIN_SNACKS
+          ? SHAYMIN_SNACKS[item as ShayminSnackKey]
+          : null;
       setFlyingSnack(snack?.icon || "❧");
       burst(["✦", "❀", "♡"], 7);
       window.setTimeout(() => setFlyingSnack(null), 850);
@@ -499,18 +652,17 @@ export default function ShayminCarePage() {
     }
 
     try {
-      const response =
-        await adminFetch<CareResponse>(
-          "/api/admin/shaymin",
-          {
-            method: "POST",
-            body: JSON.stringify({
-              action,
-              item: item || null,
-              note: careNote || null,
-            }),
-          },
-        );
+      const response = await adminFetch<CareResponse>(
+        "/api/admin/shaymin",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            action,
+            item: item || null,
+            note: careNote || null,
+          }),
+        },
+      );
 
       setData(response);
       showToast(ACTION_COPY[action].message);
@@ -525,14 +677,11 @@ export default function ShayminCarePage() {
       }
 
       window.dispatchEvent(
-        new CustomEvent(
-          "pocketpulls:shaymin-mood",
-          {
-            detail: {
-              mood: response.mood.key,
-            },
+        new CustomEvent("pocketpulls:shaymin-mood", {
+          detail: {
+            mood: response.mood.key,
           },
-        ),
+        }),
       );
     } catch (actionError: unknown) {
       setError(
@@ -545,63 +694,92 @@ export default function ShayminCarePage() {
     }
   }
 
+  function openAction(action: ShayminActionKey) {
+    if (action === "feed") {
+      setTalkOpen(false);
+      setTrayOpen(true);
+      return;
+    }
+
+    if (action === "talk") {
+      setTrayOpen(false);
+      setTalkOpen(true);
+      return;
+    }
+
+    void runAction(action);
+  }
+
   const favouriteSnack = useMemo(() => {
     if (!data?.summary.favouriteSnack) {
       return "Still deciding";
     }
 
-    return SHAYMIN_SNACKS[
-      data.summary.favouriteSnack
-    ].label;
+    return SHAYMIN_SNACKS[data.summary.favouriteSnack].label;
   }, [data]);
 
-  const keeperItem =
+  const keeperItem: "lukas" | "skye" =
     data?.viewer.name.toLowerCase().includes("skye")
       ? "skye"
       : "lukas";
 
   const mood = data?.mood;
   const state = data?.state;
+  const noteRemaining = 180 - note.length;
 
   return (
     <main className="relative min-h-[100dvh] overflow-hidden bg-[#03130d] px-4 py-5 text-white sm:px-6 lg:px-8">
       <ForestBackground />
 
-      <div className="relative z-10 mx-auto w-full max-w-[1680px]">
+      <div className="relative z-10 mx-auto w-full max-w-[1720px]">
         <AdminNav />
 
         <header className="mt-7 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.24em] text-lime-100/42">
-              Private companion care
+              Private companion care · Land Forme collection
             </p>
             <h1 className="mt-3 text-4xl font-black tracking-tight text-white sm:text-6xl">
-              Shaymin's little room
+              Shaymin&apos;s little room
             </h1>
-            <p className="mt-4 max-w-3xl text-sm font-semibold leading-7 text-emerald-50/44 sm:text-base">
-              A shared, persistent space for Lukas and Skye. Every pat, snack,
-              game and note is remembered by the same tiny garden guardian.
+            <p className="mt-4 max-w-3xl text-sm font-semibold leading-7 text-emerald-50/45 sm:text-base">
+              One persistent garden guardian shared by Lukas and Skye. Every care action is remembered, every mood is derived from real state, and every approved picture stays fully inside its frame.
             </p>
           </div>
 
           {data ? (
             <div className="flex flex-wrap gap-2">
-              <span className="rounded-full border border-white/10 bg-white/[0.045] px-4 py-2 text-xs font-black text-white/55">
+              <span className="rounded-full border border-white/10 bg-white/[0.045] px-4 py-2 text-xs font-black text-white/58">
                 Keeper: {data.viewer.name}
               </span>
-              <span className="rounded-full border border-pink-100/15 bg-pink-300/[0.07] px-4 py-2 text-xs font-black text-pink-50/72">
+              <span className="rounded-full border border-pink-100/15 bg-pink-300/[0.07] px-4 py-2 text-xs font-black text-pink-50/75">
                 Bond Lv. {data.summary.bondLevel}
               </span>
-              <span className="rounded-full border border-lime-100/15 bg-lime-300/[0.07] px-4 py-2 text-xs font-black text-lime-50/72">
+              <span className="rounded-full border border-lime-100/15 bg-lime-300/[0.07] px-4 py-2 text-xs font-black text-lime-50/75">
                 {data.summary.careStreak} day care streak
               </span>
+              <button
+                type="button"
+                onClick={() => void load(true)}
+                disabled={refreshing}
+                className="rounded-full border border-cyan-100/15 bg-cyan-300/[0.06] px-4 py-2 text-xs font-black text-cyan-50/70 transition hover:bg-cyan-300/[0.11] disabled:opacity-45"
+              >
+                {refreshing ? "Syncing..." : "Sync now"}
+              </button>
             </div>
           ) : null}
         </header>
 
         {error ? (
-          <div className="mt-5 rounded-2xl border border-red-200/20 bg-red-400/[0.08] px-5 py-4 text-sm font-bold text-red-100">
-            {error}
+          <div className="mt-5 flex flex-col gap-3 rounded-2xl border border-red-200/20 bg-red-400/[0.08] px-5 py-4 text-sm font-bold text-red-100 sm:flex-row sm:items-center sm:justify-between">
+            <span>{error}</span>
+            <button
+              type="button"
+              onClick={() => void load()}
+              className="w-fit rounded-xl border border-red-100/20 bg-red-100/10 px-4 py-2 text-xs font-black text-red-50"
+            >
+              Try again
+            </button>
           </div>
         ) : null}
 
@@ -610,7 +788,7 @@ export default function ShayminCarePage() {
         ) : data && mood && state ? (
           <>
             <section
-              className={`${styles.scene} mt-6 rounded-[2.8rem] border border-emerald-100/15 bg-[#061a13]/90 shadow-[0_45px_160px_rgba(0,0,0,0.44)] backdrop-blur-3xl`}
+              className={`${styles.scene} mt-6 overflow-hidden rounded-[2.8rem] border border-emerald-100/15 bg-[#061a13]/92 shadow-[0_45px_160px_rgba(0,0,0,0.44)] backdrop-blur-3xl`}
             >
               <div
                 className={`pointer-events-none absolute inset-0 bg-gradient-to-br ${mood.aura}`}
@@ -637,118 +815,131 @@ export default function ShayminCarePage() {
                 </span>
               ))}
 
-              {Array.from({ length: 12 }).map((_, index) => (
-                <span
-                  key={`spark-${index}`}
-                  className={styles.sparkle}
-                  style={{
-                    left: `${8 + ((index * 19) % 84)}%`,
-                    top: `${8 + ((index * 23) % 76)}%`,
-                    width: `${2 + (index % 3)}px`,
-                    height: `${2 + (index % 3)}px`,
-                    animationDelay: `${index * 270}ms`,
-                  }}
-                />
-              ))}
-
-              <div className="relative grid gap-0 xl:grid-cols-[21rem_minmax(0,1fr)_22rem]">
+              <div className="relative grid xl:grid-cols-[20rem_minmax(0,1fr)_22rem]">
                 <aside className="border-b border-white/10 p-5 sm:p-7 xl:border-b-0 xl:border-r">
                   <div className="flex items-center justify-between gap-4">
                     <div>
-                      <p className="text-[0.62rem] font-black uppercase tracking-[0.18em] text-lime-100/38">
-                        Care meters
+                      <p className="text-[0.62rem] font-black uppercase tracking-[0.18em] text-lime-100/40">
+                        Live care state
                       </p>
                       <h2 className="mt-2 text-xl font-black text-white">
                         How the little one feels
                       </h2>
                     </div>
-                    <span className="text-2xl" aria-hidden="true">
-                      ❀
-                    </span>
+                    <div className="relative flex h-14 w-14 items-center justify-center rounded-full border border-lime-100/15 bg-lime-300/[0.07] text-lg font-black text-lime-50">
+                      {data.summary.careBalance}
+                      <span className="absolute -bottom-1 rounded-full border border-white/10 bg-[#071b14] px-2 py-0.5 text-[0.45rem] uppercase tracking-wider text-white/40">
+                        balance
+                      </span>
+                    </div>
                   </div>
 
                   <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
-                    <Meter
-                      label="Affection"
-                      value={state.affection}
-                      icon="♡"
-                      detail="Grows through pats, play, treats and kind words."
-                      fill="from-pink-300 to-rose-200"
-                    />
-                    <Meter
-                      label="Fullness"
-                      value={state.fullness}
-                      icon="❧"
-                      detail="A gentle meter that slowly changes with time."
-                      fill="from-lime-300 to-emerald-200"
-                    />
-                    <Meter
-                      label="Energy"
-                      value={state.energy}
-                      icon="✦"
-                      detail="Play spends it; naps and quiet time restore it."
-                      fill="from-sky-300 to-cyan-200"
-                    />
-                    <Meter
-                      label="Comfort"
-                      value={state.comfort}
-                      icon="☾"
-                      detail="Brushes, tea and conversation keep this warm."
-                      fill="from-violet-300 to-fuchsia-200"
-                    />
+                    <Meter stat="affection" value={state.affection} />
+                    <Meter stat="fullness" value={state.fullness} />
+                    <Meter stat="energy" value={state.energy} />
+                    <Meter stat="comfort" value={state.comfort} />
                   </div>
 
-                  <div className="mt-4 rounded-[1.45rem] border border-white/10 bg-white/[0.035] p-4">
-                    <p className="text-[0.6rem] font-black uppercase tracking-[0.17em] text-white/30">
-                      Favourite snack
-                    </p>
-                    <p className="mt-2 text-sm font-black text-white/75">
-                      {favouriteSnack}
-                    </p>
+                  <article className="mt-4 rounded-[1.4rem] border border-lime-100/15 bg-lime-300/[0.055] p-4">
+                    <div className="flex items-start gap-3">
+                      <span className="flex h-10 w-10 flex-none items-center justify-center rounded-xl border border-lime-100/15 bg-black/15 text-lg text-lime-100">
+                        {data.summary.need.icon}
+                      </span>
+                      <div>
+                        <p className="text-[0.58rem] font-black uppercase tracking-[0.16em] text-lime-100/45">
+                          Best care right now
+                        </p>
+                        <p className="mt-1 text-sm font-black text-white">
+                          {data.summary.need.label}
+                        </p>
+                        <p className="mt-1 text-[0.65rem] font-semibold leading-5 text-white/34">
+                          {data.summary.need.message}
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => openAction(data.summary.need.action)}
+                      disabled={Boolean(busyAction)}
+                      className="mt-3 w-full rounded-xl border border-lime-100/18 bg-lime-300/[0.1] px-4 py-3 text-xs font-black text-lime-50 transition hover:bg-lime-300/[0.16] disabled:opacity-40"
+                    >
+                      {data.summary.need.actionLabel}
+                    </button>
+                  </article>
+
+                  <div className="mt-4 grid grid-cols-2 gap-2">
+                    <div className="rounded-[1.2rem] border border-white/10 bg-white/[0.03] p-3">
+                      <p className="text-[0.52rem] font-black uppercase tracking-[0.14em] text-white/28">
+                        Favourite snack
+                      </p>
+                      <p className="mt-1 text-xs font-black text-white/68">
+                        {favouriteSnack}
+                      </p>
+                    </div>
+                    <div className="rounded-[1.2rem] border border-white/10 bg-white/[0.03] p-3">
+                      <p className="text-[0.52rem] font-black uppercase tracking-[0.14em] text-white/28">
+                        Care today
+                      </p>
+                      <p className="mt-1 text-xs font-black text-white/68">
+                        {data.summary.todayCareCount} moments
+                      </p>
+                    </div>
                   </div>
                 </aside>
 
                 <div className="relative min-w-0 p-5 sm:p-8 lg:p-10">
                   <div className="mx-auto max-w-3xl text-center">
-                    <p className="text-[0.64rem] font-black uppercase tracking-[0.22em] text-lime-100/42">
+                    <p className="text-[0.64rem] font-black uppercase tracking-[0.22em] text-lime-100/45">
                       Current mood
                     </p>
                     <h2 className="mt-3 text-3xl font-black tracking-tight text-white sm:text-5xl">
                       {mood.label}
                     </h2>
-                    <p className="mx-auto mt-3 max-w-xl text-sm font-semibold leading-6 text-emerald-50/44">
+                    <p className="mx-auto mt-3 max-w-xl text-sm font-semibold leading-6 text-emerald-50/48">
                       {mood.whisper}
                     </p>
-                    <p className="mx-auto mt-3 max-w-xl text-xs font-bold leading-5 text-white/26">
+                    <p className="mx-auto mt-3 max-w-xl text-xs font-bold leading-5 text-white/30">
                       {mood.reason}
                     </p>
                   </div>
 
                   <div
-                    className={`${styles.glassOrb} relative mx-auto mt-6 aspect-[1.08/1] w-full max-w-[35rem]`}
+                    className={`${styles.glassOrb} relative mx-auto mt-6 aspect-square w-full max-w-[35rem]`}
+                    style={{
+                      "--mood-accent": mood.accent,
+                    } as CSSProperties}
                   >
                     <div
-                      className={`${styles.pulseRing} pointer-events-none absolute inset-[8%] rounded-[42%] border border-lime-100/18`}
+                      className={`${styles.pulseRing} pointer-events-none absolute inset-[9%] rounded-[42%] border border-lime-100/18`}
                     />
-                    <div className="pointer-events-none absolute inset-[11%] rounded-[42%] bg-emerald-200/8 blur-[45px]" />
+                    <div className="pointer-events-none absolute inset-[12%] rounded-[42%] bg-emerald-200/8 blur-[45px]" />
                     <div
-                      className={`${styles.creatureStage} absolute inset-0 overflow-hidden rounded-[3rem] border border-white/12 bg-gradient-to-b from-white/[0.045] to-black/20 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_35px_100px_rgba(0,0,0,0.34)]`}
+                      className={`${styles.creatureStage} absolute inset-0 overflow-hidden rounded-[3rem] border border-white/12 bg-gradient-to-b from-white/[0.05] to-black/20 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_35px_100px_rgba(0,0,0,0.34)]`}
                     >
-                      <div className="pointer-events-none absolute inset-x-[10%] bottom-[7%] h-[16%] rounded-[50%] bg-black/30 blur-2xl" />
-                      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_18%,rgba(255,255,255,0.12),transparent_35%)]" />
+                      <div className="pointer-events-none absolute inset-x-[15%] bottom-[9%] h-[12%] rounded-[50%] bg-black/28 blur-2xl" />
+                      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_18%,rgba(255,255,255,0.13),transparent_36%)]" />
+
+                      {Array.from({ length: 12 }).map((_, index) => (
+                        <span
+                          key={`spark-${index}`}
+                          className={styles.sparkle}
+                          style={{
+                            left: `${8 + ((index * 19) % 84)}%`,
+                            top: `${8 + ((index * 23) % 76)}%`,
+                            width: `${2 + (index % 3)}px`,
+                            height: `${2 + (index % 3)}px`,
+                            animationDelay: `${index * 270}ms`,
+                          }}
+                        />
+                      ))}
 
                       <button
                         type="button"
                         aria-label="Pat Shaymin"
-                        onPointerDown={() => setPressed(true)}
-                        onPointerUp={() => {
-                          if (!pressed || busyAction) return;
-                          setPressed(false);
-                          void runAction("pat");
-                        }}
-                        onPointerCancel={() => setPressed(false)}
-                        onPointerLeave={() => setPressed(false)}
-                        className="absolute inset-0 z-20 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-lime-200"
+                        onClick={() => void runAction("pat")}
+                        disabled={Boolean(busyAction)}
+                        className="absolute inset-0 z-20 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-lime-200 disabled:cursor-wait"
                         style={{ touchAction: "manipulation" }}
                       >
                         <img
@@ -756,30 +947,21 @@ export default function ShayminCarePage() {
                           src={mood.image}
                           alt={mood.label}
                           draggable={false}
-                          className={`${styles.creature} ${styles.moodFade} ${reactionClass(
-                            reaction,
-                          )} h-full w-full object-cover`}
+                          className={`${styles.creature} ${styles.moodFade} ${motionClass(mood.motion)} ${reactionClass(reaction)} absolute inset-0 h-full w-full select-none object-contain p-[7%] sm:p-[5%]`}
                         />
                       </button>
 
                       <button
                         type="button"
+                        aria-label="Boop Shaymin's nose"
+                        title="Tiny nose boop"
                         onClick={(event: MouseEvent<HTMLButtonElement>) => {
                           event.stopPropagation();
                           void runAction("boop");
                         }}
                         disabled={Boolean(busyAction)}
-                        aria-label="Boop the tiny nose"
-                        className="absolute left-1/2 top-[47%] z-30 h-16 w-16 -translate-x-1/2 rounded-full opacity-0 outline-none focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-pink-200"
+                        className={`${styles.noseTarget} absolute left-[48%] top-[52%] z-30 h-12 w-12 -translate-x-1/2 -translate-y-1/2 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-pink-200 disabled:pointer-events-none sm:h-14 sm:w-14`}
                       />
-
-                      {flyingSnack ? (
-                        <span
-                          className={`${styles.snackFly} pointer-events-none absolute left-1/2 top-1/2 z-40 text-5xl`}
-                        >
-                          {flyingSnack}
-                        </span>
-                      ) : null}
 
                       {particles.map((particle) => (
                         <span
@@ -790,155 +972,96 @@ export default function ShayminCarePage() {
                             top: `${particle.top}%`,
                             fontSize: `${particle.size}px`,
                             animationDelay: `${particle.delay}ms`,
-                            color:
-                              particle.symbol === "♡" ||
-                              particle.symbol === "♥"
-                                ? "#f9a8d4"
-                                : particle.symbol.toLowerCase() === "z"
-                                  ? "#c4b5fd"
-                                  : "#d9f99d",
                           }}
                         >
                           {particle.symbol}
                         </span>
                       ))}
 
-                      <div className="pointer-events-none absolute inset-x-5 bottom-5 z-30 flex items-end justify-between gap-4 rounded-2xl border border-white/10 bg-[#04150f]/78 px-4 py-3 text-left backdrop-blur-2xl">
-                        <div>
-                          <p className="text-[0.58rem] font-black uppercase tracking-[0.18em] text-lime-100/42">
-                            Touch interaction
-                          </p>
-                          <p className="mt-1 text-xs font-bold text-white/48">
-                            Tap anywhere for a pat. The nose has a hidden boop.
-                          </p>
-                        </div>
-                        <span className="flex-none text-xl text-pink-100/75">
-                          ♡
+                      {flyingSnack ? (
+                        <span className={`${styles.snackFly} pointer-events-none absolute left-1/2 top-1/2 z-40 text-4xl`}>
+                          {flyingSnack}
                         </span>
-                      </div>
+                      ) : null}
                     </div>
                   </div>
 
-                  <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                    <ActionButton
-                      action="pat"
-                      detail="A gentle shared affection boost."
-                      onClick={() => void runAction("pat")}
-                      disabled={Boolean(busyAction)}
-                      emphasis
-                    />
-                    <ActionButton
-                      action="feed"
-                      detail="Open the shared snack tray."
-                      onClick={() => {
-                        setTrayOpen((current) => !current);
-                        setTalkOpen(false);
-                      }}
-                      disabled={Boolean(busyAction)}
-                    />
-                    <ActionButton
-                      action="play"
-                      detail="Spend energy on a tiny game."
-                      onClick={() => void runAction("play")}
-                      disabled={Boolean(busyAction)}
-                    />
-                    <ActionButton
-                      action="groom"
-                      detail="Brush and settle every leafy tuft."
-                      onClick={() => void runAction("groom")}
-                      disabled={Boolean(busyAction)}
-                    />
-                    <ActionButton
-                      action="nap"
-                      detail="Restore energy in the warm moss."
-                      onClick={() => void runAction("nap")}
-                      disabled={Boolean(busyAction)}
-                    />
-                    <ActionButton
-                      action="talk"
-                      detail="Leave a shared note for the care log."
-                      onClick={() => {
-                        setTalkOpen((current) => !current);
-                        setTrayOpen(false);
-                      }}
-                      disabled={Boolean(busyAction)}
-                    />
+                  <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    {(["pat", "feed", "play", "groom", "nap", "talk"] as const).map(
+                      (action) => (
+                        <ActionButton
+                          key={action}
+                          action={action}
+                          disabled={Boolean(busyAction)}
+                          recommended={data.summary.need.action === action}
+                          onClick={() => openAction(action)}
+                        />
+                      ),
+                    )}
                   </div>
 
                   {trayOpen ? (
-                    <section className="mt-4 rounded-[1.8rem] border border-lime-100/15 bg-[#061a12]/88 p-4 shadow-[0_25px_80px_rgba(0,0,0,0.28)] backdrop-blur-2xl sm:p-5">
+                    <section className={`${styles.drawerEnter} mt-4 rounded-[1.7rem] border border-lime-100/16 bg-black/20 p-4 sm:p-5`} aria-label="Shaymin snack tray">
                       <div className="flex items-center justify-between gap-4">
                         <div>
-                          <p className="text-[0.6rem] font-black uppercase tracking-[0.18em] text-lime-100/40">
+                          <p className="text-[0.58rem] font-black uppercase tracking-[0.16em] text-lime-100/42">
                             Shared snack tray
                           </p>
-                          <p className="mt-1 text-sm font-bold text-white/52">
-                            Pick whatever feels right today.
+                          <p className="mt-1 text-sm font-black text-white">
+                            Choose one little treat
                           </p>
                         </div>
                         <button
                           type="button"
                           onClick={() => setTrayOpen(false)}
-                          className="h-9 w-9 rounded-xl border border-white/10 bg-white/[0.04] text-white/50 transition hover:bg-white/[0.08] hover:text-white"
+                          className="h-10 w-10 rounded-xl border border-white/10 bg-white/[0.04] text-lg font-black text-white/55"
                           aria-label="Close snack tray"
                         >
                           ×
                         </button>
                       </div>
 
-                      <div className="mt-4 grid gap-3 md:grid-cols-3">
-                        {(Object.keys(
-                          SHAYMIN_SNACKS,
-                        ) as ShayminSnackKey[]).map((key) => {
-                          const snack = SHAYMIN_SNACKS[key];
-
-                          return (
-                            <button
-                              key={key}
-                              type="button"
-                              onClick={() => void runAction("feed", key)}
-                              disabled={Boolean(busyAction)}
-                              className="group rounded-[1.35rem] border border-white/10 bg-white/[0.035] p-4 text-left transition hover:border-lime-100/25 hover:bg-lime-200/[0.07] disabled:opacity-40"
-                            >
-                              <div className="flex items-start gap-3">
-                                <span className="text-3xl transition group-hover:scale-110">
-                                  {snack.icon}
-                                </span>
-                                <span>
-                                  <span className="block text-sm font-black text-white">
-                                    {snack.label}
-                                  </span>
-                                  <span className="mt-1 block text-[0.65rem] font-semibold leading-5 text-white/30">
-                                    {snack.detail}
-                                  </span>
-                                  <span className="mt-2 block text-[0.58rem] font-black uppercase tracking-[0.12em] text-lime-100/38">
-                                    {snack.effect}
-                                  </span>
-                                </span>
-                              </div>
-                            </button>
-                          );
-                        })}
+                      <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                        {Object.values(SHAYMIN_SNACKS).map((snack) => (
+                          <button
+                            key={snack.key}
+                            type="button"
+                            onClick={() => void runAction("feed", snack.key)}
+                            disabled={Boolean(busyAction)}
+                            className="rounded-[1.25rem] border border-white/10 bg-white/[0.035] p-4 text-left transition hover:border-lime-100/20 hover:bg-white/[0.07] disabled:opacity-40"
+                          >
+                            <span className="text-2xl">{snack.icon}</span>
+                            <p className="mt-3 text-sm font-black text-white">
+                              {snack.label}
+                            </p>
+                            <p className="mt-1 text-[0.62rem] font-semibold leading-5 text-white/32">
+                              {snack.detail}
+                            </p>
+                            <p className="mt-2 text-[0.57rem] font-black uppercase tracking-[0.1em] text-lime-100/48">
+                              {snack.effect}
+                            </p>
+                          </button>
+                        ))}
                       </div>
                     </section>
                   ) : null}
 
                   {talkOpen ? (
-                    <section className="mt-4 rounded-[1.8rem] border border-pink-100/15 bg-[#151020]/88 p-4 shadow-[0_25px_80px_rgba(0,0,0,0.28)] backdrop-blur-2xl sm:p-5">
+                    <section className={`${styles.drawerEnter} mt-4 rounded-[1.7rem] border border-pink-100/16 bg-black/20 p-4 sm:p-5`} aria-label="Write a note to Shaymin">
                       <div className="flex items-center justify-between gap-4">
                         <div>
-                          <p className="text-[0.6rem] font-black uppercase tracking-[0.18em] text-pink-100/42">
-                            Tiny shared note
+                          <p className="text-[0.58rem] font-black uppercase tracking-[0.16em] text-pink-100/42">
+                            Shared care note
                           </p>
-                          <p className="mt-1 text-sm font-bold text-white/52">
-                            Lukas and Skye will both see it in the care history.
+                          <p className="mt-1 text-sm font-black text-white">
+                            Leave a few words beneath the flowers
                           </p>
                         </div>
                         <button
                           type="button"
                           onClick={() => setTalkOpen(false)}
-                          className="h-9 w-9 rounded-xl border border-white/10 bg-white/[0.04] text-white/50 transition hover:bg-white/[0.08] hover:text-white"
-                          aria-label="Close note editor"
+                          className="h-10 w-10 rounded-xl border border-white/10 bg-white/[0.04] text-lg font-black text-white/55"
+                          aria-label="Close note composer"
                         >
                           ×
                         </button>
@@ -949,21 +1072,21 @@ export default function ShayminCarePage() {
                         onChange={(event: ChangeEvent<HTMLTextAreaElement>) =>
                           setNote(event.target.value.slice(0, 180))
                         }
-                        placeholder="Today I wanted to tell you..."
-                        className="mt-4 min-h-28 w-full resize-none rounded-[1.25rem] border border-white/10 bg-black/20 px-4 py-3 text-sm font-semibold leading-6 text-white outline-none placeholder:text-white/20 focus:border-pink-100/30"
+                        rows={4}
+                        placeholder="Write something small, kind or important..."
+                        className="mt-4 w-full resize-none rounded-[1.25rem] border border-white/10 bg-black/22 px-4 py-3 text-sm font-semibold leading-6 text-white outline-none placeholder:text-white/20 focus:border-pink-100/30"
                       />
-
-                      <div className="mt-3 flex items-center justify-between gap-4">
-                        <p className="text-xs font-bold text-white/25">
-                          {note.length}/180
+                      <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <p className={`text-xs font-bold ${noteRemaining < 20 ? "text-amber-100/75" : "text-white/28"}`}>
+                          {noteRemaining} characters remaining
                         </p>
                         <button
                           type="button"
                           onClick={() => void runAction("talk", undefined, note)}
                           disabled={Boolean(busyAction) || !note.trim()}
-                          className="min-h-11 rounded-xl border border-pink-100/20 bg-pink-300/[0.11] px-5 text-sm font-black text-pink-50 transition hover:bg-pink-300/[0.17] disabled:opacity-35"
+                          className="rounded-xl border border-pink-100/20 bg-pink-300/[0.1] px-5 py-3 text-xs font-black text-pink-50 transition hover:bg-pink-300/[0.16] disabled:opacity-35"
                         >
-                          Leave the note
+                          Share the note
                         </button>
                       </div>
                     </section>
@@ -973,55 +1096,54 @@ export default function ShayminCarePage() {
                 <aside className="border-t border-white/10 p-5 sm:p-7 xl:border-l xl:border-t-0">
                   <div className="flex items-center justify-between gap-4">
                     <div>
-                      <p className="text-[0.62rem] font-black uppercase tracking-[0.18em] text-lime-100/38">
-                        Shared care history
+                      <p className="text-[0.62rem] font-black uppercase tracking-[0.18em] text-pink-100/40">
+                        Shared memory
                       </p>
                       <h2 className="mt-2 text-xl font-black text-white">
-                        The two keeper trail
+                        What happened lately
                       </h2>
                     </div>
-                    <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[0.6rem] font-black text-white/42">
-                      {data.summary.todayCareCount} today
+                    <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[0.58rem] font-black uppercase tracking-[0.12em] text-white/42">
+                      {formatNumber(data.summary.totalCare)} total
                     </span>
                   </div>
 
-                  <div className="mt-5 rounded-[1.45rem] border border-pink-100/14 bg-gradient-to-br from-pink-300/[0.08] to-emerald-300/[0.05] p-4">
-                    <div className="flex items-center gap-3">
-                      <span className="text-2xl">
-                        {data.summary.bothCaredToday ? "💕" : "🌱"}
-                      </span>
-                      <div>
-                        <p className="text-sm font-black text-white">
-                          {data.summary.bothCaredToday
-                            ? "Both branches visited today"
-                            : "Waiting for both branches"}
-                        </p>
-                        <p className="mt-1 text-[0.65rem] font-semibold leading-5 text-white/32">
-                          {data.summary.bothCaredToday
-                            ? "The together mood has been unlocked for today."
-                            : "One care action from Lukas and one from Skye unlocks the pair mood."}
-                        </p>
-                      </div>
+                  <div className="mt-4 grid grid-cols-2 gap-2">
+                    <div className="rounded-[1.2rem] border border-white/10 bg-white/[0.03] p-3">
+                      <p className="text-[0.5rem] font-black uppercase tracking-[0.14em] text-white/28">
+                        Both keepers
+                      </p>
+                      <p className="mt-1 text-xs font-black text-white/68">
+                        {data.summary.bothCaredToday ? "Together today" : "Waiting today"}
+                      </p>
+                    </div>
+                    <div className="rounded-[1.2rem] border border-white/10 bg-white/[0.03] p-3">
+                      <p className="text-[0.5rem] font-black uppercase tracking-[0.14em] text-white/28">
+                        Tree pulse
+                      </p>
+                      <p className="mt-1 text-xs font-black text-white/68">
+                        {formatNumber(data.tree.wishesToday)} wishes
+                      </p>
                     </div>
                   </div>
 
-                  <div className="mt-4 max-h-[34rem] space-y-2 overflow-y-auto pr-1">
+                  <div className="mt-4 max-h-[39rem] space-y-2 overflow-y-auto pr-1">
                     {data.recentEvents.length ? (
                       data.recentEvents.map((event, index) => (
                         <article
                           key={event.id}
-                          className={`${styles.logEnter} rounded-[1.25rem] border border-white/10 bg-white/[0.032] p-3.5`}
-                          style={{ animationDelay: `${index * 40}ms` }}
+                          className={`${styles.logEnter} rounded-[1.2rem] border border-white/10 bg-white/[0.032] p-3.5`}
+                          style={{ animationDelay: `${index * 35}ms` }}
                         >
                           <div className="flex items-start gap-3">
                             <span className="flex h-9 w-9 flex-none items-center justify-center rounded-xl border border-white/10 bg-black/18 text-sm text-lime-100/75">
                               {ACTION_COPY[event.action].icon}
                             </span>
                             <div className="min-w-0 flex-1">
-                              <p className="text-xs font-bold leading-5 text-white/62">
+                              <p className="break-words text-xs font-bold leading-5 text-white/64">
                                 {eventSentence(event)}
                               </p>
-                              <p className="mt-1 text-[0.58rem] font-black uppercase tracking-[0.12em] text-white/22">
+                              <p className="mt-1 text-[0.56rem] font-black uppercase tracking-[0.12em] text-white/24">
                                 {formatRelative(event.createdAt)}
                               </p>
                             </div>
@@ -1038,19 +1160,21 @@ export default function ShayminCarePage() {
               </div>
             </section>
 
-            <section className="mt-5 grid gap-4 lg:grid-cols-[1.2fr_.8fr]">
-              <article className="rounded-[2rem] border border-white/10 bg-[#071b14]/82 p-6 shadow-[0_25px_90px_rgba(0,0,0,0.3)] backdrop-blur-2xl sm:p-8">
+            <section className="mt-5 grid gap-4 lg:grid-cols-[1.15fr_.85fr]">
+              <article className="rounded-[2rem] border border-white/10 bg-[#071b14]/84 p-6 shadow-[0_25px_90px_rgba(0,0,0,0.3)] backdrop-blur-2xl sm:p-8">
                 <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
                   <div>
-                    <p className="text-[0.62rem] font-black uppercase tracking-[0.18em] text-lime-100/38">
+                    <p className="text-[0.62rem] font-black uppercase tracking-[0.18em] text-lime-100/40">
                       Shared bond
                     </p>
                     <h2 className="mt-2 text-2xl font-black tracking-tight text-white">
                       {data.summary.bondTitle}
                     </h2>
-                    <p className="mt-2 text-sm font-semibold leading-6 text-white/34">
-                      {formatNumber(data.summary.totalCare)} remembered care moments.
-                      The bond level belongs to both of you.
+                    <p className="mt-2 text-sm font-semibold leading-6 text-white/36">
+                      {formatNumber(data.summary.totalCare)} remembered care moments belong to both keepers.
+                      {data.summary.bondPointsRemaining > 0
+                        ? ` ${data.summary.bondPointsRemaining} bond points remain before the next level.`
+                        : " The bond has reached its highest garden level."}
                     </p>
                   </div>
 
@@ -1071,13 +1195,13 @@ export default function ShayminCarePage() {
                     type="button"
                     onClick={() => void runAction("cheer", keeperItem)}
                     disabled={Boolean(busyAction)}
-                    className="rounded-[1.25rem] border border-sky-100/15 bg-sky-300/[0.06] p-4 text-left transition hover:bg-sky-300/[0.11] disabled:opacity-40"
+                    className="rounded-[1.25rem] border border-lime-100/15 bg-lime-300/[0.06] p-4 text-left transition hover:bg-lime-300/[0.11] disabled:opacity-40"
                   >
                     <p className="text-sm font-black text-white">
-                      My keeper cape
+                      My keeper call
                     </p>
-                    <p className="mt-1 text-[0.65rem] font-semibold leading-5 text-white/30">
-                      Dress for {data.viewer.name}'s shift.
+                    <p className="mt-1 text-[0.65rem] font-semibold leading-5 text-white/31">
+                      Call the {data.viewer.name} branch into the room.
                     </p>
                   </button>
 
@@ -1085,12 +1209,12 @@ export default function ShayminCarePage() {
                     type="button"
                     onClick={() => void runAction("cheer", "lukas")}
                     disabled={Boolean(busyAction)}
-                    className="rounded-[1.25rem] border border-yellow-100/15 bg-yellow-300/[0.05] p-4 text-left transition hover:bg-yellow-300/[0.1] disabled:opacity-40"
+                    className="rounded-[1.25rem] border border-sky-100/15 bg-sky-300/[0.06] p-4 text-left transition hover:bg-sky-300/[0.11] disabled:opacity-40"
                   >
                     <p className="text-sm font-black text-white">
-                      Lukas cape
+                      Lukas branch
                     </p>
-                    <p className="mt-1 text-[0.65rem] font-semibold leading-5 text-white/30">
+                    <p className="mt-1 text-[0.65rem] font-semibold leading-5 text-white/31">
                       Wake the left keeper branch.
                     </p>
                   </button>
@@ -1102,53 +1226,63 @@ export default function ShayminCarePage() {
                     className="rounded-[1.25rem] border border-violet-100/15 bg-violet-300/[0.06] p-4 text-left transition hover:bg-violet-300/[0.11] disabled:opacity-40"
                   >
                     <p className="text-sm font-black text-white">
-                      Skye cape
+                      Skye branch
                     </p>
-                    <p className="mt-1 text-[0.65rem] font-semibold leading-5 text-white/30">
+                    <p className="mt-1 text-[0.65rem] font-semibold leading-5 text-white/31">
                       Wake the right keeper branch.
                     </p>
                   </button>
                 </div>
               </article>
 
-              <article className="relative overflow-hidden rounded-[2rem] border border-yellow-100/14 bg-[#17180e]/82 p-6 shadow-[0_25px_90px_rgba(0,0,0,0.3)] backdrop-blur-2xl sm:p-8">
+              <article className="relative overflow-hidden rounded-[2rem] border border-yellow-100/14 bg-[#17180e]/84 p-6 shadow-[0_25px_90px_rgba(0,0,0,0.3)] backdrop-blur-2xl sm:p-8">
                 <div className="pointer-events-none absolute -right-16 -top-16 h-52 w-52 rounded-full bg-yellow-200/10 blur-[65px]" />
                 <p className="relative text-[0.62rem] font-black uppercase tracking-[0.18em] text-yellow-100/42">
-                  Today's tiny secret
+                  Today&apos;s tiny secret
                 </p>
                 <p className="relative mt-4 text-xl font-black leading-8 text-white">
                   {data.summary.dailySecret}
                 </p>
-                <p className="relative mt-4 text-xs font-semibold leading-6 text-white/30">
-                  This changes each day using your shared care and the growth of
-                  PocketPulls. It is deliberately small, private and only yours.
+                <p className="relative mt-4 text-xs font-semibold leading-6 text-white/31">
+                  It changes each day using your shared care and PocketPulls growth. It stays deliberately small, private and only yours.
                 </p>
-                <div className="relative mt-5 flex items-center justify-between gap-4 rounded-[1.25rem] border border-white/10 bg-black/15 px-4 py-3">
-                  <div>
-                    <p className="text-[0.56rem] font-black uppercase tracking-[0.14em] text-white/25">
-                      Business pulse
+                <div className="relative mt-5 grid grid-cols-2 gap-2">
+                  <div className="rounded-[1.2rem] border border-white/10 bg-black/15 p-3">
+                    <p className="text-[0.52rem] font-black uppercase tracking-[0.14em] text-white/26">
+                      Cards planted
                     </p>
-                    <p className="mt-1 text-xs font-bold text-white/55">
-                      {formatNumber(data.tree.cardsPlantedToday)} cards planted · {formatNumber(data.tree.wishesToday)} wishes today
+                    <p className="mt-1 text-xs font-black text-white/62">
+                      {formatNumber(data.tree.cardsPlantedToday)} today
                     </p>
                   </div>
-                  <span className="text-xl text-yellow-100/65">✦</span>
+                  <div className="rounded-[1.2rem] border border-white/10 bg-black/15 p-3">
+                    <p className="text-[0.52rem] font-black uppercase tracking-[0.14em] text-white/26">
+                      Growth score
+                    </p>
+                    <p className="mt-1 text-xs font-black text-white/62">
+                      {formatNumber(data.tree.growthScore)}
+                    </p>
+                  </div>
                 </div>
               </article>
             </section>
 
-            <p className="mt-5 text-center text-xs font-bold text-white/20">
+            <MoodGarden currentMood={mood.key} />
+
+            <p className="mt-5 text-center text-xs font-bold text-white/22">
               Click the navigation portrait to return here. Hold it to open The Tree We Grow.
             </p>
           </>
         ) : null}
       </div>
 
-      {toast ? (
-        <div className="fixed bottom-5 left-1/2 z-[300] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 rounded-2xl border border-lime-100/20 bg-[#071d14]/96 px-5 py-4 text-center text-sm font-black text-emerald-50 shadow-[0_25px_90px_rgba(0,0,0,0.55)] backdrop-blur-3xl">
-          {toast}
-        </div>
-      ) : null}
+      <div aria-live="polite" aria-atomic="true">
+        {toast ? (
+          <div className="fixed bottom-5 left-1/2 z-[300] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 rounded-2xl border border-lime-100/20 bg-[#071d14]/96 px-5 py-4 text-center text-sm font-black text-emerald-50 shadow-[0_25px_90px_rgba(0,0,0,0.55)] backdrop-blur-3xl">
+            {toast}
+          </div>
+        ) : null}
+      </div>
     </main>
   );
 }

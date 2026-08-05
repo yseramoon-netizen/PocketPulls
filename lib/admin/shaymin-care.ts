@@ -1,143 +1,252 @@
 export const SHAYMIN_MOOD_KEYS = [
-  "sleepy",
-  "joyful",
+  "gentle",
+  "eager",
+  "zoomies",
   "content",
-  "hungry",
-  "worried",
-  "snacking",
+  "joyful",
+  "blooming",
   "playful",
-  "celebrating",
-  "together",
-  "lukas",
-  "skye",
-  "golden",
+  "curious",
+  "surprised",
+  "grumpy",
+  "sad",
+  "crying",
+  "sleepy",
+  "resting",
+  "cheerful",
+  "exploring",
+  "determined",
+  "shy",
 ] as const;
 
 export type ShayminMoodKey =
   (typeof SHAYMIN_MOOD_KEYS)[number];
 
+export type ShayminMotion =
+  | "breathe"
+  | "bounce"
+  | "dash"
+  | "sleep"
+  | "settle"
+  | "wiggle";
+
 export type ShayminMoodDefinition = {
   key: ShayminMoodKey;
   label: string;
+  shortLabel: string;
   whisper: string;
   image: string;
   aura: string;
   accent: string;
+  motion: ShayminMotion;
 };
 
 export const SHAYMIN_MOODS: Record<
   ShayminMoodKey,
   ShayminMoodDefinition
 > = {
-  sleepy: {
-    key: "sleepy",
-    label: "Sleepy sprout",
+  gentle: {
+    key: "gentle",
+    label: "Gentle garden heart",
+    shortLabel: "Gentle",
     whisper:
-      "The little leaves are folding in. A quiet nap would be lovely.",
-    image: "/shaymin-care/sleepy.png",
-    aura: "from-indigo-200/24 via-violet-200/12 to-emerald-100/10",
-    accent: "#c4b5fd",
+      "The room feels safe, the leaves are soft, and Shaymin is happy simply being near you.",
+    image: "/shaymin-care/gentle.png",
+    aura: "from-emerald-200/24 via-lime-100/14 to-cyan-100/10",
+    accent: "#a7f3d0",
+    motion: "breathe",
   },
-  joyful: {
-    key: "joyful",
-    label: "Bright as morning",
+  eager: {
+    key: "eager",
+    label: "Ready for the day",
+    shortLabel: "Eager",
     whisper:
-      "Everything feels light today. Shaymin is practically sparkling.",
-    image: "/shaymin-care/joyful.png",
-    aura: "from-sky-200/28 via-lime-100/16 to-yellow-100/20",
-    accent: "#bae6fd",
+      "Those little paws are already moving. Shaymin has decided something lovely should happen next.",
+    image: "/shaymin-care/eager.png",
+    aura: "from-lime-200/28 via-yellow-100/18 to-emerald-100/12",
+    accent: "#bef264",
+    motion: "bounce",
+  },
+  zoomies: {
+    key: "zoomies",
+    label: "Garden zoomies",
+    shortLabel: "Zoomies",
+    whisper:
+      "A serious burst of tiny-footed speed is happening. The care room may never recover.",
+    image: "/shaymin-care/zoomies.png",
+    aura: "from-sky-200/25 via-lime-100/18 to-emerald-100/12",
+    accent: "#7dd3fc",
+    motion: "dash",
   },
   content: {
     key: "content",
     label: "Softly content",
+    shortLabel: "Content",
     whisper:
-      "The garden is calm, the paws are warm, and all is well.",
+      "Warm paws, calm leaves and a quiet little smile. Everything is exactly where it should be.",
     image: "/shaymin-care/content.png",
     aura: "from-emerald-200/24 via-lime-100/12 to-cyan-100/12",
-    accent: "#a7f3d0",
+    accent: "#86efac",
+    motion: "settle",
   },
-  hungry: {
-    key: "hungry",
-    label: "Snack thoughts",
+  joyful: {
+    key: "joyful",
+    label: "Bright as morning",
+    shortLabel: "Joyful",
     whisper:
-      "Those eyes are definitely following the berry tray.",
-    image: "/shaymin-care/hungry.png",
-    aura: "from-amber-200/24 via-orange-100/12 to-emerald-100/10",
+      "Shaymin is glowing with the kind of happiness that makes the whole room feel lighter.",
+    image: "/shaymin-care/joyful.png",
+    aura: "from-yellow-100/25 via-lime-100/18 to-pink-100/12",
     accent: "#fde68a",
+    motion: "bounce",
   },
-  worried: {
-    key: "worried",
-    label: "Needs a little care",
+  blooming: {
+    key: "blooming",
+    label: "Petal-perfect joy",
+    shortLabel: "Blooming",
     whisper:
-      "Nothing is wrong. Shaymin just wants a gentle moment with one of you.",
-    image: "/shaymin-care/worried.png",
-    aura: "from-violet-200/20 via-sky-200/12 to-emerald-100/10",
-    accent: "#c4b5fd",
-  },
-  snacking: {
-    key: "snacking",
-    label: "Happy little bites",
-    whisper:
-      "A very serious snack inspection is currently underway.",
-    image: "/shaymin-care/snacking.png",
-    aura: "from-lime-200/26 via-yellow-100/16 to-emerald-100/12",
-    accent: "#bef264",
+      "Every flower is open at once. Something kind has made the little garden guardian feel completely loved.",
+    image: "/shaymin-care/blooming.png",
+    aura: "from-pink-200/30 via-lime-100/16 to-yellow-100/15",
+    accent: "#f9a8d4",
+    motion: "breathe",
   },
   playful: {
     key: "playful",
     label: "Mischief in the leaves",
+    shortLabel: "Playful",
     whisper:
-      "That wink means a game has already started, whether you noticed or not.",
+      "That wink means a game has already started, whether either keeper noticed or not.",
     image: "/shaymin-care/playful.png",
     aura: "from-pink-200/22 via-lime-100/16 to-cyan-100/12",
     accent: "#f9a8d4",
+    motion: "wiggle",
   },
-  celebrating: {
-    key: "celebrating",
-    label: "Petal celebration",
+  curious: {
+    key: "curious",
+    label: "Full of questions",
+    shortLabel: "Curious",
     whisper:
-      "Something good happened. The petals have decided everyone should know.",
-    image: "/shaymin-care/celebrating.png",
-    aura: "from-pink-200/28 via-yellow-100/18 to-emerald-100/12",
+      "Shaymin has heard something interesting and would now like the complete story, please.",
+    image: "/shaymin-care/curious.png",
+    aura: "from-cyan-200/22 via-emerald-100/14 to-yellow-100/12",
+    accent: "#67e8f9",
+    motion: "breathe",
+  },
+  surprised: {
+    key: "surprised",
+    label: "Little leaf surprise",
+    shortLabel: "Surprised",
+    whisper:
+      "One tiny gasp, four frozen paws and a flower that was absolutely not prepared for that.",
+    image: "/shaymin-care/surprised.png",
+    aura: "from-orange-200/24 via-yellow-100/16 to-pink-100/12",
+    accent: "#fdba74",
+    motion: "bounce",
+  },
+  grumpy: {
+    key: "grumpy",
+    label: "Leafy little huff",
+    shortLabel: "Grumpy",
+    whisper:
+      "The expression is dramatic. The problem is probably solvable with attention, a brush or a snack.",
+    image: "/shaymin-care/grumpy.png",
+    aura: "from-amber-200/20 via-rose-100/12 to-emerald-100/10",
+    accent: "#fbbf24",
+    motion: "wiggle",
+  },
+  sad: {
+    key: "sad",
+    label: "Needs a gentle moment",
+    shortLabel: "Sad",
+    whisper:
+      "Nothing is broken. Shaymin just wants one of its keepers to stay close for a little while.",
+    image: "/shaymin-care/sad.png",
+    aura: "from-sky-200/20 via-violet-200/12 to-emerald-100/10",
+    accent: "#93c5fd",
+    motion: "settle",
+  },
+  crying: {
+    key: "crying",
+    label: "Big tiny feelings",
+    shortLabel: "Crying",
+    whisper:
+      "The feelings have become much larger than the Pokémon. A calm care action will help them pass.",
+    image: "/shaymin-care/crying.png",
+    aura: "from-blue-200/24 via-violet-200/14 to-pink-100/10",
+    accent: "#bfdbfe",
+    motion: "settle",
+  },
+  sleepy: {
+    key: "sleepy",
+    label: "Sleepy sprout",
+    shortLabel: "Sleepy",
+    whisper:
+      "The leaves are folding in and the paws have found the softest possible place to rest.",
+    image: "/shaymin-care/sleepy.png",
+    aura: "from-indigo-200/24 via-violet-200/12 to-emerald-100/10",
+    accent: "#c4b5fd",
+    motion: "sleep",
+  },
+  resting: {
+    key: "resting",
+    label: "Resting among flowers",
+    shortLabel: "Resting",
+    whisper:
+      "A proper little garden nap is underway. Even the flowers are trying not to make a sound.",
+    image: "/shaymin-care/resting.png",
+    aura: "from-pink-200/18 via-emerald-100/16 to-violet-100/12",
     accent: "#fbcfe8",
+    motion: "sleep",
   },
-  together: {
-    key: "together",
-    label: "Both keepers are here",
+  cheerful: {
+    key: "cheerful",
+    label: "Happy little steps",
+    shortLabel: "Cheerful",
     whisper:
-      "Two people, one tiny garden guardian, and a very full heart.",
-    image: "/shaymin-care/together.png",
-    aura: "from-pink-200/24 via-emerald-100/18 to-cyan-100/12",
-    accent: "#f9a8d4",
+      "The tail is up, the smile is ready and the next care moment already looks promising.",
+    image: "/shaymin-care/cheerful.png",
+    aura: "from-lime-200/26 via-sky-100/15 to-yellow-100/14",
+    accent: "#bef264",
+    motion: "bounce",
   },
-  lukas: {
-    key: "lukas",
-    label: "Lukas on duty",
+  exploring: {
+    key: "exploring",
+    label: "Following the leaves",
+    shortLabel: "Exploring",
     whisper:
-      "Cape secured. Leaves ready. The left branch has a hero today.",
-    image: "/shaymin-care/lukas.png",
-    aura: "from-sky-200/28 via-yellow-100/16 to-emerald-100/12",
-    accent: "#7dd3fc",
+      "Something interesting passed through the room. Shaymin is carefully investigating every last leaf.",
+    image: "/shaymin-care/exploring.png",
+    aura: "from-emerald-200/25 via-cyan-100/12 to-lime-100/16",
+    accent: "#6ee7b7",
+    motion: "breathe",
   },
-  skye: {
-    key: "skye",
-    label: "Skye on duty",
+  determined: {
+    key: "determined",
+    label: "Tiny guardian focus",
+    shortLabel: "Determined",
     whisper:
-      "The right branch is glowing. Shaymin dressed up for the occasion.",
-    image: "/shaymin-care/skye.png",
-    aura: "from-violet-200/26 via-pink-100/16 to-cyan-100/12",
+      "The little garden guardian has chosen a mission and is now taking it extremely seriously.",
+    image: "/shaymin-care/determined.png",
+    aura: "from-lime-200/24 via-amber-100/14 to-emerald-100/12",
+    accent: "#d9f99d",
+    motion: "dash",
+  },
+  shy: {
+    key: "shy",
+    label: "Quietly hiding",
+    shortLabel: "Shy",
+    whisper:
+      "Shaymin is still listening. A soft word or gentle pat will make it turn back around when it is ready.",
+    image: "/shaymin-care/shy.png",
+    aura: "from-violet-200/18 via-emerald-100/12 to-slate-100/8",
     accent: "#d8b4fe",
-  },
-  golden: {
-    key: "golden",
-    label: "Golden promise",
-    whisper:
-      "A rare light has reached the garden. This one is worth remembering.",
-    image: "/shaymin-care/golden.png",
-    aura: "from-yellow-100/38 via-amber-200/24 to-emerald-100/12",
-    accent: "#fde68a",
+    motion: "settle",
   },
 };
+
+export const SHAYMIN_MOOD_LIST =
+  SHAYMIN_MOOD_KEYS.map((key) => SHAYMIN_MOODS[key]);
 
 export const SHAYMIN_ACTION_KEYS = [
   "pat",
@@ -184,16 +293,16 @@ export const SHAYMIN_SNACKS: Record<
   poffin: {
     key: "poffin",
     label: "Soft Poffin",
-    detail: "A proper treat for very good garden guardians.",
+    detail: "A proper treat for a very good garden guardian.",
     icon: "🍪",
-    effect: "+12 fullness · +7 affection",
+    effect: "+12 fullness · +7 affection · +3 comfort",
   },
   tea: {
     key: "tea",
     label: "Herbal Tea",
     detail: "Warm leaves, calm paws and a little more energy.",
     icon: "🍵",
-    effect: "+14 comfort · +5 energy",
+    effect: "+6 fullness · +14 comfort · +5 energy",
   },
 };
 
