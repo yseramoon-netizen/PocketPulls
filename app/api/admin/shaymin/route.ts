@@ -649,7 +649,7 @@ function deriveMood(
     return {
       key: "blooming",
       reason:
-        "PocketPulls has crossed the million-growth promise milestone.",
+        "Unown Pulls has crossed the million-growth promise milestone.",
     };
   }
 
@@ -690,7 +690,7 @@ function deriveMood(
     return {
       key: "exploring",
       reason:
-        "There is fresh activity in PocketPulls and every new leaf deserves inspection.",
+        "There is fresh activity in Unown Pulls and every new leaf deserves inspection.",
     };
   }
 
