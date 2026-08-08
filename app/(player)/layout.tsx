@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import type { Session } from "@supabase/supabase-js";
 
+import FirstWishJourney from "@/components/player/FirstWishJourney";
 import PlayerNav from "@/components/player/PlayerNav";
 import PurchaseConsentGate from "@/components/player/PurchaseConsentGate";
 import UnownText from "@/components/player/UnownText";
@@ -473,6 +474,8 @@ export default function PlayerLayout({ children }: PlayerLayoutProps) {
       <main className="relative z-10 min-h-[calc(100dvh-5rem)] pb-[calc(5.75rem+env(safe-area-inset-bottom))] md:pb-0">
         {children}
       </main>
+
+      <FirstWishJourney displayName={player.displayName} />
 
       <style jsx global>{`
         .unknown-pulls-shell {

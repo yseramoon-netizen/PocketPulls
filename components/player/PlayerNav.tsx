@@ -12,6 +12,7 @@ import {
   useState,
 } from "react";
 
+import NotificationCentre from "@/components/player/NotificationCentre";
 import UnownText from "@/components/player/UnownText";
 import { supabase } from "@/lib/supabase";
 
@@ -868,6 +869,8 @@ export default function PlayerNav({
               xl:ml-2
             "
           >
+            <NotificationCentre />
+
             <Link
               href="/wishes"
               onClick={closeMore}
