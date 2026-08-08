@@ -15,6 +15,7 @@ import { adminFetch } from "@/lib/admin/client-auth";
 
 import AdminNav from "@/components/AdminNav";
 import CardScanner, {
+  type ScannerAutoAddResult,
   type ScannerPokemonCard,
 } from "@/components/CardScanner";
 import ForestBackground from "@/components/ForestBackground";
@@ -800,6 +801,45 @@ export default function AddCardsPage() {
       true,
     );
   }
+
+  const handleScannerAutoAdd = useCallback(
+    async (card: ScannerPokemonCard): Promise<ScannerAutoAddResult> => {
+      const safeLocation = location.trim() || "Main Inventory";
+
+      const response = await adminFetch<AddInventoryApiResponse>(
+        "/api/admin/inventory/add",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            cardId: String(card.id),
+            quantity: 1,
+            location: safeLocation,
+            finish,
+          }),
+        },
+      );
+
+      const added = response.result;
+
+      window.localStorage.setItem(
+        LAST_LOCATION_KEY,
+        added.location,
+      );
+
+      setResult({
+        cardName: added.cardName,
+        quantityAdded: added.quantityAdded,
+        finalQuantity: added.finalQuantity,
+        location: added.location,
+        finish: added.finish,
+      });
+
+      return {
+        message: `${added.cardName} · ${added.finalQuantity} now in ${added.location}`,
+      };
+    },
+    [finish, location],
+  );
 
   async function addToInventory(
     event: FormEvent<HTMLFormElement>,
@@ -2564,6 +2604,10 @@ export default function AddCardsPage() {
               onSelect={
                 handleScannerSelection
               }
+              onAutoAdd={
+                handleScannerAutoAdd
+              }
+              autoIntakeLabel={`${getFinishLabel(finish)} · ${location.trim() || "Main Inventory"}`}
             />
           </div>
         </div>
