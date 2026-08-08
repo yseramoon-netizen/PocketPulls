@@ -30,6 +30,37 @@ import {
   toWholeNumber,
 } from "@/lib/player/format";
 
+type ZodiacSign =
+  | ""
+  | "aries"
+  | "taurus"
+  | "gemini"
+  | "cancer"
+  | "leo"
+  | "virgo"
+  | "libra"
+  | "scorpio"
+  | "sagittarius"
+  | "capricorn"
+  | "aquarius"
+  | "pisces";
+
+const ZODIAC_OPTIONS: Array<{ value: ZodiacSign; label: string }> = [
+  { value: "", label: "No star sign selected" },
+  { value: "aries", label: "Aries" },
+  { value: "taurus", label: "Taurus" },
+  { value: "gemini", label: "Gemini" },
+  { value: "cancer", label: "Cancer" },
+  { value: "leo", label: "Leo" },
+  { value: "virgo", label: "Virgo" },
+  { value: "libra", label: "Libra" },
+  { value: "scorpio", label: "Scorpio" },
+  { value: "sagittarius", label: "Sagittarius" },
+  { value: "capricorn", label: "Capricorn" },
+  { value: "aquarius", label: "Aquarius" },
+  { value: "pisces", label: "Pisces" },
+];
+
 type ProfileRow = {
   user_id: string | null;
   email: string | null;
@@ -66,6 +97,7 @@ type ProfileData = {
   locationLabel: string;
   signatureCardId: string | null;
   profilePublic: boolean;
+  zodiacSign: ZodiacSign;
   joinedAt: string | null;
   wishBalance: number;
   lifetimeWishes: number;
@@ -91,6 +123,7 @@ const EMPTY_PROFILE: ProfileData = {
   locationLabel: "",
   signatureCardId: null,
   profilePublic: true,
+  zodiacSign: "",
   joinedAt: null,
   wishBalance: 0,
   lifetimeWishes: 0,
@@ -125,6 +158,7 @@ function parseProfile(value: unknown): ProfileData {
     locationLabel: data.location_label || "",
     signatureCardId: data.signature_card_id,
     profilePublic: data.profile_public !== false,
+    zodiacSign: "",
     joinedAt: data.joined_at,
     wishBalance: toWholeNumber(data.wish_balance),
     lifetimeWishes: toWholeNumber(
@@ -207,6 +241,28 @@ export default function ProfilePage() {
       }
 
       const parsed = parseProfile(data);
+
+      const zodiacResult = await supabase.rpc(
+        "get_player_zodiac_sign",
+      );
+
+      if (!zodiacResult.error) {
+        const rawSign = Array.isArray(zodiacResult.data)
+          ? zodiacResult.data[0]
+          : zodiacResult.data;
+        const zodiacSign =
+          typeof rawSign === "string"
+            ? rawSign.toLowerCase()
+            : "";
+
+        if (
+          ZODIAC_OPTIONS.some(
+            (option) => option.value === zodiacSign,
+          )
+        ) {
+          parsed.zodiacSign = zodiacSign as ZodiacSign;
+        }
+      }
 
       if (
         !parsed.userId ||
@@ -323,6 +379,17 @@ export default function ProfilePage() {
 
         if (error) {
           throw error;
+        }
+
+        const { error: zodiacError } = await supabase.rpc(
+          "set_player_zodiac_sign",
+          {
+            p_zodiac_sign: form.zodiacSign || null,
+          },
+        );
+
+        if (zodiacError) {
+          throw zodiacError;
         }
 
         await loadProfile();
@@ -545,6 +612,29 @@ export default function ProfilePage() {
                     placeholder="Surrey, UK"
                     className="profile-input"
                   />
+                </ProfileField>
+
+                <ProfileField
+                  label="Star sign"
+                  hint="Shapes your Wish Constellation"
+                >
+                  <select
+                    value={form.zodiacSign}
+                    onChange={(event) =>
+                      setForm((current) => ({
+                        ...current,
+                        zodiacSign:
+                          event.target.value as ZodiacSign,
+                      }))
+                    }
+                    className="profile-input"
+                  >
+                    {ZODIAC_OPTIONS.map((option) => (
+                      <option key={option.value || "none"} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
                 </ProfileField>
 
                 <ProfileField

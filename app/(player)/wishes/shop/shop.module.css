@@ -43,8 +43,6 @@
 
 .backLink,
 .securePill,
-.offerPill,
-.offerPillMuted,
 .packageBadge,
 .savingsTag,
 .savingsTagMuted {
@@ -134,27 +132,51 @@
   color: rgba(255, 255, 255, 0.52);
 }
 
-.offerPill,
-.offerPillMuted {
+.promoCard {
+  margin-top: 1.1rem;
   display: inline-flex;
   align-items: center;
-  min-height: 2.55rem;
-  padding: 0 1rem;
-  margin-top: 1rem;
-  font-size: 0.76rem;
+  gap: 0.9rem;
+  border-radius: 1.2rem;
+  border: 1px solid rgba(250, 204, 21, 0.34);
+  background:
+    radial-gradient(circle at 12% 20%, rgba(255, 247, 174, 0.22), transparent 34%),
+    linear-gradient(100deg, rgba(113, 63, 18, 0.62), rgba(42, 28, 84, 0.88));
+  padding: 0.8rem 1rem;
+  box-shadow: 0 12px 36px rgba(250, 204, 21, 0.08), inset 0 0 0 1px rgba(255,255,255,0.035);
 }
 
-.offerPill {
-  border: 1px solid rgba(250, 204, 21, 0.16);
-  background: rgba(250, 204, 21, 0.09);
-  color: #fff4b7;
+.promoBadge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 246, 180, 0.35);
+  background: linear-gradient(180deg, #fff4a8, #eab308);
+  padding: 0 0.8rem;
+  font-size: 0.64rem;
+  font-weight: 950;
+  letter-spacing: 0.12em;
+  color: #211304;
 }
 
-.offerPillMuted {
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(255, 255, 255, 0.04);
-  color: rgba(255, 255, 255, 0.55);
+.promoCard strong {
+  display: block;
+  font-size: 1.55rem;
+  line-height: 1;
+  font-weight: 950;
+  color: #fff7b8;
+  letter-spacing: -0.025em;
 }
+
+.promoCard small {
+  display: block;
+  margin-top: 0.28rem;
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: rgba(255,255,255,0.55);
+}
+
 
 .jirachiStage {
   position: relative;
@@ -443,14 +465,6 @@
   color: #fff;
 }
 
-.packageMeta {
-  display: block;
-  margin-top: 0.15rem;
-  font-size: 0.75rem;
-  font-weight: 800;
-  color: rgba(255, 255, 255, 0.36);
-}
-
 .savingsTag {
   border: 1px solid rgba(110, 231, 183, 0.18);
   background: rgba(110, 231, 183, 0.1);
@@ -608,6 +622,11 @@
 }
 
 @media (max-width: 720px) {
+  .promoCard {
+    width: 100%;
+    align-items: flex-start;
+  }
+
   .content {
     padding-inline: 0.8rem;
   }

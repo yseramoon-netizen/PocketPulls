@@ -104,11 +104,6 @@ function formatMoney(pence: number): string {
   }).format(Math.max(0, pence) / 100);
 }
 
-function formatWishPrice(pence: number, wishes: number): string {
-  const each = wishes > 0 ? pence / wishes : pence;
-  return `${each.toFixed(each < 10 ? 1 : 0)}p each`;
-}
-
 async function playerFetch<T>(url: string, init: RequestInit = {}): Promise<T> {
   const {
     data: { session },
@@ -293,15 +288,18 @@ export default function WishShopPage() {
             <p className={styles.eyebrow}>Wish recharge</p>
             <h1>Recharge wishes</h1>
             <p className={styles.heroBody}>
-              Pick a bundle and head straight to checkout. Larger bundles lower the
-              price per wish, and your first recharge gets an extra 20% off.
+              Pick your wish bundle and head straight to checkout.
             </p>
 
             {store?.firstRechargeAvailable ? (
-              <div className={styles.offerPill}>First recharge bonus · 20% off</div>
-            ) : (
-              <div className={styles.offerPillMuted}>Your first recharge bonus has already been used.</div>
-            )}
+              <div className={styles.promoCard}>
+                <span className={styles.promoBadge}>FIRST RECHARGE</span>
+                <div>
+                  <strong>20% OFF</strong>
+                  <small>Automatically applied at checkout</small>
+                </div>
+              </div>
+            ) : null}
           </div>
 
           <div className={styles.jirachiStage}>
@@ -357,9 +355,9 @@ export default function WishShopPage() {
             </div>
 
             <div className={styles.rateBubble}>
-              <span>From</span>
-              <strong>£0.50</strong>
-              <small>per wish</small>
+              <span>Starter bundle</span>
+              <strong>10 wishes</strong>
+              <small>£5.00</small>
             </div>
           </div>
         </header>
@@ -409,7 +407,6 @@ export default function WishShopPage() {
                       <div className={styles.packageFooter}>
                         <div>
                           <strong className={styles.packagePrice}>{formatMoney(effectivePrice)}</strong>
-                          <span className={styles.packageMeta}>{formatWishPrice(effectivePrice, pkg.wishes)}</span>
                         </div>
 
                         {pkg.bulkDiscountPercent > 0 ? (
@@ -436,10 +433,6 @@ export default function WishShopPage() {
                   <div className={styles.summaryRow}>
                     <span>Wishes</span>
                     <strong>{selectedPackage.wishes}</strong>
-                  </div>
-                  <div className={styles.summaryRow}>
-                    <span>Price per wish</span>
-                    <strong>{formatWishPrice(selectedPrice, selectedPackage.wishes)}</strong>
                   </div>
                   <div className={styles.summaryRow}>
                     <span>Bundle saving</span>

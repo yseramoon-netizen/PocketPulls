@@ -61,6 +61,143 @@ type FriendStar = {
   delay: number;
 };
 
+type ZodiacSign =
+  | "aries"
+  | "taurus"
+  | "gemini"
+  | "cancer"
+  | "leo"
+  | "virgo"
+  | "libra"
+  | "scorpio"
+  | "sagittarius"
+  | "capricorn"
+  | "aquarius"
+  | "pisces";
+
+type ZodiacPoint = { x: number; y: number };
+type ZodiacShape = {
+  label: string;
+  points: ZodiacPoint[];
+  segments: Array<[number, number]>;
+};
+
+const ZODIAC_SHAPES: Record<ZodiacSign, ZodiacShape> = {
+  aries: {
+    label: "Aries",
+    points: [
+      { x: 24, y: 58 }, { x: 34, y: 48 }, { x: 45, y: 43 },
+      { x: 57, y: 46 }, { x: 66, y: 39 }, { x: 76, y: 31 },
+    ],
+    segments: [[0,1],[1,2],[2,3],[3,4],[4,5]],
+  },
+  taurus: {
+    label: "Taurus",
+    points: [
+      { x: 22, y: 32 }, { x: 36, y: 44 }, { x: 49, y: 50 },
+      { x: 63, y: 45 }, { x: 78, y: 30 }, { x: 58, y: 62 },
+      { x: 43, y: 66 },
+    ],
+    segments: [[0,1],[1,2],[2,3],[3,4],[2,5],[5,6]],
+  },
+  gemini: {
+    label: "Gemini",
+    points: [
+      { x: 31, y: 24 }, { x: 31, y: 72 }, { x: 68, y: 25 },
+      { x: 68, y: 72 }, { x: 40, y: 42 }, { x: 59, y: 42 },
+      { x: 40, y: 58 }, { x: 59, y: 58 },
+    ],
+    segments: [[0,1],[2,3],[0,2],[1,3],[4,5],[6,7]],
+  },
+  cancer: {
+    label: "Cancer",
+    points: [
+      { x: 22, y: 40 }, { x: 38, y: 48 }, { x: 50, y: 52 },
+      { x: 63, y: 46 }, { x: 78, y: 37 }, { x: 48, y: 70 },
+    ],
+    segments: [[0,1],[1,2],[2,3],[3,4],[2,5]],
+  },
+  leo: {
+    label: "Leo",
+    points: [
+      { x: 22, y: 66 }, { x: 33, y: 54 }, { x: 42, y: 38 },
+      { x: 55, y: 31 }, { x: 67, y: 36 }, { x: 75, y: 49 },
+      { x: 69, y: 62 }, { x: 56, y: 67 }, { x: 43, y: 60 },
+    ],
+    segments: [[0,1],[1,2],[2,3],[3,4],[4,5],[5,6],[6,7],[7,8],[8,2]],
+  },
+  virgo: {
+    label: "Virgo",
+    points: [
+      { x: 21, y: 34 }, { x: 35, y: 42 }, { x: 47, y: 49 },
+      { x: 60, y: 43 }, { x: 76, y: 35 }, { x: 56, y: 61 },
+      { x: 69, y: 72 }, { x: 42, y: 66 },
+    ],
+    segments: [[0,1],[1,2],[2,3],[3,4],[2,5],[5,6],[5,7]],
+  },
+  libra: {
+    label: "Libra",
+    points: [
+      { x: 25, y: 65 }, { x: 37, y: 45 }, { x: 50, y: 33 },
+      { x: 63, y: 45 }, { x: 75, y: 65 }, { x: 50, y: 65 },
+    ],
+    segments: [[0,1],[1,2],[2,3],[3,4],[0,5],[5,4]],
+  },
+  scorpio: {
+    label: "Scorpio",
+    points: [
+      { x: 18, y: 37 }, { x: 31, y: 43 }, { x: 43, y: 50 },
+      { x: 55, y: 56 }, { x: 66, y: 54 }, { x: 76, y: 45 },
+      { x: 80, y: 33 }, { x: 71, y: 27 }, { x: 66, y: 36 },
+    ],
+    segments: [[0,1],[1,2],[2,3],[3,4],[4,5],[5,6],[6,7],[7,8]],
+  },
+  sagittarius: {
+    label: "Sagittarius",
+    points: [
+      { x: 22, y: 68 }, { x: 37, y: 55 }, { x: 50, y: 47 },
+      { x: 64, y: 38 }, { x: 78, y: 24 }, { x: 66, y: 25 },
+      { x: 78, y: 37 }, { x: 44, y: 67 },
+    ],
+    segments: [[0,1],[1,2],[2,3],[3,4],[4,5],[4,6],[2,7]],
+  },
+  capricorn: {
+    label: "Capricorn",
+    points: [
+      { x: 20, y: 39 }, { x: 35, y: 31 }, { x: 51, y: 38 },
+      { x: 65, y: 51 }, { x: 76, y: 65 }, { x: 60, y: 70 },
+      { x: 45, y: 62 }, { x: 31, y: 52 },
+    ],
+    segments: [[0,1],[1,2],[2,3],[3,4],[4,5],[5,6],[6,7],[7,0]],
+  },
+  aquarius: {
+    label: "Aquarius",
+    points: [
+      { x: 19, y: 35 }, { x: 32, y: 44 }, { x: 45, y: 35 },
+      { x: 58, y: 44 }, { x: 71, y: 35 }, { x: 81, y: 43 },
+      { x: 23, y: 61 }, { x: 36, y: 70 }, { x: 49, y: 61 },
+      { x: 62, y: 70 }, { x: 75, y: 61 },
+    ],
+    segments: [[0,1],[1,2],[2,3],[3,4],[4,5],[6,7],[7,8],[8,9],[9,10]],
+  },
+  pisces: {
+    label: "Pisces",
+    points: [
+      { x: 20, y: 33 }, { x: 31, y: 25 }, { x: 39, y: 36 },
+      { x: 31, y: 47 }, { x: 45, y: 50 }, { x: 56, y: 50 },
+      { x: 69, y: 53 }, { x: 79, y: 65 }, { x: 69, y: 75 },
+      { x: 60, y: 64 },
+    ],
+    segments: [[0,1],[1,2],[2,3],[3,0],[3,4],[4,5],[5,6],[6,7],[7,8],[8,9],[9,6]],
+  },
+};
+
+function parseZodiacSign(value: unknown): ZodiacSign | null {
+  if (typeof value !== "string") return null;
+  const sign = value.toLowerCase() as ZodiacSign;
+  return sign in ZODIAC_SHAPES ? sign : null;
+}
+
 type RarityTheme = {
   colour: string;
   glow: string;
@@ -260,7 +397,7 @@ function buildStar(
 }
 
 
-function buildConstellationStars(
+function buildOrganicConstellationStars(
   wishes: WishRow[],
   cardMap: Map<string, CardRow>,
 ): ConstellationStar[] {
@@ -275,8 +412,8 @@ function buildConstellationStars(
 
     const random = seededRandom(hashString(`layout:${base.id}:${base.cardId}`));
     const goldenAngle = Math.PI * (3 - Math.sqrt(5));
-    const radiusBase = Math.min(45, 10 + Math.sqrt(index + 1) * 6.5);
-    const minDistance = Math.max(2.8, Math.min(5.8, base.size * 0.28 + 1.5));
+    const radiusBase = Math.min(42, 8 + Math.sqrt(index + 1) * 5.8);
+    const minDistance = Math.max(1.9, Math.min(4.25, base.size * 0.2 + 1.15));
 
     let best = {
       x: base.x,
@@ -284,28 +421,33 @@ function buildConstellationStars(
       score: -1,
     };
 
-    for (let attempt = 0; attempt < 28; attempt += 1) {
+    for (let attempt = 0; attempt < 18; attempt += 1) {
       const angle =
         index * goldenAngle +
-        random() * 0.7 +
-        attempt * 0.58;
-      const radius = Math.min(46, Math.max(8, radiusBase + ((attempt % 6) - 2.5) * 2.1));
-      const x = Math.max(7, Math.min(93, 50 + Math.cos(angle) * radius + (random() - 0.5) * 3.5));
-      const y = Math.max(8, Math.min(91, 49 + Math.sin(angle) * radius * 0.76 + (random() - 0.5) * 3.5));
+        random() * 0.6 +
+        attempt * 0.52;
+      const radius = Math.min(
+        43,
+        Math.max(7, radiusBase + ((attempt % 5) - 2) * 1.7),
+      );
+      const x = Math.max(
+        8,
+        Math.min(92, 50 + Math.cos(angle) * radius + (random() - 0.5) * 2.8),
+      );
+      const y = Math.max(
+        9,
+        Math.min(90, 49 + Math.sin(angle) * radius * 0.72 + (random() - 0.5) * 2.8),
+      );
 
       let nearest = Number.POSITIVE_INFINITY;
-      for (const placed of positioned) {
+      for (const placed of positioned.slice(-360)) {
         const distance = Math.hypot(x - placed.x, y - placed.y);
         nearest = Math.min(nearest, distance);
       }
 
-      if (!Number.isFinite(nearest)) {
-        nearest = 999;
-      }
+      if (!Number.isFinite(nearest)) nearest = 999;
 
-      if (nearest > best.score) {
-        best = { x, y, score: nearest };
-      }
+      if (nearest > best.score) best = { x, y, score: nearest };
 
       if (nearest >= minDistance) {
         best = { x, y, score: nearest };
@@ -322,6 +464,83 @@ function buildConstellationStars(
   });
 
   return positioned;
+}
+
+function buildZodiacConstellationStars(
+  wishes: WishRow[],
+  cardMap: Map<string, CardRow>,
+  zodiacSign: ZodiacSign,
+): ConstellationStar[] {
+  const shape = ZODIAC_SHAPES[zodiacSign];
+  const segments = shape.segments;
+
+  return wishes.map((wish, index) => {
+    const base = buildStar(
+      wish,
+      cardMap.get(String(wish.card_id ?? "")),
+      index,
+    );
+    const random = seededRandom(
+      hashString(`zodiac:${zodiacSign}:${base.id}:${base.cardId}`),
+    );
+    const segmentIndex = index % segments.length;
+    const cycle = Math.floor(index / segments.length);
+    const [fromIndex, toIndex] = segments[segmentIndex];
+    const from = shape.points[fromIndex];
+    const to = shape.points[toIndex];
+
+    const cycleOffset = ((cycle * 0.61803398875) % 1);
+    const progress = Math.max(
+      0.05,
+      Math.min(0.95, (cycleOffset + random() * 0.16) % 1),
+    );
+
+    const dx = to.x - from.x;
+    const dy = to.y - from.y;
+    const length = Math.max(1, Math.hypot(dx, dy));
+    const perpendicularX = -dy / length;
+    const perpendicularY = dx / length;
+
+    const band = Math.floor(cycle / 9);
+    const side = cycle % 2 === 0 ? 1 : -1;
+    const cloudSpread = Math.min(7.5, 1.1 + band * 0.58);
+    const perpendicularOffset =
+      side * (0.7 + random() * cloudSpread) +
+      (random() - 0.5) * 1.4;
+    const alongOffset = (random() - 0.5) * Math.min(2.8, 0.8 + band * 0.18);
+
+    const x = Math.max(
+      9,
+      Math.min(
+        91,
+        from.x + dx * progress + (dx / length) * alongOffset + perpendicularX * perpendicularOffset,
+      ),
+    );
+    const y = Math.max(
+      10,
+      Math.min(
+        89,
+        from.y + dy * progress + (dy / length) * alongOffset + perpendicularY * perpendicularOffset,
+      ),
+    );
+
+    return {
+      ...base,
+      x,
+      y,
+      size: Math.min(16.5, Math.max(6.5, base.size)),
+    };
+  });
+}
+
+function buildConstellationStars(
+  wishes: WishRow[],
+  cardMap: Map<string, CardRow>,
+  zodiacSign: ZodiacSign | null,
+): ConstellationStar[] {
+  return zodiacSign
+    ? buildZodiacConstellationStars(wishes, cardMap, zodiacSign)
+    : buildOrganicConstellationStars(wishes, cardMap);
 }
 
 
@@ -448,6 +667,7 @@ export default function ConstellationPage() {
   const router = useRouter();
   const [stars, setStars] = useState<ConstellationStar[]>([]);
   const [friendStars, setFriendStars] = useState<FriendStar[]>([]);
+  const [zodiacSign, setZodiacSign] = useState<ZodiacSign | null>(null);
   const [selectedStar, setSelectedStar] =
     useState<ConstellationStar | null>(null);
   const [loading, setLoading] = useState(true);
@@ -477,7 +697,7 @@ export default function ConstellationPage() {
         throw new Error("You must be signed in to see your constellation.");
       }
 
-      const [wishResult, friendResult] = await Promise.all([
+      const [wishResult, friendResult, zodiacResult] = await Promise.all([
         supabase
           .from("player_wishes")
           .select("id, card_id, market_value_at_wish, created_at")
@@ -485,6 +705,7 @@ export default function ConstellationPage() {
           .order("created_at", { ascending: true })
           .limit(1600),
         supabase.rpc("get_player_friend_dashboard"),
+        supabase.rpc("get_player_zodiac_sign"),
       ]);
 
       if (wishResult.error) {
@@ -496,6 +717,15 @@ export default function ConstellationPage() {
         ? (friendResult.data as FriendRow[])
         : [];
       setFriendStars(friendResult.error ? [] : buildFriendStars(friendRows));
+      const nextZodiacSign = zodiacResult.error
+        ? null
+        : parseZodiacSign(
+            Array.isArray(zodiacResult.data)
+              ? zodiacResult.data[0]
+              : zodiacResult.data,
+          );
+      setZodiacSign(nextZodiacSign);
+
       const cardIds = Array.from(
         new Set(
           wishes
@@ -528,7 +758,7 @@ export default function ConstellationPage() {
         cards.map((card) => [String(card.id), card]),
       );
 
-      const nextStars = buildConstellationStars(wishes, cardMap);
+      const nextStars = buildConstellationStars(wishes, cardMap, nextZodiacSign);
 
       setStars(nextStars);
 
@@ -599,9 +829,19 @@ export default function ConstellationPage() {
 
           <p className="mt-4 max-w-3xl text-sm font-semibold leading-7 text-white/45 sm:text-base">
             Every card Jirachi has granted you lives here as a permanent
-            light. Better rarities burn brighter, valuable cards glow larger,
-            and the sky is spaced to stay easier to explore as it grows.
+            light. Better rarities burn brighter and valuable cards glow larger.
           </p>
+
+          {zodiacSign ? (
+            <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-violet-200/15 bg-violet-300/[0.07] px-3 py-2 text-[0.68rem] font-black uppercase tracking-[0.14em] text-violet-100/65">
+              <span aria-hidden="true">✦</span>
+              {ZODIAC_SHAPES[zodiacSign].label} sky
+            </div>
+          ) : (
+            <p className="mt-4 text-xs font-bold text-white/28">
+              Choose a star sign in Profile to shape your sky.
+            </p>
+          )}
         </div>
 
         <button
@@ -670,22 +910,42 @@ export default function ConstellationPage() {
                   aria-hidden="true"
                   className="pointer-events-none absolute inset-0 h-full w-full opacity-20"
                 >
-                  {stars.slice(1).map((star, index) => {
-                    const previous = stars[index];
+                  {zodiacSign
+                    ? ZODIAC_SHAPES[zodiacSign].segments.map(
+                        ([fromIndex, toIndex], index) => {
+                          const from = ZODIAC_SHAPES[zodiacSign].points[fromIndex];
+                          const to = ZODIAC_SHAPES[zodiacSign].points[toIndex];
 
-                    return (
-                      <line
-                        key={`${previous.id}-${star.id}`}
-                        x1={previous.x}
-                        y1={previous.y}
-                        x2={star.x}
-                        y2={star.y}
-                        stroke="rgba(196,181,253,0.65)"
-                        strokeWidth="0.12"
-                        strokeDasharray="0.6 1.1"
-                      />
-                    );
-                  })}
+                          return (
+                            <line
+                              key={`zodiac-${zodiacSign}-${index}`}
+                              x1={from.x}
+                              y1={from.y}
+                              x2={to.x}
+                              y2={to.y}
+                              stroke="rgba(254,249,195,0.76)"
+                              strokeWidth="0.22"
+                              strokeDasharray="0.8 1.1"
+                            />
+                          );
+                        },
+                      )
+                    : stars.slice(1).map((star, index) => {
+                        const previous = stars[index];
+
+                        return (
+                          <line
+                            key={`${previous.id}-${star.id}`}
+                            x1={previous.x}
+                            y1={previous.y}
+                            x2={star.x}
+                            y2={star.y}
+                            stroke="rgba(196,181,253,0.65)"
+                            strokeWidth="0.12"
+                            strokeDasharray="0.6 1.1"
+                          />
+                        );
+                      })}
                 </svg>
               ) : null}
 
