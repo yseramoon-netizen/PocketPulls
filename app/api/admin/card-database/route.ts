@@ -97,6 +97,9 @@ type LocalSet = {
   series?: string;
   releaseDate?: string;
   updatedAt?: string;
+  printedTotal?: number;
+  total?: number;
+  ptcgoCode?: string;
 };
 
 type LocalCard = {
@@ -107,6 +110,7 @@ type LocalCard = {
   number?: string;
   artist?: string;
   rarity?: string;
+  hp?: string;
   nationalPokedexNumbers?: number[];
   images?: {
     small?: string;
@@ -791,6 +795,8 @@ function mapLocalCard(
     image_url_large: card.images?.large || null,
     set_id: set?.id || null,
     set_series: set?.series || null,
+    hp: cleanNumber(card.hp),
+    set_printed_total: cleanNumber(set?.printedTotal),
     set_release_date: parseDate(set?.releaseDate),
     source_updated_at: parseTimestamp(set?.updatedAt),
     supertype: card.supertype || null,
