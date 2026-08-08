@@ -5,33 +5,37 @@ export default function RulesPage() {
     <TrustShell
       eyebrow="Rules"
       title="Wish rules"
-      intro="These are the rules that matter during normal play. The full legal terms are available separately."
+      intro="The rules that matter when making a wish."
     >
       <Section title="Every completed wish allocates one card">
         <CompactList>
-          <li>One wish is consumed for one successfully allocated physical card.</li>
-          <li>If the allocation transaction fails before a card is awarded, the database transaction is designed to roll back rather than intentionally charge a wish without a card.</li>
+          <li>One wish is consumed for one successfully allocated physical-card result.</li>
+          <li>If allocation fails before a result is recorded, the transaction is designed to roll back.</li>
           <li>There is no cash prize and no cash-out through Unown Pulls.</li>
         </CompactList>
       </Section>
 
       <Section title="The result is random">
         <CompactList>
+          <li>The rarity tier is drawn using the published configured odds.</li>
+          <li>A card is then selected from the enabled catalogue inside that rarity tier.</li>
           <li>You cannot request a particular card, set, rarity or value.</li>
           <li>Duplicates can be pulled.</li>
-          <li>The physical stock in the live pool changes over time, so rarity odds also change.</li>
         </CompactList>
       </Section>
 
-      <Section title="Values are references, not promises">
-        <p>Any displayed market value is a reference value and can move up or down. It is not a guaranteed resale price, cash value or offer from Unown Pulls to buy the card back.</p>
+      <Section title="Summonable does not always mean already in the warehouse">
+        <p>Some cards may be listed in the summon catalogue before Unown Pulls physically holds a copy. If one is allocated to you, it is recorded in your account and must be sourced before it can be dispatched.</p>
       </Section>
 
-      <Section title="Fair use of the service">
+      <Section title="Values are references, not promises">
+        <p>Displayed market values can move up or down. They are not guaranteed resale prices or offers from Unown Pulls to buy cards back.</p>
+      </Section>
+
+      <Section title="Fair use">
         <CompactList>
-          <li>Do not exploit bugs, payment reversals, duplicate requests or technical faults to obtain cards or wishes you did not pay for or earn.</li>
-          <li>Do not automate pulls or attempt to interfere with the random allocation process.</li>
-          <li>Accounts may be restricted while suspected fraud, chargebacks or technical abuse are investigated.</li>
+          <li>Do not exploit bugs, duplicate requests, payment reversals or technical faults to obtain wishes or cards you are not entitled to.</li>
+          <li>Do not automate pulls or interfere with the allocation process.</li>
         </CompactList>
       </Section>
 

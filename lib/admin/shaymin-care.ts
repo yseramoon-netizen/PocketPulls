@@ -51,7 +51,7 @@ export const SHAYMIN_MOODS: Record<
     shortLabel: "Gentle",
     whisper:
       "The room feels safe, the leaves are soft, and Shaymin is happy simply being near you.",
-    image: "/shaymin-care/gentle.png",
+    image: "/api/admin/shaymin-art/gentle",
     aura: "from-emerald-200/24 via-lime-100/14 to-cyan-100/10",
     accent: "#a7f3d0",
     motion: "breathe",
@@ -62,7 +62,7 @@ export const SHAYMIN_MOODS: Record<
     shortLabel: "Eager",
     whisper:
       "Those little paws are already moving. Shaymin has decided something lovely should happen next.",
-    image: "/shaymin-care/eager.png",
+    image: "/api/admin/shaymin-art/eager",
     aura: "from-lime-200/28 via-yellow-100/18 to-emerald-100/12",
     accent: "#bef264",
     motion: "bounce",
@@ -73,7 +73,7 @@ export const SHAYMIN_MOODS: Record<
     shortLabel: "Zoomies",
     whisper:
       "A serious burst of tiny-footed speed is happening. The care room may never recover.",
-    image: "/shaymin-care/zoomies.png",
+    image: "/api/admin/shaymin-art/zoomies",
     aura: "from-sky-200/25 via-lime-100/18 to-emerald-100/12",
     accent: "#7dd3fc",
     motion: "dash",
@@ -84,7 +84,7 @@ export const SHAYMIN_MOODS: Record<
     shortLabel: "Content",
     whisper:
       "Warm paws, calm leaves and a quiet little smile. Everything is exactly where it should be.",
-    image: "/shaymin-care/content.png",
+    image: "/api/admin/shaymin-art/content",
     aura: "from-emerald-200/24 via-lime-100/12 to-cyan-100/12",
     accent: "#86efac",
     motion: "settle",
@@ -95,7 +95,7 @@ export const SHAYMIN_MOODS: Record<
     shortLabel: "Joyful",
     whisper:
       "Shaymin is glowing with the kind of happiness that makes the whole room feel lighter.",
-    image: "/shaymin-care/joyful.png",
+    image: "/api/admin/shaymin-art/joyful",
     aura: "from-yellow-100/25 via-lime-100/18 to-pink-100/12",
     accent: "#fde68a",
     motion: "bounce",
@@ -106,7 +106,7 @@ export const SHAYMIN_MOODS: Record<
     shortLabel: "Blooming",
     whisper:
       "Every flower is open at once. Something kind has made the little garden guardian feel completely loved.",
-    image: "/shaymin-care/blooming.png",
+    image: "/api/admin/shaymin-art/blooming",
     aura: "from-pink-200/30 via-lime-100/16 to-yellow-100/15",
     accent: "#f9a8d4",
     motion: "breathe",
@@ -117,7 +117,7 @@ export const SHAYMIN_MOODS: Record<
     shortLabel: "Playful",
     whisper:
       "That wink means a game has already started, whether either keeper noticed or not.",
-    image: "/shaymin-care/playful.png",
+    image: "/api/admin/shaymin-art/playful",
     aura: "from-pink-200/22 via-lime-100/16 to-cyan-100/12",
     accent: "#f9a8d4",
     motion: "wiggle",
@@ -128,7 +128,7 @@ export const SHAYMIN_MOODS: Record<
     shortLabel: "Curious",
     whisper:
       "Shaymin has heard something interesting and would now like the complete story, please.",
-    image: "/shaymin-care/curious.png",
+    image: "/api/admin/shaymin-art/curious",
     aura: "from-cyan-200/22 via-emerald-100/14 to-yellow-100/12",
     accent: "#67e8f9",
     motion: "breathe",
@@ -139,7 +139,7 @@ export const SHAYMIN_MOODS: Record<
     shortLabel: "Surprised",
     whisper:
       "One tiny gasp, four frozen paws and a flower that was absolutely not prepared for that.",
-    image: "/shaymin-care/surprised.png",
+    image: "/api/admin/shaymin-art/surprised",
     aura: "from-orange-200/24 via-yellow-100/16 to-pink-100/12",
     accent: "#fdba74",
     motion: "bounce",
@@ -150,7 +150,7 @@ export const SHAYMIN_MOODS: Record<
     shortLabel: "Grumpy",
     whisper:
       "The expression is dramatic. The problem is probably solvable with attention, a brush or a snack.",
-    image: "/shaymin-care/grumpy.png",
+    image: "/api/admin/shaymin-art/grumpy",
     aura: "from-amber-200/20 via-rose-100/12 to-emerald-100/10",
     accent: "#fbbf24",
     motion: "wiggle",
@@ -161,7 +161,7 @@ export const SHAYMIN_MOODS: Record<
     shortLabel: "Sad",
     whisper:
       "Nothing is broken. Shaymin just wants one of its keepers to stay close for a little while.",
-    image: "/shaymin-care/sad.png",
+    image: "/api/admin/shaymin-art/sad",
     aura: "from-sky-200/20 via-violet-200/12 to-emerald-100/10",
     accent: "#93c5fd",
     motion: "settle",
@@ -172,7 +172,7 @@ export const SHAYMIN_MOODS: Record<
     shortLabel: "Crying",
     whisper:
       "The feelings have become much larger than the Pokémon. A calm care action will help them pass.",
-    image: "/shaymin-care/crying.png",
+    image: "/api/admin/shaymin-art/crying",
     aura: "from-blue-200/24 via-violet-200/14 to-pink-100/10",
     accent: "#bfdbfe",
     motion: "settle",
@@ -183,7 +183,7 @@ export const SHAYMIN_MOODS: Record<
     shortLabel: "Sleepy",
     whisper:
       "The leaves are folding in and the paws have found the softest possible place to rest.",
-    image: "/shaymin-care/sleepy.png",
+    image: "/api/admin/shaymin-art/sleepy",
     aura: "from-indigo-200/24 via-violet-200/12 to-emerald-100/10",
     accent: "#c4b5fd",
     motion: "sleep",
@@ -194,7 +194,7 @@ export const SHAYMIN_MOODS: Record<
     shortLabel: "Resting",
     whisper:
       "A proper little garden nap is underway. Even the flowers are trying not to make a sound.",
-    image: "/shaymin-care/resting.png",
+    image: "/api/admin/shaymin-art/resting",
     aura: "from-pink-200/18 via-emerald-100/16 to-violet-100/12",
     accent: "#fbcfe8",
     motion: "sleep",
@@ -205,7 +205,7 @@ export const SHAYMIN_MOODS: Record<
     shortLabel: "Cheerful",
     whisper:
       "The tail is up, the smile is ready and the next care moment already looks promising.",
-    image: "/shaymin-care/cheerful.png",
+    image: "/api/admin/shaymin-art/cheerful",
     aura: "from-lime-200/26 via-sky-100/15 to-yellow-100/14",
     accent: "#bef264",
     motion: "bounce",
@@ -216,7 +216,7 @@ export const SHAYMIN_MOODS: Record<
     shortLabel: "Exploring",
     whisper:
       "Something interesting passed through the room. Shaymin is carefully investigating every last leaf.",
-    image: "/shaymin-care/exploring.png",
+    image: "/api/admin/shaymin-art/exploring",
     aura: "from-emerald-200/25 via-cyan-100/12 to-lime-100/16",
     accent: "#6ee7b7",
     motion: "breathe",
@@ -227,7 +227,7 @@ export const SHAYMIN_MOODS: Record<
     shortLabel: "Determined",
     whisper:
       "The little garden guardian has chosen a mission and is now taking it extremely seriously.",
-    image: "/shaymin-care/determined.png",
+    image: "/api/admin/shaymin-art/determined",
     aura: "from-lime-200/24 via-amber-100/14 to-emerald-100/12",
     accent: "#d9f99d",
     motion: "dash",
@@ -238,7 +238,7 @@ export const SHAYMIN_MOODS: Record<
     shortLabel: "Shy",
     whisper:
       "Shaymin is still listening. A soft word or gentle pat will make it turn back around when it is ready.",
-    image: "/shaymin-care/shy.png",
+    image: "/api/admin/shaymin-art/shy",
     aura: "from-violet-200/18 via-emerald-100/12 to-slate-100/8",
     accent: "#d8b4fe",
     motion: "settle",

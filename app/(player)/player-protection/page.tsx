@@ -5,38 +5,42 @@ export default function PlayerProtectionPage() {
     <TrustShell
       eyebrow="Player protection"
       title="Random should never mean hidden."
-      intro="The protections below are designed to make the wish system understandable, auditable and fair to players."
+      intro="The important parts of the wish system are disclosed before you buy or pull."
     >
       <Section title="Before you buy">
         <CompactList>
-          <li>Wish purchases are clearly described as random-item physical-card purchases.</li>
-          <li>The minimum recharge, pack price, first-recharge discount and effective price per wish are shown before checkout.</li>
-          <li>The Live Odds page shows the current rarity composition of the physical pool.</li>
+          <li>Wish purchases are described as random physical-card purchases.</li>
+          <li>Pack price, price per wish and first-recharge discount are shown before checkout.</li>
+          <li>The Live Odds page shows the configured rarity chances.</li>
         </CompactList>
       </Section>
 
       <Section title="When you make a wish">
         <CompactList>
-          <li>The card is allocated server-side from available physical inventory.</li>
+          <li>The result is allocated server-side.</li>
+          <li>Physical warehouse quantity does not secretly change rarity odds.</li>
           <li>The reveal animation cannot upgrade or downgrade the result.</li>
-          <li>A completed wish and its card are recorded in your account history.</li>
+          <li>The completed wish and card result are recorded in your account.</li>
+        </CompactList>
+      </Section>
+
+      <Section title="Physical fulfilment">
+        <CompactList>
+          <li>Some summonable cards may already be held by Unown Pulls.</li>
+          <li>Others may be sourced after they are pulled.</li>
+          <li>A sourced-on-demand card must be physically obtained before it can be dispatched.</li>
         </CompactList>
       </Section>
 
       <Section title="Payments">
         <CompactList>
           <li>Payment-card details are handled by the payment provider rather than stored by the Unown Pulls application.</li>
-          <li>A successful payment is credited after the payment provider confirms it.</li>
-          <li>If payment succeeds but wishes do not appear, contact support and the payment record can be checked.</li>
+          <li>Wishes are credited after the payment provider confirms a successful payment.</li>
         </CompactList>
       </Section>
 
       <Section title="Problems with an order">
-        <p>If a card is missing, materially misdescribed, damaged in transit, or a payment/reveal appears to have failed, contact support. Nothing in these rules is intended to remove statutory consumer rights that apply to you.</p>
-      </Section>
-
-      <Section title="Age and bill-payer protection">
-        <p>Paid wish purchases are intended for adults. Do not use another person&apos;s payment method without their permission.</p>
+        <p>If a card cannot be sourced, is materially misdescribed, arrives damaged, is missing, or a payment/allocation appears to have failed, contact support. Nothing in these rules is intended to remove statutory consumer rights that apply to you.</p>
       </Section>
 
       <InfoCallout title="No cash-out" tone="emerald">

@@ -11,6 +11,7 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 
+import ProtectedShayminImage from "@/components/admin/ProtectedShayminImage";
 import { adminFetch } from "@/lib/admin/client-auth";
 import {
   getShayminMood,
@@ -245,11 +246,10 @@ export default function ShayminMoodButton() {
 
         <span className="relative h-12 w-12 overflow-hidden rounded-2xl border border-emerald-100/25 bg-emerald-200/10 shadow-[inset_0_0_20px_rgba(110,231,183,0.08),0_8px_30px_rgba(0,0,0,0.22)]">
           <span className={`absolute inset-0 bg-gradient-to-br ${mood.aura}`} />
-          <img
+          <ProtectedShayminImage
             key={mood.key}
-            src={mood.image}
+            mood={mood.key}
             alt=""
-            draggable={false}
             className="pointer-events-none relative h-full w-full select-none object-contain p-0.5 transition duration-300 group-hover:scale-105"
             style={{ WebkitTouchCallout: "none", WebkitUserSelect: "none", userSelect: "none" }}
           />

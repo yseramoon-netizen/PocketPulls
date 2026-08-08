@@ -1,23 +1,24 @@
 import { TrustShell } from "@/components/player/TrustShell";
 
 const FAQS = [
-  ["What is a wish?", "A wish is one prepaid credit that allocates one physical trading card from the current wish pool."],
-  ["Do I always get a card?", "A successfully completed wish allocates one physical card. If the server transaction fails before allocation, the transaction is designed to roll back instead of intentionally consuming a wish without a card."],
-  ["Can I choose the card I get?", "No. The card is selected randomly from the live physical pool."],
-  ["How are the odds calculated?", "The odds are based on the physical copies currently available in the wish pool. More copies of a rarity in the pool means a higher combined chance of that rarity. See Live Odds for the current figures."],
-  ["Why can the odds change?", "The pool changes when cards are added or pulled. Because the odds reflect the real pool, they update with it."],
-  ["Can I pull duplicates?", "Yes. Duplicate copies are possible and are tracked in your Collection."],
-  ["What does the star colour mean?", "The reveal star changes to match the rarity of the card that has already been allocated. It is a reveal effect, not a second roll."],
-  ["Why does Mew sometimes appear?", "The special reveal is used for higher-rarity outcomes. It does not alter the card that the server already selected."],
-  ["Where do my cards go after a wish?", "They are added to your Collection and remain associated with your account until you use the available shipping or trading tools."],
-  ["Can I trade cards?", "Where the trade feature is available, eligible cards can be transferred between players through the in-app trade flow."],
-  ["When can I ship my cards?", "Your Shipping page shows the cards currently available for shipping and any eligibility or delivery options that apply."],
-  ["What does market value mean?", "It is a reference value for the card, not a guaranteed selling price and not a promise that Unown Pulls will buy the card from you."],
-  ["Can I cash out wishes or cards?", "No. Unown Pulls does not provide a cash-out or cash-redemption system for wishes or pulled cards."],
-  ["What is the minimum recharge?", "10 wishes. The starting pack is £5.00, equal to 50p per wish before any eligible first-recharge discount."],
+  ["What is a wish?", "One prepaid credit that allocates one genuine physical trading-card result."],
+  ["Do I always get a card?", "A successfully completed wish records one card result. If allocation fails before that result is recorded, the transaction is designed to roll back."],
+  ["Can I choose the card I get?", "No. The rarity is selected using the published odds, then a card is selected from that rarity's enabled summon catalogue."],
+  ["How are the odds calculated?", "Rarity odds are configured independently from warehouse quantity. The system selects the rarity first, then a card inside that rarity. Adding more Common cards therefore does not make Common automatically more likely."],
+  ["Do you physically own every card in the summon catalogue?", "Not necessarily. Some cards may be sourced after they are pulled. Your result is recorded immediately; cards that are not already held must be sourced before dispatch."],
+  ["Does adding more cards change the odds?", "Adding cards inside a rarity does not change that rarity tier's configured chance. It changes which individual cards can be selected within that tier."],
+  ["Can I pull duplicates?", "Yes. Duplicate card results are possible and are tracked in your Collection."],
+  ["What does the star colour mean?", "It reveals the rarity of the result already allocated by the server. It is not a second roll."],
+  ["Why does Mew sometimes appear?", "The special reveal is used for higher-rarity outcomes. It does not alter the server result."],
+  ["Where do my cards go?", "They are recorded in your Collection. Cards remain associated with your account until they are traded or processed through shipping."],
+  ["What happens when I request shipping?", "Cards already physically held can move straight into fulfilment. Any outstanding sourced-on-demand cards are flagged for sourcing before the shipment is prepared."],
+  ["Can I trade cards?", "Where trading is available, eligible cards can be transferred through the in-app trade flow."],
+  ["What does market value mean?", "It is reference information only, not a guaranteed selling price or a promise that Unown Pulls will buy the card from you."],
+  ["Can I cash out wishes or cards?", "No. Unown Pulls does not provide cash redemption for wishes or pulled cards."],
+  ["What is the minimum recharge?", "10 wishes for £5.00 before any eligible first-recharge discount."],
   ["How does the first recharge discount work?", "An eligible account receives 20% off its first successful wish recharge. It applies once per account."],
-  ["What if payment succeeds but my wishes do not appear?", "Give the payment confirmation a short moment to complete. If the balance still does not update, contact support so the payment record can be checked."],
-  ["What if the animation closes or my connection drops?", "The animation is not the source of truth. Your server-side wish record and Collection determine what was actually allocated."],
+  ["What if payment succeeds but my wishes do not appear?", "Give payment confirmation a short moment to complete. If the balance still does not update, contact support."],
+  ["What if the animation closes or my connection drops?", "The animation is not the source of truth. Your server-side wish record and Collection determine the result."],
   ["Are you affiliated with Pokémon?", "No. Unown Pulls is an independent reseller and is not affiliated with, sponsored by or endorsed by Nintendo, The Pokémon Company or Game Freak."],
 ] as const;
 
@@ -26,7 +27,7 @@ export default function FaqPage() {
     <TrustShell
       eyebrow="FAQ"
       title="Quick answers"
-      intro="The common questions players should be able to answer without digging through legal text."
+      intro="The things players usually need to know."
     >
       <div className="divide-y divide-white/[0.07]">
         {FAQS.map(([question, answer]) => (

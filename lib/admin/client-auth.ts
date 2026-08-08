@@ -346,3 +346,42 @@ export async function signOutAdmin(): Promise<void> {
     );
   }
 }
+
+export async function adminFetchBlob(
+  input: string,
+  init: RequestInit = {},
+): Promise<Blob> {
+  const makeRequest = async (forceRefresh: boolean) => {
+    const token = await getAccessToken(forceRefresh);
+    const headers = new Headers(init.headers);
+    headers.set("Authorization", `Bearer ${token}`);
+
+    return fetch(input, {
+      ...init,
+      headers,
+      cache: "no-store",
+    });
+  };
+
+  let response = await makeRequest(false);
+
+  if (response.status === 401) {
+    response = await makeRequest(true);
+  }
+
+  if (!response.ok) {
+    const body = await readResponseBody(response);
+    const { message, code } = extractMessage(
+      body,
+      `Admin asset request returned HTTP ${response.status}.`,
+    );
+
+    if (response.status === 401) {
+      clearAdminGate();
+    }
+
+    throw new AdminClientError(message, response.status, code);
+  }
+
+  return response.blob();
+}

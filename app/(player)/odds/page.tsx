@@ -54,12 +54,11 @@ export default function OddsPage() {
     const parsed = (Array.isArray(data) ? data : [])
       .map((row) => row as OddsRow)
       .map((row) => ({
-        rarity: row.rarity?.trim() || "Unlisted rarity",
+        rarity: row.rarity?.trim() || "Other",
         cards: Math.max(0, Math.floor(toNumber(row.cards_in_pool))),
         chance: Math.max(0, toNumber(row.chance_percent)),
       }))
-      .filter((row) => row.cards > 0)
-      .sort((a, b) => b.chance - a.chance);
+      .filter((row) => row.cards > 0 && row.chance > 0);
 
     setRows(parsed);
     setLoading(false);
@@ -77,16 +76,20 @@ export default function OddsPage() {
   return (
     <TrustShell
       eyebrow="Live odds"
-      title="The odds come from the real physical pool."
-      intro="Each available physical copy contributes to the current draw pool. As cards are added or pulled, these figures change."
+      title="Rarity odds stay controlled as the catalogue grows."
+      intro="A rarity tier is selected first. A card is then selected from the enabled cards inside that tier. Warehouse quantity does not change the rarity odds."
     >
-      <InfoCallout title="How to read this">
-        These are current rarity-level odds, not guaranteed future odds. A rarity containing fewer physical copies has a lower combined chance of being selected.
+      <InfoCallout title="Why this matters">
+        Adding thousands of Common cards does not make Common dominate the draw. The configured rarity chance stays the same; only the chance of each individual card inside that rarity changes.
+      </InfoCallout>
+
+      <InfoCallout title="Catalogue vs physical stock" tone="yellow">
+        A summonable card may already be physically held by Unown Pulls or may be sourced after it is pulled and a shipment is requested. This does not change its summon chance.
       </InfoCallout>
 
       <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm font-black text-white/70">
-          {loading ? "Reading the pool..." : `${totalCards.toLocaleString("en-GB")} physical cards currently eligible`}
+          {loading ? "Reading the summon pool..." : `${totalCards.toLocaleString("en-GB")} summonable card designs`}
         </p>
         <button
           type="button"
@@ -107,7 +110,7 @@ export default function OddsPage() {
         <div className="mt-4 overflow-hidden rounded-2xl border border-white/10">
           <div className="grid grid-cols-[minmax(0,1fr)_7rem_7rem] bg-white/[0.045] px-4 py-3 text-[0.62rem] font-black uppercase tracking-[0.14em] text-white/32">
             <span>Rarity</span>
-            <span className="text-right">In pool</span>
+            <span className="text-right">Cards</span>
             <span className="text-right">Chance</span>
           </div>
 
@@ -128,7 +131,7 @@ export default function OddsPage() {
       ) : null}
 
       <p className="mt-5 text-xs font-semibold leading-6 text-white/30">
-        The reveal animation does not reroll or alter the card. It visualises the rarity of the result already allocated by the server.
+        The reveal animation does not reroll or alter the result. It only reveals the card already allocated by the server.
       </p>
     </TrustShell>
   );

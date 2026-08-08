@@ -5,36 +5,34 @@ export default function HowWishesWorkPage() {
     <TrustShell
       eyebrow="How it works"
       title="One wish. One physical card."
-      intro="A wish is a prepaid credit that allocates one physical trading card from the live Unown Pulls pool."
+      intro="A wish allocates one genuine physical trading card from the Unown Pulls summon catalogue."
     >
-      <div className="space-y-0">
-        <Section title="1. Buy wishes">
-          <p>The minimum recharge is 10 wishes. Larger packs have a lower price per wish. The first successful recharge on an eligible account receives the displayed first-recharge discount.</p>
-        </Section>
+      <Section title="1. Buy wishes">
+        <p>The minimum recharge is 10 wishes. Larger packs cost less per wish. The displayed first-recharge discount applies once to an eligible account.</p>
+      </Section>
 
-        <Section title="2. Make a wish">
-          <p>Using one wish starts one random physical-card allocation. You cannot choose a specific card, set, rarity or market value.</p>
-        </Section>
+      <Section title="2. Make a wish">
+        <p>The server selects a rarity tier using the published live odds, then selects one enabled card inside that tier.</p>
+      </Section>
 
-        <Section title="3. The physical pool decides the odds">
-          <p>Every available physical copy in the wish pool contributes to the current odds. When cards are added or pulled, the live odds change.</p>
-          <InfoCallout title="See the real numbers">
-            The <a className="font-black text-cyan-100 underline underline-offset-4" href="/odds">Live Odds</a> page reads the current pool rather than showing a fixed marketing percentage.
-          </InfoCallout>
-        </Section>
+      <Section title="3. Stock does not control rarity">
+        <p>Physical copy count is not used to calculate rarity odds. Adding more cards to the catalogue does not automatically make that rarity more likely.</p>
+        <InfoCallout title="See the current configuration">
+          The <a className="font-black text-cyan-100 underline underline-offset-4" href="/odds">Live Odds</a> page shows the active rarity chances and how many card designs are currently summonable in each tier.
+        </InfoCallout>
+      </Section>
 
-        <Section title="4. The reveal">
-          <p>The reveal animation represents the rarity of the card that has already been allocated by the server. The animation does not change the result.</p>
-        </Section>
+      <Section title="4. Your result is recorded">
+        <p>The reveal animation shows the result already allocated by the server. It cannot upgrade, downgrade or reroll the card.</p>
+      </Section>
 
-        <Section title="5. The card is added to your collection">
-          <CompactList>
-            <li>The card appears in your Collection.</li>
-            <li>Duplicates are possible and are tracked as extra copies.</li>
-            <li>Your card can remain in your account until you use the available shipping or trading tools.</li>
-          </CompactList>
-        </Section>
-      </div>
+      <Section title="5. We fulfil the physical card">
+        <CompactList>
+          <li>If the card is already physically held, it can be allocated from stock immediately.</li>
+          <li>If it is not currently held, your result is recorded and the card is marked for sourcing when shipment is requested.</li>
+          <li>Your shipment is prepared once the required physical cards are ready.</li>
+        </CompactList>
+      </Section>
     </TrustShell>
   );
 }

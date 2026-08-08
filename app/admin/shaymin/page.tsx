@@ -12,6 +12,7 @@ import {
 } from "react";
 
 import AdminNav from "@/components/AdminNav";
+import ProtectedShayminImage from "@/components/admin/ProtectedShayminImage";
 import ForestBackground from "@/components/ForestBackground";
 import { adminFetch } from "@/lib/admin/client-auth";
 import {
@@ -442,11 +443,10 @@ function MoodGarden({
               ].join(" ")}
             >
               <div className="relative mx-auto aspect-square w-full">
-                <img
-                  src={mood.image}
+                <ProtectedShayminImage
+                  mood={mood.key}
                   alt=""
                   loading="lazy"
-                  draggable={false}
                   className="absolute inset-0 h-full w-full select-none object-contain p-1"
                 />
               </div>
@@ -550,13 +550,6 @@ export default function ShayminCarePage() {
       }
     };
   }, [load]);
-
-  useEffect(() => {
-    for (const mood of SHAYMIN_MOOD_LIST) {
-      const image = new window.Image();
-      image.src = mood.image;
-    }
-  }, []);
 
   function showToast(message: string) {
     setToast(message);
@@ -942,11 +935,10 @@ export default function ShayminCarePage() {
                         className="absolute inset-0 z-20 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-lime-200 disabled:cursor-wait"
                         style={{ touchAction: "manipulation" }}
                       >
-                        <img
+                        <ProtectedShayminImage
                           key={mood.key}
-                          src={mood.image}
+                          mood={mood.key}
                           alt={mood.label}
-                          draggable={false}
                           className={`${styles.creature} ${styles.moodFade} ${motionClass(mood.motion)} ${reactionClass(reaction)} absolute inset-0 h-full w-full select-none object-contain p-[7%] sm:p-[5%]`}
                         />
                       </button>
