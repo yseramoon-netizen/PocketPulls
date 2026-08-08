@@ -18,7 +18,7 @@ import {
   clearAdminGate,
   readAdminGate,
 } from "@/lib/admin/client-auth";
-import { supabase } from "@/lib/supabase";
+import { adminSupabase as supabase } from "@/lib/admin/supabase";
 
 type AdminLayoutProps = {
   children: ReactNode;

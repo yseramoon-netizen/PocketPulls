@@ -296,20 +296,25 @@ export default function PlayerLayout({ children }: PlayerLayoutProps) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === "SIGNED_OUT" || !session) {
+      // Only an explicit Supabase SIGNED_OUT event is allowed to eject the
+      // player from the Jirachi shell. Earlier code also redirected whenever
+      // any auth event temporarily carried a null session, which could turn a
+      // token refresh/network hiccup on mobile into an apparent logout.
+      if (event === "SIGNED_OUT") {
         setPlayer(null);
         redirectToSignIn();
         return;
       }
 
       if (
-        event === "SIGNED_IN" ||
-        event === "TOKEN_REFRESHED" ||
-        event === "USER_UPDATED"
+        session &&
+        (event === "SIGNED_IN" ||
+          event === "TOKEN_REFRESHED" ||
+          event === "USER_UPDATED")
       ) {
         window.setTimeout(() => {
           if (mountedRef.current) {
-            void loadPlayer(session);
+            void loadPlayer(session, true);
           }
         }, 0);
       }
@@ -319,49 +324,18 @@ export default function PlayerLayout({ children }: PlayerLayoutProps) {
       void loadCurrentSession(true);
     };
 
-    const handleWindowFocus = () => {
-      void loadCurrentSession(true);
-    };
-
-    const accountCheckTimer =
-      window.setInterval(
-        () => {
-          if (
-            document.visibilityState ===
-            "visible"
-          ) {
-            void loadCurrentSession(true);
-          }
-        },
-        60000,
-      );
-
     window.addEventListener(
       "pocketpulls:profile-updated",
       handleProfileUpdated,
-    );
-
-    window.addEventListener(
-      "focus",
-      handleWindowFocus,
     );
 
     return () => {
       mountedRef.current = false;
       subscription.unsubscribe();
 
-      window.clearInterval(
-        accountCheckTimer,
-      );
-
       window.removeEventListener(
         "pocketpulls:profile-updated",
         handleProfileUpdated,
-      );
-
-      window.removeEventListener(
-        "focus",
-        handleWindowFocus,
       );
     };
   }, [loadCurrentSession, loadPlayer, redirectToSignIn]);

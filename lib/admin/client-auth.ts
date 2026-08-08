@@ -1,6 +1,6 @@
 "use client";
 
-import { supabase } from "@/lib/supabase";
+import { adminSupabase as supabase } from "@/lib/admin/supabase";
 
 const ADMIN_GATE_KEY =
   "pocketpulls:shaymin-admin-gate:v8";
