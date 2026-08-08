@@ -39,6 +39,7 @@ type ConstellationStar = {
   colour: string;
   glow: string;
   delay: number;
+  zodiacAnchor?: boolean;
 };
 
 
@@ -86,178 +87,248 @@ const ZODIAC_SHAPES: Record<ZodiacSign, ZodiacShape> = {
   aries: {
     label: "Aries",
     points: [
-      { x: 18.0, y: 82.0 },
-      { x: 19.3, y: 69.8 },
-      { x: 33.5, y: 48.5 },
-      { x: 82.0, y: 18.0 },
+      { x: 18, y: 76 },
+      { x: 35, y: 59 },
+      { x: 54, y: 42 },
+      { x: 82, y: 25 },
     ],
     segments: [[0, 1], [1, 2], [2, 3]],
   },
   taurus: {
     label: "Taurus",
     points: [
-      { x: 30.6, y: 69.5 },
-      { x: 41.3, y: 66.0 },
-      { x: 36.4, y: 55.4 },
-      { x: 74.5, y: 18.0 },
-      { x: 82.0, y: 47.6 },
-      { x: 18.0, y: 82.0 },
+      { x: 82, y: 18 },
+      { x: 73, y: 32 },
+      { x: 58, y: 53 },
+      { x: 48, y: 54 },
+      { x: 18, y: 20 },
+      { x: 38, y: 65 },
+      { x: 68, y: 67 },
+      { x: 28, y: 72 },
+      { x: 18, y: 80 },
+      { x: 43, y: 59 },
+      { x: 63, y: 60 },
+      { x: 79, y: 75 },
     ],
-    segments: [[5, 0], [0, 1], [0, 2], [2, 3], [1, 4]],
+    segments: [
+      [0, 1], [1, 2], [3, 4], [5, 6], [5, 7], [7, 8],
+      [3, 2], [3, 9], [9, 5], [2, 10], [10, 6], [6, 11],
+    ],
   },
   gemini: {
     label: "Gemini",
     points: [
-      { x: 74.4, y: 18.0 },
-      { x: 82.0, y: 34.0 },
-      { x: 38.6, y: 45.9 },
-      { x: 64.2, y: 58.9 },
-      { x: 23.7, y: 56.7 },
-      { x: 52.8, y: 64.8 },
-      { x: 34.2, y: 82.0 },
-      { x: 18.0, y: 56.8 },
+      { x: 24, y: 82 },
+      { x: 31, y: 68 },
+      { x: 39, y: 51 },
+      { x: 31, y: 63 },
+      { x: 20, y: 76 },
+      { x: 53, y: 40 },
+      { x: 67, y: 25 },
+      { x: 57, y: 18 },
+      { x: 64, y: 49 },
+      { x: 58, y: 58 },
+      { x: 73, y: 65 },
+      { x: 70, y: 48 },
+      { x: 48, y: 65 },
+      { x: 39, y: 72 },
+      { x: 46, y: 72 },
+      { x: 55, y: 80 },
+      { x: 64, y: 86 },
     ],
     segments: [
-      [0, 2], [2, 4], [4, 7], [2, 6],
-      [1, 3], [3, 5], [5, 6], [3, 2],
+      [0, 1], [1, 2], [2, 3], [3, 4], [2, 5], [5, 6], [5, 7],
+      [5, 8], [8, 9], [9, 10], [9, 11], [9, 12], [12, 13],
+      [12, 14], [14, 15], [15, 16],
     ],
   },
   cancer: {
     label: "Cancer",
     points: [
-      { x: 64.0, y: 18.0 },
-      { x: 58.8, y: 41.8 },
-      { x: 61.0, y: 52.7 },
-      { x: 82.0, y: 73.3 },
-      { x: 18.0, y: 82.0 },
+      { x: 62, y: 25 },
+      { x: 50, y: 46 },
+      { x: 80, y: 45 },
+      { x: 43, y: 60 },
+      { x: 24, y: 82 },
+      { x: 63, y: 82 },
     ],
-    segments: [[0, 1], [1, 2], [2, 3], [2, 4]],
+    segments: [[0, 1], [1, 2], [1, 3], [3, 4], [3, 5]],
   },
   leo: {
     label: "Leo",
     points: [
-      { x: 29.7, y: 82.0 },
-      { x: 29.2, y: 60.1 },
-      { x: 35.7, y: 46.1 },
-      { x: 34.0, y: 29.8 },
-      { x: 21.6, y: 18.0 },
-      { x: 18.0, y: 28.2 },
-      { x: 63.8, y: 43.0 },
-      { x: 82.0, y: 70.1 },
-      { x: 63.9, y: 65.4 },
+      { x: 30, y: 82 },
+      { x: 29, y: 60 },
+      { x: 36, y: 46 },
+      { x: 34, y: 30 },
+      { x: 22, y: 18 },
+      { x: 18, y: 29 },
+      { x: 64, y: 43 },
+      { x: 82, y: 70 },
+      { x: 64, y: 65 },
     ],
     segments: [
-      [0, 1], [1, 2], [2, 3], [3, 4], [4, 5],
-      [2, 6], [6, 7], [7, 8], [8, 0],
+      [0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [5, 3],
+      [2, 6], [6, 7], [7, 8], [8, 0], [5, 4],
     ],
   },
   virgo: {
     label: "Virgo",
     points: [
-      { x: 18.0, y: 44.6 },
-      { x: 30.9, y: 51.6 },
-      { x: 40.4, y: 53.9 },
-      { x: 49.5, y: 18.0 },
-      { x: 46.6, y: 39.9 },
-      { x: 63.8, y: 51.4 },
-      { x: 59.6, y: 82.0 },
-      { x: 82.0, y: 67.1 },
+      { x: 18, y: 35 },
+      { x: 30, y: 42 },
+      { x: 42, y: 48 },
+      { x: 53, y: 52 },
+      { x: 64, y: 47 },
+      { x: 75, y: 56 },
+      { x: 84, y: 69 },
+      { x: 55, y: 66 },
+      { x: 62, y: 76 },
+      { x: 73, y: 84 },
+      { x: 44, y: 67 },
+      { x: 35, y: 78 },
     ],
-    segments: [[0, 1], [1, 2], [2, 3], [2, 4], [4, 5], [5, 6], [6, 7]],
+    segments: [
+      [0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [5, 6],
+      [3, 7], [7, 8], [8, 9], [7, 10], [10, 11], [10, 2],
+    ],
   },
   libra: {
     label: "Libra",
     points: [
-      { x: 18.0, y: 40.7 },
-      { x: 54.2, y: 18.0 },
-      { x: 79.9, y: 36.5 },
-      { x: 36.3, y: 72.3 },
-      { x: 82.0, y: 82.0 },
+      { x: 20, y: 62 },
+      { x: 45, y: 50 },
+      { x: 38, y: 24 },
+      { x: 72, y: 30 },
+      { x: 78, y: 72 },
     ],
-    segments: [[0, 1], [1, 2], [2, 0], [0, 3], [3, 4], [4, 2]],
+    segments: [[0, 1], [1, 2], [2, 3], [3, 4], [4, 1]],
   },
   scorpio: {
     label: "Scorpio",
     points: [
-      { x: 25.0, y: 18.0 },
-      { x: 21.0, y: 18.9 },
-      { x: 18.0, y: 26.5 },
-      { x: 35.4, y: 36.8 },
-      { x: 47.7, y: 57.9 },
-      { x: 48.8, y: 68.0 },
-      { x: 50.4, y: 79.6 },
-      { x: 60.9, y: 82.0 },
-      { x: 75.9, y: 81.4 },
-      { x: 82.0, y: 73.6 },
-      { x: 79.0, y: 70.7 },
-      { x: 73.7, y: 65.5 },
-      { x: 72.0, y: 66.0 },
+      { x: 24, y: 18 },
+      { x: 20, y: 22 },
+      { x: 18, y: 31 },
+      { x: 34, y: 38 },
+      { x: 46, y: 54 },
+      { x: 49, y: 65 },
+      { x: 52, y: 75 },
+      { x: 61, y: 82 },
+      { x: 72, y: 82 },
+      { x: 81, y: 74 },
+      { x: 78, y: 64 },
+      { x: 70, y: 66 },
+      { x: 74, y: 57 },
     ],
     segments: [
-      [0, 1], [1, 2], [1, 3], [2, 3], [3, 4], [4, 5], [5, 6],
-      [6, 7], [7, 8], [8, 9], [9, 10], [10, 11], [11, 12],
+      [0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [5, 6],
+      [6, 7], [7, 8], [8, 9], [9, 10], [9, 11], [9, 12],
     ],
   },
   sagittarius: {
     label: "Sagittarius",
     points: [
-      { x: 35.1, y: 38.9 },
-      { x: 26.7, y: 60.1 },
-      { x: 30.5, y: 82.0 },
-      { x: 76.8, y: 60.4 },
-      { x: 82.0, y: 49.8 },
-      { x: 67.9, y: 43.2 },
-      { x: 56.4, y: 46.5 },
-      { x: 18.0, y: 18.0 },
+      { x: 47, y: 48 },
+      { x: 34, y: 56 },
+      { x: 22, y: 34 },
+      { x: 38, y: 40 },
+      { x: 53, y: 43 },
+      { x: 72, y: 30 },
+      { x: 50, y: 62 },
+      { x: 63, y: 58 },
+      { x: 24, y: 70 },
+      { x: 57, y: 70 },
+      { x: 67, y: 72 },
+      { x: 74, y: 68 },
+      { x: 80, y: 62 },
+      { x: 84, y: 52 },
+      { x: 82, y: 42 },
+      { x: 62, y: 78 },
+      { x: 50, y: 84 },
+      { x: 39, y: 82 },
+      { x: 30, y: 76 },
+      { x: 46, y: 72 },
+      { x: 22, y: 82 },
     ],
-    segments: [[0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [5, 0], [0, 6], [6, 3], [0, 7]],
+    segments: [
+      [0, 1], [2, 3], [3, 4], [4, 5], [4, 0], [0, 3], [3, 6],
+      [6, 7], [7, 0], [7, 1], [1, 8], [6, 9], [9, 10], [10, 7],
+      [10, 11], [11, 12], [12, 13], [13, 14], [9, 15], [15, 16],
+      [16, 17], [17, 18], [18, 19], [19, 9], [18, 20],
+    ],
   },
   capricorn: {
     label: "Capricorn",
     points: [
-      { x: 18.0, y: 18.0 },
-      { x: 20.1, y: 28.0 },
-      { x: 38.2, y: 74.7 },
-      { x: 42.3, y: 82.0 },
-      { x: 52.4, y: 38.9 },
-      { x: 67.3, y: 61.9 },
-      { x: 77.0, y: 36.4 },
-      { x: 82.0, y: 33.9 },
+      { x: 18, y: 28 },
+      { x: 30, y: 40 },
+      { x: 52, y: 65 },
+      { x: 66, y: 70 },
+      { x: 78, y: 55 },
+      { x: 84, y: 35 },
+      { x: 62, y: 50 },
+      { x: 27, y: 70 },
+      { x: 50, y: 84 },
     ],
-    segments: [[0, 1], [1, 2], [2, 3], [3, 5], [5, 6], [6, 7], [7, 4], [4, 0]],
+    segments: [
+      [0, 1], [1, 2], [2, 3], [3, 4], [4, 5],
+      [3, 6], [6, 2], [1, 7], [2, 8],
+    ],
   },
   aquarius: {
     label: "Aquarius",
     points: [
-      { x: 18.0, y: 58.5 },
-      { x: 36.7, y: 43.9 },
-      { x: 51.3, y: 24.3 },
-      { x: 59.6, y: 18.0 },
-      { x: 57.8, y: 28.3 },
-      { x: 61.1, y: 23.2 },
-      { x: 63.9, y: 23.6 },
-      { x: 71.2, y: 51.3 },
-      { x: 72.1, y: 82.0 },
-      { x: 81.1, y: 56.9 },
-      { x: 82.0, y: 57.3 },
+      { x: 28, y: 38 },
+      { x: 40, y: 36 },
+      { x: 50, y: 42 },
+      { x: 56, y: 50 },
+      { x: 64, y: 56 },
+      { x: 70, y: 65 },
+      { x: 77, y: 73 },
+      { x: 84, y: 82 },
+      { x: 46, y: 50 },
+      { x: 39, y: 61 },
+      { x: 52, y: 59 },
+      { x: 58, y: 67 },
+      { x: 62, y: 78 },
+      { x: 70, y: 86 },
+      { x: 18, y: 30 },
     ],
-    segments: [[0, 1], [1, 2], [2, 4], [4, 3], [4, 5], [5, 6], [6, 7], [7, 8], [7, 9], [9, 10]],
+    segments: [
+      [0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [5, 6], [6, 7],
+      [1, 8], [8, 9], [8, 10], [10, 11], [11, 12], [12, 13], [14, 0],
+    ],
   },
   pisces: {
     label: "Pisces",
     points: [
-      { x: 18.0, y: 72.8 },
-      { x: 21.8, y: 82.0 },
-      { x: 22.3, y: 58.7 },
-      { x: 26.9, y: 62.2 },
-      { x: 34.4, y: 56.5 },
-      { x: 82.0, y: 75.2 },
-      { x: 74.0, y: 62.8 },
-      { x: 75.5, y: 46.1 },
-      { x: 70.1, y: 18.0 },
-      { x: 67.6, y: 51.9 },
+      { x: 18, y: 45 },
+      { x: 24, y: 58 },
+      { x: 27, y: 44 },
+      { x: 34, y: 55 },
+      { x: 42, y: 52 },
+      { x: 50, y: 58 },
+      { x: 58, y: 55 },
+      { x: 64, y: 48 },
+      { x: 70, y: 42 },
+      { x: 75, y: 38 },
+      { x: 80, y: 34 },
+      { x: 84, y: 28 },
+      { x: 82, y: 20 },
+      { x: 72, y: 24 },
+      { x: 68, y: 30 },
+      { x: 66, y: 38 },
+      { x: 68, y: 46 },
+      { x: 76, y: 50 },
+      { x: 82, y: 46 },
+      { x: 80, y: 36 },
     ],
-    segments: [[0, 1], [1, 2], [2, 3], [3, 4], [4, 0], [4, 5], [5, 6], [6, 7], [7, 8], [8, 9], [9, 6]],
+    segments: [
+      [0, 1], [0, 2], [2, 1], [1, 3], [3, 4], [4, 5], [5, 6],
+      [6, 7], [7, 8], [8, 9], [9, 10], [10, 11], [11, 12], [12, 13],
+      [13, 14], [14, 15], [15, 16], [16, 17], [17, 18], [18, 19], [19, 13],
+    ],
   },
 };
 function parseZodiacSign(value: unknown): ZodiacSign | null {
@@ -534,73 +605,151 @@ function buildOrganicConstellationStars(
   return positioned;
 }
 
+function getZodiacAnchorPriority(shape: ZodiacShape): number[] {
+  const degree = shape.points.map(() => 0);
+
+  shape.segments.forEach(([from, to]) => {
+    degree[from] += 1;
+    degree[to] += 1;
+  });
+
+  return shape.points
+    .map((point, index) => ({
+      index,
+      degree: degree[index],
+      centreDistance: Math.hypot(point.x - 50, point.y - 50),
+    }))
+    .sort((first, second) => {
+      if (second.degree !== first.degree) {
+        return second.degree - first.degree;
+      }
+
+      return first.centreDistance - second.centreDistance;
+    })
+    .map((item) => item.index);
+}
+
+function compareStarsForAnchor(
+  first: ConstellationStar,
+  second: ConstellationStar,
+): number {
+  const rarityDifference =
+    getRarityTheme(second.rarity).rank - getRarityTheme(first.rarity).rank;
+
+  if (rarityDifference !== 0) {
+    return rarityDifference;
+  }
+
+  if (second.marketValue !== first.marketValue) {
+    return second.marketValue - first.marketValue;
+  }
+
+  return first.id.localeCompare(second.id);
+}
+
 function buildZodiacConstellationStars(
   wishes: WishRow[],
   cardMap: Map<string, CardRow>,
   zodiacSign: ZodiacSign,
 ): ConstellationStar[] {
   const shape = ZODIAC_SHAPES[zodiacSign];
-  const segments = shape.segments;
-
-  return wishes.map((wish, index) => {
-    const base = buildStar(
+  const baseStars = wishes.map((wish, index) =>
+    buildStar(
       wish,
       cardMap.get(String(wish.card_id ?? "")),
       index,
-    );
+    ),
+  );
+
+  const rankedStars = [...baseStars].sort(compareStarsForAnchor);
+  const anchorPriority = getZodiacAnchorPriority(shape);
+  const anchorCount = Math.min(shape.points.length, rankedStars.length);
+  const placements = new Map<
+    string,
+    { x: number; y: number; zodiacAnchor: boolean }
+  >();
+
+  for (let index = 0; index < anchorCount; index += 1) {
+    const star = rankedStars[index];
+    const point = shape.points[anchorPriority[index]];
+
+    placements.set(star.id, {
+      x: point.x,
+      y: point.y,
+      zodiacAnchor: true,
+    });
+  }
+
+  const ambientStars = rankedStars.slice(anchorCount);
+
+  ambientStars.forEach((star, index) => {
     const random = seededRandom(
-      hashString(`zodiac:${zodiacSign}:${base.id}:${base.cardId}`),
+      hashString(`zodiac-cloud:${zodiacSign}:${star.id}:${star.cardId}`),
     );
-    const segmentIndex = index % segments.length;
-    const cycle = Math.floor(index / segments.length);
-    const [fromIndex, toIndex] = segments[segmentIndex];
+    const segmentIndex = index % shape.segments.length;
+    const cycle = Math.floor(index / shape.segments.length);
+    const [fromIndex, toIndex] = shape.segments[segmentIndex];
     const from = shape.points[fromIndex];
     const to = shape.points[toIndex];
 
-    const cycleOffset = ((cycle * 0.61803398875) % 1);
-    const progress = Math.max(
-      0.05,
-      Math.min(0.95, (cycleOffset + random() * 0.16) % 1),
-    );
-
+    const progressSeed = ((cycle * 0.61803398875 + random()) % 1);
+    const progress = 0.16 + progressSeed * 0.68;
     const dx = to.x - from.x;
     const dy = to.y - from.y;
     const length = Math.max(1, Math.hypot(dx, dy));
     const perpendicularX = -dy / length;
     const perpendicularY = dx / length;
-
-    const band = Math.floor(cycle / 9);
-    const side = cycle % 2 === 0 ? 1 : -1;
-    const cloudSpread = Math.min(7.5, 1.1 + band * 0.58);
+    const band = Math.floor(cycle / 8);
+    const cloudSpread = Math.min(5.4, 0.9 + band * 0.42);
+    const side = (index + cycle) % 2 === 0 ? 1 : -1;
     const perpendicularOffset =
-      side * (0.7 + random() * cloudSpread) +
-      (random() - 0.5) * 1.4;
-    const alongOffset = (random() - 0.5) * Math.min(2.8, 0.8 + band * 0.18);
+      side * (0.45 + random() * cloudSpread) +
+      (random() - 0.5) * 0.75;
+    const alongOffset = (random() - 0.5) * Math.min(2.1, 0.65 + band * 0.14);
 
-    const x = Math.max(
-      9,
-      Math.min(
-        91,
-        from.x + dx * progress + (dx / length) * alongOffset + perpendicularX * perpendicularOffset,
+    placements.set(star.id, {
+      x: Math.max(
+        8,
+        Math.min(
+          92,
+          from.x +
+            dx * progress +
+            (dx / length) * alongOffset +
+            perpendicularX * perpendicularOffset,
+        ),
       ),
-    );
-    const y = Math.max(
-      10,
-      Math.min(
-        89,
-        from.y + dy * progress + (dy / length) * alongOffset + perpendicularY * perpendicularOffset,
+      y: Math.max(
+        9,
+        Math.min(
+          91,
+          from.y +
+            dy * progress +
+            (dy / length) * alongOffset +
+            perpendicularY * perpendicularOffset,
+        ),
       ),
-    );
+      zodiacAnchor: false,
+    });
+  });
+
+  return baseStars.map((star) => {
+    const placement = placements.get(star.id);
+
+    if (!placement) {
+      return star;
+    }
 
     return {
-      ...base,
-      x,
-      y,
-      size: Math.min(16.5, Math.max(6.5, base.size)),
+      ...star,
+      x: placement.x,
+      y: placement.y,
+      zodiacAnchor: placement.zodiacAnchor,
+      size: placement.zodiacAnchor
+        ? Math.min(18, Math.max(8.5, star.size + 1.4))
+        : Math.min(15.5, Math.max(6.2, star.size)),
     };
   });
 }
-
 function buildConstellationStars(
   wishes: WishRow[],
   cardMap: Map<string, CardRow>,
@@ -1063,7 +1212,13 @@ export default function ConstellationPage() {
                         background: star.colour,
                         boxShadow: active
                           ? `0 0 ${star.size * 2.8}px ${star.size * 0.72}px ${star.glow}`
-                          : `0 0 ${star.size * 1.8}px ${star.size * 0.4}px ${star.glow}`,
+                          : star.zodiacAnchor
+                            ? `0 0 ${star.size * 2.35}px ${star.size * 0.56}px ${star.glow}`
+                            : `0 0 ${star.size * 1.8}px ${star.size * 0.4}px ${star.glow}`,
+                        outline: star.zodiacAnchor
+                          ? "1px solid rgba(255,255,255,0.24)"
+                          : undefined,
+                        outlineOffset: star.zodiacAnchor ? "2px" : undefined,
                         transform: "translate(-50%, -50%)",
                       }}
                     />
