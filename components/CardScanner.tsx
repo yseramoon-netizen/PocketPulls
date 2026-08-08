@@ -25,6 +25,10 @@ export type ScannerPokemonCard = {
 type ScannerCandidate = {
   card: ScannerPokemonCard;
   confidence: number;
+  textConfidence: number;
+  visualConfidence: number | null;
+  collectorScore: number;
+  nameScore: number;
   reasons: string[];
 };
 
@@ -784,37 +788,19 @@ function scoreCandidate(
   let bestNameSimilarity = 0;
 
   for (const scannedName of scan.names) {
-    bestNameSimilarity =
-      Math.max(
-        bestNameSimilarity,
-        similarity(
-          card.name,
-          scannedName,
-        ),
-      );
+    bestNameSimilarity = Math.max(
+      bestNameSimilarity,
+      similarity(card.name, scannedName),
+    );
   }
 
-  const cardCollector =
-    normaliseCollector(
-      card.card_no || "",
-    );
-
+  const cardCollector = normaliseCollector(card.card_no || "");
   let collectorScore = 0;
 
-  for (
-    const scannedCollector of
-    scan.collectorNumbers
-  ) {
-    const normalisedScanned =
-      normaliseCollector(
-        scannedCollector,
-      );
+  for (const scannedCollector of scan.collectorNumbers) {
+    const normalisedScanned = normaliseCollector(scannedCollector);
 
-    if (
-      cardCollector &&
-      normalisedScanned ===
-        cardCollector
-    ) {
+    if (cardCollector && normalisedScanned === cardCollector) {
       collectorScore = 1;
       break;
     }
@@ -822,107 +808,265 @@ function scoreCandidate(
     if (
       cardCollector &&
       normalisedScanned &&
-      (cardCollector.includes(
-        normalisedScanned,
-      ) ||
-        normalisedScanned.includes(
-          cardCollector,
-        ))
+      (cardCollector.includes(normalisedScanned) ||
+        normalisedScanned.includes(cardCollector))
     ) {
-      collectorScore =
-        Math.max(
-          collectorScore,
-          0.7,
-        );
+      collectorScore = Math.max(collectorScore, 0.72);
     }
   }
 
-  const fullNormalised =
-    normaliseText(
-      scan.fullText,
-    );
-
-  const setNormalised =
-    normaliseText(
-      card.set_name || "",
-    );
-
+  const fullNormalised = normaliseText(scan.fullText);
+  const setNormalised = normaliseText(card.set_name || "");
   const setScore =
-    setNormalised.length >= 5 &&
-    fullNormalised.includes(
-      setNormalised,
-    )
-      ? 1
-      : 0;
+    setNormalised.length >= 5 && fullNormalised.includes(setNormalised) ? 1 : 0;
 
   let weightedScore = 0;
 
-  if (
-    scan.collectorNumbers.length >
-    0
-  ) {
+  if (scan.collectorNumbers.length > 0) {
     weightedScore =
-      collectorScore * 0.56 +
-      bestNameSimilarity * 0.39 +
-      setScore * 0.05;
+      collectorScore * 0.7 +
+      bestNameSimilarity * 0.27 +
+      setScore * 0.03;
+
+    // Once the card actually exposes a collector number, candidates whose
+    // number disagrees should not look like plausible matches just because a
+    // noisy OCR line happened to resemble the name.
+    if (collectorScore === 0) {
+      weightedScore = Math.min(weightedScore, 0.34);
+    }
   } else {
-    weightedScore =
-      bestNameSimilarity * 0.9 +
-      setScore * 0.1;
+    weightedScore = bestNameSimilarity * 0.94 + setScore * 0.06;
   }
+
+  const textConfidence = Math.max(
+    1,
+    Math.min(99, Math.round(weightedScore * 100)),
+  );
 
   const reasons: string[] = [];
 
   if (collectorScore === 1) {
-    reasons.push(
-      "Collector number matched",
-    );
-  } else if (
-    collectorScore >= 0.7
-  ) {
-    reasons.push(
-      "Collector number is similar",
-    );
+    reasons.push("Collector number matched exactly");
+  } else if (collectorScore >= 0.7) {
+    reasons.push("Collector number is very close");
   }
 
-  if (
-    bestNameSimilarity >= 0.9
-  ) {
-    reasons.push(
-      "Name matched closely",
-    );
-  } else if (
-    bestNameSimilarity >= 0.65
-  ) {
-    reasons.push(
-      "Name is similar",
-    );
+  if (bestNameSimilarity >= 0.93) {
+    reasons.push("Name matched closely");
+  } else if (bestNameSimilarity >= 0.72) {
+    reasons.push("Name is similar");
   }
 
   if (setScore === 1) {
-    reasons.push(
-      "Set text detected",
-    );
+    reasons.push("Set text detected");
   }
 
   return {
     card,
-    confidence: Math.max(
-      1,
-      Math.min(
-        99,
-        Math.round(
-          weightedScore * 100,
-        ),
-      ),
-    ),
+    confidence: textConfidence,
+    textConfidence,
+    visualConfidence: null,
+    collectorScore,
+    nameScore: bestNameSimilarity,
     reasons:
       reasons.length > 0
         ? reasons
-        : [
-            "Possible database match",
-          ],
+        : ["Possible database match"],
   };
+}
+
+function createVisualFingerprint(
+  source: HTMLCanvasElement | HTMLImageElement,
+): number[] {
+  const width = 18;
+  const height = 25;
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+
+  const context = canvas.getContext("2d", {
+    willReadFrequently: true,
+  });
+
+  if (!context) {
+    return [];
+  }
+
+  context.imageSmoothingEnabled = true;
+  context.imageSmoothingQuality = "high";
+  context.drawImage(source, 0, 0, width, height);
+
+  const data = context.getImageData(0, 0, width, height).data;
+  const values: number[] = [];
+
+  for (let index = 0; index < data.length; index += 4) {
+    values.push(
+      data[index] * 0.299 +
+        data[index + 1] * 0.587 +
+        data[index + 2] * 0.114,
+    );
+  }
+
+  if (values.length === 0) {
+    return [];
+  }
+
+  const mean =
+    values.reduce((sum, value) => sum + value, 0) / values.length;
+  const variance =
+    values.reduce((sum, value) => sum + (value - mean) ** 2, 0) /
+    values.length;
+  const deviation = Math.max(10, Math.sqrt(variance));
+
+  return values.map((value) => (value - mean) / deviation);
+}
+
+function compareVisualFingerprints(
+  first: number[],
+  second: number[],
+): number {
+  if (!first.length || first.length !== second.length) {
+    return 0;
+  }
+
+  let dot = 0;
+  let firstLength = 0;
+  let secondLength = 0;
+
+  for (let index = 0; index < first.length; index += 1) {
+    dot += first[index] * second[index];
+    firstLength += first[index] ** 2;
+    secondLength += second[index] ** 2;
+  }
+
+  const denominator = Math.sqrt(firstLength * secondLength);
+
+  if (!Number.isFinite(denominator) || denominator <= 0) {
+    return 0;
+  }
+
+  const correlation = dot / denominator;
+
+  return Math.max(0, Math.min(1, (correlation + 1) / 2));
+}
+
+function loadRemoteImageForFingerprint(
+  source: string,
+): Promise<HTMLImageElement | null> {
+  return new Promise((resolve) => {
+    if (!source) {
+      resolve(null);
+      return;
+    }
+
+    const image = new Image();
+    let finished = false;
+
+    const finish = (value: HTMLImageElement | null) => {
+      if (finished) {
+        return;
+      }
+
+      finished = true;
+      resolve(value);
+    };
+
+    const timer = window.setTimeout(() => finish(null), 3500);
+
+    image.crossOrigin = "anonymous";
+    image.referrerPolicy = "no-referrer";
+    image.onload = () => {
+      window.clearTimeout(timer);
+      finish(image);
+    };
+    image.onerror = () => {
+      window.clearTimeout(timer);
+      finish(null);
+    };
+    image.src = source;
+  });
+}
+
+async function rerankWithArtwork(
+  candidates: ScannerCandidate[],
+  capturedCard: HTMLCanvasElement,
+): Promise<ScannerCandidate[]> {
+  if (candidates.length <= 1) {
+    return candidates;
+  }
+
+  const capturedFingerprint = createVisualFingerprint(capturedCard);
+
+  if (!capturedFingerprint.length) {
+    return candidates;
+  }
+
+  const enriched = await Promise.all(
+    candidates.slice(0, 10).map(async (candidate) => {
+      const imageUrl = candidate.card.image_url?.trim() || "";
+      const image = await loadRemoteImageForFingerprint(imageUrl);
+
+      if (!image) {
+        return candidate;
+      }
+
+      try {
+        const candidateFingerprint = createVisualFingerprint(image);
+        const visualSimilarity = compareVisualFingerprints(
+          capturedFingerprint,
+          candidateFingerprint,
+        );
+        const visualConfidence = Math.round(visualSimilarity * 100);
+
+        const visualWeight =
+          candidate.collectorScore === 1
+            ? 0.16
+            : candidate.collectorScore >= 0.7
+              ? 0.24
+              : 0.42;
+        const textWeight = 1 - visualWeight;
+        let confidence = Math.round(
+          candidate.textConfidence * textWeight +
+            visualConfidence * visualWeight,
+        );
+
+        if (
+          candidate.collectorScore === 1 &&
+          candidate.nameScore >= 0.9 &&
+          visualConfidence >= 72
+        ) {
+          confidence = Math.max(confidence, 96);
+        }
+
+        const reasons = [...candidate.reasons];
+
+        if (visualConfidence >= 88) {
+          reasons.push("Artwork matched strongly");
+        } else if (visualConfidence >= 76) {
+          reasons.push("Artwork looks similar");
+        }
+
+        return {
+          ...candidate,
+          confidence: Math.max(1, Math.min(99, confidence)),
+          visualConfidence,
+          reasons,
+        };
+      } catch {
+        // Some third-party image hosts do not allow canvas access. OCR still
+        // remains fully usable if visual comparison cannot run.
+        return candidate;
+      }
+    }),
+  );
+
+  return enriched.sort((first, second) => {
+    if (second.collectorScore !== first.collectorScore) {
+      return second.collectorScore - first.collectorScore;
+    }
+
+    return second.confidence - first.confidence;
+  });
 }
 
 export default function CardScanner({
@@ -1381,110 +1525,126 @@ export default function CardScanner({
   ) {
     setState("reading");
     setProgress(3);
-    setStatus(
-      "Preparing the card image",
-    );
+    setStatus("Preparing the card image");
     setError("");
 
     try {
-      const worker =
-        await ensureWorker();
+      const worker = await ensureWorker();
 
-      const topCanvas =
-        createProcessedCanvas(
-          cardCanvas,
-          0,
-          0.3,
-          false,
+      // Read the parts of a Pokemon card that identify the printing first.
+      // This keeps the scanner fast and avoids attack text polluting the name.
+      const topGreyCanvas = createProcessedCanvas(
+        cardCanvas,
+        0,
+        0.24,
+        false,
+      );
+      const topBinaryCanvas = createProcessedCanvas(
+        cardCanvas,
+        0,
+        0.24,
+        true,
+      );
+      const bottomBinaryCanvas = createProcessedCanvas(
+        cardCanvas,
+        0.74,
+        0.26,
+        true,
+      );
+      const bottomGreyCanvas = createProcessedCanvas(
+        cardCanvas,
+        0.74,
+        0.26,
+        false,
+      );
+
+      setStatus("Reading the Pokemon name");
+      setProgress(14);
+
+      const topPrimary = await runRecognition(
+        worker,
+        topGreyCanvas,
+        "sparse",
+      );
+
+      setStatus("Reading the collector number");
+      setProgress(38);
+
+      const bottomPrimary = await runRecognition(
+        worker,
+        bottomBinaryCanvas,
+        "sparse",
+      );
+
+      let topText = topPrimary;
+      let bottomText = bottomPrimary;
+      let fullText = "";
+
+      let names = extractNameCandidates(topText, topText);
+      let collectorNumbers = extractCollectorNumbers(
+        `${bottomText}\n${topText}`,
+      );
+
+      // If either critical identifier is weak, make a second pass with the
+      // opposite image treatment before falling back to the whole card.
+      if (names.length === 0 || collectorNumbers.length === 0) {
+        setStatus("Double-checking the card details");
+        setProgress(56);
+
+        const topSecondary = await runRecognition(
+          worker,
+          topBinaryCanvas,
+          "sparse",
+        );
+        const bottomSecondary = await runRecognition(
+          worker,
+          bottomGreyCanvas,
+          "sparse",
         );
 
-      const bottomCanvas =
-        createProcessedCanvas(
-          cardCanvas,
-          0.68,
-          0.32,
-          true,
+        topText = `${topPrimary}\n${topSecondary}`;
+        bottomText = `${bottomPrimary}\n${bottomSecondary}`;
+        names = extractNameCandidates(topText, topText);
+        collectorNumbers = extractCollectorNumbers(
+          `${bottomText}\n${topText}`,
         );
+      }
 
-      const fullCanvas =
-        createProcessedCanvas(
+      if (names.length === 0 || collectorNumbers.length === 0) {
+        setStatus("Reading the complete card");
+        setProgress(68);
+
+        const fullCanvas = createProcessedCanvas(
           cardCanvas,
           0,
           1,
           false,
         );
-
-      setStatus(
-        "Reading the Pokémon name",
-      );
-      setProgress(15);
-
-      const topText =
-        await runRecognition(
-          worker,
-          topCanvas,
-          "sparse",
-        );
-
-      setStatus(
-        "Reading the collector number",
-      );
-      setProgress(42);
-
-      const bottomText =
-        await runRecognition(
-          worker,
-          bottomCanvas,
-          "sparse",
-        );
-
-      setStatus(
-        "Checking the complete card",
-      );
-      setProgress(65);
-
-      const fullText =
-        await runRecognition(
-          worker,
-          fullCanvas,
-          "sparse",
-        );
+        fullText = await runRecognition(worker, fullCanvas, "sparse");
+      }
 
       const combinedText = [
         topText,
         bottomText,
         fullText,
-      ].join("\n");
+      ]
+        .filter(Boolean)
+        .join("\n");
 
-      const scan: ExtractedScan =
-        {
-          topText,
-          bottomText,
-          fullText:
-            combinedText,
-
-          names:
-            extractNameCandidates(
-              topText,
-              fullText,
-            ),
-
-          collectorNumbers:
-            extractCollectorNumbers(
-              combinedText,
-            ),
-        };
+      const scan: ExtractedScan = {
+        topText,
+        bottomText,
+        fullText: combinedText,
+        names: extractNameCandidates(topText, combinedText),
+        collectorNumbers: extractCollectorNumbers(combinedText),
+      };
 
       setScanDetails(scan);
-
       setState("matching");
-      setStatus(
-        "Matching against the PocketPulls database",
-      );
-      setProgress(84);
+      setStatus("Finding the exact printing");
+      setProgress(82);
 
-      const matches =
-        await findMatches(scan);
+      const matches = await findMatches(scan, cardCanvas);
 
       if (!mountedRef.current) {
         return;
@@ -1494,34 +1654,22 @@ export default function CardScanner({
       setProgress(100);
       setState("results");
 
-      if (
-        matches.length === 0
-      ) {
-        setStatus(
-          "No reliable match was found",
-        );
+      if (matches.length === 0) {
+        setStatus("No reliable match was found");
       } else if (
-        matches[0].confidence >=
-        85
+        matches[0].confidence >= 94 &&
+        (matches.length === 1 ||
+          matches[0].confidence - matches[1].confidence >= 8)
       ) {
-        setStatus(
-          "A strong match was found",
-        );
+        setStatus("High-confidence match found");
+      } else if (matches[0].confidence >= 82) {
+        setStatus("Likely match found");
       } else {
-        setStatus(
-          "Review the possible matches",
-        );
+        setStatus("Review the closest matches");
       }
-    } catch (
-      scanError: unknown
-    ) {
-      console.error(
-        "Card scanner error:",
-        scanError,
-      );
-
+    } catch (scanError: unknown) {
+      console.error("Card scanner error:", scanError);
       setState("error");
-
       setError(
         scanError instanceof Error
           ? scanError.message
@@ -1532,190 +1680,176 @@ export default function CardScanner({
 
   async function findMatches(
     scan: ExtractedScan,
-  ): Promise<
-    ScannerCandidate[]
-  > {
-    const resultMap =
-      new Map<
-        string,
-        ScannerPokemonCard
-      >();
+    cardCanvas: HTMLCanvasElement,
+  ): Promise<ScannerCandidate[]> {
+    const resultMap = new Map<string, ScannerPokemonCard>();
 
-    const collectorSearches =
-      uniqueValues(
-        scan.collectorNumbers.flatMap(
-          (collector) => {
-            const normalised =
-              normaliseCollector(
-                collector,
-              );
+    const collectorSearches = uniqueValues(
+      scan.collectorNumbers.flatMap((collector) => {
+        const normalised = normaliseCollector(collector);
+        const numeric = collector.match(/\d+/)?.[0] || "";
+        const numericNormalised = numeric ? String(Number(numeric)) : "";
 
-            const numeric =
-              collector.match(
-                /\d+/,
-              )?.[0];
-
-            return [
-              collector,
-              normalised,
-              numeric || "",
-            ];
-          },
-        ),
-      ).slice(0, 5);
-
-    for (const collector of collectorSearches) {
-      const cleanCollector =
-        cleanSearchValue(
+        return [
           collector,
-        );
+          normalised,
+          numeric,
+          numericNormalised,
+        ];
+      }),
+    )
+      .filter(Boolean)
+      .slice(0, 6);
+
+    // Collector number is the strongest discriminator. Search exact values
+    // first instead of `%25%`, which used to return dozens of unrelated cards.
+    for (const collector of collectorSearches) {
+      const cleanCollector = cleanSearchValue(collector);
 
       if (!cleanCollector) {
         continue;
       }
 
-      const {
-        data,
-        error: collectorError,
-      } = await supabase
+      const { data, error: collectorError } = await supabase
         .from("pokemon_cards")
         .select(CARD_SELECT)
-        .ilike(
-          "card_no",
-          `%${cleanCollector}%`,
-        )
-        .limit(80);
+        .ilike("card_no", cleanCollector)
+        .limit(45);
 
       if (collectorError) {
-        console.error(
-          "Collector search error:",
-          collectorError,
-        );
-      }
-
-      for (const card of
-        (data ||
-          []) as ScannerPokemonCard[]) {
-        resultMap.set(
-          card.id,
-          card,
-        );
-      }
-    }
-
-    const nameSearches =
-      uniqueValues([
-        ...scan.names.slice(0, 4),
-
-        ...scan.names
-          .flatMap((name) =>
-            name.split(" "),
-          )
-          .filter(
-            (word) =>
-              word.length >= 4,
-          )
-          .slice(0, 5),
-      ]);
-
-    for (const name of nameSearches) {
-      const cleanName =
-        cleanSearchValue(name);
-
-      if (
-        cleanName.length < 3
-      ) {
+        console.error("Collector search error:", collectorError);
         continue;
       }
 
-      const {
-        data,
-        error: nameError,
-      } = await supabase
-        .from("pokemon_cards")
-        .select(CARD_SELECT)
-        .ilike(
-          "name",
-          `%${cleanName}%`,
-        )
-        .limit(60);
-
-      if (nameError) {
-        console.error(
-          "Name search error:",
-          nameError,
-        );
-      }
-
-      for (const card of
-        (data ||
-          []) as ScannerPokemonCard[]) {
-        resultMap.set(
-          card.id,
-          card,
-        );
+      for (const card of (data || []) as ScannerPokemonCard[]) {
+        resultMap.set(card.id, card);
       }
     }
 
-    if (
-      resultMap.size === 0 &&
-      scan.names.length > 0
-    ) {
-      const broadTokens =
-        uniqueValues(
-          scan.names
-            .join(" ")
-            .split(/\s+/)
-            .filter(
-              (word) =>
-                word.length >= 3,
-            ),
-        ).slice(0, 8);
+    const nameSearches = uniqueValues(scan.names.slice(0, 5));
 
-      for (const token of broadTokens) {
-        const cleanToken =
-          cleanSearchValue(token);
+    // Exact Pokemon names are far more useful than searching every OCR token.
+    for (const name of nameSearches) {
+      const cleanName = cleanSearchValue(name);
 
-        const { data } =
-          await supabase
-            .from(
-              "pokemon_cards",
-            )
-            .select(
-              CARD_SELECT,
-            )
-            .ilike(
-              "name",
-              `%${cleanToken}%`,
-            )
-            .limit(40);
+      if (cleanName.length < 3) {
+        continue;
+      }
 
-        for (const card of
-          (data ||
-            []) as ScannerPokemonCard[]) {
-          resultMap.set(
-            card.id,
-            card,
-          );
+      const { data, error: nameError } = await supabase
+        .from("pokemon_cards")
+        .select(CARD_SELECT)
+        .ilike("name", cleanName)
+        .limit(35);
+
+      if (nameError) {
+        console.error("Name search error:", nameError);
+        continue;
+      }
+
+      for (const card of (data || []) as ScannerPokemonCard[]) {
+        resultMap.set(card.id, card);
+      }
+    }
+
+    // Only broaden the query when exact identifiers found too little. This is
+    // intentionally bounded so the UI never becomes a database dump.
+    if (resultMap.size < 2) {
+      for (const name of nameSearches.slice(0, 3)) {
+        const cleanName = cleanSearchValue(name);
+
+        if (cleanName.length < 4) {
+          continue;
+        }
+
+        const { data, error: fuzzyError } = await supabase
+          .from("pokemon_cards")
+          .select(CARD_SELECT)
+          .ilike("name", `%${cleanName}%`)
+          .limit(30);
+
+        if (fuzzyError) {
+          console.error("Fallback name search error:", fuzzyError);
+          continue;
+        }
+
+        for (const card of (data || []) as ScannerPokemonCard[]) {
+          resultMap.set(card.id, card);
         }
       }
     }
 
-    return [
-      ...resultMap.values(),
-    ]
-      .map((card) =>
-        scoreCandidate(
-          card,
-          scan,
-        ),
+    // If OCR captured a collector number but its punctuation/prefix was noisy,
+    // allow one tightly bounded numeric fallback.
+    if (resultMap.size === 0 && collectorSearches.length > 0) {
+      const numeric = collectorSearches
+        .map((value) => value.match(/\d+/)?.[0] || "")
+        .find((value) => value.length >= 1);
+
+      if (numeric) {
+        const { data, error: collectorFallbackError } = await supabase
+          .from("pokemon_cards")
+          .select(CARD_SELECT)
+          .ilike("card_no", `%${cleanSearchValue(numeric)}%`)
+          .limit(45);
+
+        if (collectorFallbackError) {
+          console.error(
+            "Collector fallback search error:",
+            collectorFallbackError,
+          );
+        } else {
+          for (const card of (data || []) as ScannerPokemonCard[]) {
+            resultMap.set(card.id, card);
+          }
+        }
+      }
+    }
+
+    let scored = [...resultMap.values()]
+      .map((card) => scoreCandidate(card, scan))
+      .sort((first, second) => {
+        if (second.collectorScore !== first.collectorScore) {
+          return second.collectorScore - first.collectorScore;
+        }
+
+        return second.textConfidence - first.textConfidence;
+      });
+
+    const exactCollectorMatches = scored.filter(
+      (candidate) => candidate.collectorScore === 1,
+    );
+
+    if (exactCollectorMatches.length > 0) {
+      const usefulExactMatches = exactCollectorMatches.filter(
+        (candidate) => candidate.nameScore >= 0.38,
+      );
+      scored = usefulExactMatches.length > 0
+        ? usefulExactMatches
+        : exactCollectorMatches;
+    } else {
+      scored = scored.filter(
+        (candidate, index) =>
+          index < 10 &&
+          (candidate.textConfidence >= 32 || candidate.nameScore >= 0.55),
+      );
+    }
+
+    scored = await rerankWithArtwork(scored.slice(0, 10), cardCanvas);
+
+    if (scored.length === 0) {
+      return [];
+    }
+
+    const best = scored[0].confidence;
+
+    return scored
+      .filter(
+        (candidate, index) =>
+          index === 0 ||
+          candidate.confidence >= Math.max(52, best - 18),
       )
-      .sort(
-        (first, second) =>
-          second.confidence -
-          first.confidence,
-      )
-      .slice(0, 8);
+      .slice(0, 3);
   }
 
   return (
@@ -1766,7 +1900,7 @@ export default function CardScanner({
               text-white
             "
           >
-            PocketPulls Card Scanner
+            Unown Pulls Card Scanner
           </h2>
 
           <p
@@ -2704,7 +2838,7 @@ export default function CardScanner({
               >
                 The scanner checks the card name and
                 collector number against your existing
-                PocketPulls database.
+                Unown Pulls database.
               </p>
             </div>
           )}
