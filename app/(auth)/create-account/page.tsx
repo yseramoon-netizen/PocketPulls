@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 
 import AuthField, {
   AUTH_INPUT_CLASS,
@@ -21,6 +21,10 @@ import {
   buildAuthCallbackUrl,
   getSafeNextPath,
 } from "@/lib/auth/navigation";
+import {
+  PURCHASE_CONSENT_SUMMARY,
+  PURCHASE_CONSENT_VERSION,
+} from "@/lib/player/purchase-consent";
 
 type UsernameState =
   | "idle"
@@ -39,7 +43,9 @@ export default function CreateAccountPage() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [accepted, setAccepted] = useState(false);
+  const [ageConfirmed, setAgeConfirmed] = useState(false);
+  const [randomCardAccepted, setRandomCardAccepted] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
   const [usernameState, setUsernameState] =
     useState<UsernameState>("idle");
   const [checking, setChecking] = useState(true);
@@ -152,8 +158,10 @@ export default function CreateAccountPage() {
       return;
     }
 
-    if (!accepted) {
-      setErrorMessage("Confirm that you understand how the account and physical-card collection work.");
+    if (!ageConfirmed || !randomCardAccepted || !termsAccepted) {
+      setErrorMessage(
+        "Confirm all three account and purchase acknowledgements before creating your trainer account.",
+      );
       return;
     }
 
@@ -167,7 +175,11 @@ export default function CreateAccountPage() {
           data: {
             display_name: cleanName,
             username: cleanUsername,
-            brand: "Unknown Pulls",
+            brand: "Unown Pulls",
+            purchase_consent_version: PURCHASE_CONSENT_VERSION,
+            age_18_confirmed: true,
+            random_physical_card_ack: true,
+            terms_ack: true,
           },
           emailRedirectTo: buildAuthCallbackUrl(nextPath),
         },
@@ -323,17 +335,54 @@ export default function CreateAccountPage() {
 
         <PasswordStrength password={password} />
 
-        <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-white/10 bg-white/[0.03] p-4">
-          <input
-            type="checkbox"
-            checked={accepted}
-            onChange={(event) => setAccepted(event.target.checked)}
-            className="mt-1 h-4 w-4 accent-cyan-200"
-          />
-          <span className="text-xs font-semibold leading-6 text-white/38">
-            I understand that my account stores my digital wish history and ownership records for real physical cards, and that delivery details are added separately inside the Shipping Centre.
-          </span>
-        </label>
+        <div className="space-y-3 rounded-2xl border border-yellow-100/15 bg-yellow-200/[0.035] p-4">
+          <div>
+            <p className="text-[0.65rem] font-black uppercase tracking-[0.17em] text-yellow-100/55">
+              Before you create your account
+            </p>
+            <p className="mt-2 text-xs font-semibold leading-6 text-white/40">
+              These confirmations are saved to your trainer account. You will not be asked again at every recharge unless the terms materially change.
+            </p>
+          </div>
+
+          <ConsentCheckbox
+            checked={ageConfirmed}
+            onChange={setAgeConfirmed}
+            disabled={submitting}
+          >
+            {PURCHASE_CONSENT_SUMMARY.age}
+          </ConsentCheckbox>
+
+          <ConsentCheckbox
+            checked={randomCardAccepted}
+            onChange={setRandomCardAccepted}
+            disabled={submitting}
+          >
+            {PURCHASE_CONSENT_SUMMARY.randomPhysicalCard}
+          </ConsentCheckbox>
+
+          <ConsentCheckbox
+            checked={termsAccepted}
+            onChange={setTermsAccepted}
+            disabled={submitting}
+          >
+            <span>
+              I agree to the {" "}
+              <Link href="/terms" className="font-black text-cyan-100 underline decoration-cyan-100/30 underline-offset-2">
+                Terms
+              </Link>
+              {" "}and{" "}
+              <Link href="/rules" className="font-black text-cyan-100 underline decoration-cyan-100/30 underline-offset-2">
+                Wish Rules
+              </Link>
+              , and I have read the{" "}
+              <Link href="/player-protection" className="font-black text-cyan-100 underline decoration-cyan-100/30 underline-offset-2">
+                Player Protection
+              </Link>
+              {" "}information.
+            </span>
+          </ConsentCheckbox>
+        </div>
 
         {errorMessage ? (
           <AuthMessage tone="error">{errorMessage}</AuthMessage>
@@ -348,5 +397,33 @@ export default function CreateAccountPage() {
         </button>
       </form>
     </AuthShell>
+  );
+}
+
+
+function ConsentCheckbox({
+  checked,
+  onChange,
+  disabled,
+  children,
+}: {
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  disabled: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-white/10 bg-white/[0.025] p-3.5 transition hover:bg-white/[0.045]">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(event) => onChange(event.target.checked)}
+        disabled={disabled}
+        className="mt-1 h-4 w-4 flex-none accent-cyan-200"
+      />
+      <span className="text-xs font-semibold leading-6 text-white/52">
+        {children}
+      </span>
+    </label>
   );
 }

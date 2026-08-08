@@ -9,6 +9,7 @@ import {
   playerErrorResponse,
   requireEnvironment,
 } from "@/lib/player/wish-store-server";
+import { PURCHASE_CONSENT_VERSION } from "@/lib/player/purchase-consent";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,7 +17,6 @@ export const revalidate = 0;
 
 type CheckoutBody = {
   packageId?: unknown;
-  purchaseNoticeAccepted?: unknown;
 };
 
 type LooseDatabase = {
@@ -152,12 +152,6 @@ export async function POST(request: Request) {
       throw new Error("The wish purchase request was not valid JSON.");
     }
 
-    if (body.purchaseNoticeAccepted !== true) {
-      throw new Error(
-        "Confirm that you are 18+ and understand the random physical-card purchase before continuing.",
-      );
-    }
-
     const packageId = readPackageId(body.packageId);
     const wishPackage = getWishPackage(packageId);
 
@@ -169,6 +163,27 @@ export async function POST(request: Request) {
     const database = service as unknown as LooseDatabase;
     const token = getBearerToken(request);
     const user = await getVerifiedUser(service, token);
+
+    const consentResult = await database
+      .from("player_legal_consents")
+      .select("user_id")
+      .eq("user_id", user.id)
+      .eq("consent_version", PURCHASE_CONSENT_VERSION)
+      .eq("age_18_confirmed", true)
+      .eq("random_physical_card_ack", true)
+      .eq("terms_ack", true)
+      .maybeSingle();
+
+    if (consentResult.error) {
+      throw consentResult.error;
+    }
+
+    if (!consentResult.data) {
+      throw new Error(
+        "Your trainer account must accept the current purchase terms before recharging wishes.",
+      );
+    }
+
     const [paidResult, reservationResult] = await Promise.all([
       database
         .from("wish_purchase_orders")

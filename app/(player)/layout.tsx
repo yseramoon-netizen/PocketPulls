@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import type { Session } from "@supabase/supabase-js";
 
 import PlayerNav from "@/components/player/PlayerNav";
+import PurchaseConsentGate from "@/components/player/PurchaseConsentGate";
 import UnownText from "@/components/player/UnownText";
 import UnknownPullsBackdrop from "@/components/player/UnknownPullsBackdrop";
 import { supabase } from "@/lib/supabase";
@@ -37,7 +38,22 @@ type PlayerShellData = {
   isBanned: boolean;
   banReason: string | null;
   bannedAt: string | null;
+  purchaseConsentAccepted: boolean;
 };
+
+type PurchaseConsentRow = {
+  accepted: boolean | null;
+};
+
+const LEGAL_PATHS = new Set([
+  "/terms",
+  "/rules",
+  "/player-protection",
+  "/how-wishes-work",
+  "/odds",
+  "/faq",
+  "/help",
+]);
 
 function getErrorMessage(error: unknown, fallback: string): string {
   if (error instanceof Error && error.message.trim()) {
@@ -101,6 +117,11 @@ export default function PlayerLayout({ children }: PlayerLayoutProps) {
   const pathname = usePathname();
   const mountedRef = useRef(true);
 
+  const legalPageAllowed = Array.from(LEGAL_PATHS).some(
+    (legalPath) =>
+      pathname === legalPath || pathname.startsWith(`${legalPath}/`),
+  );
+
   const [player, setPlayer] = useState<PlayerShellData | null>(null);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -122,7 +143,7 @@ export default function PlayerLayout({ children }: PlayerLayoutProps) {
       }
 
     try {
-      const [profileResult, walletResult] = await Promise.all([
+      const [profileResult, walletResult, consentResult] = await Promise.all([
         supabase
           .from("player_profiles")
           .select(
@@ -136,6 +157,8 @@ export default function PlayerLayout({ children }: PlayerLayoutProps) {
           .select("user_id,wish_balance")
           .eq("user_id", session.user.id)
           .maybeSingle(),
+
+        supabase.rpc("get_player_purchase_consent"),
       ]);
 
       if (profileResult.error) {
@@ -156,11 +179,27 @@ export default function PlayerLayout({ children }: PlayerLayoutProps) {
         );
       }
 
+      if (consentResult.error) {
+        throw new Error(
+          getErrorMessage(
+            consentResult.error,
+            "Your account purchase acknowledgement could not be checked. Run the latest consent migration in Supabase.",
+          ),
+        );
+      }
+
       const profile =
         profileResult.data as unknown as PlayerProfileRow | null;
 
       const wallet =
         walletResult.data as unknown as PlayerWalletRow | null;
+
+      const consentRaw = Array.isArray(consentResult.data)
+        ? consentResult.data[0]
+        : consentResult.data;
+
+      const consent =
+        consentRaw as unknown as PurchaseConsentRow | null;
 
       if (!profile) {
         throw new Error(
@@ -201,6 +240,7 @@ export default function PlayerLayout({ children }: PlayerLayoutProps) {
           profile.banned_at.trim()
             ? profile.banned_at.trim()
             : null,
+        purchaseConsentAccepted: consent?.accepted === true,
       };
 
       if (!mountedRef.current) {
@@ -258,6 +298,12 @@ export default function PlayerLayout({ children }: PlayerLayoutProps) {
       }
 
       if (!session) {
+        if (legalPageAllowed) {
+          setPlayer(null);
+          setLoading(false);
+          return;
+        }
+
         redirectToSignIn();
         return;
       }
@@ -285,7 +331,7 @@ export default function PlayerLayout({ children }: PlayerLayoutProps) {
       }
     }
   },
-  [loadPlayer, redirectToSignIn],
+  [legalPageAllowed, loadPlayer, redirectToSignIn],
 );
 
   useEffect(() => {
@@ -302,6 +348,12 @@ export default function PlayerLayout({ children }: PlayerLayoutProps) {
       // token refresh/network hiccup on mobile into an apparent logout.
       if (event === "SIGNED_OUT") {
         setPlayer(null);
+
+        if (legalPageAllowed) {
+          setLoading(false);
+          return;
+        }
+
         redirectToSignIn();
         return;
       }
@@ -338,7 +390,11 @@ export default function PlayerLayout({ children }: PlayerLayoutProps) {
         handleProfileUpdated,
       );
     };
-  }, [loadCurrentSession, loadPlayer, redirectToSignIn]);
+  }, [legalPageAllowed, loadCurrentSession, loadPlayer, redirectToSignIn]);
+
+  if (legalPageAllowed && !player && !loading) {
+    return <PublicLegalShell>{children}</PublicLegalShell>;
+  }
 
   if (loading && !player) {
     return <PlayerLoadingScreen />;
@@ -362,6 +418,26 @@ export default function PlayerLayout({ children }: PlayerLayoutProps) {
 
   if (!player) {
     return <PlayerLoadingScreen />;
+  }
+
+  if (!player.purchaseConsentAccepted && !legalPageAllowed) {
+    return (
+      <PurchaseConsentGate
+        displayName={player.displayName}
+        onAccepted={() => {
+          setPlayer((current) =>
+            current
+              ? { ...current, purchaseConsentAccepted: true }
+              : current,
+          );
+        }}
+        onSignOut={() => {
+          void supabase.auth.signOut().finally(() => {
+            redirectToSignIn();
+          });
+        }}
+      />
+    );
   }
 
   if (player.isBanned) {
@@ -473,6 +549,15 @@ export default function PlayerLayout({ children }: PlayerLayoutProps) {
             rgba(5, 4, 17, 0.72);
         }
       `}</style>
+    </div>
+  );
+}
+
+function PublicLegalShell({ children }: { children: ReactNode }) {
+  return (
+    <div className="unknown-pulls-shell relative min-h-[100dvh] overflow-x-hidden bg-[#02030d] text-white">
+      <UnknownPullsBackdrop />
+      <main className="relative z-10 min-h-[100dvh]">{children}</main>
     </div>
   );
 }

@@ -14,6 +14,7 @@ export default function WelcomePage() {
   const router = useRouter();
   const [ready, setReady] = useState(false);
   const [displayName, setDisplayName] = useState("Trainer");
+  const [wishBalance, setWishBalance] = useState(0);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const nextPath = useMemo(
@@ -56,6 +57,17 @@ export default function WelcomePage() {
               ? name.trim()
               : "Trainer",
           );
+
+          const startingBalance =
+            row && typeof row.wish_balance !== "undefined"
+              ? Number(row.wish_balance)
+              : 0;
+
+          setWishBalance(
+            Number.isFinite(startingBalance)
+              ? Math.max(0, Math.floor(startingBalance))
+              : 0,
+          );
           setReady(true);
         }
       } catch (error: unknown) {
@@ -84,7 +96,7 @@ export default function WelcomePage() {
   return (
     <AuthShell
       eyebrow="Account ready"
-      title="Welcome To Unknown Pulls"
+      title="Welcome To Unown Pulls"
       description={`${displayName}, your trainer identity, wish wallet and private collection are ready.`}
       storyTitle="Your symbol has joined the constellation"
     >
@@ -93,12 +105,22 @@ export default function WelcomePage() {
           <AuthMessage tone="error">{errorMessage}</AuthMessage>
         ) : (
           <AuthMessage tone="success">
-            Email confirmed. Your ownership records now remain connected to this account.
+            {wishBalance >= 10
+              ? `${wishBalance} tester wishes are ready on your account.`
+              : "Email confirmed. Your ownership records now remain connected to this account."}
           </AuthMessage>
         )}
 
         <div className="grid gap-3 sm:grid-cols-3">
-          <WelcomeCard icon="✦" title="Make wishes" text="Reveal real cards from live stock." />
+          <WelcomeCard
+            icon="✦"
+            title="Make wishes"
+            text={
+              wishBalance > 0
+                ? `${wishBalance} wishes are ready to test.`
+                : "Reveal real cards from the wish pool."
+            }
+          />
           <WelcomeCard icon="◆" title="Build a collection" text="Every pull is recorded to your account." />
           <WelcomeCard icon="⌂" title="Ship together" text="Unlock free shipping as the collection grows." />
         </div>
