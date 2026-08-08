@@ -94,9 +94,9 @@ const MORE_ITEMS: NavItem[] = [
     glyph: "▰",
   },
   {
-    href: "/wishes/shop",
-    label: "Wish Shop",
-    glyph: "✦",
+    href: "/help",
+    label: "Help",
+    glyph: "?",
   },
 ];
 
@@ -126,7 +126,6 @@ const DRAWER_GROUPS: NavGroup[] = [
       PRIMARY_ITEMS[0],
       PRIMARY_ITEMS[1],
       PRIMARY_ITEMS[2],
-      MORE_ITEMS[6],
     ],
   },
   {
@@ -150,6 +149,7 @@ const DRAWER_GROUPS: NavGroup[] = [
     label: "Account",
     items: [
       MORE_ITEMS[5],
+      MORE_ITEMS[6],
       PROFILE_ITEM,
     ],
   },

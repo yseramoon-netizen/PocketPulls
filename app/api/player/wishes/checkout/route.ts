@@ -16,6 +16,7 @@ export const revalidate = 0;
 
 type CheckoutBody = {
   packageId?: unknown;
+  purchaseNoticeAccepted?: unknown;
 };
 
 type LooseDatabase = {
@@ -149,6 +150,12 @@ export async function POST(request: Request) {
       body = (await request.json()) as CheckoutBody;
     } catch {
       throw new Error("The wish purchase request was not valid JSON.");
+    }
+
+    if (body.purchaseNoticeAccepted !== true) {
+      throw new Error(
+        "Confirm that you are 18+ and understand the random physical-card purchase before continuing.",
+      );
     }
 
     const packageId = readPackageId(body.packageId);

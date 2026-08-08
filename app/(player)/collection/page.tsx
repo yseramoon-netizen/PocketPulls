@@ -14,14 +14,8 @@ import PlayerCardModal, {
 } from "@/components/player/PlayerCardModal";
 import {
   CardArtwork,
-  PlayerEmptyState,
   PlayerErrorBanner,
-  PlayerLoadingCards,
-  PlayerPageHeader,
-  PlayerPanel,
   PlayerSecondaryButton,
-  PlayerStatCard,
-  RarityPill,
 } from "@/components/player/PlayerUI";
 import { supabase } from "@/lib/supabase";
 import {
@@ -33,6 +27,8 @@ import {
   toWholeNumber,
 } from "@/lib/player/format";
 import { getPlayerRarityTheme } from "@/lib/player/rarity";
+
+import styles from "./collection.module.css";
 
 type CollectionRow = {
   card_id: string | number | null;
@@ -76,14 +72,6 @@ type Overview = {
   collectionValue: number;
   sets: string[];
   rarities: string[];
-};
-
-type SignatureSaveResponse = {
-  ok: true;
-  userId: string;
-  username: string;
-  cardId: string;
-  savedAt: string;
 };
 
 type Availability =
@@ -130,40 +118,6 @@ function parseOverview(value: unknown): Overview {
   };
 }
 
-async function getActivePlayerSession() {
-  const {
-    data: sessionData,
-    error: sessionError,
-  } = await supabase.auth.getSession();
-
-  if (
-    sessionError ||
-    !sessionData.session
-  ) {
-    throw new Error(
-      "Your player session expired. Sign in again.",
-    );
-  }
-
-  const {
-    data: userData,
-    error: userError,
-  } = await supabase.auth.getUser();
-
-  if (
-    userError ||
-    !userData.user ||
-    userData.user.id !==
-      sessionData.session.user.id
-  ) {
-    throw new Error(
-      "Your player session could not be verified. Sign in again.",
-    );
-  }
-
-  return sessionData.session;
-}
-
 function parseRows(value: unknown): {
   cards: CollectionCard[];
   totalCount: number;
@@ -203,104 +157,9 @@ function parseRows(value: unknown): {
   };
 }
 
-async function saveSignatureCard(
-  cardId: string,
-  expectedUserId: string,
-): Promise<SignatureSaveResponse> {
-  const session =
-    await getActivePlayerSession();
-
-  if (
-    session.user.id !==
-    expectedUserId
-  ) {
-    throw new Error(
-      "The signed-in player changed while this collection was open. Reload the page before choosing a signature card.",
-    );
-  }
-
-  const response =
-    await fetch(
-      "/api/player/profile/signature",
-      {
-        method:
-          "POST",
-
-        headers: {
-          Authorization:
-            `Bearer ${session.access_token}`,
-
-          "Content-Type":
-            "application/json",
-        },
-
-        body:
-          JSON.stringify({
-            cardId,
-          }),
-
-        cache:
-          "no-store",
-      },
-    );
-
-  const payload =
-    (await response.json()) as
-      | SignatureSaveResponse
-      | {
-          ok: false;
-          error?: {
-            message?:
-              string;
-          };
-        };
-
-  if (
-    !response.ok ||
-    payload.ok !==
-      true
-  ) {
-    throw new Error(
-      payload.ok === false
-        ? payload.error
-            ?.message ||
-          "Your signature card could not be saved."
-        : "Your signature card could not be saved.",
-    );
-  }
-
-  if (
-    payload.userId !==
-    expectedUserId
-  ) {
-    throw new Error(
-      "The server refused the update because it resolved to a different player account.",
-    );
-  }
-
-  const latestSession =
-    await getActivePlayerSession();
-
-  if (
-    latestSession.user.id !==
-      expectedUserId
-  ) {
-    throw new Error(
-      "The signed-in player changed during the save. Reload the collection before trying again.",
-    );
-  }
-
-  return payload;
-}
-
 export default function CollectionPage() {
   const requestRef = useRef(0);
   const searchTimerRef = useRef<number | null>(null);
-
-  const collectionOwnerRef =
-    useRef<string | null>(
-      null,
-    );
 
   const [cards, setCards] = useState<CollectionCard[]>([]);
   const [overview, setOverview] =
@@ -321,15 +180,6 @@ export default function CollectionPage() {
   const [signatureBusy, setSignatureBusy] = useState(false);
   const [errorMessage, setErrorMessage] =
     useState<string | null>(null);
-
-  const [
-    signatureMessage,
-    setSignatureMessage,
-  ] =
-    useState<string | null>(
-      null,
-    );
-
   const [selectedCard, setSelectedCard] =
     useState<CollectionCard | null>(null);
 
@@ -346,45 +196,12 @@ export default function CollectionPage() {
     sort !== "name";
 
   const loadOverview = useCallback(async () => {
-    const activeSession =
-      await getActivePlayerSession();
-
-    const activeUserId =
-      activeSession.user.id;
-
-    const currentOwner =
-      collectionOwnerRef.current;
-
-    if (
-      currentOwner &&
-      currentOwner !== activeUserId
-    ) {
-      throw new Error(
-        "The signed-in player changed. Reload the collection before continuing.",
-      );
-    }
-
-    collectionOwnerRef.current =
-      activeUserId;
-
     const { data, error } = await supabase.rpc(
       "get_player_collection_overview",
     );
 
     if (error) {
       throw error;
-    }
-
-    const verifiedSession =
-      await getActivePlayerSession();
-
-    if (
-      verifiedSession.user.id !==
-      activeUserId
-    ) {
-      throw new Error(
-        "The signed-in player changed while the collection overview was loading.",
-      );
     }
 
     setOverview(parseOverview(data));
@@ -404,28 +221,6 @@ export default function CollectionPage() {
       setErrorMessage(null);
 
       try {
-        const activeSession =
-          await getActivePlayerSession();
-
-        const activeUserId =
-          activeSession.user.id;
-
-        if (
-          collectionOwnerRef
-            .current &&
-          collectionOwnerRef
-            .current !==
-            activeUserId
-        ) {
-          throw new Error(
-            "The signed-in player changed. Reload the collection before continuing.",
-          );
-        }
-
-        collectionOwnerRef
-          .current =
-            activeUserId;
-
         const { data, error } = await supabase.rpc(
           "get_player_collection",
           {
@@ -517,46 +312,6 @@ export default function CollectionPage() {
   }, [loadCards, loadOverview]);
 
   useEffect(() => {
-    const {
-      data: {
-        subscription,
-      },
-    } =
-      supabase.auth
-        .onAuthStateChange(
-          (
-            event,
-            session,
-          ) => {
-            if (
-              event ===
-                "SIGNED_OUT" ||
-              !session
-            ) {
-              return;
-            }
-
-            const currentOwner =
-              collectionOwnerRef
-                .current;
-
-            if (
-              currentOwner &&
-              currentOwner !==
-                session.user.id
-            ) {
-              window.location.reload();
-            }
-          },
-        );
-
-    return () => {
-      subscription
-        .unsubscribe();
-    };
-  }, []);
-
-  useEffect(() => {
     if (searchTimerRef.current !== null) {
       window.clearTimeout(searchTimerRef.current);
     }
@@ -584,86 +339,46 @@ export default function CollectionPage() {
   }, []);
 
   const setSignature = useCallback(
-    async (
-      card:
-        CollectionCard,
-    ) => {
-      if (
-        signatureBusy ||
-        card.isSignature
-      ) {
+    async (card: CollectionCard) => {
+      if (signatureBusy || card.isSignature) {
         return;
       }
 
-      const expectedUserId =
-        collectionOwnerRef
-          .current;
-
-      if (!expectedUserId) {
-        setErrorMessage(
-          "The collection owner has not finished loading. Reload the page and try again.",
-        );
-
-        return;
-      }
-
-      setSignatureBusy(
-        true,
-      );
-
-      setErrorMessage(
-        null,
-      );
-
-      setSignatureMessage(
-        null,
-      );
+      setSignatureBusy(true);
+      setErrorMessage(null);
 
       try {
-        const saved =
-          await saveSignatureCard(
-            card.id,
-            expectedUserId,
-          );
-
-        await Promise.all([
-          loadCards(true),
-          loadOverview(),
-        ]);
-
-        setSelectedCard(
-          (current) =>
-            current
-              ? {
-                  ...current,
-                  isSignature:
-                    current.id ===
-                    card.id,
-                }
-              : null,
+        const { error } = await supabase.rpc(
+          "set_player_signature_card",
+          {
+            p_card_id: card.id,
+          },
         );
 
-        setSignatureMessage(
-          `Signature card saved and verified for @${saved.username}.`,
+        if (error) {
+          throw error;
+        }
+
+        setCards((current) =>
+          current.map((item) => ({
+            ...item,
+            isSignature: item.id === card.id,
+          })),
+        );
+
+        setSelectedCard((current) =>
+          current
+            ? {
+                ...current,
+                isSignature: current.id === card.id,
+              }
+            : null,
         );
 
         window.dispatchEvent(
-          new CustomEvent(
-            "pocketpulls:profile-updated",
-          ),
+          new CustomEvent("pocketpulls:profile-updated"),
         );
-
-        window.setTimeout(
-          () => {
-            setSignatureMessage(
-              null,
-            );
-          },
-          4000,
-        );
-      } catch (
-        error: unknown
-      ) {
+      } catch (error: unknown) {
         setErrorMessage(
           getErrorMessage(
             error,
@@ -671,16 +386,10 @@ export default function CollectionPage() {
           ),
         );
       } finally {
-        setSignatureBusy(
-          false,
-        );
+        setSignatureBusy(false);
       }
     },
-    [
-      signatureBusy,
-      loadCards,
-      loadOverview,
-    ],
+    [signatureBusy],
   );
 
   const filterOptions = useMemo(
@@ -705,351 +414,175 @@ export default function CollectionPage() {
     [],
   );
 
+  const binderSlots = Array.from({ length: PAGE_SIZE }, (_, index) => cards[index] ?? null);
+  const leftPage = binderSlots.slice(0, 12);
+  const rightPage = binderSlots.slice(12, 24);
+
   return (
-    <section className="mx-auto w-full max-w-[1600px] px-4 py-8 sm:px-6 lg:px-8">
-      <PlayerPageHeader
-        eyebrow="Your physical archive"
-        title="Collection"
-        description="Every card here belongs to you. Track duplicates, reserved cards, current value and the signature card that represents your trainer profile."
-        actions={
-          <PlayerSecondaryButton
-            onClick={() => void refresh()}
-            disabled={refreshing}
-          >
-            {refreshing
-              ? "Reading your archive..."
-              : "Refresh collection"}
-          </PlayerSecondaryButton>
-        }
-      />
-
-      <PlayerErrorBanner
-        message={errorMessage}
-        onRetry={() => void refresh()}
-      />
-
-      {signatureMessage ? (
-        <div className="mt-6 rounded-2xl border border-emerald-100/20 bg-emerald-300/[0.08] px-5 py-4 text-sm font-black text-emerald-50">
-          {signatureMessage}
+    <section className={styles.pageShell}>
+      <header className={styles.header}>
+        <div>
+          <p className={styles.eyebrow}>Your card binder</p>
+          <h1 className={styles.title}>Collection</h1>
         </div>
-      ) : null}
 
-      <div className="mt-7 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-        <PlayerStatCard
-          label="Physical cards"
-          value={formatWholeNumber(overview.totalCards)}
-          detail="Every card currently owned"
-          accent="violet"
+        <div className={styles.headerStats}>
+          <div><span>Cards</span><strong>{formatWholeNumber(overview.totalCards)}</strong></div>
+          <div><span>Unique</span><strong>{formatWholeNumber(overview.uniqueCards)}</strong></div>
+          <div><span>Value</span><strong>{formatMoney(overview.collectionValue)}</strong></div>
+        </div>
+      </header>
+
+      <PlayerErrorBanner message={errorMessage} onRetry={() => void refresh()} />
+
+      <div className={styles.toolbar}>
+        <input
+          type="search"
+          value={searchInput}
+          onChange={(event) => setSearchInput(event.target.value)}
+          placeholder="Search cards..."
+          className={styles.searchInput}
         />
 
-        <PlayerStatCard
-          label="Unique cards"
-          value={formatWholeNumber(overview.uniqueCards)}
-          detail="Different catalogue entries"
-          accent="cyan"
-        />
+        <select
+          value={setName}
+          onChange={(event) => { setSetName(event.target.value); setPage(1); }}
+          className={styles.select}
+        >
+          <option value="">All sets</option>
+          {overview.sets.map((item) => <option key={item} value={item}>{item}</option>)}
+        </select>
 
-        <PlayerStatCard
-          label="Available"
-          value={formatWholeNumber(
-            overview.availableCards,
-          )}
-          detail="Ready for future shipping"
-          accent="green"
-        />
+        <select
+          value={rarity}
+          onChange={(event) => { setRarity(event.target.value); setPage(1); }}
+          className={styles.select}
+        >
+          <option value="">All rarities</option>
+          {overview.rarities.map((item) => <option key={item} value={item}>{item}</option>)}
+        </select>
 
-        <PlayerStatCard
-          label="Reserved"
-          value={formatWholeNumber(
-            overview.reservedCards,
-          )}
-          detail="Already assigned to a shipment"
-          accent="pink"
-        />
+        <select
+          value={sort}
+          onChange={(event) => { setSort(event.target.value as SortOption); setPage(1); }}
+          className={styles.select}
+        >
+          <option value="name">A–Z</option>
+          <option value="value_desc">Highest value</option>
+          <option value="value_asc">Lowest value</option>
+          <option value="quantity_desc">Most copies</option>
+        </select>
 
-        <PlayerStatCard
-          label="Collection value"
-          value={formatMoney(overview.collectionValue)}
-          detail="Current raw-card reference value"
-          accent="yellow"
-        />
+        <button type="button" onClick={() => void refresh()} disabled={refreshing} className={styles.refreshButton}>
+          {refreshing ? "Refreshing..." : "Refresh"}
+        </button>
       </div>
 
-      <PlayerPanel className="mt-6 p-4 sm:p-5">
-        <div className="grid gap-3 lg:grid-cols-[minmax(15rem,1.4fr)_repeat(3,minmax(10rem,1fr))]">
-          <input
-            type="search"
-            value={searchInput}
-            onChange={(event) =>
-              setSearchInput(event.target.value)
-            }
-            placeholder="Search your cards..."
-            className="min-h-12 rounded-xl border border-white/10 bg-white/[0.045] px-4 text-sm font-semibold text-white outline-none placeholder:text-white/25 focus:border-cyan-200/25"
-          />
-
-          <select
-            value={setName}
-            onChange={(event) => {
-              setSetName(event.target.value);
-              setPage(1);
-            }}
-            className="min-h-12 rounded-xl border border-white/10 bg-[#101331] px-4 text-sm font-bold text-white/75"
+      <div className={styles.filterRow}>
+        {filterOptions.map((option) => (
+          <button
+            key={option.value}
+            type="button"
+            onClick={() => { setAvailability(option.value); setPage(1); }}
+            className={availability === option.value ? styles.filterActive : styles.filterButton}
           >
-            <option value="">Every set</option>
-            {overview.sets.map((item) => (
-              <option key={item} value={item}>
-                {item}
-              </option>
-            ))}
-          </select>
-
-          <select
-            value={rarity}
-            onChange={(event) => {
-              setRarity(event.target.value);
-              setPage(1);
-            }}
-            className="min-h-12 rounded-xl border border-white/10 bg-[#101331] px-4 text-sm font-bold text-white/75"
-          >
-            <option value="">Every rarity</option>
-            {overview.rarities.map((item) => (
-              <option key={item} value={item}>
-                {item}
-              </option>
-            ))}
-          </select>
-
-          <select
-            value={sort}
-            onChange={(event) => {
-              setSort(event.target.value as SortOption);
-              setPage(1);
-            }}
-            className="min-h-12 rounded-xl border border-white/10 bg-[#101331] px-4 text-sm font-bold text-white/75"
-          >
-            <option value="name">Name A-Z</option>
-            <option value="value_desc">
-              Highest owned value
-            </option>
-            <option value="value_asc">
-              Lowest owned value
-            </option>
-            <option value="quantity_desc">
-              Most duplicates
-            </option>
-          </select>
-        </div>
-
-        <div className="mt-4 flex flex-col gap-4 border-t border-white/[0.07] pt-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex flex-wrap gap-2">
-            {filterOptions.map((option) => (
-              <button
-                key={option.value}
-                type="button"
-                onClick={() => {
-                  setAvailability(option.value);
-                  setPage(1);
-                }}
-                className={`min-h-9 rounded-full border px-3 text-[0.65rem] font-black uppercase tracking-[0.1em] transition ${
-                  availability === option.value
-                    ? "border-cyan-100/20 bg-cyan-100/10 text-cyan-50"
-                    : "border-white/10 bg-white/[0.035] text-white/35"
-                }`}
-              >
-                {option.label}
-              </button>
-            ))}
-          </div>
-
-          <div className="flex items-center gap-4">
-            <span className="text-xs font-bold text-white/30">
-              {formatWholeNumber(totalCount)} entries
-            </span>
-
-            {hasFilters ? (
-              <button
-                type="button"
-                onClick={clearFilters}
-                className="text-xs font-black uppercase tracking-[0.1em] text-cyan-100/50"
-              >
-                Clear filters
-              </button>
-            ) : null}
-          </div>
-        </div>
-      </PlayerPanel>
+            {option.label}
+          </button>
+        ))}
+        <span className={styles.entryCount}>{formatWholeNumber(totalCount)} entries</span>
+        {hasFilters ? <button type="button" onClick={clearFilters} className={styles.clearButton}>Clear</button> : null}
+      </div>
 
       {loading ? (
-        <PlayerLoadingCards count={18} />
+        <div className={styles.binderLoading}>Opening your binder...</div>
       ) : cards.length === 0 ? (
-        <PlayerEmptyState
-          title={
-            hasFilters
-              ? "No cards match those filters."
-              : "Your collection is waiting."
-          }
-          description={
-            hasFilters
-              ? "Try another name, set, rarity or availability filter."
-              : "Complete a wish and your first physical card will appear here."
-          }
-          action={
-            hasFilters ? (
-              <PlayerSecondaryButton
-                onClick={clearFilters}
-              >
-                Clear filters
-              </PlayerSecondaryButton>
-            ) : null
-          }
-        />
+        <div className={styles.emptyBinder}>
+          <div className={styles.emptyPage}>
+            <span>✦</span>
+            <h2>{hasFilters ? "No cards match those filters." : "Your binder is waiting."}</h2>
+            <p>{hasFilters ? "Try another search or filter." : "Complete a wish and your first card will appear here."}</p>
+            {hasFilters ? <PlayerSecondaryButton onClick={clearFilters}>Clear filters</PlayerSecondaryButton> : null}
+          </div>
+        </div>
       ) : (
-        <>
-          <div
-            className={`mt-6 grid grid-cols-2 gap-3 transition-opacity sm:grid-cols-3 sm:gap-5 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 ${
-              filtering ? "opacity-45" : "opacity-100"
-            }`}
-          >
-            {cards.map((card) => (
-              <CollectionTile
-                key={card.id}
-                card={card}
-                onOpen={() => setSelectedCard(card)}
-              />
-            ))}
+        <div className={`${styles.binder} ${filtering ? styles.binderFiltering : ""}`}>
+          <div className={styles.coverEdgeLeft} />
+          <BinderPage cards={leftPage} side="left" onOpen={setSelectedCard} />
+          <div className={styles.spine} aria-hidden="true">
+            {Array.from({ length: 6 }, (_, index) => <span key={index} className={styles.ring} />)}
           </div>
-
-          <div className="mt-8 flex items-center justify-between rounded-2xl border border-white/10 bg-white/[0.035] p-4">
-            <span className="text-xs font-bold text-white/30">
-              Page {page} of {totalPages}
-            </span>
-
-            <div className="flex gap-2">
-              <PlayerSecondaryButton
-                onClick={() =>
-                  setPage((current) =>
-                    Math.max(1, current - 1),
-                  )
-                }
-                disabled={page <= 1}
-              >
-                Previous
-              </PlayerSecondaryButton>
-
-              <PlayerSecondaryButton
-                onClick={() =>
-                  setPage((current) =>
-                    Math.min(totalPages, current + 1),
-                  )
-                }
-                disabled={page >= totalPages}
-              >
-                Next
-              </PlayerSecondaryButton>
-            </div>
-          </div>
-        </>
+          <BinderPage cards={rightPage} side="right" onOpen={setSelectedCard} />
+          <div className={styles.coverEdgeRight} />
+        </div>
       )}
+
+      <div className={styles.pagination}>
+        <span>Spread {page} of {totalPages}</span>
+        <div>
+          <PlayerSecondaryButton onClick={() => setPage((current) => Math.max(1, current - 1))} disabled={page <= 1}>Previous</PlayerSecondaryButton>
+          <PlayerSecondaryButton onClick={() => setPage((current) => Math.min(totalPages, current + 1))} disabled={page >= totalPages}>Next</PlayerSecondaryButton>
+        </div>
+      </div>
 
       {selectedCard ? (
         <PlayerCardModal
           card={selectedCard}
           onClose={() => setSelectedCard(null)}
           signatureBusy={signatureBusy}
-          onSetSignature={() =>
-            void setSignature(selectedCard)
-          }
+          onSetSignature={() => void setSignature(selectedCard)}
         />
       ) : null}
     </section>
   );
 }
 
-function CollectionTile({
-  card,
+function BinderPage({
+  cards,
+  side,
   onOpen,
 }: {
-  card: CollectionCard;
-  onOpen: () => void;
+  cards: Array<CollectionCard | null>;
+  side: "left" | "right";
+  onOpen: (card: CollectionCard) => void;
 }) {
-  const theme = getPlayerRarityTheme(card.rarity);
+  return (
+    <div className={`${styles.binderPage} ${side === "left" ? styles.leftPage : styles.rightPage}`}>
+      <div className={styles.pageSheen} />
+      <div className={styles.pocketGrid}>
+        {cards.map((card, index) => (
+          card ? (
+            <BinderPocket key={card.id} card={card} onOpen={() => onOpen(card)} />
+          ) : (
+            <div key={`empty-${side}-${index}`} className={styles.emptyPocket} aria-hidden="true">
+              <span>✦</span>
+            </div>
+          )
+        ))}
+      </div>
+    </div>
+  );
+}
 
+function BinderPocket({ card, onOpen }: { card: CollectionCard; onOpen: () => void }) {
+  const theme = getPlayerRarityTheme(card.rarity);
   const style = {
     "--rarity-colour": theme.primary,
     "--rarity-glow": theme.glow,
   } as CSSProperties;
 
   return (
-    <button
-      type="button"
-      onClick={onOpen}
-      style={style}
-      className="group relative overflow-hidden rounded-2xl border border-white/10 bg-[#090b27]/88 p-2.5 text-left shadow-[0_18px_55px_rgba(0,0,0,0.18)] transition duration-300 hover:-translate-y-1 hover:border-white/20 sm:p-3"
-    >
-      {card.isSignature ? (
-        <span className="absolute left-4 top-4 z-20 rounded-full border border-yellow-100/20 bg-yellow-100/15 px-2.5 py-1 text-[0.55rem] font-black uppercase tracking-[0.1em] text-yellow-50 backdrop-blur-xl">
-          ★ Signature
-        </span>
-      ) : null}
-
-      <span className="absolute right-4 top-4 z-20 grid min-h-8 min-w-8 place-items-center rounded-full border border-white/10 bg-black/45 px-2 text-xs font-black text-white backdrop-blur-xl">
-        ×{card.quantity}
-      </span>
+    <button type="button" onClick={onOpen} style={style} className={styles.pocket}>
+      <span className={styles.pocketPlastic} />
+      {card.isSignature ? <span className={styles.signatureBadge}>★</span> : null}
+      {card.quantity > 1 ? <span className={styles.quantityBadge}>×{card.quantity}</span> : null}
 
       <CardArtwork
         name={card.name}
         imageUrl={card.imageUrl}
         rarity={card.rarity}
-        className="aspect-[0.716] rounded-xl border border-white/[0.07] transition duration-500 group-hover:scale-[1.015]"
+        className={styles.cardArtwork}
       />
 
-      <div className="px-1 pb-1 pt-3">
-        <RarityPill rarity={card.rarity} />
-
-        <h2 className="mt-2 truncate text-sm font-black text-white sm:text-base">
-          {card.name}
-        </h2>
-
-        <p className="mt-1 truncate text-[0.7rem] font-semibold text-white/32">
-          {card.setName}
-          {card.cardNumber
-            ? ` · #${card.cardNumber}`
-            : ""}
-        </p>
-
-        <div className="mt-3 grid grid-cols-2 gap-2 border-t border-white/[0.06] pt-3">
-          <SmallMetric
-            label="Available"
-            value={card.availableQuantity}
-          />
-          <SmallMetric
-            label="Value"
-            value={formatMoney(card.ownedValue)}
-            text
-          />
-        </div>
-      </div>
     </button>
-  );
-}
-
-function SmallMetric({
-  label,
-  value,
-  text = false,
-}: {
-  label: string;
-  value: number | string;
-  text?: boolean;
-}) {
-  return (
-    <div>
-      <p className="text-[0.5rem] font-black uppercase tracking-[0.1em] text-white/20">
-        {label}
-      </p>
-      <p className="mt-1 truncate text-xs font-black text-white/72">
-        {text ? value : formatWholeNumber(Number(value))}
-      </p>
-    </div>
   );
 }

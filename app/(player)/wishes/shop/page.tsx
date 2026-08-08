@@ -28,65 +28,37 @@ type StoreResponse = {
 type CheckoutResponse = {
   ok: true;
   checkoutUrl: string;
-  orderId: string;
-  firstRecharge: boolean;
-  wishes: number;
-  amountPence: number;
 };
 
 type PurchaseStatusResponse = {
   ok: true;
   purchase: {
-    id: string;
     status: string;
     wishes: number;
-    amount_pence: number;
-    first_recharge: boolean;
-    paid_at: string | null;
   };
   wishBalance: number;
 };
 
-type Spark = {
-  id: number;
-  left: number;
-  top: number;
-  size: number;
-  delay: number;
-  duration: number;
-};
-
-type OrbitStar = {
-  id: number;
-  ring: "one" | "two";
-  angle: number;
-  radiusX: number;
-  radiusY: number;
-  delay: number;
-  size: number;
-};
-
-const SPARKS: Spark[] = Array.from({ length: 28 }, (_, index) => ({
+const SPARKS = Array.from({ length: 28 }, (_, index) => ({
   id: index,
   left: (index * 37 + 9) % 96,
   top: (index * 53 + 6) % 88,
-  size: 2 + (index % 3),
   delay: (index % 9) * 0.33,
   duration: 3.8 + (index % 5) * 0.65,
 }));
 
-const ORBIT_STARS: OrbitStar[] = [
-  { id: 1, ring: "one", angle: 0, radiusX: 150, radiusY: 70, delay: 0.1, size: 14 },
-  { id: 2, ring: "one", angle: 72, radiusX: 150, radiusY: 70, delay: 0.5, size: 12 },
-  { id: 3, ring: "one", angle: 145, radiusX: 150, radiusY: 70, delay: 0.2, size: 15 },
-  { id: 4, ring: "one", angle: 218, radiusX: 150, radiusY: 70, delay: 0.8, size: 13 },
-  { id: 5, ring: "one", angle: 292, radiusX: 150, radiusY: 70, delay: 0.35, size: 14 },
-  { id: 6, ring: "two", angle: 20, radiusX: 110, radiusY: 166, delay: 0.4, size: 12 },
-  { id: 7, ring: "two", angle: 92, radiusX: 110, radiusY: 166, delay: 0.1, size: 15 },
-  { id: 8, ring: "two", angle: 168, radiusX: 110, radiusY: 166, delay: 0.65, size: 14 },
-  { id: 9, ring: "two", angle: 244, radiusX: 110, radiusY: 166, delay: 0.3, size: 13 },
-  { id: 10, ring: "two", angle: 320, radiusX: 110, radiusY: 166, delay: 0.75, size: 12 },
-];
+const ORBIT_STARS = [
+  [0, 150, 70, 0.1, 14, "one"],
+  [72, 150, 70, 0.5, 12, "one"],
+  [145, 150, 70, 0.2, 15, "one"],
+  [218, 150, 70, 0.8, 13, "one"],
+  [292, 150, 70, 0.35, 14, "one"],
+  [20, 110, 166, 0.4, 12, "two"],
+  [92, 110, 166, 0.1, 15, "two"],
+  [168, 110, 166, 0.65, 14, "two"],
+  [244, 110, 166, 0.3, 13, "two"],
+  [320, 110, 166, 0.75, 12, "two"],
+] as const;
 
 function formatMoney(pence: number): string {
   return new Intl.NumberFormat("en-GB", {
@@ -97,16 +69,12 @@ function formatMoney(pence: number): string {
   }).format(Math.max(0, pence) / 100);
 }
 
-function pricePerWish(pence: number, wishes: number): string {
-  const each = wishes > 0 ? pence / wishes : pence;
-  return `${each.toFixed(1)}p / wish`;
+function perWish(pence: number, wishes: number): string {
+  return `${(pence / Math.max(1, wishes)).toFixed(1)}p each`;
 }
 
 async function playerFetch<T>(url: string, init: RequestInit = {}): Promise<T> {
-  const {
-    data: { session },
-    error,
-  } = await supabase.auth.getSession();
+  const { data: { session }, error } = await supabase.auth.getSession();
 
   if (error || !session?.access_token) {
     throw new Error("Your session expired. Sign in again.");
@@ -119,20 +87,12 @@ async function playerFetch<T>(url: string, init: RequestInit = {}): Promise<T> {
     headers.set("Content-Type", "application/json");
   }
 
-  const response = await fetch(url, {
-    ...init,
-    headers,
-    cache: "no-store",
-  });
-
+  const response = await fetch(url, { ...init, headers, cache: "no-store" });
   const payload = (await response.json()) as T | { error?: { message?: string } };
 
   if (!response.ok) {
-    const message =
-      typeof (payload as { error?: { message?: unknown } }).error?.message === "string"
-        ? (payload as { error: { message: string } }).error.message
-        : "The wish shop request failed.";
-    throw new Error(message);
+    const message = (payload as { error?: { message?: string } }).error?.message;
+    throw new Error(message || "The wish shop request failed.");
   }
 
   return payload as T;
@@ -145,11 +105,10 @@ export default function WishShopPage() {
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [selectedPackageId, setSelectedPackageId] = useState("starfall");
+  const [accepted, setAccepted] = useState(false);
   const [starBursts, setStarBursts] = useState(0);
 
-  const triggerTwinkle = useCallback(() => {
-    setStarBursts((current) => current + 1);
-  }, []);
+  const triggerTwinkle = useCallback(() => setStarBursts((value) => value + 1), []);
 
   const loadStore = useCallback(async () => {
     setLoading(true);
@@ -158,14 +117,11 @@ export default function WishShopPage() {
     try {
       const response = await playerFetch<StoreResponse>("/api/player/wishes/store");
       setStore(response);
-
-      if (response.packages.length > 0) {
-        setSelectedPackageId((current) =>
-          response.packages.some((item) => item.id === current)
-            ? current
-            : response.packages[0].id,
-        );
-      }
+      setSelectedPackageId((current) =>
+        response.packages.some((item) => item.id === current)
+          ? current
+          : response.packages[0]?.id || "little-star",
+      );
     } catch (error: unknown) {
       setErrorMessage(error instanceof Error ? error.message : "The wish shop could not be opened.");
     } finally {
@@ -173,36 +129,31 @@ export default function WishShopPage() {
     }
   }, []);
 
-  const checkCompletedPurchase = useCallback(
-    async (sessionId: string) => {
-      for (let attempt = 0; attempt < 10; attempt += 1) {
-        try {
-          const response = await playerFetch<PurchaseStatusResponse>(
-            `/api/player/wishes/purchase-status?session_id=${encodeURIComponent(sessionId)}`,
-          );
+  const checkPurchase = useCallback(async (sessionId: string) => {
+    for (let attempt = 0; attempt < 10; attempt += 1) {
+      try {
+        const response = await playerFetch<PurchaseStatusResponse>(
+          `/api/player/wishes/purchase-status?session_id=${encodeURIComponent(sessionId)}`,
+        );
 
-          if (response.purchase.status === "paid") {
-            setSuccessMessage(`${response.purchase.wishes} wishes added.`);
-            triggerTwinkle();
-            window.dispatchEvent(
-              new CustomEvent("pocketpulls:wish-balance", {
-                detail: { wishBalance: response.wishBalance },
-              }),
-            );
-            await loadStore();
-            return;
-          }
-        } catch {
-          // Webhook delivery can complete just after the checkout redirect.
+        if (response.purchase.status === "paid") {
+          setSuccessMessage(`${response.purchase.wishes} wishes added.`);
+          triggerTwinkle();
+          window.dispatchEvent(new CustomEvent("pocketpulls:wish-balance", {
+            detail: { wishBalance: response.wishBalance },
+          }));
+          await loadStore();
+          return;
         }
-
-        await new Promise<void>((resolve) => window.setTimeout(resolve, 1300));
+      } catch {
+        // Webhook can complete just after redirect.
       }
 
-      setSuccessMessage("Payment received. Your balance may take a moment to update.");
-    },
-    [loadStore, triggerTwinkle],
-  );
+      await new Promise<void>((resolve) => window.setTimeout(resolve, 1300));
+    }
+
+    setSuccessMessage("Payment received. Your balance may take a moment to update.");
+  }, [loadStore, triggerTwinkle]);
 
   useEffect(() => {
     void loadStore();
@@ -213,17 +164,14 @@ export default function WishShopPage() {
 
     if (purchase === "success" && sessionId) {
       setSuccessMessage("Adding your wishes...");
-      void checkCompletedPurchase(sessionId);
+      void checkPurchase(sessionId);
     } else if (purchase === "cancelled") {
       setErrorMessage("Checkout cancelled. You were not charged.");
     }
-  }, [checkCompletedPurchase, loadStore]);
+  }, [checkPurchase, loadStore]);
 
   const selectedPackage = useMemo(
-    () =>
-      store?.packages.find((item) => item.id === selectedPackageId) ??
-      store?.packages[0] ??
-      null,
+    () => store?.packages.find((item) => item.id === selectedPackageId) ?? store?.packages[0] ?? null,
     [selectedPackageId, store],
   );
 
@@ -234,25 +182,26 @@ export default function WishShopPage() {
     : 0;
 
   const startCheckout = useCallback(async (packageId: string) => {
+    if (!accepted) {
+      setErrorMessage("Confirm the purchase notice before continuing.");
+      return;
+    }
+
     setBusyPackage(packageId);
     setErrorMessage("");
     setSuccessMessage("");
 
     try {
-      const response = await playerFetch<CheckoutResponse>(
-        "/api/player/wishes/checkout",
-        {
-          method: "POST",
-          body: JSON.stringify({ packageId }),
-        },
-      );
-
+      const response = await playerFetch<CheckoutResponse>("/api/player/wishes/checkout", {
+        method: "POST",
+        body: JSON.stringify({ packageId, purchaseNoticeAccepted: true }),
+      });
       window.location.assign(response.checkoutUrl);
     } catch (error: unknown) {
       setErrorMessage(error instanceof Error ? error.message : "Checkout could not be started.");
       setBusyPackage(null);
     }
-  }, []);
+  }, [accepted]);
 
   return (
     <section className={styles.page}>
@@ -264,8 +213,6 @@ export default function WishShopPage() {
             style={{
               left: `${spark.left}%`,
               top: `${spark.top}%`,
-              width: `${spark.size}px`,
-              height: `${spark.size}px`,
               animationDelay: `${spark.delay}s`,
               animationDuration: `${spark.duration}s`,
             }}
@@ -277,18 +224,14 @@ export default function WishShopPage() {
         <header className={styles.hero}>
           <div className={styles.heroCopy}>
             <div className={styles.topRow}>
-              <Link href="/wishes" className={styles.backButton}>
-                ← Wishes
-              </Link>
-
+              <Link href="/wishes" className={styles.backButton}>← Wishes</Link>
               {store?.firstRechargeAvailable ? (
                 <span className={styles.firstRechargePill}>First recharge −20%</span>
               ) : null}
             </div>
-
             <p className={styles.eyebrow}>Wish Shop</p>
             <h1>Choose your wishes.</h1>
-            <p className={styles.heroLine}>10 wishes minimum. Bigger packs cost less per wish.</p>
+            <p className={styles.heroLine}>Starts at 50p per wish. Bigger packs cost less.</p>
           </div>
 
           <div className={styles.jirachiStage}>
@@ -296,46 +239,23 @@ export default function WishShopPage() {
             <div className={styles.orbitOne} />
             <div className={styles.orbitTwo} />
 
-            {ORBIT_STARS.map((star) => (
+            {ORBIT_STARS.map(([angle, radiusX, radiusY, delay, size, ring], index) => (
               <span
-                key={`${star.id}-${starBursts}`}
-                className={star.ring === "one" ? styles.orbitStarOne : styles.orbitStarTwo}
+                key={`${index}-${starBursts}`}
+                className={ring === "one" ? styles.orbitStarOne : styles.orbitStarTwo}
                 style={{
-                  ["--angle" as string]: `${star.angle}deg`,
-                  ["--radius-x" as string]: `${star.radiusX}px`,
-                  ["--radius-y" as string]: `${star.radiusY}px`,
-                  ["--delay" as string]: `${star.delay}s`,
-                  ["--size" as string]: `${star.size}px`,
+                  ["--angle" as string]: `${angle}deg`,
+                  ["--radius-x" as string]: `${radiusX}px`,
+                  ["--radius-y" as string]: `${radiusY}px`,
+                  ["--delay" as string]: `${delay}s`,
+                  ["--size" as string]: `${size}px`,
                 }}
-              >
-                ✦
-              </span>
+              >✦</span>
             ))}
 
-            <button
-              type="button"
-              className={styles.jirachiButton}
-              onClick={triggerTwinkle}
-              aria-label="Make the stars twinkle"
-            >
+            <button type="button" className={styles.jirachiButton} onClick={triggerTwinkle} aria-label="Make the stars twinkle">
               <img src="/jirachi.png" alt="Jirachi" draggable={false} className={styles.jirachiImage} />
             </button>
-
-            <div className={styles.burstLayer} aria-hidden="true">
-              {Array.from({ length: 12 }, (_, index) => (
-                <span
-                  key={`burst-${index}-${starBursts}`}
-                  className={styles.burstStar}
-                  style={{
-                    ["--burst-angle" as string]: `${index * 30}deg`,
-                    ["--burst-distance" as string]: `${94 + (index % 3) * 18}px`,
-                    ["--burst-delay" as string]: `${(index % 4) * 0.05}s`,
-                  }}
-                >
-                  ✦
-                </span>
-              ))}
-            </div>
           </div>
         </header>
 
@@ -343,82 +263,86 @@ export default function WishShopPage() {
         {successMessage ? <div className={styles.successBanner}>{successMessage}</div> : null}
 
         {loading ? (
-          <div className={styles.loadingCard}>
-            <span>✦</span>
-            <p>Loading wish packs...</p>
-          </div>
+          <div className={styles.loadingCard}><span>✦</span><p>Opening the wish shop...</p></div>
         ) : (
-          <section className={styles.buyArea}>
+          <>
             <div className={styles.packagesGrid}>
               {(store?.packages ?? []).map((pkg) => {
-                const active = selectedPackage?.id === pkg.id;
-                const price = store?.firstRechargeAvailable
-                  ? pkg.firstRechargeAmountPence
-                  : pkg.amountPence;
+                const price = store?.firstRechargeAvailable ? pkg.firstRechargeAmountPence : pkg.amountPence;
+                const selected = selectedPackage?.id === pkg.id;
 
                 return (
                   <button
                     key={pkg.id}
                     type="button"
-                    className={`${styles.packageCard} ${active ? styles.packageCardActive : ""}`}
-                    onClick={() => setSelectedPackageId(pkg.id)}
+                    onClick={() => {
+                      setSelectedPackageId(pkg.id);
+                      setAccepted(false);
+                    }}
+                    className={`${styles.packageCard} ${selected ? styles.packageCardActive : ""}`}
                   >
                     <div className={styles.packageTopRow}>
                       <span className={styles.packageName}>{pkg.name}</span>
                       {pkg.badge ? <span className={styles.packageBadge}>{pkg.badge}</span> : null}
                     </div>
-
                     <strong className={styles.packageWishes}>{pkg.wishes}</strong>
                     <span className={styles.wishesLabel}>wishes</span>
-
                     <div className={styles.packagePriceRow}>
                       <strong>{formatMoney(price)}</strong>
-                      <span>{pricePerWish(price, pkg.wishes)}</span>
+                      <span>{perWish(price, pkg.wishes)}</span>
                     </div>
-
-                    <div className={styles.packageFooter}>
-                      <span>{pkg.bulkDiscountPercent}% bundle saving</span>
-                      {store?.firstRechargeAvailable ? (
-                        <span className={styles.originalPrice}>{formatMoney(pkg.amountPence)}</span>
-                      ) : null}
-                    </div>
+                    {store?.firstRechargeAvailable ? (
+                      <span className={styles.originalPrice}>{formatMoney(pkg.amountPence)}</span>
+                    ) : pkg.bulkDiscountPercent > 0 ? (
+                      <span className={styles.saving}>{pkg.bulkDiscountPercent}% below base rate</span>
+                    ) : null}
                   </button>
                 );
               })}
             </div>
 
             {selectedPackage ? (
-              <aside className={styles.purchaseCard}>
-                <div className={styles.purchaseGlow} />
-                <div className={styles.purchaseStar}>✦</div>
-
-                <div className={styles.purchaseCopy}>
-                  <p>{selectedPackage.name}</p>
-                  <h2>{selectedPackage.wishes} wishes</h2>
-                  <div className={styles.purchasePriceLine}>
-                    <strong>{formatMoney(selectedPrice)}</strong>
-                    {store?.firstRechargeAvailable ? (
-                      <span>{formatMoney(selectedPackage.amountPence)}</span>
-                    ) : null}
+              <section className={styles.checkoutBar}>
+                <div className={styles.checkoutMain}>
+                  <div>
+                    <p className={styles.checkoutLabel}>{selectedPackage.name}</p>
+                    <p className={styles.checkoutWishes}>{selectedPackage.wishes} wishes</p>
                   </div>
-                  <small>{pricePerWish(selectedPrice, selectedPackage.wishes)}</small>
+                  <div className={styles.checkoutPrice}>
+                    <strong>{formatMoney(selectedPrice)}</strong>
+                    <span>{perWish(selectedPrice, selectedPackage.wishes)}</span>
+                  </div>
                 </div>
+
+                <label className={styles.confirmRow}>
+                  <input
+                    type="checkbox"
+                    checked={accepted}
+                    onChange={(event) => setAccepted(event.target.checked)}
+                  />
+                  <span>
+                    I&apos;m 18+ and understand each wish gives one random physical card. I agree to the <Link href="/terms">Terms</Link>.
+                  </span>
+                </label>
 
                 <button
                   type="button"
-                  className={styles.checkoutButton}
-                  disabled={busyPackage !== null}
+                  disabled={!accepted || busyPackage !== null}
                   onClick={() => void startCheckout(selectedPackage.id)}
+                  className={styles.checkoutButton}
                 >
-                  {busyPackage === selectedPackage.id
-                    ? "Opening checkout..."
-                    : `Buy ${selectedPackage.wishes} wishes`}
+                  {busyPackage ? "Opening checkout..." : `Buy ${selectedPackage.wishes} wishes`}
                 </button>
-
-                <p className={styles.secureLine}>Secure checkout</p>
-              </aside>
+              </section>
             ) : null}
-          </section>
+
+            <nav className={styles.trustLinks} aria-label="Wish information">
+              <Link href="/how-wishes-work">How wishes work</Link>
+              <Link href="/odds">Live odds</Link>
+              <Link href="/player-protection">Player protection</Link>
+              <Link href="/faq">FAQ</Link>
+            </nav>
+          </>
         )}
       </div>
     </section>
