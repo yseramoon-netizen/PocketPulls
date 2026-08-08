@@ -420,7 +420,7 @@ export default function PlayerLayout({ children }: PlayerLayoutProps) {
         wishBalance={player.wishBalance}
       />
 
-      <main className="relative z-10 min-h-[calc(100dvh-5rem)]">
+      <main className="relative z-10 min-h-[calc(100dvh-5rem)] pb-[calc(5.75rem+env(safe-area-inset-bottom))] md:pb-0">
         {children}
       </main>
 
@@ -548,7 +548,7 @@ function PlayerLoadingScreen() {
 
         <div className="mt-4">
           <UnownText
-            text="Unknown Pulls"
+            text="Unown Pulls"
             size="2rem"
             tone="holo"
             centred
@@ -633,7 +633,7 @@ function PlayerBannedScreen({
 
           <p className="mt-5 text-sm font-semibold leading-7 text-white/55">
             {reason ||
-              "This account has been suspended by an Unknown Pulls administrator."}
+              "This account has been suspended by an Unown Pulls administrator."}
           </p>
 
           {formattedDate ? (

@@ -228,7 +228,7 @@ export default function AdminHomePage() {
                 : "Unown Pulls administration"}
             </h1>
             <p className="mt-4 max-w-3xl text-sm font-semibold leading-7 text-emerald-50/42 sm:text-base">
-              A concise view of stock, players, fulfilment and the work completed today across Unown Pulls.
+              A concise view of stock, players, fulfilment and the work completed today.
             </p>
           </div>
 

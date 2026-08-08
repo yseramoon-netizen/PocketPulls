@@ -1,174 +1,238 @@
-.loadingWrap {
+.pageShell {
   position: relative;
-  z-index: 10;
+  min-height: 100dvh;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at top, rgba(79, 181, 255, 0.12), transparent 24%),
+    linear-gradient(180deg, #020713 0%, #04151b 40%, #031611 100%);
+  color: #ffffff;
+}
+
+.backgroundGlow {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 18% 12%, rgba(104, 201, 255, 0.12), transparent 24%),
+    radial-gradient(circle at 82% 18%, rgba(93, 240, 181, 0.1), transparent 26%),
+    radial-gradient(circle at 50% 80%, rgba(255, 217, 92, 0.06), transparent 24%);
+  pointer-events: none;
+}
+
+.stars {
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(circle at 8% 12%, rgba(255,255,255,0.8) 0 1px, transparent 1.5px),
+    radial-gradient(circle at 20% 7%, rgba(255,255,255,0.6) 0 1px, transparent 1.5px),
+    radial-gradient(circle at 35% 9%, rgba(255,255,255,0.8) 0 1.2px, transparent 1.8px),
+    radial-gradient(circle at 42% 15%, rgba(255,255,255,0.55) 0 1px, transparent 1.6px),
+    radial-gradient(circle at 54% 11%, rgba(255,255,255,0.8) 0 1.1px, transparent 1.7px),
+    radial-gradient(circle at 67% 9%, rgba(255,255,255,0.65) 0 1px, transparent 1.5px),
+    radial-gradient(circle at 76% 15%, rgba(255,255,255,0.75) 0 1px, transparent 1.5px),
+    radial-gradient(circle at 88% 8%, rgba(255,255,255,0.7) 0 1.1px, transparent 1.6px);
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.pageInner {
+  position: relative;
+  z-index: 1;
+  width: min(1680px, calc(100% - 2rem));
+  margin: 0 auto;
+  padding: 1.25rem 0 2rem;
+}
+
+.loadingPanel {
   display: flex;
-  min-height: calc(100dvh - 9rem);
-  flex-direction: column;
+  min-height: calc(100dvh - 10rem);
   align-items: center;
   justify-content: center;
+  flex-direction: column;
   gap: 1rem;
+  font-weight: 800;
+  color: rgba(235, 255, 240, 0.76);
 }
 
 .loadingOrb {
   width: 4rem;
   height: 4rem;
-  border-radius: 9999px;
-  border: 2px solid rgba(255, 255, 255, 0.14);
-  border-top-color: rgba(201, 255, 185, 0.95);
-  box-shadow:
-    0 0 40px rgba(179, 255, 189, 0.2),
-    inset 0 0 22px rgba(186, 255, 191, 0.08);
+  border-radius: 999px;
+  border: 2px solid rgba(255, 255, 255, 0.12);
+  border-top-color: rgba(111, 245, 255, 0.95);
+  box-shadow: 0 0 30px rgba(111, 245, 255, 0.22);
   animation: spin 1s linear infinite;
 }
 
-.loadingText {
-  font-size: 0.95rem;
-  font-weight: 800;
-  color: rgba(236, 255, 239, 0.76);
+.header {
+  margin-top: 1.25rem;
+  display: flex;
+  gap: 1.25rem;
+  justify-content: space-between;
+  align-items: flex-end;
 }
 
-.sceneShell {
-  --mx: 0px;
-  --my: 0px;
+.eyebrow,
+.eyebrowMuted,
+.miniLabel {
+  font-size: 0.62rem;
+  line-height: 1;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  font-weight: 900;
+}
+
+.eyebrow {
+  color: rgba(191, 247, 255, 0.52);
+}
+
+.eyebrowMuted,
+.miniLabel {
+  color: rgba(219, 255, 232, 0.35);
+}
+
+.title {
+  margin-top: 0.7rem;
+  font-size: clamp(2.6rem, 4.8vw, 4.8rem);
+  line-height: 0.95;
+  letter-spacing: -0.05em;
+  font-weight: 950;
+}
+
+.description {
+  margin-top: 1rem;
+  max-width: 62rem;
+  font-size: 1rem;
+  line-height: 1.9;
+  font-weight: 700;
+  color: rgba(240, 255, 244, 0.66);
+}
+
+.headerActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+.actionButton,
+.secondaryActionButton,
+.ghostActionButton {
+  min-height: 2.9rem;
+  padding: 0.8rem 1.1rem;
+  border-radius: 1rem;
+  font-size: 0.9rem;
+  font-weight: 900;
+  transition: 180ms ease;
+  border: 1px solid rgba(255,255,255,0.1);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.actionButton {
+  background: linear-gradient(180deg, rgba(103, 232, 249, 0.18), rgba(25, 74, 88, 0.18));
+  color: #f7fffe;
+}
+
+.secondaryActionButton {
+  background: rgba(129, 255, 201, 0.11);
+  color: rgba(239, 255, 245, 0.9);
+}
+
+.ghostActionButton {
+  background: rgba(255,255,255,0.04);
+  color: rgba(255,255,255,0.58);
+}
+
+.actionButton:hover,
+.secondaryActionButton:hover,
+.ghostActionButton:hover {
+  transform: translateY(-1px);
+  border-color: rgba(255,255,255,0.16);
+}
+
+.errorBanner {
+  margin-top: 1rem;
+  border-radius: 1.2rem;
+  border: 1px solid rgba(255, 90, 90, 0.18);
+  background: rgba(255, 90, 90, 0.08);
+  padding: 1rem 1.1rem;
+  font-weight: 800;
+  color: #ffe6e6;
+}
+
+.mainGrid {
+  margin-top: 1.25rem;
+  display: grid;
+  gap: 1.25rem;
+  grid-template-columns: minmax(0, 1.35fr) minmax(360px, 0.65fr);
+}
+
+.scenePanel,
+.infoCard {
   position: relative;
   overflow: hidden;
-  border-radius: 2.2rem;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background:
-    radial-gradient(circle at 50% 15%, rgba(235, 244, 255, 0.1), transparent 22%),
-    linear-gradient(180deg, rgba(8, 19, 28, 0.95) 0%, rgba(5, 22, 18, 0.96) 45%, rgba(4, 16, 13, 0.98) 100%);
-  box-shadow: 0 34px 110px rgba(0, 0, 0, 0.34);
-  backdrop-filter: blur(24px);
+  border-radius: 2rem;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: linear-gradient(180deg, rgba(7, 20, 30, 0.92), rgba(5, 18, 16, 0.92));
+  box-shadow: 0 28px 90px rgba(0,0,0,0.32);
 }
 
-.sceneTopGlow,
-.sceneBottomMist,
-.stars,
-.aurora,
-.farRidge,
-.midRidge,
-.nearRidge,
-.waterGlow,
-.firefliesWrap,
-.sceneContent {
+.scenePanel {
+  min-height: 980px;
+  padding: 1.3rem;
+}
+
+.sceneBackdrop,
+.sceneAura,
+.rootFrame,
+.treeViewport {
   position: absolute;
   inset: 0;
 }
 
-.sceneTopGlow {
+.sceneBackdrop {
   background:
-    radial-gradient(circle at 50% 14%, rgba(245, 252, 255, 0.18), transparent 18%),
-    radial-gradient(circle at 50% 22%, var(--accent-a), transparent 30%);
-  transform: translate(calc(var(--mx) * 0.25), calc(var(--my) * 0.18));
+    radial-gradient(circle at 50% 16%, rgba(199, 236, 255, 0.16), transparent 18%),
+    radial-gradient(circle at 17% 26%, rgba(111, 245, 255, 0.08), transparent 22%),
+    radial-gradient(circle at 83% 30%, rgba(145, 255, 179, 0.06), transparent 24%),
+    linear-gradient(180deg, rgba(8, 20, 37, 0.98), rgba(4, 12, 20, 0.98) 44%, rgba(5, 22, 15, 0.98));
 }
 
-.sceneBottomMist {
-  inset: auto 0 0 0;
-  height: 26%;
-  background:
-    radial-gradient(circle at 50% 0%, rgba(214, 255, 239, 0.12), transparent 42%),
-    linear-gradient(180deg, rgba(22, 38, 28, 0), rgba(3, 11, 9, 0.72) 72%, rgba(3, 11, 9, 0.98));
-  filter: blur(4px);
-}
-
-.stars {
-  opacity: 0.55;
-  background-image:
-    radial-gradient(circle at 8% 14%, rgba(255, 255, 255, 0.95) 0 1px, transparent 1.5px),
-    radial-gradient(circle at 22% 18%, rgba(255, 255, 255, 0.75) 0 1.2px, transparent 1.7px),
-    radial-gradient(circle at 34% 8%, rgba(255, 255, 255, 0.9) 0 1.3px, transparent 1.8px),
-    radial-gradient(circle at 44% 12%, rgba(255, 255, 255, 0.9) 0 1px, transparent 1.5px),
-    radial-gradient(circle at 56% 10%, rgba(255, 255, 255, 0.82) 0 1.3px, transparent 1.8px),
-    radial-gradient(circle at 66% 18%, rgba(255, 255, 255, 0.7) 0 1.2px, transparent 1.7px),
-    radial-gradient(circle at 74% 11%, rgba(255, 255, 255, 0.95) 0 1px, transparent 1.6px),
-    radial-gradient(circle at 86% 16%, rgba(255, 255, 255, 0.8) 0 1.3px, transparent 1.8px),
-    radial-gradient(circle at 92% 8%, rgba(255, 255, 255, 0.85) 0 1px, transparent 1.5px);
-  transform: translate(calc(var(--mx) * 0.08), calc(var(--my) * 0.06));
-}
-
-.aurora {
-  background:
-    radial-gradient(circle at 22% 26%, rgba(120, 255, 180, 0.12), transparent 24%),
-    radial-gradient(circle at 80% 22%, rgba(153, 213, 255, 0.1), transparent 24%),
-    radial-gradient(circle at 62% 28%, var(--accent-b), transparent 24%);
-  filter: blur(20px);
-  transform: translate(calc(var(--mx) * 0.18), calc(var(--my) * 0.12));
-}
-
-.farRidge {
-  inset: auto -8% 20% -8%;
-  height: 34%;
-  background: linear-gradient(180deg, rgba(39, 72, 62, 0.12), rgba(8, 24, 22, 0.88));
-  clip-path: polygon(0% 100%, 0% 60%, 15% 48%, 26% 56%, 42% 38%, 57% 54%, 73% 32%, 88% 48%, 100% 41%, 100% 100%);
-  transform: translate(calc(var(--mx) * 0.1), calc(var(--my) * 0.08));
-}
-
-.midRidge {
-  inset: auto -10% 11% -10%;
-  height: 36%;
-  background: linear-gradient(180deg, rgba(25, 48, 37, 0.2), rgba(5, 19, 16, 0.95));
-  clip-path: polygon(0% 100%, 0% 46%, 16% 50%, 28% 38%, 46% 48%, 58% 28%, 70% 38%, 84% 26%, 100% 42%, 100% 100%);
-  transform: translate(calc(var(--mx) * 0.16), calc(var(--my) * 0.12));
-}
-
-.nearRidge {
-  inset: auto -12% -1% -12%;
-  height: 34%;
-  background: linear-gradient(180deg, rgba(38, 76, 52, 0.22), rgba(6, 20, 16, 1));
-  clip-path: polygon(0% 100%, 0% 40%, 13% 46%, 25% 34%, 38% 40%, 50% 20%, 63% 34%, 78% 26%, 88% 42%, 100% 34%, 100% 100%);
-  transform: translate(calc(var(--mx) * 0.24), calc(var(--my) * 0.14));
-}
-
-.waterGlow {
-  inset: auto 14% 11% 14%;
-  height: 14%;
+.sceneAura {
+  inset: auto 10% 12% 10%;
+  height: 28%;
   border-radius: 999px;
-  background:
-    linear-gradient(180deg, rgba(182, 245, 228, 0.13), rgba(182, 245, 228, 0)),
-    radial-gradient(circle at 50% 40%, rgba(210, 250, 255, 0.14), transparent 58%);
-  filter: blur(10px);
-  transform: translate(calc(var(--mx) * 0.22), calc(var(--my) * 0.15));
+  filter: blur(24px);
+  background: radial-gradient(circle at 50% 50%, rgba(157, 247, 255, 0.12), transparent 60%);
 }
 
-.firefliesWrap {
+.rootFrame {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.78;
   pointer-events: none;
+  mix-blend-mode: screen;
 }
 
-.firefly {
-  position: absolute;
-  display: block;
-  border-radius: 999px;
-  background: #fff4a7;
-  box-shadow:
-    0 0 10px rgba(255, 238, 149, 0.95),
-    0 0 22px rgba(255, 233, 126, 0.72),
-    0 0 42px rgba(255, 240, 159, 0.45);
-  animation-name: floatFirefly;
-  animation-timing-function: ease-in-out;
-  animation-iteration-count: infinite;
-}
-
-.sceneContent {
+.sceneCopyCard,
+.progressCard {
   position: relative;
-  z-index: 1;
-  display: flex;
-  min-height: 100%;
-  flex-direction: column;
-  justify-content: space-between;
-  padding: 1.35rem;
-}
-
-.sceneCopy {
-  position: relative;
-  max-width: 42rem;
-  border-radius: 1.6rem;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: linear-gradient(180deg, rgba(4, 16, 12, 0.52), rgba(4, 16, 12, 0.3));
-  padding: 1rem 1rem 1.05rem;
+  z-index: 2;
+  border-radius: 1.5rem;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: linear-gradient(180deg, rgba(8, 15, 25, 0.68), rgba(6, 19, 17, 0.48));
   backdrop-filter: blur(14px);
 }
 
-.badgeRow {
+.sceneCopyCard {
+  max-width: 42rem;
+  padding: 1rem 1rem 1.05rem;
+}
+
+.sceneBadgeRow {
   display: flex;
   flex-wrap: wrap;
   gap: 0.55rem;
@@ -176,235 +240,424 @@
 
 .sceneBadge,
 .sceneBadgeSoft {
+  min-height: 1.8rem;
+  padding: 0.12rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.62rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 1.85rem;
-  border-radius: 999px;
-  padding: 0.15rem 0.8rem;
-  font-size: 0.62rem;
-  font-weight: 900;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
 }
 
 .sceneBadge {
-  border: 1px solid rgba(197, 255, 204, 0.18);
-  background: rgba(173, 255, 197, 0.14);
-  color: rgba(243, 255, 244, 0.92);
+  background: rgba(111, 245, 255, 0.12);
+  color: rgba(244, 255, 255, 0.96);
+  border: 1px solid rgba(111, 245, 255, 0.18);
 }
 
 .sceneBadgeSoft {
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.04);
-  color: rgba(255, 255, 255, 0.54);
+  background: rgba(255,255,255,0.045);
+  color: rgba(255,255,255,0.58);
+  border: 1px solid rgba(255,255,255,0.08);
 }
 
-.sceneTitle {
-  margin-top: 0.95rem;
-  font-size: clamp(1.95rem, 3vw, 3.2rem);
-  line-height: 1.02;
-  font-weight: 950;
+.sceneHeading {
+  margin-top: 0.9rem;
+  font-size: clamp(2rem, 3vw, 3rem);
+  line-height: 1;
   letter-spacing: -0.04em;
-  color: #fff;
+  font-weight: 950;
+}
+
+.sceneBody,
+.bodyText,
+.tipLine {
+  line-height: 1.8;
+  font-weight: 700;
+  color: rgba(237,255,244,0.62);
 }
 
 .sceneBody {
-  margin-top: 0.75rem;
+  margin-top: 0.7rem;
   max-width: 38rem;
   font-size: 0.95rem;
-  line-height: 1.8;
-  font-weight: 700;
-  color: rgba(236, 255, 239, 0.65);
 }
 
-.stageMeterCard {
-  margin-top: 1rem;
-  margin-left: auto;
-  width: min(28rem, 100%);
-  border-radius: 1.5rem;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: linear-gradient(180deg, rgba(4, 14, 12, 0.52), rgba(6, 20, 17, 0.34));
+.treeViewport {
+  z-index: 1;
+}
+
+.treeAsset {
+  position: absolute;
+  left: 50%;
+  bottom: 8%;
+  transform: translateX(-50%);
+  width: min(92%, 760px);
+  filter: drop-shadow(0 20px 90px rgba(67, 203, 255, 0.16));
+  user-select: none;
+  pointer-events: none;
+}
+
+.assetSeed {
+  width: min(72%, 520px);
+  bottom: 12%;
+}
+
+.assetSapling {
+  width: min(76%, 580px);
+  bottom: 9%;
+}
+
+.assetYoung {
+  width: min(88%, 700px);
+  bottom: 7%;
+}
+
+.assetLarge {
+  width: min(92%, 760px);
+  bottom: 6%;
+}
+
+.assetAncient {
+  width: min(94%, 780px);
+  bottom: 6%;
+}
+
+.decoration {
+  position: absolute;
+  z-index: 2;
+  pointer-events: none;
+  filter: drop-shadow(0 10px 24px rgba(0,0,0,0.28));
+}
+
+.hangingVine {
+  opacity: 0.88;
+}
+
+.leafHotspot {
+  position: absolute;
+  z-index: 3;
+  width: 2.1rem;
+  height: 2.1rem;
+  border: none;
+  background: transparent;
+  transform: translate(-50%, -50%);
+  cursor: pointer;
+}
+
+.leafPulse {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(161,255,177,0.32), rgba(161,255,177,0.06) 60%, transparent 70%);
+  box-shadow: 0 0 18px rgba(161,255,177,0.2);
+  animation: pulse 2.2s ease-in-out infinite;
+}
+
+.fireflyButton {
+  position: absolute;
+  z-index: 4;
+  border: none;
+  padding: 0;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(255, 226, 125, 1) 0%, rgba(255, 198, 88, 0.92) 55%, rgba(255, 198, 88, 0) 70%);
+  box-shadow:
+    0 0 10px rgba(255, 215, 110, 0.95),
+    0 0 26px rgba(255, 215, 110, 0.55),
+    0 0 48px rgba(255, 215, 110, 0.28);
+  cursor: pointer;
+  transition: opacity 180ms ease;
+  animation: float 4.5s ease-in-out infinite;
+}
+
+.progressCard {
+  position: absolute;
+  left: 1.3rem;
+  right: 1.3rem;
+  bottom: 1.3rem;
+  z-index: 2;
   padding: 0.95rem 1rem 1rem;
-  backdrop-filter: blur(14px);
 }
 
-.stageMeterHeader {
+.progressHeader {
   display: flex;
-  align-items: flex-end;
   justify-content: space-between;
-  gap: 0.9rem;
+  gap: 1rem;
+  align-items: flex-end;
 }
 
-.miniLabel {
-  font-size: 0.58rem;
-  font-weight: 900;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: rgba(242, 255, 243, 0.36);
-}
-
-.meterValue {
-  margin-top: 0.4rem;
-  font-size: 1.65rem;
+.progressValue {
+  margin-top: 0.35rem;
+  font-size: 1.6rem;
   font-weight: 950;
-  color: rgba(255, 255, 255, 0.96);
 }
 
-.meterAside {
+.progressAside {
   display: grid;
-  gap: 0.22rem;
+  gap: 0.2rem;
   text-align: right;
-  font-size: 0.72rem;
+  font-size: 0.74rem;
   font-weight: 800;
-  color: rgba(255, 255, 255, 0.38);
+  color: rgba(255,255,255,0.42);
 }
 
-.meterTrack {
-  margin-top: 0.9rem;
-  overflow: hidden;
+.progressTrack {
+  margin-top: 0.85rem;
   height: 0.82rem;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
-  box-shadow: inset 0 0 18px rgba(0, 0, 0, 0.22);
+  overflow: hidden;
+  background: rgba(255,255,255,0.08);
+  box-shadow: inset 0 0 16px rgba(0,0,0,0.2);
 }
 
-.meterFill {
+.progressFill {
   display: block;
   height: 100%;
   border-radius: inherit;
-  background:
-    linear-gradient(90deg, rgba(173, 255, 197, 0.7), rgba(241, 241, 174, 0.95) 60%, rgba(255, 241, 156, 0.7));
-  box-shadow: 0 0 26px rgba(215, 252, 182, 0.28);
+  background: linear-gradient(90deg, rgba(112, 245, 255, 0.76), rgba(170, 255, 187, 0.92) 50%, rgba(255, 225, 112, 0.86));
+  box-shadow: 0 0 20px rgba(112, 245, 255, 0.28);
 }
 
-.treeArt {
-  position: relative;
-  flex: 1 1 auto;
-  min-height: 25rem;
-  margin-top: 0.5rem;
-  transform: translate(calc(var(--mx) * 0.18), calc(var(--my) * 0.12));
-}
-
-.treeSvg {
-  width: 100%;
-  height: 100%;
-  overflow: visible;
-}
-
-.sceneFooterGrid {
+.sidebar {
   display: grid;
-  gap: 0.9rem;
-  margin-top: 0.4rem;
+  gap: 1rem;
 }
 
-.sceneStatCard {
-  border-radius: 1.5rem;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: linear-gradient(180deg, rgba(4, 14, 12, 0.52), rgba(6, 20, 17, 0.34));
-  padding: 1rem 1rem 1.05rem;
-  backdrop-filter: blur(14px);
+.infoCard {
+  padding: 1.05rem 1.05rem 1.1rem;
 }
 
-.statValue {
+.cardTitle {
   margin-top: 0.45rem;
-  font-size: 1rem;
+  font-size: 1.45rem;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
   font-weight: 900;
-  color: rgba(255, 255, 255, 0.94);
 }
 
-.statBody {
-  margin-top: 0.45rem;
+.inventoryGrid {
+  margin-top: 1rem;
+  display: grid;
+  gap: 0.8rem;
+}
+
+.inventoryItem {
+  display: flex;
+  gap: 0.8rem;
+  align-items: center;
+  padding: 0.75rem 0.85rem;
+  border-radius: 1.2rem;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.035);
+}
+
+.inventoryIcon {
+  width: 2.8rem;
+  height: 2.8rem;
+  object-fit: contain;
+  flex: none;
+}
+
+.inventoryLabel,
+.branchMeta {
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: rgba(255,255,255,0.42);
+}
+
+.inventoryValue,
+.branchName,
+.toastTitle {
+  margin-top: 0.2rem;
+  font-size: 1.05rem;
+  font-weight: 900;
+  color: rgba(255,255,255,0.94);
+}
+
+.tipLine {
+  margin-top: 0.95rem;
   font-size: 0.8rem;
-  line-height: 1.7;
+}
+
+.bodyText {
+  margin-top: 0.75rem;
+  font-size: 0.9rem;
+}
+
+.featureList {
+  margin-top: 0.9rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.featureChip {
+  min-height: 1.95rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 999px;
+  background: rgba(111, 245, 255, 0.08);
+  border: 1px solid rgba(111, 245, 255, 0.14);
+  font-size: 0.72rem;
+  font-weight: 900;
+  color: rgba(238, 255, 255, 0.88);
+}
+
+.statRows {
+  margin-top: 1rem;
+  display: grid;
+  gap: 0.7rem;
+}
+
+.statRow,
+.branchItem {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: center;
+  padding: 0.78rem 0.9rem;
+  border-radius: 1rem;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.035);
+}
+
+.statRow span {
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: rgba(255,255,255,0.48);
+}
+
+.statRow strong {
+  text-align: right;
+  font-size: 0.88rem;
+  font-weight: 900;
+  color: rgba(255,255,255,0.92);
+}
+
+.branchList {
+  margin-top: 1rem;
+  display: grid;
+  gap: 0.7rem;
+}
+
+.branchDot,
+.branchDotActive {
+  width: 0.8rem;
+  height: 0.8rem;
+  border-radius: 999px;
+  flex: none;
+}
+
+.branchDot {
+  background: rgba(255,255,255,0.18);
+}
+
+.branchDotActive {
+  background: #99ffd1;
+  box-shadow: 0 0 12px rgba(153,255,209,0.75);
+}
+
+.toastStack {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 60;
+  display: grid;
+  gap: 0.7rem;
+  pointer-events: none;
+}
+
+.toastCard {
+  width: min(26rem, calc(100vw - 2rem));
+  border-radius: 1rem;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(5, 18, 20, 0.92);
+  box-shadow: 0 16px 45px rgba(0,0,0,0.32);
+  backdrop-filter: blur(14px);
+  padding: 0.85rem 0.95rem;
+}
+
+.toastBody {
+  margin-top: 0.25rem;
+  font-size: 0.82rem;
+  line-height: 1.65;
   font-weight: 700;
-  color: rgba(236, 255, 239, 0.46);
+  color: rgba(238,255,244,0.62);
 }
 
-@media (min-width: 860px) {
-  .sceneShell {
-    min-height: 68rem;
+@media (max-width: 1180px) {
+  .mainGrid {
+    grid-template-columns: 1fr;
   }
 
-  .sceneContent {
-    padding: 1.6rem 1.6rem 1.4rem;
-  }
-
-  .sceneFooterGrid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .scenePanel {
+    min-height: 860px;
   }
 }
 
-@media (min-width: 1280px) {
-  .sceneShell {
-    min-height: 74rem;
+@media (max-width: 860px) {
+  .pageInner {
+    width: min(100% - 1rem, 1680px);
+    padding-top: 0.6rem;
   }
 
-  .treeArt {
-    min-height: 34rem;
-  }
-}
-
-@media (max-width: 859px) {
-  .sceneShell {
-    min-height: 58rem;
+  .header {
+    flex-direction: column;
+    align-items: stretch;
   }
 
-  .stageMeterHeader {
+  .headerActions {
+    justify-content: stretch;
+  }
+
+  .headerActions > * {
+    flex: 1 1 12rem;
+  }
+
+  .scenePanel {
+    min-height: 760px;
+    padding: 0.9rem;
+  }
+
+  .sceneCopyCard,
+  .progressCard {
+    left: 0.9rem;
+    right: 0.9rem;
+  }
+
+  .progressHeader {
     flex-direction: column;
     align-items: flex-start;
   }
 
-  .meterAside {
+  .progressAside {
     text-align: left;
   }
 
-  .treeArt {
-    min-height: 19rem;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .loadingOrb,
-  .firefly {
-    animation: none !important;
+  .treeAsset {
+    width: min(96%, 620px);
+    bottom: 12%;
   }
 
-  .sceneShell,
-  .sceneTopGlow,
-  .aurora,
-  .farRidge,
-  .midRidge,
-  .nearRidge,
-  .waterGlow,
-  .treeArt {
-    transform: none !important;
+  .assetSeed,
+  .assetSapling {
+    width: min(82%, 420px);
   }
 }
 
 @keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
+  to { transform: rotate(360deg); }
 }
 
-@keyframes floatFirefly {
-  0% {
-    transform: translate3d(0, 0, 0) scale(0.92);
-    opacity: 0.18;
-  }
-  20% {
-    opacity: 0.92;
-  }
-  50% {
-    transform: translate3d(var(--drift-x), var(--drift-y), 0) scale(1.08);
-    opacity: 1;
-  }
-  80% {
-    opacity: 0.65;
-  }
-  100% {
-    transform: translate3d(calc(var(--drift-x) * -0.28), calc(var(--drift-y) * -0.18), 0) scale(0.88);
-    opacity: 0.16;
-  }
+@keyframes float {
+  0%, 100% { transform: translateY(0) scale(0.95); }
+  50% { transform: translateY(-8px) scale(1.05); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.42; transform: scale(0.94); }
+  50% { opacity: 1; transform: scale(1.12); }
 }

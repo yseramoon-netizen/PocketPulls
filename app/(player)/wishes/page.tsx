@@ -1,19 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
-import WishCinematic, {
-  type WishRevealCard,
-} from "@/components/player/WishCinematic";
-import UnownText from "@/components/player/UnownText";
-import { primeWishAudio } from "@/components/player/wishAudio";
 import { supabase } from "@/lib/supabase";
 
 type WalletRow = {
@@ -28,6 +17,11 @@ type InventoryRow = {
 };
 
 type OrderRow = {
+  amount_pence: number | null;
+  status: string | null;
+};
+
+type WishPurchaseOrderRow = {
   amount_pence: number | null;
   status: string | null;
 };
@@ -47,18 +41,6 @@ type CardRow = {
   rarity: string | null;
   market_value: number | string | null;
   image_url: string | null;
-};
-
-type MakeWishRpcRow = {
-  wish_id: string | null;
-  card_id: string | number | null;
-  name: string | null;
-  set_name: string | null;
-  card_no: string | null;
-  rarity: string | null;
-  market_value: number | string | null;
-  image_url: string | null;
-  wish_balance: number | string | null;
 };
 
 type RecentWish = {
@@ -160,60 +142,11 @@ function formatDate(value: string): string {
   }).format(date);
 }
 
-function parseWishResult(value: unknown): MakeWishRpcRow {
-  const row = Array.isArray(value) ? value[0] : value;
-
-  if (typeof row !== "object" || row === null) {
-    throw new Error(
-      "The wish completed, but the awarded card could not be read.",
-    );
-  }
-
-  return row as MakeWishRpcRow;
-}
-
-function createRevealCard(row: MakeWishRpcRow): WishRevealCard {
-  const cardName =
-    typeof row.name === "string" && row.name.trim()
-      ? row.name.trim()
-      : "Mystery card";
-
-  return {
-    id: row.wish_id || row.card_id || cardName,
-    name: cardName,
-    rarity:
-      typeof row.rarity === "string" && row.rarity.trim()
-        ? row.rarity.trim()
-        : "Common",
-    imageUrl:
-      typeof row.image_url === "string" && row.image_url.trim()
-        ? row.image_url.trim()
-        : null,
-    setName:
-      typeof row.set_name === "string" && row.set_name.trim()
-        ? row.set_name.trim()
-        : "Unknown set",
-    cardNumber:
-      typeof row.card_no === "string" && row.card_no.trim()
-        ? row.card_no.trim()
-        : null,
-    marketValue: toNumber(row.market_value),
-  };
-}
-
 export default function WishesPage() {
   const [dashboard, setDashboard] = useState<DashboardData>(EMPTY_DASHBOARD);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [wishError, setWishError] = useState<string | null>(null);
-  const pullInFlightRef = useRef(false);
-
-  const [makingWish, setMakingWish] = useState(false);
-  const [revealOpen, setRevealOpen] = useState(false);
-  const [revealNumber, setRevealNumber] = useState(0);
-  const [pulledCard, setPulledCard] =
-    useState<WishRevealCard | null>(null);
 
   const loadDashboard = useCallback(async (background = false) => {
     if (background) {
@@ -242,6 +175,7 @@ export default function WishesPage() {
         walletResult,
         inventoryResult,
         ordersResult,
+        wishPurchaseOrdersResult,
         wishesResult,
         shippingSettingsResult,
       ] = await Promise.all([
@@ -258,6 +192,12 @@ export default function WishesPage() {
 
         supabase
           .from("player_orders")
+          .select("amount_pence,status")
+          .eq("user_id", user.id)
+          .eq("status", "paid"),
+
+        supabase
+          .from("wish_purchase_orders")
           .select("amount_pence,status")
           .eq("user_id", user.id)
           .eq("status", "paid"),
@@ -290,6 +230,10 @@ export default function WishesPage() {
         throw ordersResult.error;
       }
 
+      if (wishPurchaseOrdersResult.error) {
+        throw wishPurchaseOrdersResult.error;
+      }
+
       if (wishesResult.error) {
         throw wishesResult.error;
       }
@@ -305,6 +249,9 @@ export default function WishesPage() {
 
       const orders =
         (ordersResult.data as unknown as OrderRow[] | null) || [];
+
+      const wishPurchaseOrders =
+        (wishPurchaseOrdersResult.data as unknown as WishPurchaseOrderRow[] | null) || [];
 
       const recentWishRows =
         (wishesResult.data as unknown as WishRow[] | null) || [];
@@ -361,10 +308,15 @@ export default function WishesPage() {
         collectionValue += quantity * cardValue;
       }
 
-      const amountSpentPence = orders.reduce(
-        (total, order) => total + toWholeNumber(order.amount_pence),
-        0,
-      );
+      const amountSpentPence =
+        orders.reduce(
+          (total, order) => total + toWholeNumber(order.amount_pence),
+          0,
+        ) +
+        wishPurchaseOrders.reduce(
+          (total, order) => total + toWholeNumber(order.amount_pence),
+          0,
+        );
 
       const totalWishCount = toWholeNumber(wishesResult.count);
 
@@ -430,104 +382,6 @@ export default function WishesPage() {
     }
   }, []);
 
-  const makeWish = useCallback(
-    async (replaceCurrentReveal = false) => {
-      if (pullInFlightRef.current) {
-        return;
-      }
-
-      if (revealOpen && !replaceCurrentReveal) {
-        return;
-      }
-
-      if (dashboard.wishBalance < 1) {
-        setWishError(
-          "You need at least one wish before Jirachi can grant it.",
-        );
-        return;
-      }
-
-      void primeWishAudio();
-
-      pullInFlightRef.current = true;
-      setMakingWish(true);
-      setWishError(null);
-
-      try {
-        const { data, error } = await supabase.rpc(
-          "make_player_wish",
-        );
-
-        if (error) {
-          throw error;
-        }
-
-        const result = parseWishResult(data);
-        const nextBalance = toWholeNumber(
-          result.wish_balance,
-        );
-        const revealCard = createRevealCard(result);
-
-        setDashboard((current) => ({
-          ...current,
-          wishBalance: nextBalance,
-          lifetimeWishesSpent:
-            current.lifetimeWishesSpent + 1,
-          totalCards: current.totalCards + 1,
-          availableCards:
-            current.availableCards + 1,
-          collectionValue:
-            current.collectionValue +
-            toNumber(result.market_value),
-        }));
-
-        window.dispatchEvent(
-          new CustomEvent(
-            "pocketpulls:wish-balance",
-            {
-              detail: {
-                wishBalance: nextBalance,
-              },
-            },
-          ),
-        );
-
-        setPulledCard(revealCard);
-        setRevealNumber((current) => current + 1);
-        setRevealOpen(true);
-      } catch (error: unknown) {
-        console.error("Make wish error:", error);
-
-        setWishError(
-          getErrorMessage(
-            error,
-            "Jirachi could not complete the wish. No wish was spent.",
-          ),
-        );
-      } finally {
-        pullInFlightRef.current = false;
-        setMakingWish(false);
-      }
-    },
-    [
-      dashboard.wishBalance,
-      revealOpen,
-    ],
-  );
-
-  const closeReveal = useCallback(() => {
-    setRevealOpen(false);
-    setPulledCard(null);
-    setWishError(null);
-    pullInFlightRef.current = false;
-    setMakingWish(false);
-    void loadDashboard(true);
-  }, [loadDashboard]);
-
-  const makeAnotherWish = useCallback(() => {
-    void makeWish(true);
-  }, [makeWish]);
-
   useEffect(() => {
     void loadDashboard(false);
   }, [loadDashboard]);
@@ -553,25 +407,18 @@ export default function WishesPage() {
 
   return (
     <section className="relative mx-auto w-full max-w-[1600px] px-4 py-8 sm:px-6 lg:px-8 lg:py-12">
-      <div className="relative overflow-hidden rounded-[2rem] border border-violet-200/15 bg-[#090b27]/76 p-5 shadow-[0_24px_90px_rgba(0,0,0,0.22)] backdrop-blur-xl sm:p-7">
-        <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-amber-100/45 to-transparent" />
-        <div className="relative flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+      <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <p className="text-xs font-black uppercase tracking-[0.22em] text-yellow-100/45">
-            Jirachi's sanctuary
+            Jirachi's Wish Sanctuary
           </p>
 
-          <div className="mt-4 max-w-full overflow-hidden">
-            <UnownText
-              text="Make a Wish"
-              size="clamp(2.2rem, 5vw, 4rem)"
-              tone="holo"
-            />
-          </div>
+          <h1 className="mt-3 text-4xl font-black tracking-tight text-white sm:text-5xl">
+            Make a Wish
+          </h1>
 
           <p className="mt-4 max-w-2xl text-sm font-semibold leading-7 text-white/45 sm:text-base">
-            Open real Pokemon cards, grow your collection and unlock free
-            shipping when enough cards are ready.
+            Open real Pokemon cards, grow your Unown Pulls collection and recharge wishes whenever you want to keep the constellation moving.
           </p>
         </div>
 
@@ -583,7 +430,6 @@ export default function WishesPage() {
         >
           {refreshing ? "Refreshing..." : "Refresh dashboard"}
         </button>
-        </div>
       </div>
 
       {errorMessage ? (
@@ -643,12 +489,6 @@ export default function WishesPage() {
         <WishChamber
           wishBalance={dashboard.wishBalance}
           totalWishes={dashboard.lifetimeWishesSpent}
-          makingWish={makingWish}
-          revealOpen={revealOpen}
-          wishError={wishError}
-          onMakeWish={() => {
-            void makeWish(false);
-          }}
         />
 
         <ShippingProgress
@@ -665,18 +505,6 @@ export default function WishesPage() {
 
         <QuickLinks />
       </div>
-
-      <WishCinematic
-        key={revealNumber}
-        open={revealOpen}
-        card={pulledCard}
-        allowSkip
-        busy={makingWish}
-        actionError={wishError}
-        canWishAgain={dashboard.wishBalance > 0}
-        onWishAgain={makeAnotherWish}
-        onClose={closeReveal}
-      />
     </section>
   );
 }
@@ -722,22 +550,14 @@ function MetricCard({
 function WishChamber({
   wishBalance,
   totalWishes,
-  makingWish,
-  revealOpen,
-  wishError,
-  onMakeWish,
 }: {
   wishBalance: number;
   totalWishes: number;
-  makingWish: boolean;
-  revealOpen: boolean;
-  wishError: string | null;
-  onMakeWish: () => void;
 }) {
   const hasWishes = wishBalance > 0;
 
   return (
-    <article className="relative overflow-hidden rounded-[2rem] border border-violet-200/16 bg-[#090b27]/84 shadow-[inset_0_0_0_1px_rgba(103,232,249,0.035)] p-6 shadow-[0_30px_100px_rgba(0,0,0,0.3)] backdrop-blur-xl sm:p-8">
+    <article className="relative overflow-hidden rounded-[2rem] border border-yellow-200/15 bg-[#090b27]/85 p-6 shadow-[0_30px_100px_rgba(0,0,0,0.3)] backdrop-blur-xl sm:p-8">
       <div className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-yellow-200/10 blur-[90px]" />
       <div className="pointer-events-none absolute -bottom-24 left-10 h-64 w-64 rounded-full bg-violet-400/10 blur-[90px]" />
 
@@ -749,7 +569,7 @@ function WishChamber({
 
           <img
             src="/jirachi.png"
-            alt="Jirachi"
+            alt=""
             draggable={false}
             onError={(event) => {
               event.currentTarget.style.display = "none";
@@ -766,48 +586,24 @@ function WishChamber({
           </p>
 
           <h2 className="mt-3 text-3xl font-black tracking-tight text-white">
-            {makingWish
-              ? "Jirachi is choosing your card..."
-              : hasWishes
-                ? "Jirachi is ready."
-                : "Your next wish is waiting."}
+            {hasWishes ? "Jirachi is ready." : "Your next wish is waiting."}
           </h2>
 
           <p className="mt-4 max-w-xl text-sm font-semibold leading-7 text-white/45">
             {hasWishes
               ? `You have ${formatWholeNumber(wishBalance)} wish${
                   wishBalance === 1 ? "" : "es"
-                } available. Each wish awards one real physical card from available Unknown Pulls stock.`
-              : "You currently have no wishes available. New wish credits will appear here as soon as they are added to your account."}
+                } available. The secure card-opening engine is the next system being connected.`
+              : "Purchase or receive wish credits to open real cards from the Unown Pulls stock pool."}
           </p>
 
-          {wishError ? (
-            <div className="mt-5 rounded-xl border border-red-200/15 bg-red-400/[0.07] px-4 py-3 text-sm font-semibold leading-6 text-red-100">
-              {wishError}
-            </div>
-          ) : null}
-
           <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-            <button
-              type="button"
-              onClick={onMakeWish}
-              disabled={!hasWishes || makingWish || revealOpen}
-              className="relative min-h-13 flex-1 overflow-hidden rounded-xl bg-gradient-to-r from-[#e7ad46] via-[#46d3c8] to-[#d84f78] px-5 text-sm font-black text-[#111329] shadow-[0_0_35px_rgba(253,224,71,0.12)] transition hover:-translate-y-0.5 hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0"
+            <Link
+              href="/wishes/shop"
+              className="flex min-h-13 flex-1 items-center justify-center rounded-xl bg-gradient-to-r from-yellow-200 via-cyan-100 to-violet-200 px-5 text-sm font-black text-[#111329] transition hover:brightness-105"
             >
-              <span className="relative z-10">
-                {makingWish
-                  ? "Choosing a physical card..."
-                  : revealOpen
-                    ? "Finish the current reveal"
-                    : hasWishes
-                      ? "Make a Wish - 1 Wish"
-                      : "No wishes available"}
-              </span>
-
-              {makingWish ? (
-                <span className="absolute inset-y-0 left-0 w-1/3 animate-pulse bg-gradient-to-r from-transparent via-white/45 to-transparent blur-md" />
-              ) : null}
-            </button>
+              Recharge Wishes
+            </Link>
 
             <Link
               href="/catalogue"
@@ -817,15 +613,9 @@ function WishChamber({
             </Link>
           </div>
 
-          <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs font-semibold text-white/25">
-            <span>
-              Lifetime wishes completed: {formatWholeNumber(totalWishes)}
-            </span>
-
-            <span>
-              One click awards exactly one card
-            </span>
-          </div>
+          <p className="mt-4 text-xs font-semibold text-white/25">
+            Lifetime wishes completed: {formatWholeNumber(totalWishes)}
+          </p>
         </div>
       </div>
     </article>
@@ -1003,6 +793,11 @@ function RecentWishCard({
 
 function QuickLinks() {
   const links = [
+    {
+      href: "/wishes/shop",
+      title: "Recharge Wishes",
+      detail: "Wish bundles from 50p with first recharge savings",
+    },
     {
       href: "/catalogue",
       title: "Catalogue",
