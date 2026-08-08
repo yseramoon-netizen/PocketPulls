@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Pocket Pulls",
-  description: "Foresty Business Mate",
+  title: "Unown Pulls",
+  description: "Make wishes, build your binder and explore your constellation.",
    icons: {
     icon: "/shaymin.png",
   },

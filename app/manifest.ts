@@ -5,10 +5,10 @@ import type {
 export default function manifest():
   MetadataRoute.Manifest {
   return {
-    name: "Unknown Pulls",
-    short_name: "Unknown Pulls",
+    name: "Unown Pulls",
+    short_name: "Unown Pulls",
     description:
-      "Open wishes, collect real Pokemon cards and explore the Unknown Pulls constellation.",
+      "Open wishes, collect real Pokemon cards and explore the Unown Pulls constellation.",
     start_url: "/wishes",
     display: "standalone",
     background_color: "#05071d",
