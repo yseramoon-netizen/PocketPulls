@@ -3,7 +3,6 @@
 import Link from "next/link";
 import {
   usePathname,
-  useRouter,
 } from "next/navigation";
 import {
   useEffect,
@@ -225,9 +224,6 @@ export default function PlayerNav({
 }: PlayerNavProps) {
   const pathname =
     usePathname();
-
-  const router =
-    useRouter();
 
   const moreDetailsRef =
     useRef<HTMLDetailsElement | null>(null);
@@ -506,27 +502,42 @@ export default function PlayerNav({
 
     setSigningOut(true);
 
-    const {
-      error,
-    } =
-      await supabase.auth
-        .signOut();
+    // A full navigation clears the old player layout and any pending auth
+    // listeners. The timeout guarantees that a slow Supabase response cannot
+    // leave the player trapped on the Jirachi loading screen.
+    const redirectTimer =
+      window.setTimeout(() => {
+        window.location.replace(
+          "/sign-in",
+        );
+      }, 1800);
 
-    if (error) {
+    try {
+      const {
+        error,
+      } =
+        await supabase.auth
+          .signOut({
+            scope: "local",
+          });
+
+      if (error) {
+        throw error;
+      }
+    } catch (error: unknown) {
       console.error(
         "Player sign-out error:",
         error,
       );
+    } finally {
+      window.clearTimeout(
+        redirectTimer,
+      );
 
-      setSigningOut(false);
-      return;
+      window.location.replace(
+        "/sign-in",
+      );
     }
-
-    router.replace(
-      "/sign-in",
-    );
-
-    router.refresh();
   }
 
   return (
