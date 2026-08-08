@@ -73,47 +73,26 @@ type OrbitStar = {
   glow: string;
 };
 
-type FloatingRune = {
-  id: number;
-  glyph: string;
-  left: number;
-  top: number;
-  size: number;
-  delay: number;
-  duration: number;
-};
-
-const SPARKS: Spark[] = Array.from({ length: 24 }, (_, index) => ({
+const SPARKS: Spark[] = Array.from({ length: 18 }, (_, index) => ({
   id: index,
-  left: (index * 37 + 11) % 96,
-  top: (index * 53 + 7) % 88,
+  left: (index * 31 + 17) % 96,
+  top: (index * 49 + 9) % 88,
   size: 2 + (index % 3),
-  delay: (index % 8) * 0.4,
-  duration: 3.8 + (index % 5) * 0.7,
+  delay: (index % 7) * 0.45,
+  duration: 3.8 + (index % 4) * 0.75,
 }));
 
 const ORBIT_STARS: OrbitStar[] = [
-  { id: 1, ring: "one", angle: 0, radiusX: 152, radiusY: 72, delay: 0.1, size: 12, colour: "#fef3c7", glow: "rgba(254,243,199,0.85)" },
-  { id: 2, ring: "one", angle: 72, radiusX: 152, radiusY: 72, delay: 0.5, size: 9, colour: "#93c5fd", glow: "rgba(147,197,253,0.75)" },
-  { id: 3, ring: "one", angle: 145, radiusX: 152, radiusY: 72, delay: 0.2, size: 11, colour: "#ddd6fe", glow: "rgba(221,214,254,0.82)" },
-  { id: 4, ring: "one", angle: 218, radiusX: 152, radiusY: 72, delay: 0.8, size: 10, colour: "#fbcfe8", glow: "rgba(251,207,232,0.8)" },
-  { id: 5, ring: "one", angle: 292, radiusX: 152, radiusY: 72, delay: 0.35, size: 12, colour: "#fef08a", glow: "rgba(254,240,138,0.88)" },
-  { id: 6, ring: "two", angle: 20, radiusX: 112, radiusY: 170, delay: 0.4, size: 9, colour: "#ffffff", glow: "rgba(255,255,255,0.9)" },
-  { id: 7, ring: "two", angle: 92, radiusX: 112, radiusY: 170, delay: 0.1, size: 11, colour: "#67e8f9", glow: "rgba(103,232,249,0.84)" },
-  { id: 8, ring: "two", angle: 168, radiusX: 112, radiusY: 170, delay: 0.65, size: 10, colour: "#fef3c7", glow: "rgba(254,243,199,0.82)" },
-  { id: 9, ring: "two", angle: 244, radiusX: 112, radiusY: 170, delay: 0.3, size: 9, colour: "#c4b5fd", glow: "rgba(196,181,253,0.84)" },
-  { id: 10, ring: "two", angle: 320, radiusX: 112, radiusY: 170, delay: 0.75, size: 11, colour: "#f9a8d4", glow: "rgba(249,168,212,0.82)" },
-];
-
-const FLOATING_RUNES: FloatingRune[] = [
-  { id: 1, glyph: "✦", left: 9, top: 12, size: 1.1, delay: 0, duration: 11 },
-  { id: 2, glyph: "✧", left: 20, top: 71, size: 1.45, delay: 1.4, duration: 15 },
-  { id: 3, glyph: "◇", left: 31, top: 27, size: 1, delay: 0.8, duration: 13 },
-  { id: 4, glyph: "✦", left: 48, top: 14, size: 1.6, delay: 2.2, duration: 12 },
-  { id: 5, glyph: "✧", left: 58, top: 74, size: 1.2, delay: 0.6, duration: 16 },
-  { id: 6, glyph: "✦", left: 72, top: 22, size: 1.35, delay: 1.8, duration: 14 },
-  { id: 7, glyph: "◇", left: 86, top: 62, size: 1.15, delay: 0.9, duration: 12 },
-  { id: 8, glyph: "✧", left: 93, top: 28, size: 1.45, delay: 2.6, duration: 15 },
+  { id: 1, ring: "one", angle: 0, radiusX: 150, radiusY: 76, delay: 0.1, size: 11, colour: "#fef3c7", glow: "rgba(254,243,199,0.85)" },
+  { id: 2, ring: "one", angle: 72, radiusX: 150, radiusY: 76, delay: 0.5, size: 9, colour: "#93c5fd", glow: "rgba(147,197,253,0.75)" },
+  { id: 3, ring: "one", angle: 145, radiusX: 150, radiusY: 76, delay: 0.2, size: 10, colour: "#ddd6fe", glow: "rgba(221,214,254,0.82)" },
+  { id: 4, ring: "one", angle: 218, radiusX: 150, radiusY: 76, delay: 0.8, size: 10, colour: "#fbcfe8", glow: "rgba(251,207,232,0.8)" },
+  { id: 5, ring: "one", angle: 292, radiusX: 150, radiusY: 76, delay: 0.35, size: 11, colour: "#fef08a", glow: "rgba(254,240,138,0.88)" },
+  { id: 6, ring: "two", angle: 20, radiusX: 110, radiusY: 166, delay: 0.4, size: 8, colour: "#ffffff", glow: "rgba(255,255,255,0.9)" },
+  { id: 7, ring: "two", angle: 92, radiusX: 110, radiusY: 166, delay: 0.1, size: 10, colour: "#67e8f9", glow: "rgba(103,232,249,0.84)" },
+  { id: 8, ring: "two", angle: 168, radiusX: 110, radiusY: 166, delay: 0.65, size: 9, colour: "#fef3c7", glow: "rgba(254,243,199,0.82)" },
+  { id: 9, ring: "two", angle: 244, radiusX: 110, radiusY: 166, delay: 0.3, size: 8, colour: "#c4b5fd", glow: "rgba(196,181,253,0.84)" },
+  { id: 10, ring: "two", angle: 320, radiusX: 110, radiusY: 166, delay: 0.75, size: 10, colour: "#f9a8d4", glow: "rgba(249,168,212,0.82)" },
 ];
 
 function formatMoney(pence: number): string {
@@ -153,14 +132,11 @@ async function playerFetch<T>(url: string, init: RequestInit = {}): Promise<T> {
     cache: "no-store",
   });
 
-  const payload = (await response.json()) as
-    | T
-    | { error?: { message?: string } };
+  const payload = (await response.json()) as T | { error?: { message?: string } };
 
   if (!response.ok) {
     const message =
-      typeof (payload as { error?: { message?: unknown } }).error?.message ===
-        "string"
+      typeof (payload as { error?: { message?: unknown } }).error?.message === "string"
         ? (payload as { error: { message: string } }).error.message
         : "The wish shop request failed.";
     throw new Error(message);
@@ -187,15 +163,11 @@ export default function WishShopPage() {
     setErrorMessage("");
 
     try {
-      const response = await playerFetch<StoreResponse>(
-        "/api/player/wishes/store",
-      );
+      const response = await playerFetch<StoreResponse>("/api/player/wishes/store");
       setStore(response);
     } catch (error: unknown) {
       setErrorMessage(
-        error instanceof Error
-          ? error.message
-          : "Jirachi could not open the wish shop.",
+        error instanceof Error ? error.message : "Jirachi could not open the wish shop.",
       );
     } finally {
       setLoading(false);
@@ -206,9 +178,7 @@ export default function WishShopPage() {
     for (let attempt = 0; attempt < 10; attempt += 1) {
       try {
         const response = await playerFetch<PurchaseStatusResponse>(
-          `/api/player/wishes/purchase-status?session_id=${encodeURIComponent(
-            sessionId,
-          )}`,
+          `/api/player/wishes/purchase-status?session_id=${encodeURIComponent(sessionId)}`,
         );
 
         if (response.purchase.status === "paid") {
@@ -218,16 +188,14 @@ export default function WishShopPage() {
           triggerTwinkle();
           window.dispatchEvent(
             new CustomEvent("pocketpulls:wish-balance", {
-              detail: {
-                wishBalance: response.wishBalance,
-              },
+              detail: { wishBalance: response.wishBalance },
             }),
           );
           await loadStore();
           return;
         }
       } catch {
-        // The webhook can arrive just after the redirect. Keep polling briefly.
+        // Wait briefly for the webhook after redirect.
       }
 
       await new Promise<void>((resolve) => {
@@ -263,33 +231,34 @@ export default function WishShopPage() {
     [selectedPackageId, store],
   );
 
-  const startCheckout = useCallback(
-    async (packageId: string) => {
-      setBusyPackage(packageId);
-      setErrorMessage("");
-      setSuccessMessage("");
+  const selectedPrice = selectedPackage
+    ? store?.firstRechargeAvailable
+      ? selectedPackage.firstRechargeAmountPence
+      : selectedPackage.amountPence
+    : 0;
 
-      try {
-        const response = await playerFetch<CheckoutResponse>(
-          "/api/player/wishes/checkout",
-          {
-            method: "POST",
-            body: JSON.stringify({ packageId }),
-          },
-        );
+  const startCheckout = useCallback(async (packageId: string) => {
+    setBusyPackage(packageId);
+    setErrorMessage("");
+    setSuccessMessage("");
 
-        window.location.assign(response.checkoutUrl);
-      } catch (error: unknown) {
-        setErrorMessage(
-          error instanceof Error
-            ? error.message
-            : "Jirachi could not start checkout.",
-        );
-        setBusyPackage(null);
-      }
-    },
-    [],
-  );
+    try {
+      const response = await playerFetch<CheckoutResponse>(
+        "/api/player/wishes/checkout",
+        {
+          method: "POST",
+          body: JSON.stringify({ packageId }),
+        },
+      );
+
+      window.location.assign(response.checkoutUrl);
+    } catch (error: unknown) {
+      setErrorMessage(
+        error instanceof Error ? error.message : "Jirachi could not start checkout.",
+      );
+      setBusyPackage(null);
+    }
+  }, []);
 
   return (
     <section className={styles.page}>
@@ -308,46 +277,31 @@ export default function WishShopPage() {
             }}
           />
         ))}
-
-        {FLOATING_RUNES.map((rune) => (
-          <span
-            key={`rune-${rune.id}`}
-            className={styles.floatingRune}
-            style={{
-              left: `${rune.left}%`,
-              top: `${rune.top}%`,
-              fontSize: `${rune.size}rem`,
-              animationDelay: `${rune.delay}s`,
-              animationDuration: `${rune.duration}s`,
-            }}
-          >
-            {rune.glyph}
-          </span>
-        ))}
       </div>
 
       <div className={styles.content}>
+        <div className={styles.topBar}>
+          <Link href="/wishes" className={styles.backLink}>
+            ← Back to Wishes
+          </Link>
+
+          <span className={styles.securePill}>Secure checkout</span>
+        </div>
+
         <header className={styles.hero}>
           <div className={styles.heroCopy}>
-            <p className={styles.eyebrow}>Jirachi&apos;s Wish Exchange</p>
-            <h1>Recharge your wishes</h1>
-            <p>
-              Every wish can open a real card from Unown Pulls. Start at 50p,
-              or take a bigger constellation for a lower price per wish.
+            <p className={styles.eyebrow}>Wish recharge</p>
+            <h1>Recharge wishes</h1>
+            <p className={styles.heroBody}>
+              Pick a bundle and head straight to checkout. Larger bundles lower the
+              price per wish, and your first recharge gets an extra 20% off.
             </p>
 
-            <div className={styles.heroActions}>
-              <Link href="/wishes" className={styles.secondaryButton}>
-                Back to Wishes
-              </Link>
-              <button
-                type="button"
-                onClick={triggerTwinkle}
-                className={styles.jirachiButton}
-              >
-                Make the stars twinkle ✦
-              </button>
-            </div>
+            {store?.firstRechargeAvailable ? (
+              <div className={styles.offerPill}>First recharge bonus · 20% off</div>
+            ) : (
+              <div className={styles.offerPillMuted}>Your first recharge bonus has already been used.</div>
+            )}
           </div>
 
           <div className={styles.jirachiStage}>
@@ -402,35 +356,16 @@ export default function WishShopPage() {
               ))}
             </div>
 
-            <div className={styles.wishCounterBubble}>
-              <span>Base rate</span>
+            <div className={styles.rateBubble}>
+              <span>From</span>
               <strong>£0.50</strong>
               <small>per wish</small>
             </div>
           </div>
         </header>
 
-        {store?.firstRechargeAvailable ? (
-          <div className={styles.firstRechargeBanner}>
-            <div>
-              <p className={styles.bannerKicker}>First recharge blessing</p>
-              <h2>20% off your first wish recharge</h2>
-              <p>
-                The discount stacks on top of the package savings below, so
-                your first big recharge gets the strongest value.
-              </p>
-            </div>
-            <span className={styles.discountOrb}>-20%</span>
-          </div>
-        ) : null}
-
-        {errorMessage ? (
-          <div className={styles.errorBanner}>{errorMessage}</div>
-        ) : null}
-
-        {successMessage ? (
-          <div className={styles.successBanner}>{successMessage}</div>
-        ) : null}
+        {errorMessage ? <div className={styles.errorBanner}>{errorMessage}</div> : null}
+        {successMessage ? <div className={styles.successBanner}>{successMessage}</div> : null}
 
         {loading ? (
           <div className={styles.loadingCard}>
@@ -438,179 +373,111 @@ export default function WishShopPage() {
             <p>Jirachi is preparing the wish bundles...</p>
           </div>
         ) : (
-          <>
-            <section className={styles.shopGrid}>
+          <div className={styles.mainGrid}>
+            <section className={styles.packagesPanel}>
+              <div className={styles.sectionHeading}>
+                <div>
+                  <p className={styles.sectionEyebrow}>Choose a bundle</p>
+                  <h2>Wish packages</h2>
+                </div>
+              </div>
+
               <div className={styles.packagesGrid}>
                 {(store?.packages ?? []).map((pkg) => {
-                  const firstRechargeActive = store?.firstRechargeAvailable;
-                  const effectivePrice = firstRechargeActive
+                  const effectivePrice = store?.firstRechargeAvailable
                     ? pkg.firstRechargeAmountPence
                     : pkg.amountPence;
-                  const basePrice = pkg.wishes * 50;
 
                   return (
                     <button
                       key={pkg.id}
                       type="button"
-                      className={`${styles.packageCard} ${
-                        selectedPackage?.id === pkg.id
-                          ? styles.packageCardActive
-                          : ""
-                      }`}
+                      className={`${styles.packageCard} ${selectedPackage?.id === pkg.id ? styles.packageCardActive : ""}`}
                       onClick={() => setSelectedPackageId(pkg.id)}
                     >
-                      {pkg.badge ? (
-                        <span className={styles.packageBadge}>{pkg.badge}</span>
-                      ) : null}
+                      <div className={styles.packageTopRow}>
+                        <div>
+                          <p className={styles.packageName}>{pkg.name}</p>
+                          <h3 className={styles.packageWishes}>{pkg.wishes} wishes</h3>
+                        </div>
 
-                      <div className={styles.packageStars} aria-hidden="true">
-                        <span>✦</span>
-                        <span>✧</span>
-                        <span>✦</span>
+                        {pkg.badge ? <span className={styles.packageBadge}>{pkg.badge}</span> : null}
                       </div>
 
-                      <p className={styles.packageName}>{pkg.name}</p>
-                      <h3 className={styles.packageWishes}>
-                        {pkg.wishes} wishes
-                      </h3>
                       <p className={styles.packageSubtitle}>{pkg.subtitle}</p>
 
-                      <div className={styles.packagePriceBlock}>
+                      <div className={styles.packageFooter}>
+                        <div>
+                          <strong className={styles.packagePrice}>{formatMoney(effectivePrice)}</strong>
+                          <span className={styles.packageMeta}>{formatWishPrice(effectivePrice, pkg.wishes)}</span>
+                        </div>
+
                         {pkg.bulkDiscountPercent > 0 ? (
-                          <span className={styles.originalPrice}>
-                            Normally {formatMoney(basePrice)}
-                          </span>
+                          <span className={styles.savingsTag}>Save {pkg.bulkDiscountPercent}%</span>
                         ) : (
-                          <span className={styles.originalPrice}>
-                            Base package
-                          </span>
+                          <span className={styles.savingsTagMuted}>Base rate</span>
                         )}
-
-                        <strong className={styles.packagePrice}>
-                          {formatMoney(effectivePrice)}
-                        </strong>
-
-                        <span className={styles.packagePriceMeta}>
-                          {formatWishPrice(effectivePrice, pkg.wishes)}
-                        </span>
-                      </div>
-
-                      <div className={styles.packageSavingsRow}>
-                        {pkg.bulkDiscountPercent > 0 ? (
-                          <span className={styles.savingsTag}>
-                            {pkg.bulkDiscountPercent}% bundle saving
-                          </span>
-                        ) : (
-                          <span className={styles.savingsTagMuted}>
-                            Standard rate
-                          </span>
-                        )}
-
-                        {firstRechargeActive ? (
-                          <span className={styles.firstRechargeTag}>
-                            +20% first recharge
-                          </span>
-                        ) : null}
                       </div>
                     </button>
                   );
                 })}
               </div>
+            </section>
 
-              <aside className={styles.checkoutCard}>
-                <p className={styles.cardKicker}>Selected package</p>
-                <h2>{selectedPackage?.name ?? "Choose a wish bundle"}</h2>
-                <p className={styles.checkoutBody}>
-                  {selectedPackage?.subtitle ??
-                    "Pick the bundle that feels right and Jirachi will guide you to checkout."}
-                </p>
+            <aside className={styles.summaryCard}>
+              <p className={styles.sectionEyebrow}>Selected package</p>
+              <h2>{selectedPackage?.name ?? "Choose a bundle"}</h2>
+              <p className={styles.summaryBody}>
+                {selectedPackage?.subtitle ?? "Pick a wish package to continue to checkout."}
+              </p>
 
-                {selectedPackage ? (
-                  <div className={styles.checkoutSummary}>
-                    <div className={styles.checkoutRow}>
-                      <span>Wishes</span>
-                      <strong>{selectedPackage.wishes}</strong>
-                    </div>
-                    <div className={styles.checkoutRow}>
-                      <span>Bundle saving</span>
-                      <strong>
-                        {selectedPackage.bulkDiscountPercent > 0
-                          ? `${selectedPackage.bulkDiscountPercent}%`
-                          : "—"}
-                      </strong>
-                    </div>
-                    <div className={styles.checkoutRow}>
-                      <span>First recharge bonus</span>
-                      <strong>
-                        {store?.firstRechargeAvailable ? "20% off" : "Used"}
-                      </strong>
-                    </div>
-                    <div className={styles.checkoutRow}>
-                      <span>Effective price</span>
-                      <strong>
-                        {formatMoney(
-                          store?.firstRechargeAvailable
-                            ? selectedPackage.firstRechargeAmountPence
-                            : selectedPackage.amountPence,
-                        )}
-                      </strong>
-                    </div>
+              {selectedPackage ? (
+                <div className={styles.summaryRows}>
+                  <div className={styles.summaryRow}>
+                    <span>Wishes</span>
+                    <strong>{selectedPackage.wishes}</strong>
                   </div>
-                ) : null}
+                  <div className={styles.summaryRow}>
+                    <span>Price per wish</span>
+                    <strong>{formatWishPrice(selectedPrice, selectedPackage.wishes)}</strong>
+                  </div>
+                  <div className={styles.summaryRow}>
+                    <span>Bundle saving</span>
+                    <strong>
+                      {selectedPackage.bulkDiscountPercent > 0
+                        ? `${selectedPackage.bulkDiscountPercent}%`
+                        : "—"}
+                    </strong>
+                  </div>
+                  <div className={styles.summaryRow}>
+                    <span>First recharge</span>
+                    <strong>{store?.firstRechargeAvailable ? "20% off" : "Used"}</strong>
+                  </div>
+                  <div className={`${styles.summaryRow} ${styles.summaryTotal}`}>
+                    <span>Total</span>
+                    <strong>{formatMoney(selectedPrice)}</strong>
+                  </div>
+                </div>
+              ) : null}
 
-                <button
-                  type="button"
-                  className={styles.checkoutButton}
-                  disabled={!selectedPackage || busyPackage !== null}
-                  onClick={() => {
-                    if (selectedPackage) {
-                      void startCheckout(selectedPackage.id);
-                    }
-                  }}
-                >
-                  {busyPackage === selectedPackage?.id
-                    ? "Opening checkout..."
-                    : "Continue to secure checkout"}
-                </button>
+              <button
+                type="button"
+                className={styles.checkoutButton}
+                disabled={!selectedPackage || busyPackage !== null}
+                onClick={() => {
+                  if (selectedPackage) {
+                    void startCheckout(selectedPackage.id);
+                  }
+                }}
+              >
+                {busyPackage === selectedPackage?.id ? "Opening checkout..." : "Continue to checkout"}
+              </button>
 
-                <p className={styles.checkoutFinePrint}>
-                  Stripe handles payment, but the browser does not decide your
-                  price or wishes. The server calculates the package and your
-                  first recharge discount, then a verified webhook credits your
-                  wish balance once payment succeeds.
-                </p>
-              </aside>
-            </section>
-
-            <section className={styles.explainerGrid}>
-              <article className={styles.explainerCard}>
-                <span>✦</span>
-                <h3>Every wish opens a real card</h3>
-                <p>
-                  Wishes are not cosmetic. Each one can pull a real card from
-                  the Unown Pulls stock pool.
-                </p>
-              </article>
-
-              <article className={styles.explainerCard}>
-                <span>✧</span>
-                <h3>Bigger bundles stretch further</h3>
-                <p>
-                  The price per wish falls as you choose larger packages, making
-                  bigger recharges more attractive.
-                </p>
-              </article>
-
-              <article className={styles.explainerCard}>
-                <span>◇</span>
-                <h3>First recharge is blessed</h3>
-                <p>
-                  The first wish purchase receives an extra 20% off the package
-                  total, on top of the bulk saving.
-                </p>
-              </article>
-            </section>
-          </>
+              <p className={styles.summaryNote}>
+                Wishes are credited after payment succeeds.
+              </p>
+            </aside>
+          </div>
         )}
       </div>
     </section>

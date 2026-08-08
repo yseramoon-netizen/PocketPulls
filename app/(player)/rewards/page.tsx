@@ -73,6 +73,29 @@ const EMPTY_STATUS: RewardStatus = {
 
 const REWARDS = [1, 1, 1, 2, 2, 3, 5];
 
+function getNextRewardTime(now = new Date()): number {
+  return Date.UTC(
+    now.getUTCFullYear(),
+    now.getUTCMonth(),
+    now.getUTCDate() + 1,
+    0,
+    0,
+    0,
+    0,
+  );
+}
+
+function formatCountdown(milliseconds: number): string {
+  const totalSeconds = Math.max(0, Math.floor(milliseconds / 1000));
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  return [hours, minutes, seconds]
+    .map((value) => String(value).padStart(2, "0"))
+    .join(":");
+}
+
 function parseStatus(value: unknown): RewardStatus {
   const row = Array.isArray(value) ? value[0] : value;
 
@@ -116,6 +139,7 @@ export default function RewardsPage() {
     useState<string | null>(null);
   const [celebration, setCelebration] =
     useState<number | null>(null);
+  const [nowTs, setNowTs] = useState(() => Date.now());
 
   const loadStatus = useCallback(async () => {
     setErrorMessage(null);
@@ -146,6 +170,16 @@ export default function RewardsPage() {
   useEffect(() => {
     void loadStatus();
   }, [loadStatus]);
+
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      setNowTs(Date.now());
+    }, 1000);
+
+    return () => {
+      window.clearInterval(interval);
+    };
+  }, []);
 
   const claim = useCallback(async () => {
     if (claiming || status.claimedToday) {
@@ -241,6 +275,20 @@ export default function RewardsPage() {
       ? status.cycleDay
       : Math.max(0, status.cycleDay - 1);
   }, [status.claimedToday, status.cycleDay]);
+
+  const dailyCountdown = useMemo(() => {
+    if (!status.claimedToday) {
+      return "Ready to claim";
+    }
+
+    const remaining = getNextRewardTime(new Date(nowTs)) - nowTs;
+
+    if (remaining <= 0) {
+      return "Ready to claim";
+    }
+
+    return formatCountdown(remaining);
+  }, [nowTs, status.claimedToday]);
 
   return (
     <section className="mx-auto w-full max-w-[1400px] px-4 py-8 sm:px-6 lg:px-8">

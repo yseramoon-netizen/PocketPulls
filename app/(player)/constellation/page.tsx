@@ -238,6 +238,71 @@ function buildStar(
   };
 }
 
+
+function buildConstellationStars(
+  wishes: WishRow[],
+  cardMap: Map<string, CardRow>,
+): ConstellationStar[] {
+  const positioned: ConstellationStar[] = [];
+
+  wishes.forEach((wish, index) => {
+    const base = buildStar(
+      wish,
+      cardMap.get(String(wish.card_id ?? "")),
+      index,
+    );
+
+    const random = seededRandom(hashString(`layout:${base.id}:${base.cardId}`));
+    const goldenAngle = Math.PI * (3 - Math.sqrt(5));
+    const radiusBase = Math.min(45, 10 + Math.sqrt(index + 1) * 6.5);
+    const minDistance = Math.max(2.8, Math.min(5.8, base.size * 0.28 + 1.5));
+
+    let best = {
+      x: base.x,
+      y: base.y,
+      score: -1,
+    };
+
+    for (let attempt = 0; attempt < 28; attempt += 1) {
+      const angle =
+        index * goldenAngle +
+        random() * 0.7 +
+        attempt * 0.58;
+      const radius = Math.min(46, Math.max(8, radiusBase + ((attempt % 6) - 2.5) * 2.1));
+      const x = Math.max(7, Math.min(93, 50 + Math.cos(angle) * radius + (random() - 0.5) * 3.5));
+      const y = Math.max(8, Math.min(91, 49 + Math.sin(angle) * radius * 0.76 + (random() - 0.5) * 3.5));
+
+      let nearest = Number.POSITIVE_INFINITY;
+      for (const placed of positioned) {
+        const distance = Math.hypot(x - placed.x, y - placed.y);
+        nearest = Math.min(nearest, distance);
+      }
+
+      if (!Number.isFinite(nearest)) {
+        nearest = 999;
+      }
+
+      if (nearest > best.score) {
+        best = { x, y, score: nearest };
+      }
+
+      if (nearest >= minDistance) {
+        best = { x, y, score: nearest };
+        break;
+      }
+    }
+
+    positioned.push({
+      ...base,
+      x: best.x,
+      y: best.y,
+      size: Math.min(16.5, Math.max(6.5, base.size)),
+    });
+  });
+
+  return positioned;
+}
+
 function formatMoney(value: number): string {
   return new Intl.NumberFormat("en-GB", {
     style: "currency",
@@ -341,7 +406,7 @@ export default function ConstellationPage() {
         .select("id, card_id, market_value_at_wish, created_at")
         .eq("user_id", user.id)
         .order("created_at", { ascending: true })
-        .limit(2000);
+        .limit(1600);
 
       if (wishError) {
         throw wishError;
@@ -380,13 +445,7 @@ export default function ConstellationPage() {
         cards.map((card) => [String(card.id), card]),
       );
 
-      const nextStars = wishes.map((wish, index) =>
-        buildStar(
-          wish,
-          cardMap.get(String(wish.card_id ?? "")),
-          index,
-        ),
-      );
+      const nextStars = buildConstellationStars(wishes, cardMap);
 
       setStars(nextStars);
 
@@ -449,7 +508,7 @@ export default function ConstellationPage() {
 
           <div className="mt-4 max-w-full overflow-hidden">
             <UnownText
-              text="Your Wish Constellation"
+              text="Your Constellation"
               size="clamp(1.9rem, 4.6vw, 3.75rem)"
               tone="holo"
             />
@@ -457,8 +516,8 @@ export default function ConstellationPage() {
 
           <p className="mt-4 max-w-3xl text-sm font-semibold leading-7 text-white/45 sm:text-base">
             Every card Jirachi has granted you lives here as a permanent
-            star. Better rarities burn brighter, and valuable cards become
-            larger lights in your personal sky.
+            light. Better rarities burn brighter, valuable cards glow larger,
+            and the sky is spaced to stay easier to explore as it grows.
           </p>
         </div>
 
@@ -560,6 +619,7 @@ export default function ConstellationPage() {
 
               {stars.map((star) => {
                 const active = selectedStar?.id === star.id;
+                const hitSize = Math.max(22, star.size + 12);
 
                 return (
                   <button
@@ -570,22 +630,31 @@ export default function ConstellationPage() {
                     className={[
                       "absolute rounded-full transition duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white",
                       active
-                        ? "z-20 scale-150"
-                        : "z-10 hover:scale-150",
+                        ? "z-20 scale-[1.08]"
+                        : "z-10 hover:scale-110",
                     ].join(" ")}
                     style={{
                       left: `${star.x}%`,
                       top: `${star.y}%`,
-                      width: `${star.size}px`,
-                      height: `${star.size}px`,
-                      background: star.colour,
-                      boxShadow: active
-                        ? `0 0 ${star.size * 2.8}px ${star.size * 0.72}px ${star.glow}`
-                        : `0 0 ${star.size * 1.8}px ${star.size * 0.4}px ${star.glow}`,
+                      width: `${hitSize}px`,
+                      height: `${hitSize}px`,
                       transform: "translate(-50%, -50%)",
                       animation: `constellationStarIn 650ms ${star.delay}ms ease-out both`,
                     }}
                   >
+                    <span
+                      aria-hidden="true"
+                      className="absolute left-1/2 top-1/2 rounded-full"
+                      style={{
+                        width: `${star.size}px`,
+                        height: `${star.size}px`,
+                        background: star.colour,
+                        boxShadow: active
+                          ? `0 0 ${star.size * 2.8}px ${star.size * 0.72}px ${star.glow}`
+                          : `0 0 ${star.size * 1.8}px ${star.size * 0.4}px ${star.glow}`,
+                        transform: "translate(-50%, -50%)",
+                      }}
+                    />
                     <span className="sr-only">{star.name}</span>
                   </button>
                 );

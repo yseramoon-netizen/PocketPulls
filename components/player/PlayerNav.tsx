@@ -47,7 +47,7 @@ const PRIMARY_ITEMS: NavItem[] = [
   },
   {
     href: "/collection",
-    label: "Collection",
+    label: "Binder",
     glyph: "▣",
   },
   {
@@ -65,7 +65,7 @@ const PRIMARY_ITEMS: NavItem[] = [
 const MORE_ITEMS: NavItem[] = [
   {
     href: "/constellation",
-    label: "Stars",
+    label: "Constellation",
     glyph: "✧",
   },
   {
