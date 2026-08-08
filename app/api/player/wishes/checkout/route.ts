@@ -7,7 +7,6 @@ import {
   getServiceClient,
   getVerifiedUser,
   playerErrorResponse,
-  requireEnvironment,
 } from "@/lib/player/wish-store-server";
 import { PURCHASE_CONSENT_VERSION } from "@/lib/player/purchase-consent";
 
@@ -18,6 +17,9 @@ export const revalidate = 0;
 type CheckoutBody = {
   packageId?: unknown;
 };
+
+const ORDERS_NOT_READY_MESSAGE =
+  "Orders are not ready to be placed yet, if you want more pulls speak to one of the Founders";
 
 type LooseDatabase = {
   from(table: string): any;
@@ -159,6 +161,23 @@ export async function POST(request: Request) {
       throw new Error("Choose a valid wish package.");
     }
 
+    const stripeSecret = process.env.STRIPE_SECRET_KEY?.trim();
+
+    if (!stripeSecret) {
+      return Response.json(
+        {
+          ok: false,
+          error: { message: ORDERS_NOT_READY_MESSAGE },
+        },
+        {
+          status: 503,
+          headers: {
+            "Cache-Control": "no-store",
+          },
+        },
+      );
+    }
+
     const service = getServiceClient();
     const database = service as unknown as LooseDatabase;
     const token = getBearerToken(request);
@@ -252,7 +271,7 @@ export async function POST(request: Request) {
 
     try {
       const stripe = await createStripeCheckout({
-        secret: requireEnvironment(["STRIPE_SECRET_KEY"]),
+        secret: stripeSecret,
         origin: new URL(request.url).origin,
         orderId,
         userId: user.id,
