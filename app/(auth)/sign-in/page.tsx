@@ -255,7 +255,7 @@ function PlayerSignInContent() {
           </form>
 
           <div className="mt-6 flex flex-wrap items-center justify-between gap-3 text-xs font-black">
-            <Link href="/sign-up" className="text-cyan-100/50 hover:text-white">
+            <Link href="/create-account" className="text-cyan-100/50 hover:text-white">
               Create a trainer account
             </Link>
             <Link href="/admin/sign-in" className="text-emerald-100/40 hover:text-white">
