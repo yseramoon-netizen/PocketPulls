@@ -12,6 +12,7 @@ import {
   PlayerErrorBanner,
   PlayerPageHeader,
   PlayerPanel,
+  PlayerPrimaryButton,
   PlayerSecondaryButton,
   PlayerStatCard,
 } from "@/components/player/PlayerUI";
@@ -59,6 +60,13 @@ type ClaimRow = {
   claimed_at: string | null;
 };
 
+type ClaimAllRow = {
+  claimed_count: number | string | null;
+  reward_wishes: number | string | null;
+  wish_balance: number | string | null;
+  claimed_at: string | null;
+};
+
 function parseRows(value: unknown): Achievement[] {
   if (!Array.isArray(value)) {
     return [];
@@ -91,11 +99,91 @@ function formatProgressValue(achievement: Achievement): string {
   )}`;
 }
 
+function BadgeEmblem({ achievement }: { achievement: Achievement }) {
+  const commonProps = {
+    viewBox: "0 0 64 64",
+    fill: "none",
+    xmlns: "http://www.w3.org/2000/svg",
+    className: "h-10 w-10",
+    "aria-hidden": true,
+  } as const;
+
+  const strokeProps = {
+    stroke: "currentColor",
+    strokeWidth: 3.2,
+    strokeLinecap: "round" as const,
+    strokeLinejoin: "round" as const,
+  };
+
+  if (achievement.category === "Collection") {
+    return (
+      <svg {...commonProps}>
+        <rect x="13" y="11" width="38" height="42" rx="7" {...strokeProps} />
+        <path d="M22 11v42M29 21h14M29 30h14M29 39h11" {...strokeProps} />
+      </svg>
+    );
+  }
+
+  if (achievement.category === "Unique") {
+    return (
+      <svg {...commonProps}>
+        <path d="M18 42 31 19l16 24M18 42h29" {...strokeProps} />
+        <circle cx="18" cy="42" r="5" {...strokeProps} />
+        <circle cx="31" cy="19" r="5" {...strokeProps} />
+        <circle cx="47" cy="43" r="5" {...strokeProps} />
+      </svg>
+    );
+  }
+
+  if (achievement.category === "Value") {
+    return (
+      <svg {...commonProps}>
+        <path d="m32 10 17 15-17 29L15 25 32 10Z" {...strokeProps} />
+        <path d="m15 25 17 7 17-7M32 32V54" {...strokeProps} />
+      </svg>
+    );
+  }
+
+  if (achievement.category === "Rarity") {
+    return (
+      <svg {...commonProps}>
+        <path d="m32 8 5.5 16.5L54 30l-16.5 5.5L32 52l-5.5-16.5L10 30l16.5-5.5L32 8Z" {...strokeProps} />
+        <circle cx="32" cy="30" r="5" {...strokeProps} />
+      </svg>
+    );
+  }
+
+  if (achievement.category === "Streak") {
+    return (
+      <svg {...commonProps}>
+        <path d="M36 8c2 11-9 13-5 23 2-5 7-7 10-12 7 7 11 14 9 23-2 9-9 14-18 14S15 50 14 41c-1-8 4-15 11-23 0 8 4 10 6 11 0-9 3-14 5-21Z" {...strokeProps} />
+      </svg>
+    );
+  }
+
+  if (achievement.category === "Shipping") {
+    return (
+      <svg {...commonProps}>
+        <path d="M10 19 32 9l22 10-22 10L10 19Z" {...strokeProps} />
+        <path d="M10 19v25l22 11 22-11V19M32 29v26" {...strokeProps} />
+      </svg>
+    );
+  }
+
+  return (
+    <svg {...commonProps}>
+      <path d="m32 7 5.6 17.4L56 30l-18.4 5.6L32 53l-5.6-17.4L8 30l18.4-5.6L32 7Z" {...strokeProps} />
+      <circle cx="32" cy="30" r="4" fill="currentColor" />
+    </svg>
+  );
+}
+
 export default function AchievementsPage() {
   const [achievements, setAchievements] = useState<Achievement[]>([]);
   const [category, setCategory] = useState("All");
   const [loading, setLoading] = useState(true);
   const [claimingKey, setClaimingKey] = useState<string | null>(null);
+  const [claimingAll, setClaimingAll] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
@@ -129,6 +217,7 @@ export default function AchievementsPage() {
     async (achievement: Achievement) => {
       if (
         claimingKey ||
+        claimingAll ||
         !achievement.unlockedAt ||
         achievement.rewardClaimedAt ||
         achievement.rewardWishes <= 0
@@ -179,8 +268,54 @@ export default function AchievementsPage() {
         setClaimingKey(null);
       }
     },
-    [claimingKey, loadAchievements],
+    [claimingAll, claimingKey, loadAchievements],
   );
+
+  const claimAllRewards = useCallback(async () => {
+    if (claimingAll || claimingKey) {
+      return;
+    }
+
+    setClaimingAll(true);
+    setErrorMessage(null);
+    setSuccessMessage(null);
+
+    try {
+      const { data, error } = await supabase.rpc(
+        "claim_all_player_achievement_rewards",
+      );
+
+      if (error) {
+        throw error;
+      }
+
+      const row = (Array.isArray(data) ? data[0] : data) as ClaimAllRow | null;
+      const claimedCount = Math.max(0, Math.floor(toNumber(row?.claimed_count)));
+      const reward = Math.max(0, Math.floor(toNumber(row?.reward_wishes)));
+      const wishBalance = Math.max(0, Math.floor(toNumber(row?.wish_balance)));
+
+      setSuccessMessage(
+        claimedCount > 0
+          ? `Claimed ${claimedCount} badge reward${claimedCount === 1 ? "" : "s"} for ${reward} free wish${reward === 1 ? "" : "es"}.`
+          : "You have no unclaimed badge rewards right now.",
+      );
+
+      window.dispatchEvent(
+        new CustomEvent("pocketpulls:wish-balance", {
+          detail: { wishBalance },
+        }),
+      );
+      window.dispatchEvent(new Event("pocketpulls:achievement-reward-claimed"));
+
+      await loadAchievements();
+    } catch (error: unknown) {
+      setErrorMessage(
+        getErrorMessage(error, "Your badge rewards could not be claimed."),
+      );
+    } finally {
+      setClaimingAll(false);
+    }
+  }, [claimingAll, claimingKey, loadAchievements]);
 
   const categories = useMemo(
     () => [
@@ -228,9 +363,25 @@ export default function AchievementsPage() {
         title="Badges"
         description="Complete milestones, unlock badges and claim free wishes. Harder badges give bigger rewards."
         actions={
-          <PlayerSecondaryButton onClick={() => void loadAchievements()}>
-            Check progress
-          </PlayerSecondaryButton>
+          <>
+            {claimable.length > 0 ? (
+              <PlayerPrimaryButton
+                onClick={() => void claimAllRewards()}
+                disabled={claimingAll || Boolean(claimingKey)}
+              >
+                {claimingAll
+                  ? "Claiming rewards..."
+                  : `Claim all · +${unclaimedWishes} wishes`}
+              </PlayerPrimaryButton>
+            ) : null}
+
+            <PlayerSecondaryButton
+              onClick={() => void loadAchievements()}
+              disabled={claimingAll}
+            >
+              Check progress
+            </PlayerSecondaryButton>
+          </>
         }
       />
 
@@ -314,7 +465,7 @@ export default function AchievementsPage() {
             <AchievementCard
               key={achievement.key}
               achievement={achievement}
-              claiming={claimingKey === achievement.key}
+              claiming={claimingAll || claimingKey === achievement.key}
               onClaim={() => void claimReward(achievement)}
             />
           ))}
@@ -355,7 +506,7 @@ function AchievementCard({
               : "border-white/10 bg-white/[0.035] text-white/22 grayscale"
           }`}
         >
-          {achievement.icon}
+          <BadgeEmblem achievement={achievement} />
         </div>
 
         <div className="flex flex-col items-end gap-2">

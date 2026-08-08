@@ -422,7 +422,6 @@ export default function WishCinematic({
     };
   }, [
     open,
-    card,
     cardKey,
     clearTimers,
     reportFinished,

@@ -446,8 +446,6 @@ export default function WishesPage() {
           detail: { wishBalance: nextBalance },
         }),
       );
-
-      await loadDashboard(true);
     } catch (error: unknown) {
       console.error("Make wish error:", error);
       setErrorMessage(
@@ -472,6 +470,22 @@ export default function WishesPage() {
     0,
     dashboard.shippingThreshold - dashboard.availableCards,
   );
+
+  const cinematicCard = useMemo<WishRevealCard | null>(() => {
+    if (!wishReveal) {
+      return null;
+    }
+
+    return {
+      id: wishReveal.wishId || wishReveal.cardId,
+      name: wishReveal.cardName,
+      rarity: wishReveal.rarity,
+      imageUrl: wishReveal.imageUrl,
+      setName: wishReveal.setName,
+      cardNumber: wishReveal.cardNumber,
+      marketValue: wishReveal.marketValue,
+    };
+  }, [wishReveal]);
 
   if (loading) {
     return <DashboardLoading />;
@@ -582,15 +596,10 @@ export default function WishesPage() {
 
       <WishCinematic
         open={Boolean(wishReveal)}
-        card={wishReveal ? ({
-          id: wishReveal.wishId || wishReveal.cardId,
-          name: wishReveal.cardName,
-          rarity: wishReveal.rarity,
-          imageUrl: wishReveal.imageUrl,
-          setName: wishReveal.setName,
-          cardNumber: wishReveal.cardNumber,
-          marketValue: wishReveal.marketValue,
-        } satisfies WishRevealCard) : null}
+        card={cinematicCard}
+        onFinished={() => {
+          void loadDashboard(true);
+        }}
         onClose={() => setWishReveal(null)}
         onWishAgain={() => {
           setWishReveal(null);

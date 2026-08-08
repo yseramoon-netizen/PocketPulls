@@ -95,6 +95,11 @@ const MORE_ITEMS: NavItem[] = [
     glyph: "▰",
   },
   {
+    href: "/wishes/shop",
+    label: "Recharge",
+    glyph: "✦",
+  },
+  {
     href: "/help",
     label: "Help",
     glyph: "?",
@@ -151,6 +156,7 @@ const DRAWER_GROUPS: NavGroup[] = [
     items: [
       MORE_ITEMS[5],
       MORE_ITEMS[6],
+      MORE_ITEMS[7],
       PROFILE_ITEM,
     ],
   },
@@ -610,6 +616,7 @@ export default function PlayerNav({
 
           <Link
             href="/wishes"
+            onClick={closeMore}
             title="Unown Pulls"
             className="
               flex
@@ -739,6 +746,7 @@ export default function PlayerNav({
                     pathname,
                     item.href,
                   )}
+                  onNavigate={closeMore}
                 />
               ),
             )}
@@ -862,6 +870,7 @@ export default function PlayerNav({
           >
             <Link
               href="/wishes"
+              onClick={closeMore}
               title="Wish balance"
               className="
                 rounded-xl
@@ -904,6 +913,7 @@ export default function PlayerNav({
 
             <Link
               href="/profile"
+              onClick={closeMore}
               className="
                 hidden
                 items-center
@@ -1261,13 +1271,16 @@ export default function PlayerNav({
 function DesktopLink({
   item,
   active,
+  onNavigate,
 }: {
   item: NavItem;
   active: boolean;
+  onNavigate?: () => void;
 }) {
   return (
     <Link
       href={item.href}
+      onClick={onNavigate}
       className={[
         "flex min-h-11 items-center gap-2 rounded-xl border px-3 text-sm font-black transition",
         active

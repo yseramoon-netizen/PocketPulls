@@ -3,11 +3,19 @@
 
 begin;
 
+-- PostgreSQL cannot CREATE OR REPLACE a function when its OUT/RETURNS TABLE
+-- signature changed. Drop the old RPCs first so this migration is safe both
+-- on upgraded databases and on a clean replay of the migration history.
+drop function if exists public.claim_all_player_achievement_rewards();
+drop function if exists public.claim_player_achievement_reward(text);
+drop function if exists public.get_player_achievements();
+drop function if exists public.sync_player_achievements();
+
 alter table public.player_achievements
   add column if not exists reward_wishes integer not null default 0,
   add column if not exists reward_claimed_at timestamptz;
 
-create or replace function public.sync_player_achievements()
+create function public.sync_player_achievements()
 returns integer
 language plpgsql
 security definer
@@ -192,7 +200,7 @@ begin
 end;
 $function$;
 
-create or replace function public.get_player_achievements()
+create function public.get_player_achievements()
 returns table (
   achievement_key text,
   title text,
@@ -326,50 +334,50 @@ begin
     select *
     from (
       values
-        ('first_wish','First Light','Complete your first wish.','Wishes','★',v_wishes::numeric,1::numeric,1),
-        ('wish_apprentice','Wish Apprentice','Complete 10 wishes.','Wishes','✦',v_wishes::numeric,10::numeric,2),
-        ('wish_seeker','Star Seeker','Complete 25 wishes.','Wishes','✧',v_wishes::numeric,25::numeric,3),
-        ('constellation_keeper','Constellation Keeper','Complete 50 wishes.','Wishes','☄',v_wishes::numeric,50::numeric,5),
-        ('wish_master','Wish Master','Complete 100 wishes.','Wishes','✹',v_wishes::numeric,100::numeric,8),
-        ('wish_sage','Wish Sage','Complete 250 wishes.','Wishes','✺',v_wishes::numeric,250::numeric,15),
-        ('wish_legend','Starbound Legend','Complete 500 wishes.','Wishes','✵',v_wishes::numeric,500::numeric,25),
-        ('thousand_wishes','A Thousand Stars','Complete 1,000 wishes.','Wishes','✷',v_wishes::numeric,1000::numeric,50),
+        ('first_wish','First Light','Complete your first wish.','Wishes','W',v_wishes::numeric,1::numeric,1),
+        ('wish_apprentice','Wish Apprentice','Complete 10 wishes.','Wishes','W',v_wishes::numeric,10::numeric,2),
+        ('wish_seeker','Star Seeker','Complete 25 wishes.','Wishes','W',v_wishes::numeric,25::numeric,3),
+        ('constellation_keeper','Constellation Keeper','Complete 50 wishes.','Wishes','W',v_wishes::numeric,50::numeric,5),
+        ('wish_master','Wish Master','Complete 100 wishes.','Wishes','W',v_wishes::numeric,100::numeric,8),
+        ('wish_sage','Wish Sage','Complete 250 wishes.','Wishes','W',v_wishes::numeric,250::numeric,15),
+        ('wish_legend','Starbound Legend','Complete 500 wishes.','Wishes','W',v_wishes::numeric,500::numeric,25),
+        ('thousand_wishes','A Thousand Stars','Complete 1,000 wishes.','Wishes','W',v_wishes::numeric,1000::numeric,50),
 
-        ('first_card','The First Card','Own your first card.','Collection','◆',v_cards::numeric,1::numeric,1),
-        ('collector_25','Growing Binder','Own 25 cards.','Collection','◇',v_cards::numeric,25::numeric,2),
-        ('collector_100','Hundred Card Archive','Own 100 cards.','Collection','▣',v_cards::numeric,100::numeric,5),
-        ('collector_250','Binder Keeper','Own 250 cards.','Collection','▤',v_cards::numeric,250::numeric,10),
-        ('collector_500','Deep Archive','Own 500 cards.','Collection','▥',v_cards::numeric,500::numeric,20),
-        ('collector_1000','Living Pokédex Energy','Own 1,000 cards.','Collection','▦',v_cards::numeric,1000::numeric,40),
+        ('first_card','The First Card','Own your first card.','Collection','C',v_cards::numeric,1::numeric,1),
+        ('collector_25','Growing Binder','Own 25 cards.','Collection','C',v_cards::numeric,25::numeric,2),
+        ('collector_100','Hundred Card Archive','Own 100 cards.','Collection','C',v_cards::numeric,100::numeric,5),
+        ('collector_250','Binder Keeper','Own 250 cards.','Collection','C',v_cards::numeric,250::numeric,10),
+        ('collector_500','Deep Archive','Own 500 cards.','Collection','C',v_cards::numeric,500::numeric,20),
+        ('collector_1000','Living Pokedex Energy','Own 1,000 cards.','Collection','C',v_cards::numeric,1000::numeric,40),
 
-        ('unique_10','Ten Different Stars','Own 10 unique cards.','Unique','◈',v_unique_cards::numeric,10::numeric,1),
-        ('unique_50','No Two Skies Alike','Own 50 unique cards.','Unique','◉',v_unique_cards::numeric,50::numeric,3),
-        ('unique_100','Century of Faces','Own 100 unique cards.','Unique','◎',v_unique_cards::numeric,100::numeric,6),
-        ('unique_250','Archive of Worlds','Own 250 unique cards.','Unique','◌',v_unique_cards::numeric,250::numeric,12),
+        ('unique_10','Ten Different Stars','Own 10 unique cards.','Unique','U',v_unique_cards::numeric,10::numeric,1),
+        ('unique_50','No Two Skies Alike','Own 50 unique cards.','Unique','U',v_unique_cards::numeric,50::numeric,3),
+        ('unique_100','Century of Faces','Own 100 unique cards.','Unique','U',v_unique_cards::numeric,100::numeric,6),
+        ('unique_250','Archive of Worlds','Own 250 unique cards.','Unique','U',v_unique_cards::numeric,250::numeric,12),
 
-        ('treasure_10','Pocket Treasure','Build a collection worth £10.','Value','£',v_value,10::numeric,1),
-        ('treasure_50','Little Vault','Build a collection worth £50.','Value','♢',v_value,50::numeric,2),
-        ('treasure_100','Vault of Starlight','Build a collection worth £100.','Value','♧',v_value,100::numeric,4),
-        ('treasure_250','Golden Shelf','Build a collection worth £250.','Value','♤',v_value,250::numeric,8),
-        ('treasure_500','Collector''s Vault','Build a collection worth £500.','Value','♛',v_value,500::numeric,15),
-        ('treasure_1000','Four-Figure Constellation','Build a collection worth £1,000.','Value','♚',v_value,1000::numeric,30),
+        ('treasure_10','Pocket Treasure',('Build a collection worth ' || U&'\00A3' || '10.')::text,'Value','V',v_value,10::numeric,1),
+        ('treasure_50','Little Vault',('Build a collection worth ' || U&'\00A3' || '50.')::text,'Value','V',v_value,50::numeric,2),
+        ('treasure_100','Vault of Starlight',('Build a collection worth ' || U&'\00A3' || '100.')::text,'Value','V',v_value,100::numeric,4),
+        ('treasure_250','Golden Shelf',('Build a collection worth ' || U&'\00A3' || '250.')::text,'Value','V',v_value,250::numeric,8),
+        ('treasure_500','Collector''s Vault',('Build a collection worth ' || U&'\00A3' || '500.')::text,'Value','V',v_value,500::numeric,15),
+        ('treasure_1000','Four-Figure Constellation',('Build a collection worth ' || U&'\00A3' || '1,000.')::text,'Value','V',v_value,1000::numeric,30),
 
-        ('rare_first','A Different Glow','Own your first high-rarity card.','Rarity','✶',v_high_rarity::numeric,1::numeric,2),
-        ('rare_five','Five Bright Stars','Own 5 high-rarity cards.','Rarity','✸',v_high_rarity::numeric,5::numeric,5),
-        ('rare_twenty','Rare Constellation','Own 20 high-rarity cards.','Rarity','✺',v_high_rarity::numeric,20::numeric,12),
-        ('best_card_25','A £25 Star','Own a card valued at £25 or more.','Rarity','♦',v_best_card,25::numeric,3),
-        ('best_card_100','Triple-Digit Pull','Own a card valued at £100 or more.','Rarity','♢',v_best_card,100::numeric,10),
-        ('best_card_500','Legendary Treasure','Own a card valued at £500 or more.','Rarity','♛',v_best_card,500::numeric,25),
+        ('rare_first','A Different Glow','Own your first high-rarity card.','Rarity','R',v_high_rarity::numeric,1::numeric,2),
+        ('rare_five','Five Bright Stars','Own 5 high-rarity cards.','Rarity','R',v_high_rarity::numeric,5::numeric,5),
+        ('rare_twenty','Rare Constellation','Own 20 high-rarity cards.','Rarity','W',v_high_rarity::numeric,20::numeric,12),
+        ('best_card_25',('A ' || U&'\00A3' || '25 Star')::text,('Own a card valued at ' || U&'\00A3' || '25 or more.')::text,'Rarity','R',v_best_card,25::numeric,3),
+        ('best_card_100','Triple-Digit Pull',('Own a card valued at ' || U&'\00A3' || '100 or more.')::text,'Rarity','R',v_best_card,100::numeric,10),
+        ('best_card_500','Legendary Treasure',('Own a card valued at ' || U&'\00A3' || '500 or more.')::text,'Rarity','R',v_best_card,500::numeric,25),
 
-        ('streak_3','Three Nights','Claim gifts for 3 consecutive days.','Streak','☾',v_streak::numeric,3::numeric,1),
-        ('streak_7','Week of Wishes','Claim gifts for 7 consecutive days.','Streak','☀',v_streak::numeric,7::numeric,2),
-        ('streak_14','Fortnight Sky','Claim gifts for 14 consecutive days.','Streak','☽',v_streak::numeric,14::numeric,4),
-        ('streak_30','Jirachi''s Chosen','Claim gifts for 30 consecutive days.','Streak','♛',v_streak::numeric,30::numeric,8),
-        ('streak_100','Hundred-Day Star','Claim gifts for 100 consecutive days.','Streak','✹',v_streak::numeric,100::numeric,25),
+        ('streak_3','Three Nights','Claim gifts for 3 consecutive days.','Streak','D',v_streak::numeric,3::numeric,1),
+        ('streak_7','Week of Wishes','Claim gifts for 7 consecutive days.','Streak','D',v_streak::numeric,7::numeric,2),
+        ('streak_14','Fortnight Sky','Claim gifts for 14 consecutive days.','Streak','D',v_streak::numeric,14::numeric,4),
+        ('streak_30','Jirachi''s Chosen','Claim gifts for 30 consecutive days.','Streak','R',v_streak::numeric,30::numeric,8),
+        ('streak_100','Hundred-Day Star','Claim gifts for 100 consecutive days.','Streak','W',v_streak::numeric,100::numeric,25),
 
-        ('shipping_ready','Ready for the Journey','Reach the free-shipping card threshold.','Shipping','⌂',v_available::numeric,v_threshold::numeric,3),
-        ('first_delivery','Home Among the Stars','Receive your first completed shipment.','Shipping','▰',v_deliveries::numeric,1::numeric,5),
-        ('five_deliveries','Well Travelled','Receive 5 completed shipments.','Shipping','▱',v_deliveries::numeric,5::numeric,15)
+        ('shipping_ready','Ready for the Journey','Reach the free-shipping card threshold.','Shipping','H',v_available::numeric,v_threshold::numeric,3),
+        ('first_delivery','Home Among the Stars','Receive your first completed shipment.','Shipping','H',v_deliveries::numeric,1::numeric,5),
+        ('five_deliveries','Well Travelled','Receive 5 completed shipments.','Shipping','H',v_deliveries::numeric,5::numeric,15)
     ) as values_table(
       achievement_key,
       title,
@@ -414,7 +422,7 @@ begin
 end;
 $function$;
 
-create or replace function public.claim_player_achievement_reward(
+create function public.claim_player_achievement_reward(
   p_achievement_key text
 )
 returns table (
@@ -484,12 +492,88 @@ begin
 end;
 $function$;
 
+create function public.claim_all_player_achievement_rewards()
+returns table (
+  claimed_count integer,
+  reward_wishes integer,
+  wish_balance integer,
+  claimed_at timestamptz
+)
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $function$
+declare
+  v_user_id uuid := auth.uid();
+  v_claimed_count integer := 0;
+  v_reward integer := 0;
+  v_new_balance integer := 0;
+  v_claimed_at timestamptz := now();
+begin
+  if v_user_id is null then
+    raise exception using errcode = '42501', message = 'You must be signed in.';
+  end if;
+
+  perform public.sync_player_achievements();
+
+  -- Lock every currently claimable badge before calculating the payout. This
+  -- makes Claim All safe against double clicks and concurrent single claims.
+  perform 1
+  from public.player_achievements as achievements
+  where achievements.user_id = v_user_id
+    and achievements.unlocked_at is not null
+    and achievements.reward_claimed_at is null
+    and greatest(coalesce(achievements.reward_wishes, 0), 0) > 0
+  for update;
+
+  select
+    count(*)::integer,
+    coalesce(sum(greatest(coalesce(achievements.reward_wishes, 0), 0)), 0)::integer
+  into v_claimed_count, v_reward
+  from public.player_achievements as achievements
+  where achievements.user_id = v_user_id
+    and achievements.unlocked_at is not null
+    and achievements.reward_claimed_at is null
+    and greatest(coalesce(achievements.reward_wishes, 0), 0) > 0;
+
+  if v_claimed_count <= 0 or v_reward <= 0 then
+    select coalesce(wallets.wish_balance, 0)
+    into v_new_balance
+    from public.player_wallets as wallets
+    where wallets.user_id = v_user_id;
+
+    return query select 0, 0, coalesce(v_new_balance, 0), v_claimed_at;
+    return;
+  end if;
+
+  update public.player_wallets as wallets
+  set wish_balance = coalesce(wallets.wish_balance, 0) + v_reward
+  where wallets.user_id = v_user_id
+  returning wallets.wish_balance into v_new_balance;
+
+  if v_new_balance is null then
+    raise exception using errcode = 'P0001', message = 'Your wish wallet could not be updated.';
+  end if;
+
+  update public.player_achievements as achievements
+  set reward_claimed_at = v_claimed_at
+  where achievements.user_id = v_user_id
+    and achievements.unlocked_at is not null
+    and achievements.reward_claimed_at is null
+    and greatest(coalesce(achievements.reward_wishes, 0), 0) > 0;
+
+  return query select v_claimed_count, v_reward, v_new_balance, v_claimed_at;
+end;
+$function$;
+
 revoke all on function public.sync_player_achievements() from public;
 revoke all on function public.get_player_achievements() from public;
 revoke all on function public.claim_player_achievement_reward(text) from public;
+revoke all on function public.claim_all_player_achievement_rewards() from public;
 
 grant execute on function public.sync_player_achievements() to authenticated;
 grant execute on function public.get_player_achievements() to authenticated;
 grant execute on function public.claim_player_achievement_reward(text) to authenticated;
+grant execute on function public.claim_all_player_achievement_rewards() to authenticated;
 
 commit;
