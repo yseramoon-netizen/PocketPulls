@@ -35,6 +35,21 @@ function normalisePublicOrigin(
   }
 }
 
+function getBrowserPublicOrigin():
+  | string
+  | null {
+  if (
+    typeof window ===
+    "undefined"
+  ) {
+    return null;
+  }
+
+  return normalisePublicOrigin(
+    window.location.origin,
+  );
+}
+
 export function getConfiguredPublicOrigin():
   | string
   | null {
@@ -101,20 +116,16 @@ export function normaliseNextPath(
 export function buildAuthCallbackUrl(
   nextPath: string,
 ): string {
-  const configuredOrigin =
+  // Account creation and resend requests happen in the browser, so the
+  // domain the player is currently using is the safest return address.
+  // This also prevents a stale localhost environment value from leaking
+  // into confirmation emails on a deployed build.
+  const publicOrigin =
+    getBrowserPublicOrigin() ||
     getConfiguredPublicOrigin();
 
-  if (configuredOrigin) {
-    return `${configuredOrigin}/auth/callback?next=${encodeURIComponent(
-      nextPath,
-    )}`;
-  }
-
-  if (
-    typeof window !==
-    "undefined"
-  ) {
-    return `${window.location.origin}/auth/callback?next=${encodeURIComponent(
+  if (publicOrigin) {
+    return `${publicOrigin}/auth/callback?next=${encodeURIComponent(
       nextPath,
     )}`;
   }
@@ -126,18 +137,12 @@ export function buildAuthCallbackUrl(
 
 export function buildPasswordRecoveryUrl():
   string {
-  const configuredOrigin =
+  const publicOrigin =
+    getBrowserPublicOrigin() ||
     getConfiguredPublicOrigin();
 
-  if (configuredOrigin) {
-    return `${configuredOrigin}/update-password`;
-  }
-
-  if (
-    typeof window !==
-    "undefined"
-  ) {
-    return `${window.location.origin}/update-password`;
+  if (publicOrigin) {
+    return `${publicOrigin}/update-password`;
   }
 
   return "/update-password";
