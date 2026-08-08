@@ -11,6 +11,9 @@
   inset: 0;
   z-index: 0;
   overflow: hidden;
+  background:
+    radial-gradient(circle at 20% 16%, rgba(250, 204, 21, 0.04), transparent 18%),
+    radial-gradient(circle at 80% 24%, rgba(103, 232, 249, 0.035), transparent 20%);
 }
 
 .spark {
@@ -122,10 +125,11 @@
 
 .jirachiStage {
   position: relative;
-  min-height: 24rem;
+  min-height: 26rem;
   display: flex;
   align-items: center;
   justify-content: center;
+  isolation: isolate;
 }
 
 .jirachiHalo {
@@ -158,6 +162,18 @@
   transform: rotate(-38deg);
   border-color: rgba(165, 243, 252, 0.13);
   animation: orbitReverse 15s linear infinite;
+}
+
+.jirachiImageButton {
+  position: relative;
+  z-index: 4;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
 }
 
 .jirachiImage {
@@ -612,6 +628,73 @@
   color: rgba(255, 255, 255, 0.4);
 }
 
+
+
+.floatingRune {
+  position: absolute;
+  color: rgba(255, 245, 179, 0.26);
+  text-shadow:
+    0 0 16px rgba(250, 204, 21, 0.18),
+    0 0 26px rgba(103, 232, 249, 0.1);
+  animation: runeFloat linear infinite;
+}
+
+.orbitStarOne,
+.orbitStarTwo {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 1;
+  display: flex;
+  width: var(--size);
+  height: var(--size);
+  align-items: center;
+  justify-content: center;
+  margin-left: calc(var(--size) / -2);
+  margin-top: calc(var(--size) / -2);
+  font-size: calc(var(--size) * 0.95);
+  line-height: 1;
+  color: rgba(255, 244, 183, 0.96);
+  text-shadow:
+    0 0 12px rgba(255, 232, 130, 0.82),
+    0 0 26px rgba(103, 232, 249, 0.24);
+}
+
+.orbitStarOne {
+  animation:
+    orbitStarOne 12s linear infinite,
+    starPulse 2.9s ease-in-out infinite;
+  animation-delay: var(--delay), var(--delay);
+}
+
+.orbitStarTwo {
+  animation:
+    orbitStarTwo 15s linear infinite,
+    starPulse 3.4s ease-in-out infinite;
+  animation-delay: var(--delay), var(--delay);
+}
+
+.burstLayer {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+}
+
+.burstStar {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  font-size: 1rem;
+  line-height: 1;
+  color: rgba(255, 246, 186, 0.98);
+  text-shadow:
+    0 0 10px rgba(255, 231, 133, 0.9),
+    0 0 24px rgba(103, 232, 249, 0.22);
+  transform: translate(-50%, -50%) rotate(var(--burst-angle));
+  animation: burstOut 0.95s ease-out forwards;
+  animation-delay: var(--burst-delay);
+}
 @media (max-width: 1180px) {
   .shopGrid {
     grid-template-columns: 1fr;
@@ -676,16 +759,6 @@
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .spark,
-  .jirachiHalo,
-  .orbitOne,
-  .orbitTwo,
-  .jirachiImage,
-  .loadingStar {
-    animation: none !important;
-  }
-}
 
 @keyframes twinkle {
   0%, 100% { opacity: 0.2; transform: scale(0.8); }
@@ -712,4 +785,59 @@
 
 @keyframes spin {
   to { transform: rotate(360deg); }
+}
+
+
+@keyframes orbitStarOne {
+  from {
+    transform: rotate(var(--angle)) translateX(var(--radius-x)) scale(0.92);
+  }
+  to {
+    transform: rotate(calc(var(--angle) + 360deg)) translateX(var(--radius-x)) scale(0.92);
+  }
+}
+
+@keyframes orbitStarTwo {
+  from {
+    transform: rotate(var(--angle)) translateY(var(--radius-y)) scale(0.95);
+  }
+  to {
+    transform: rotate(calc(var(--angle) - 360deg)) translateY(var(--radius-y)) scale(0.95);
+  }
+}
+
+@keyframes starPulse {
+  0%, 100% { opacity: 0.35; filter: saturate(0.9); }
+  50% { opacity: 1; filter: saturate(1.15); }
+}
+
+@keyframes burstOut {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) rotate(var(--burst-angle)) translateY(0) scale(0.35);
+  }
+  15% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) rotate(var(--burst-angle)) translateY(calc(var(--burst-distance) * -1)) scale(1.18);
+  }
+}
+
+@keyframes runeFloat {
+  0% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+    opacity: 0.18;
+  }
+  35% {
+    opacity: 0.46;
+  }
+  70% {
+    opacity: 0.26;
+  }
+  100% {
+    transform: translate3d(0, -16px, 0) rotate(10deg);
+    opacity: 0.16;
+  }
 }

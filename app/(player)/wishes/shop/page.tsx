@@ -61,6 +61,26 @@ type Spark = {
   duration: number;
 };
 
+type OrbitStar = {
+  id: number;
+  ring: "one" | "two";
+  angle: number;
+  radiusX: number;
+  radiusY: number;
+  delay: number;
+  size: number;
+};
+
+type FloatingRune = {
+  id: number;
+  glyph: string;
+  left: number;
+  top: number;
+  size: number;
+  delay: number;
+  duration: number;
+};
+
 const SPARKS: Spark[] = Array.from({ length: 24 }, (_, index) => ({
   id: index,
   left: (index * 37 + 11) % 96,
@@ -69,6 +89,30 @@ const SPARKS: Spark[] = Array.from({ length: 24 }, (_, index) => ({
   delay: (index % 8) * 0.4,
   duration: 3.8 + (index % 5) * 0.7,
 }));
+
+const ORBIT_STARS: OrbitStar[] = [
+  { id: 1, ring: "one", angle: 0, radiusX: 152, radiusY: 72, delay: 0.1, size: 14 },
+  { id: 2, ring: "one", angle: 72, radiusX: 152, radiusY: 72, delay: 0.5, size: 12 },
+  { id: 3, ring: "one", angle: 145, radiusX: 152, radiusY: 72, delay: 0.2, size: 15 },
+  { id: 4, ring: "one", angle: 218, radiusX: 152, radiusY: 72, delay: 0.8, size: 13 },
+  { id: 5, ring: "one", angle: 292, radiusX: 152, radiusY: 72, delay: 0.35, size: 14 },
+  { id: 6, ring: "two", angle: 20, radiusX: 112, radiusY: 170, delay: 0.4, size: 12 },
+  { id: 7, ring: "two", angle: 92, radiusX: 112, radiusY: 170, delay: 0.1, size: 15 },
+  { id: 8, ring: "two", angle: 168, radiusX: 112, radiusY: 170, delay: 0.65, size: 14 },
+  { id: 9, ring: "two", angle: 244, radiusX: 112, radiusY: 170, delay: 0.3, size: 13 },
+  { id: 10, ring: "two", angle: 320, radiusX: 112, radiusY: 170, delay: 0.75, size: 12 },
+];
+
+const FLOATING_RUNES: FloatingRune[] = [
+  { id: 1, glyph: "✦", left: 9, top: 12, size: 1.1, delay: 0, duration: 11 },
+  { id: 2, glyph: "✧", left: 20, top: 71, size: 1.45, delay: 1.4, duration: 15 },
+  { id: 3, glyph: "◇", left: 31, top: 27, size: 1, delay: 0.8, duration: 13 },
+  { id: 4, glyph: "✦", left: 48, top: 14, size: 1.6, delay: 2.2, duration: 12 },
+  { id: 5, glyph: "✧", left: 58, top: 74, size: 1.2, delay: 0.6, duration: 16 },
+  { id: 6, glyph: "✦", left: 72, top: 22, size: 1.35, delay: 1.8, duration: 14 },
+  { id: 7, glyph: "◇", left: 86, top: 62, size: 1.15, delay: 0.9, duration: 12 },
+  { id: 8, glyph: "✧", left: 93, top: 28, size: 1.45, delay: 2.6, duration: 15 },
+];
 
 function formatMoney(pence: number): string {
   return new Intl.NumberFormat("en-GB", {
@@ -132,6 +176,10 @@ export default function WishShopPage() {
   const [selectedPackageId, setSelectedPackageId] = useState("constellation");
   const [starBursts, setStarBursts] = useState(0);
 
+  const triggerTwinkle = useCallback(() => {
+    setStarBursts((current) => current + 1);
+  }, []);
+
   const loadStore = useCallback(async () => {
     setLoading(true);
     setErrorMessage("");
@@ -165,7 +213,7 @@ export default function WishShopPage() {
           setSuccessMessage(
             `${response.purchase.wishes} wishes have landed in your balance. Jirachi approves.`,
           );
-          setStarBursts((current) => current + 1);
+          triggerTwinkle();
           window.dispatchEvent(
             new CustomEvent("pocketpulls:wish-balance", {
               detail: {
@@ -188,7 +236,7 @@ export default function WishShopPage() {
     setSuccessMessage(
       "Payment received. Your wishes are still travelling through the stars — refresh in a moment if the balance has not updated yet.",
     );
-  }, [loadStore]);
+  }, [loadStore, triggerTwinkle]);
 
   useEffect(() => {
     void loadStore();
@@ -258,6 +306,22 @@ export default function WishShopPage() {
             }}
           />
         ))}
+
+        {FLOATING_RUNES.map((rune) => (
+          <span
+            key={`rune-${rune.id}`}
+            className={styles.floatingRune}
+            style={{
+              left: `${rune.left}%`,
+              top: `${rune.top}%`,
+              fontSize: `${rune.size}rem`,
+              animationDelay: `${rune.delay}s`,
+              animationDuration: `${rune.duration}s`,
+            }}
+          >
+            {rune.glyph}
+          </span>
+        ))}
       </div>
 
       <div className={styles.content}>
@@ -276,7 +340,7 @@ export default function WishShopPage() {
               </Link>
               <button
                 type="button"
-                onClick={() => setStarBursts((current) => current + 1)}
+                onClick={triggerTwinkle}
                 className={styles.jirachiButton}
               >
                 Make the stars twinkle ✦
@@ -288,12 +352,53 @@ export default function WishShopPage() {
             <div className={styles.jirachiHalo} />
             <div className={styles.orbitOne} />
             <div className={styles.orbitTwo} />
-            <img
-              src="/jirachi.png"
-              alt="Jirachi"
-              draggable={false}
-              className={styles.jirachiImage}
-            />
+
+            {ORBIT_STARS.map((star) => (
+              <span
+                key={`${star.id}-${starBursts}`}
+                className={star.ring === "one" ? styles.orbitStarOne : styles.orbitStarTwo}
+                style={{
+                  ["--angle" as string]: `${star.angle}deg`,
+                  ["--radius-x" as string]: `${star.radiusX}px`,
+                  ["--radius-y" as string]: `${star.radiusY}px`,
+                  ["--delay" as string]: `${star.delay}s`,
+                  ["--size" as string]: `${star.size}px`,
+                }}
+              >
+                ✦
+              </span>
+            ))}
+
+            <button
+              type="button"
+              className={styles.jirachiImageButton}
+              onClick={triggerTwinkle}
+              aria-label="Make Jirachi twinkle the stars"
+            >
+              <img
+                src="/jirachi.png"
+                alt="Jirachi"
+                draggable={false}
+                className={styles.jirachiImage}
+              />
+            </button>
+
+            <div className={styles.burstLayer} aria-hidden="true">
+              {Array.from({ length: 12 }, (_, index) => (
+                <span
+                  key={`burst-${index}-${starBursts}`}
+                  className={styles.burstStar}
+                  style={{
+                    ["--burst-angle" as string]: `${index * 30}deg`,
+                    ["--burst-distance" as string]: `${96 + (index % 3) * 18}px`,
+                    ["--burst-delay" as string]: `${(index % 4) * 0.05}s`,
+                  }}
+                >
+                  ✦
+                </span>
+              ))}
+            </div>
+
             <div className={styles.wishCounterBubble}>
               <span>Base rate</span>
               <strong>£0.50</strong>
@@ -327,106 +432,118 @@ export default function WishShopPage() {
         {loading ? (
           <div className={styles.loadingCard}>
             <div className={styles.loadingStar}>✦</div>
-            <p>Jirachi is arranging the wish crystals...</p>
+            <p>Jirachi is preparing the wish bundles...</p>
           </div>
         ) : (
-          <div className={styles.shopGrid}>
-            <div className={styles.packagesGrid}>
-              {(store?.packages ?? []).map((item) => {
-                const active = item.id === selectedPackageId;
-                const firstPrice = store?.firstRechargeAvailable
-                  ? item.firstRechargeAmountPence
-                  : null;
+          <>
+            <section className={styles.shopGrid}>
+              <div className={styles.packagesGrid}>
+                {(store?.packages ?? []).map((pkg) => {
+                  const firstRechargeActive = store?.firstRechargeAvailable;
+                  const effectivePrice = firstRechargeActive
+                    ? pkg.firstRechargeAmountPence
+                    : pkg.amountPence;
+                  const basePrice = pkg.wishes * 50;
 
-                return (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => setSelectedPackageId(item.id)}
-                    className={`${styles.packageCard} ${
-                      active ? styles.packageCardActive : ""
-                    }`}
-                  >
-                    {item.badge ? (
-                      <span className={styles.packageBadge}>{item.badge}</span>
-                    ) : null}
-
-                    <div className={styles.packageStars} aria-hidden="true">
-                      <span>✦</span>
-                      <span>✧</span>
-                      <span>✦</span>
-                    </div>
-
-                    <p className={styles.packageName}>{item.name}</p>
-                    <p className={styles.packageWishes}>
-                      {item.wishes.toLocaleString("en-GB")} Wishes
-                    </p>
-                    <p className={styles.packageSubtitle}>{item.subtitle}</p>
-
-                    <div className={styles.packagePriceBlock}>
-                      {firstPrice !== null ? (
-                        <span className={styles.originalPrice}>
-                          {formatMoney(item.amountPence)}
-                        </span>
+                  return (
+                    <button
+                      key={pkg.id}
+                      type="button"
+                      className={`${styles.packageCard} ${
+                        selectedPackage?.id === pkg.id
+                          ? styles.packageCardActive
+                          : ""
+                      }`}
+                      onClick={() => setSelectedPackageId(pkg.id)}
+                    >
+                      {pkg.badge ? (
+                        <span className={styles.packageBadge}>{pkg.badge}</span>
                       ) : null}
-                      <strong>
-                        {formatMoney(firstPrice ?? item.amountPence)}
-                      </strong>
-                      <small>
-                        {formatWishPrice(
-                          firstPrice ?? item.amountPence,
-                          item.wishes,
-                        )}
-                      </small>
-                    </div>
 
-                    <div className={styles.savingsRow}>
-                      {item.bulkDiscountPercent > 0 ? (
-                        <span>{item.bulkDiscountPercent}% package saving</span>
-                      ) : (
-                        <span>Standard rate</span>
-                      )}
-                      {firstPrice !== null ? <span>+ 20% first recharge</span> : null}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-
-            <aside className={styles.checkoutCard}>
-              <p className={styles.eyebrow}>Your selected constellation</p>
-
-              {selectedPackage ? (
-                <>
-                  <div className={styles.checkoutWishOrb}>
-                    <span>✦</span>
-                    <strong>{selectedPackage.wishes}</strong>
-                    <small>Wishes</small>
-                  </div>
-
-                  <h2>{selectedPackage.name}</h2>
-                  <p className={styles.checkoutDescription}>
-                    {selectedPackage.subtitle} Wishes are credited to your
-                    Unown Pulls balance only after Stripe confirms payment.
-                  </p>
-
-                  <div className={styles.checkoutBreakdown}>
-                    <div>
-                      <span>Package price</span>
-                      <strong>{formatMoney(selectedPackage.amountPence)}</strong>
-                    </div>
-                    <div>
-                      <span>Bulk saving</span>
-                      <strong>{selectedPackage.bulkDiscountPercent}%</strong>
-                    </div>
-                    {store?.firstRechargeAvailable ? (
-                      <div className={styles.firstDiscountLine}>
-                        <span>First recharge</span>
-                        <strong>-20%</strong>
+                      <div className={styles.packageStars} aria-hidden="true">
+                        <span>✦</span>
+                        <span>✧</span>
+                        <span>✦</span>
                       </div>
-                    ) : null}
-                    <div className={styles.totalLine}>
-                      <span>Total</span>
+
+                      <p className={styles.packageName}>{pkg.name}</p>
+                      <h3 className={styles.packageWishes}>
+                        {pkg.wishes} wishes
+                      </h3>
+                      <p className={styles.packageSubtitle}>{pkg.subtitle}</p>
+
+                      <div className={styles.packagePriceBlock}>
+                        {pkg.bulkDiscountPercent > 0 ? (
+                          <span className={styles.originalPrice}>
+                            Normally {formatMoney(basePrice)}
+                          </span>
+                        ) : (
+                          <span className={styles.originalPrice}>
+                            Base package
+                          </span>
+                        )}
+
+                        <strong className={styles.packagePrice}>
+                          {formatMoney(effectivePrice)}
+                        </strong>
+
+                        <span className={styles.packagePriceMeta}>
+                          {formatWishPrice(effectivePrice, pkg.wishes)}
+                        </span>
+                      </div>
+
+                      <div className={styles.packageSavingsRow}>
+                        {pkg.bulkDiscountPercent > 0 ? (
+                          <span className={styles.savingsTag}>
+                            {pkg.bulkDiscountPercent}% bundle saving
+                          </span>
+                        ) : (
+                          <span className={styles.savingsTagMuted}>
+                            Standard rate
+                          </span>
+                        )}
+
+                        {firstRechargeActive ? (
+                          <span className={styles.firstRechargeTag}>
+                            +20% first recharge
+                          </span>
+                        ) : null}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <aside className={styles.checkoutCard}>
+                <p className={styles.cardKicker}>Selected package</p>
+                <h2>{selectedPackage?.name ?? "Choose a wish bundle"}</h2>
+                <p className={styles.checkoutBody}>
+                  {selectedPackage?.subtitle ??
+                    "Pick the bundle that feels right and Jirachi will guide you to checkout."}
+                </p>
+
+                {selectedPackage ? (
+                  <div className={styles.checkoutSummary}>
+                    <div className={styles.checkoutRow}>
+                      <span>Wishes</span>
+                      <strong>{selectedPackage.wishes}</strong>
+                    </div>
+                    <div className={styles.checkoutRow}>
+                      <span>Bundle saving</span>
+                      <strong>
+                        {selectedPackage.bulkDiscountPercent > 0
+                          ? `${selectedPackage.bulkDiscountPercent}%`
+                          : "—"}
+                      </strong>
+                    </div>
+                    <div className={styles.checkoutRow}>
+                      <span>First recharge bonus</span>
+                      <strong>
+                        {store?.firstRechargeAvailable ? "20% off" : "Used"}
+                      </strong>
+                    </div>
+                    <div className={styles.checkoutRow}>
+                      <span>Effective price</span>
                       <strong>
                         {formatMoney(
                           store?.firstRechargeAvailable
@@ -436,54 +553,62 @@ export default function WishShopPage() {
                       </strong>
                     </div>
                   </div>
+                ) : null}
 
-                  <button
-                    type="button"
-                    onClick={() => void startCheckout(selectedPackage.id)}
-                    disabled={busyPackage !== null}
-                    className={styles.checkoutButton}
-                  >
-                    {busyPackage === selectedPackage.id
-                      ? "Opening secure checkout..."
-                      : `Recharge ${selectedPackage.wishes} Wishes`}
-                  </button>
+                <button
+                  type="button"
+                  className={styles.checkoutButton}
+                  disabled={!selectedPackage || busyPackage !== null}
+                  onClick={() => {
+                    if (selectedPackage) {
+                      void startCheckout(selectedPackage.id);
+                    }
+                  }}
+                >
+                  {busyPackage === selectedPackage?.id
+                    ? "Opening checkout..."
+                    : "Continue to secure checkout"}
+                </button>
 
-                  <p className={styles.secureNote}>
-                    Secure checkout · GBP · wish balance updates after verified
-                    payment confirmation
-                  </p>
-                </>
-              ) : null}
-            </aside>
-          </div>
+                <p className={styles.checkoutFinePrint}>
+                  Stripe handles payment, but the browser does not decide your
+                  price or wishes. The server calculates the package and your
+                  first recharge discount, then a verified webhook credits your
+                  wish balance once payment succeeds.
+                </p>
+              </aside>
+            </section>
+
+            <section className={styles.explainerGrid}>
+              <article className={styles.explainerCard}>
+                <span>✦</span>
+                <h3>Every wish opens a real card</h3>
+                <p>
+                  Wishes are not cosmetic. Each one can pull a real card from
+                  the Unown Pulls stock pool.
+                </p>
+              </article>
+
+              <article className={styles.explainerCard}>
+                <span>✧</span>
+                <h3>Bigger bundles stretch further</h3>
+                <p>
+                  The price per wish falls as you choose larger packages, making
+                  bigger recharges more attractive.
+                </p>
+              </article>
+
+              <article className={styles.explainerCard}>
+                <span>◇</span>
+                <h3>First recharge is blessed</h3>
+                <p>
+                  The first wish purchase receives an extra 20% off the package
+                  total, on top of the bulk saving.
+                </p>
+              </article>
+            </section>
+          </>
         )}
-
-        <section className={styles.explainerGrid}>
-          <article>
-            <span className={styles.explainerGlyph}>✦</span>
-            <h3>Bigger constellations cost less</h3>
-            <p>
-              The base is 50p per wish, with package savings increasing to 25%
-              at the largest tier.
-            </p>
-          </article>
-          <article>
-            <span className={styles.explainerGlyph}>20%</span>
-            <h3>First recharge stacks</h3>
-            <p>
-              Your one-time 20% first recharge discount is applied after the
-              package saving, making the first top-up especially worthwhile.
-            </p>
-          </article>
-          <article>
-            <span className={styles.explainerGlyph}>✓</span>
-            <h3>Credited only after payment</h3>
-            <p>
-              The browser never grants wishes. A signed Stripe webhook tells the
-              server to credit the wallet exactly once.
-            </p>
-          </article>
-        </section>
       </div>
     </section>
   );

@@ -153,6 +153,7 @@ export default function ShayminMoodButton() {
         type="button"
         aria-label={`${mood.label}. Tap for companion care. Press and hold for The Tree We Grow.`}
         onPointerDown={(event: PointerEvent<HTMLButtonElement>) => {
+          event.preventDefault();
           pointerIdRef.current = event.pointerId;
           event.currentTarget.setPointerCapture(event.pointerId);
           beginHold({ x: event.clientX, y: event.clientY });
@@ -171,6 +172,7 @@ export default function ShayminMoodButton() {
           }
         }}
         onPointerUp={(event: PointerEvent<HTMLButtonElement>) => {
+          event.preventDefault();
           if (
             pointerIdRef.current !== null &&
             event.currentTarget.hasPointerCapture(pointerIdRef.current)
@@ -187,7 +189,8 @@ export default function ShayminMoodButton() {
             cancelHold();
           }
         }}
-        onPointerCancel={cancelHold}
+        onPointerCancel={(event) => { event.preventDefault(); cancelHold(); }}
+        onDragStart={(event) => event.preventDefault()}
         onClick={(event) => {
           if (suppressNextClickRef.current || longPressTriggeredRef.current) {
             event.preventDefault();
@@ -226,7 +229,12 @@ export default function ShayminMoodButton() {
         onMouseEnter={() => setHint(true)}
         onMouseLeave={() => setHint(false)}
         className="group relative flex h-12 w-12 select-none items-center justify-center rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-lime-200"
-        style={{ touchAction: "manipulation" }}
+        style={{
+          touchAction: "none",
+          WebkitTouchCallout: "none",
+          WebkitUserSelect: "none",
+          userSelect: "none",
+        }}
       >
         <span
           className="absolute -inset-1 rounded-[1.2rem] opacity-75 blur-md transition group-hover:opacity-100"
@@ -242,7 +250,8 @@ export default function ShayminMoodButton() {
             src={mood.image}
             alt=""
             draggable={false}
-            className="relative h-full w-full select-none object-contain p-0.5 transition duration-300 group-hover:scale-105"
+            className="pointer-events-none relative h-full w-full select-none object-contain p-0.5 transition duration-300 group-hover:scale-105"
+            style={{ WebkitTouchCallout: "none", WebkitUserSelect: "none", userSelect: "none" }}
           />
         </span>
       </button>
