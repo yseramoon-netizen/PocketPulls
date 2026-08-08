@@ -8,6 +8,7 @@ import {
 import {
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 
@@ -214,6 +215,15 @@ export default function PlayerNav({
   const router =
     useRouter();
 
+  const moreDetailsRef =
+    useRef<HTMLDetailsElement | null>(null);
+
+  const closeMore = () => {
+    if (moreDetailsRef.current) {
+      moreDetailsRef.current.open = false;
+    }
+  };
+
   const [
     drawerOpen,
     setDrawerOpen,
@@ -274,7 +284,26 @@ export default function PlayerNav({
 
   useEffect(() => {
     setDrawerOpen(false);
+    closeMore();
   }, [pathname]);
+
+  useEffect(() => {
+    const handleCloseMore = () => {
+      closeMore();
+    };
+
+    window.addEventListener(
+      "unown-pulls:close-more",
+      handleCloseMore,
+    );
+
+    return () => {
+      window.removeEventListener(
+        "unown-pulls:close-more",
+        handleCloseMore,
+      );
+    };
+  }, []);
 
   useEffect(() => {
     if (!drawerOpen) {
@@ -373,55 +402,72 @@ export default function PlayerNav({
     let active = true;
 
     async function checkReward() {
-      const {
-        data,
-        error,
-      } =
-        await supabase.rpc(
-          "get_daily_reward_status",
-        );
+      const [dailyResult, achievementResult] =
+        await Promise.all([
+          supabase.rpc("get_daily_reward_status"),
+          supabase.rpc("get_player_achievements"),
+        ]);
 
-      if (
-        !active ||
-        error
-      ) {
+      if (!active) {
         return;
       }
 
-      const row =
-        Array.isArray(data)
-          ? data[0]
-          : data;
+      let dailyReady = false;
 
-      if (
-        typeof row ===
-          "object" &&
-        row !== null &&
-        "claimed_today" in
-          row
-      ) {
-        setRewardReady(
-          (
-            row as {
-              claimed_today?:
-                unknown;
-            }
-          )
-            .claimed_today !==
-            true,
-        );
+      if (!dailyResult.error) {
+        const row = Array.isArray(dailyResult.data)
+          ? dailyResult.data[0]
+          : dailyResult.data;
+
+        if (
+          typeof row === "object" &&
+          row !== null &&
+          "claimed_today" in row
+        ) {
+          dailyReady =
+            (row as { claimed_today?: unknown })
+              .claimed_today !== true;
+        }
       }
+
+      let badgeReady = false;
+
+      if (!achievementResult.error && Array.isArray(achievementResult.data)) {
+        badgeReady = achievementResult.data.some((item: unknown) => {
+          if (typeof item !== "object" || item === null) {
+            return false;
+          }
+
+          const row = item as {
+            unlocked_at?: unknown;
+            reward_claimed_at?: unknown;
+            reward_wishes?: unknown;
+          };
+
+          return (
+            typeof row.unlocked_at === "string" &&
+            !row.reward_claimed_at &&
+            Number(row.reward_wishes) > 0
+          );
+        });
+      }
+
+      setRewardReady(dailyReady || badgeReady);
     }
 
     void checkReward();
 
     const handleRewardClaimed =
       () => {
-        setRewardReady(false);
+        void checkReward();
       };
 
     window.addEventListener(
       "pocketpulls:reward-claimed",
+      handleRewardClaimed,
+    );
+    window.addEventListener(
+      "pocketpulls:achievement-reward-claimed",
       handleRewardClaimed,
     );
 
@@ -430,6 +476,10 @@ export default function PlayerNav({
 
       window.removeEventListener(
         "pocketpulls:reward-claimed",
+        handleRewardClaimed,
+      );
+      window.removeEventListener(
+        "pocketpulls:achievement-reward-claimed",
         handleRewardClaimed,
       );
     };
@@ -693,7 +743,7 @@ export default function PlayerNav({
               ),
             )}
 
-            <details className="group relative">
+            <details ref={moreDetailsRef} className="group relative">
               <summary
                 className={[
                   "relative flex min-h-11 cursor-pointer list-none items-center gap-2 rounded-xl border px-3 text-sm font-black transition [&::-webkit-details-marker]:hidden",
@@ -747,6 +797,7 @@ export default function PlayerNav({
                     <Link
                       key={item.href}
                       href={item.href}
+                      onClick={closeMore}
                       className={[
                         "relative flex min-h-12 items-center gap-3 rounded-xl border px-3 transition",
                         isActive(

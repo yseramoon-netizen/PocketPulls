@@ -409,6 +409,7 @@ export default function WishesPage() {
       return;
     }
 
+    window.dispatchEvent(new Event("unown-pulls:close-more"));
     setMakingWish(true);
     setErrorMessage(null);
 
