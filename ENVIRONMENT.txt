@@ -1,0 +1,14 @@
+Add these SERVER-SIDE environment variables. Do not prefix them with NEXT_PUBLIC_.
+
+JUSTTCG_API_KEY=<your JustTCG key>
+
+Defaults are tuned for the current JustTCG Free evaluation tier:
+JUSTTCG_DAILY_LIMIT=100
+JUSTTCG_MIN_INTERVAL_MS=6500
+
+If you later move to JustTCG Starter, you can change them without editing code, for example:
+JUSTTCG_DAILY_LIMIT=1000
+JUSTTCG_MIN_INTERVAL_MS=1300
+
+Keep the API key only in .env.local / your hosting provider's encrypted environment settings.
+Restart/redeploy after adding environment variables.

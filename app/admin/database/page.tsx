@@ -82,6 +82,11 @@ type StatusResponse = {
   runs: SyncRun[];
   recentFiles: TrackedFile[];
   hasPokemonApiKey: boolean;
+  hasJustTcgApiKey: boolean;
+  justTcgRemaining: number;
+  justTcgRequestsToday: number;
+  justTcgDailyLimit: number;
+  justTcgMinIntervalMs: number;
   hasGithubToken: boolean;
   localPath: string;
   sourceRepository: string;
@@ -124,6 +129,22 @@ type PriceResponse = {
   batchSize: number;
   pricePass: PricePass;
   error?: string;
+};
+
+type JustTcgResponse = {
+  processed: number;
+  priced: number;
+  remaining: number;
+  done: boolean;
+  available: boolean;
+  dailyUsed: number;
+  dailyLimit: number;
+  minIntervalMs: number;
+  plan: string | null;
+  apiRequestsRemaining: number | null;
+  rateLimited?: boolean;
+  cardName?: string;
+  message?: string;
 };
 
 type LocalProgress = {
@@ -357,6 +378,11 @@ export default function CardDatabasePage() {
   const [runs, setRuns] = useState<SyncRun[]>([]);
   const [recentFiles, setRecentFiles] = useState<TrackedFile[]>([]);
   const [hasPokemonApiKey, setHasPokemonApiKey] = useState(false);
+  const [hasJustTcgApiKey, setHasJustTcgApiKey] = useState(false);
+  const [justTcgRemaining, setJustTcgRemaining] = useState(0);
+  const [justTcgRequestsToday, setJustTcgRequestsToday] = useState(0);
+  const [justTcgDailyLimit, setJustTcgDailyLimit] = useState(100);
+  const [justTcgMinIntervalMs, setJustTcgMinIntervalMs] = useState(6500);
   const [priceBatchSize, setPriceBatchSize] = useState(25);
   const [hasGithubToken, setHasGithubToken] = useState(false);
   const [localPath, setLocalPath] = useState("");
@@ -424,6 +450,11 @@ export default function CardDatabasePage() {
       setHasPokemonApiKey(
         body.hasPokemonApiKey,
       );
+      setHasJustTcgApiKey(Boolean(body.hasJustTcgApiKey));
+      setJustTcgRemaining(Math.max(0, toNumber(body.justTcgRemaining)));
+      setJustTcgRequestsToday(Math.max(0, toNumber(body.justTcgRequestsToday)));
+      setJustTcgDailyLimit(Math.max(1, toNumber(body.justTcgDailyLimit) || 100));
+      setJustTcgMinIntervalMs(Math.max(500, toNumber(body.justTcgMinIntervalMs) || 6500));
       setPriceBatchSize(
         Math.max(
           1,
@@ -604,253 +635,225 @@ export default function CardDatabasePage() {
     setPriceRetryStatus(null);
 
     try {
-      let aggregate =
-        priceProgress;
+      let aggregate = priceProgress;
+      let consecutiveFailures = 0;
+      let pokemonCompleted = false;
 
-      let consecutiveFailures =
-        0;
+      const resumeExistingPass =
+        (priceProgress.status === "paused" ||
+          priceProgress.status === "running") &&
+        priceProgress.remaining > 0;
+
+      let restartPass = !resumeExistingPass;
 
       addLog(
-        aggregate.processed > 0 &&
-        aggregate.remaining > 0
-          ? `Resuming the saved price pass at ${formatNumber(
+        resumeExistingPass
+          ? `Resuming the saved full market refresh at ${formatNumber(
               aggregate.processed,
-            )}/${formatNumber(
-              aggregate.total,
-            )}.`
+            )}/${formatNumber(aggregate.total)}.`
           : hasPokemonApiKey
-            ? `Starting fast price refresh in ${formatNumber(
+            ? `Starting a fresh full market refresh in ${formatNumber(
                 priceBatchSize,
-              )}-card API batches.`
-            : `Starting tracked price refresh in ${formatNumber(
+              )}-card Pokemon TCG API batches.`
+            : `Starting a fresh full market refresh in ${formatNumber(
                 priceBatchSize,
-              )}-card API batches with public rate-limit spacing.`,
+              )}-card public Pokemon TCG API batches.`,
       );
 
       addLog(
-        "Automatic retry is active. Temporary failures no longer require another button click.",
+        "This refresh can be run again whenever you want. Existing JustTCG/manual fallback values are preserved if Pokemon TCG has no price.",
       );
 
-      while (
-        !stopPricesRef.current
-      ) {
-        let result:
-          PriceResponse;
+      while (!stopPricesRef.current) {
+        let result: PriceResponse;
 
         try {
-          result =
-            await postAction<PriceResponse>({
-              action:
-                "price_batch",
-            });
+          result = await postAction<PriceResponse>({
+            action: "price_batch",
+            force: true,
+            restart: restartPass,
+          });
 
-          consecutiveFailures =
-            0;
-
-          setPriceRetryStatus(
-            null,
+          restartPass = false;
+          consecutiveFailures = 0;
+          setPriceRetryStatus(null);
+          setErrorMessage(null);
+        } catch (batchError: unknown) {
+          const message = getErrorMessage(
+            batchError,
+            "The market price request failed.",
           );
 
-          setErrorMessage(
-            null,
-          );
-        } catch (
-          batchError: unknown
-        ) {
-          const message =
-            getErrorMessage(
-              batchError,
-              "The market price request failed.",
-            );
-
-          if (
-            isPermanentPriceError(
-              batchError,
-            )
-          ) {
-            throw new Error(
-              message,
-            );
+          if (isPermanentPriceError(batchError)) {
+            throw new Error(message);
           }
 
-          consecutiveFailures +=
-            1;
-
-          const waitMs =
-            getPriceRetryDelay(
-              consecutiveFailures,
-            );
-
-          const waitSeconds =
-            Math.max(
-              1,
-              Math.ceil(
-                waitMs /
-                  1000,
-              ),
-            );
-
+          consecutiveFailures += 1;
+          const waitMs = getPriceRetryDelay(consecutiveFailures);
+          const waitSeconds = Math.max(1, Math.ceil(waitMs / 1000));
           const retryMessage =
             `Temporary market request failure. Retrying automatically in ${waitSeconds}s ` +
             `(attempt ${consecutiveFailures}).`;
 
-          setPriceRetryStatus(
-            retryMessage,
-          );
-
-          setErrorMessage(
-            null,
-          );
-
-          addLog(
-            `RETRY: ${message}`,
-          );
-
-          addLog(
-            retryMessage,
-          );
-
-          await waitForRetry(
-            waitMs,
-          );
-
+          setPriceRetryStatus(retryMessage);
+          setErrorMessage(null);
+          addLog(`RETRY: ${message}`);
+          addLog(retryMessage);
+          await waitForRetry(waitMs);
           continue;
         }
 
-        setHasPokemonApiKey(
-          result.hasPokemonApiKey,
-        );
-
-        setPriceBatchSize(
-          Math.max(
-            1,
-            result.batchSize || 1,
-          ),
-        );
+        setHasPokemonApiKey(result.hasPokemonApiKey);
+        setPriceBatchSize(Math.max(1, result.batchSize || 1));
 
         aggregate = {
-          ...normalisePricePass(
-            result.pricePass,
-            result.remaining,
-          ),
-          remaining:
-            result.remaining,
+          ...normalisePricePass(result.pricePass, result.remaining),
+          remaining: result.remaining,
         };
 
-        setPriceProgress(
-          aggregate,
-        );
+        setPriceProgress(aggregate);
 
         addLog(
-          `Fast batch: ${result.processed} checked in one API request; ` +
-            `${result.priced} priced, ${result.unpriced} without source pricing, ` +
-            `${formatNumber(
-              aggregate.processed,
-            )}/${formatNumber(
-              aggregate.total,
-            )} saved.`,
+          `Pokemon batch: ${result.processed} checked; ` +
+            `${result.priced} currently priced, ${result.unpriced} still without a source value; ` +
+            `${formatNumber(aggregate.processed)}/${formatNumber(aggregate.total)} saved.`,
         );
 
-        if (
-          result.done ||
-          result.processed === 0
-        ) {
-          setSuccessMessage(
-            `Price pass completed. ${formatNumber(
-              aggregate.processed,
-            )} cards were checked, ${formatNumber(
-              aggregate.priced,
-            )} received prices and ${formatNumber(
-              aggregate.unpriced,
-            )} had no current source value.`,
-          );
-
+        if (result.done || result.processed === 0) {
+          pokemonCompleted = true;
+          addLog("Pokemon TCG price pass complete. Starting fallback only for cards that still have no market value.");
           break;
         }
 
-        await waitForRetry(
-          result.hasPokemonApiKey
-            ? 120
-            : 2200,
-        );
+        await waitForRetry(result.hasPokemonApiKey ? 120 : 2200);
       }
 
-      if (
-        stopPricesRef.current
-      ) {
-        setPriceRetryStatus(
-          null,
-        );
+      if (stopPricesRef.current && !pokemonCompleted) {
+        setPriceRetryStatus(null);
 
-        const paused =
-          await postAction<{
-            pricePass:
-              PricePass;
-          }>({
-            action:
-              "pause_prices",
-          });
+        const paused = await postAction<{ pricePass: PricePass }>({
+          action: "pause_prices",
+        });
 
-        aggregate =
-          normalisePricePass(
-            paused.pricePass,
-            aggregate.remaining,
-          );
-
-        setPriceProgress(
-          aggregate,
-        );
-
+        aggregate = normalisePricePass(paused.pricePass, aggregate.remaining);
+        setPriceProgress(aggregate);
         setSuccessMessage(
-          `Price refresh paused at ${formatNumber(
-            aggregate.processed,
-          )}/${formatNumber(
+          `Price refresh paused at ${formatNumber(aggregate.processed)}/${formatNumber(
             aggregate.total,
           )}. The next run resumes from this saved point.`,
         );
-
         addLog(
-          `Paused safely at ${formatNumber(
-            aggregate.processed,
-          )} completed cards.`,
+          `Paused safely at ${formatNumber(aggregate.processed)} completed cards.`,
         );
+      } else if (pokemonCompleted && !stopPricesRef.current) {
+        if (!hasJustTcgApiKey) {
+          addLog("JustTCG fallback skipped because JUSTTCG_API_KEY is not configured on the server.");
+        } else {
+          addLog(
+            "JustTCG fallback started. Only genuinely unpriced cards are queried; already-priced cards are never sent to JustTCG.",
+          );
+
+          let fallbackProcessed = 0;
+          let fallbackPriced = 0;
+          let fallbackRemaining = justTcgRemaining;
+          let fallbackDailyUsed = justTcgRequestsToday;
+
+          while (!stopPricesRef.current) {
+            const fallback = await postAction<JustTcgResponse>({
+              action: "justtcg_unpriced",
+            });
+
+            setHasJustTcgApiKey(fallback.available);
+            setJustTcgRemaining(Math.max(0, fallback.remaining));
+            setJustTcgRequestsToday(Math.max(0, fallback.dailyUsed));
+            setJustTcgDailyLimit(Math.max(1, fallback.dailyLimit || justTcgDailyLimit));
+            setJustTcgMinIntervalMs(
+              Math.max(500, fallback.minIntervalMs || justTcgMinIntervalMs),
+            );
+
+            fallbackProcessed += Math.max(0, fallback.processed || 0);
+            fallbackPriced += Math.max(0, fallback.priced || 0);
+            fallbackRemaining = Math.max(0, fallback.remaining || 0);
+            fallbackDailyUsed = Math.max(0, fallback.dailyUsed || 0);
+
+            if (fallback.message) {
+              addLog(
+                `JustTCG: ${fallback.message} ` +
+                  `(${fallbackDailyUsed}/${fallback.dailyLimit} requests today)`,
+              );
+            }
+
+            if (fallback.rateLimited) {
+              setSuccessMessage(
+                `Pokemon TCG refresh completed. JustTCG paused at its current API limit after pricing ${formatNumber(
+                  fallbackPriced,
+                )} additional cards. ${formatNumber(fallbackRemaining)} unpriced cards remain for a later pass.`,
+              );
+              break;
+            }
+
+            if (fallback.done || fallback.processed === 0) {
+              setSuccessMessage(
+                fallbackRemaining === 0
+                  ? `Market refresh completed. JustTCG filled ${formatNumber(
+                      fallbackPriced,
+                    )} additional missing prices.`
+                  : `Pokemon TCG refresh completed. JustTCG checked ${formatNumber(
+                      fallbackProcessed,
+                    )} missing cards and filled ${formatNumber(
+                      fallbackPriced,
+                    )}. ${formatNumber(fallbackRemaining)} remain for a later fallback pass.`,
+              );
+              break;
+            }
+
+            await waitForRetry(
+              Math.max(500, fallback.minIntervalMs || justTcgMinIntervalMs),
+            );
+          }
+
+          if (stopPricesRef.current) {
+            setSuccessMessage(
+              `Pokemon TCG refresh completed. JustTCG fallback stopped with ${formatNumber(
+                fallbackRemaining,
+              )} unpriced cards remaining.`,
+            );
+          }
+        }
+
+        if (!hasJustTcgApiKey) {
+          setSuccessMessage(
+            `Pokemon TCG refresh completed. ${formatNumber(
+              aggregate.unpriced,
+            )} cards still have no Pokemon TCG/Cardmarket source value.`,
+          );
+        }
       }
 
       await loadStatus();
-    } catch (
-      error: unknown
-    ) {
-      const message =
-        getErrorMessage(
-          error,
-          "The tracked price refresh failed.",
-        );
-
-      setPriceRetryStatus(
-        null,
+    } catch (error: unknown) {
+      const message = getErrorMessage(
+        error,
+        "The tracked price refresh failed.",
       );
 
-      setErrorMessage(
-        message,
-      );
-
-      addLog(
-        `ERROR: ${message}`,
-      );
+      setPriceRetryStatus(null);
+      setErrorMessage(message);
+      addLog(`ERROR: ${message}`);
     } finally {
-      setPriceRetryStatus(
-        null,
-      );
-
-      setSyncingPrices(
-        false,
-      );
+      setPriceRetryStatus(null);
+      setSyncingPrices(false);
     }
   }, [
     syncingLocal,
     syncingPrices,
     priceProgress,
     hasPokemonApiKey,
+    hasJustTcgApiKey,
+    justTcgRemaining,
+    justTcgRequestsToday,
+    justTcgDailyLimit,
+    justTcgMinIntervalMs,
     priceBatchSize,
     addLog,
     postAction,
@@ -970,34 +973,31 @@ export default function CardDatabasePage() {
           </SyncPanel>
 
           <SyncPanel
-            eyebrow="Persistent fast price pass"
-            title="Resume exactly where pricing stopped"
-            description="The completed count is stored in Supabase, not in this browser. One Pokemon TCG API search request now returns a whole group of card prices, and one database transaction saves the entire group. Closing the page or pressing Stop no longer resets progress to zero."
+            eyebrow="Market value refresh"
+            title="Refresh prices whenever you want"
+            description="Pokemon TCG is checked first in fast batches. Cards that still have no market value then fall back to JustTCG one at a time, so the secondary API is only spent on unresolved cards. Stored manual and JustTCG prices are preserved when Pokemon TCG has no replacement value."
             buttonLabel={
               syncingPrices
                 ? priceRetryStatus
                   ? "Retrying automatically..."
-                  : `Refreshing from ${formatNumber(
+                  : `Refreshing ${formatNumber(
                       priceProgress.processed,
+                    )}/${formatNumber(
+                      priceProgress.total,
                     )}...`
-                : priceProgress.processed > 0 &&
+                : (priceProgress.status === "paused" ||
+                    priceProgress.status === "running") &&
                     priceProgress.remaining > 0
                   ? `Resume at ${formatNumber(
                       priceProgress.processed,
                     )}/${formatNumber(
                       priceProgress.total,
                     )}`
-                  : "Start fast price refresh"
+                  : "Refresh market values"
             }
             disabled={
               syncingLocal ||
-              syncingPrices ||
-              Math.max(
-                priceProgress.remaining,
-                toNumber(
-                  stats?.due_price_cards,
-                ),
-              ) <= 0
+              syncingPrices
             }
             onStart={() =>
               void refreshDuePrices()
@@ -1065,6 +1065,22 @@ export default function CardDatabasePage() {
                       priceBatchSize,
                     )} cards per API request with safe spacing`
               }
+            />
+
+            <InfoBox
+              label="JustTCG fallback"
+              value={
+                hasJustTcgApiKey
+                  ? `${formatNumber(justTcgRemaining)} unresolved cards due · ${formatNumber(
+                      justTcgRequestsToday,
+                    )}/${formatNumber(justTcgDailyLimit)} requests used today`
+                  : "Not configured - unresolved cards stay manual"
+              }
+            />
+
+            <InfoBox
+              label="Fallback policy"
+              value="Only cards with no current market value are sent to JustTCG. Exact name + collector number + set must match before a price is accepted."
             />
 
             <InfoBox

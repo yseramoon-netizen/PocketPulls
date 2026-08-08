@@ -29,6 +29,10 @@ const LOCAL_ROOT = path.join(
   "pokemon-tcg-data",
 );
 
+const JUSTTCG_BASE_URL = "https://api.justtcg.com/v1/cards";
+const JUSTTCG_DEFAULT_DAILY_LIMIT = 100;
+const JUSTTCG_DEFAULT_MIN_INTERVAL_MS = 6500;
+
 type AdminClient = Awaited<
   ReturnType<typeof requireAdmin>
 >["admin"];
@@ -48,6 +52,7 @@ type SyncAction =
   | "sync_local_file"
   | "complete_local"
   | "price_batch"
+  | "justtcg_unpriced"
   | "pause_prices";
 
 type SyncRequest = {
@@ -56,6 +61,8 @@ type SyncRequest = {
   commitSha?: unknown;
   filePath?: unknown;
   remoteSha?: unknown;
+  force?: unknown;
+  restart?: unknown;
 };
 
 type GithubCommitResponse = {
@@ -166,6 +173,72 @@ type PokemonCardSearchResponse = {
     message?: string;
     code?: number;
   };
+};
+
+type ExistingPriceRow = {
+  api_id?: string | null;
+  market_value?: number | string | null;
+  price_normal_usd?: number | string | null;
+  price_holo_usd?: number | string | null;
+  price_reverse_holo_usd?: number | string | null;
+  price_cardmarket_eur?: number | string | null;
+  price_reverse_holo_eur?: number | string | null;
+  market_value_normal_gbp?: number | string | null;
+  market_value_holo_gbp?: number | string | null;
+  market_value_reverse_holo_gbp?: number | string | null;
+  price_source?: string | null;
+  price_updated_at?: string | null;
+  tcgplayer_url?: string | null;
+  tcgplayer_updated_at?: string | null;
+  cardmarket_url?: string | null;
+  cardmarket_updated_at?: string | null;
+};
+
+type JustTcgCandidateRow = {
+  card_id?: string | null;
+  api_id?: string | null;
+  name?: string | null;
+  set_name?: string | null;
+  card_no?: string | null;
+  rarity?: string | null;
+};
+
+type JustTcgVariant = {
+  id?: string | null;
+  uuid?: string | null;
+  condition?: string | null;
+  printing?: string | null;
+  price?: number | string | null;
+  lastUpdated?: number | string | null;
+};
+
+type JustTcgCard = {
+  id?: string | null;
+  uuid?: string | null;
+  name?: string | null;
+  game?: string | null;
+  set?: string | null;
+  set_name?: string | null;
+  number?: string | null;
+  rarity?: string | null;
+  tcgplayerId?: string | null;
+  variants?: JustTcgVariant[] | null;
+};
+
+type JustTcgResponse = {
+  data?: JustTcgCard[];
+  meta?: {
+    total?: number;
+    limit?: number;
+    offset?: number;
+    hasMore?: boolean;
+  };
+  _metadata?: {
+    apiPlan?: string;
+    apiRequestsRemaining?: number;
+  };
+  error?: string;
+  code?: string;
 };
 
 type PricePassRow = {
@@ -296,6 +369,149 @@ function parseDate(value: string | undefined): string | null {
   }
 
   return date.toISOString().slice(0, 10);
+}
+
+function normaliseLookupText(value: unknown): string {
+  return String(value ?? "")
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function normaliseCardNumber(value: unknown): string {
+  const raw = String(value ?? "")
+    .trim()
+    .split("/")[0]
+    ?.trim() || "";
+
+  if (!raw) {
+    return "";
+  }
+
+  const cleaned = raw
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "");
+
+  const match = cleaned.match(/^0*(\d+)([a-z]*)$/);
+  if (!match) {
+    return cleaned;
+  }
+
+  return `${Number(match[1])}${match[2] || ""}`;
+}
+
+function getJustTcgDailyLimit(): number {
+  const configured = Number(process.env.JUSTTCG_DAILY_LIMIT);
+
+  if (Number.isFinite(configured) && configured > 0) {
+    return Math.max(1, Math.floor(configured));
+  }
+
+  return JUSTTCG_DEFAULT_DAILY_LIMIT;
+}
+
+function getJustTcgMinIntervalMs(): number {
+  const configured = Number(process.env.JUSTTCG_MIN_INTERVAL_MS);
+
+  if (Number.isFinite(configured) && configured >= 500) {
+    return Math.floor(configured);
+  }
+
+  return JUSTTCG_DEFAULT_MIN_INTERVAL_MS;
+}
+
+function chooseJustTcgCard(
+  candidate: JustTcgCandidateRow,
+  cards: JustTcgCard[],
+): JustTcgCard | null {
+  const wantedName = normaliseLookupText(candidate.name);
+  const wantedSet = normaliseLookupText(candidate.set_name);
+  const wantedNumber = normaliseCardNumber(candidate.card_no);
+  const wantedRarity = normaliseLookupText(candidate.rarity);
+
+  const ranked = cards
+    .map((card) => {
+      const cardName = normaliseLookupText(card.name);
+      const cardSet = normaliseLookupText(card.set_name);
+      const cardNumber = normaliseCardNumber(card.number);
+      const cardRarity = normaliseLookupText(card.rarity);
+
+      const nameExact = wantedName.length > 0 && cardName === wantedName;
+      const numberExact = wantedNumber.length > 0 && cardNumber === wantedNumber;
+      const setExact = wantedSet.length > 0 && cardSet === wantedSet;
+      const rarityExact = wantedRarity.length > 0 && cardRarity === wantedRarity;
+
+      let score = 0;
+      if (nameExact) score += 100;
+      if (numberExact) score += 120;
+      if (setExact) score += 160;
+      if (rarityExact) score += 18;
+
+      if (!nameExact || !numberExact) {
+        score -= 300;
+      }
+
+      if (wantedSet && !setExact) {
+        score -= 180;
+      }
+
+      return { card, score, nameExact, numberExact, setExact };
+    })
+    .filter((item) => item.nameExact && item.numberExact)
+    .sort((a, b) => b.score - a.score);
+
+  const best = ranked[0];
+  if (!best) {
+    return null;
+  }
+
+  if (wantedSet && !best.setExact) {
+    return null;
+  }
+
+  return best.card;
+}
+
+function chooseJustTcgVariant(card: JustTcgCard): JustTcgVariant | null {
+  const variants = Array.isArray(card.variants) ? card.variants : [];
+
+  const priced = variants
+    .map((variant) => ({
+      variant,
+      price: cleanNumber(variant.price),
+      condition: normaliseLookupText(variant.condition),
+      printing: normaliseLookupText(variant.printing),
+    }))
+    .filter((item): item is {
+      variant: JustTcgVariant;
+      price: number;
+      condition: string;
+      printing: string;
+    } => item.price !== null);
+
+  if (priced.length === 0) {
+    return null;
+  }
+
+  const nearMint = priced.filter((item) =>
+    item.condition === "near mint" || item.condition === "nm",
+  );
+  const pool = nearMint.length > 0 ? nearMint : priced;
+
+  pool.sort((a, b) => {
+    const aPreferred = /^(normal|unlimited|holofoil|reverse holofoil)$/.test(a.printing) ? 1 : 0;
+    const bPreferred = /^(normal|unlimited|holofoil|reverse holofoil)$/.test(b.printing) ? 1 : 0;
+
+    if (aPreferred !== bPreferred) {
+      return bPreferred - aPreferred;
+    }
+
+    return a.price - b.price;
+  });
+
+  return pool[0]?.variant || null;
 }
 
 function parseTimestamp(value: string | undefined): string | null {
@@ -1487,8 +1703,386 @@ async function getDuePriceCount(
   );
 }
 
+async function getAllPriceCardCount(
+  admin: AdminClient,
+): Promise<number> {
+  const { count, error } = await admin
+    .from("pokemon_cards")
+    .select("id", {
+      count: "exact",
+      head: true,
+    })
+    .not("api_id", "is", null)
+    .neq("api_id", "");
+
+  if (error) {
+    throw error;
+  }
+
+  return Math.max(0, count || 0);
+}
+
+async function resetPricePass(
+  admin: AdminClient,
+  total: number,
+) {
+  const now = new Date().toISOString();
+
+  const { error } = await admin
+    .from("card_sync_settings")
+    .update({
+      price_pass_status: total > 0 ? "running" : "completed",
+      price_pass_started_at: now,
+      price_pass_updated_at: now,
+      price_pass_completed_at: total > 0 ? null : now,
+      price_pass_total: total,
+      price_pass_processed: 0,
+      price_pass_priced: 0,
+      price_pass_unpriced: 0,
+      price_pass_failed: 0,
+      updated_at: now,
+    })
+    .eq("id", 1);
+
+  if (error) {
+    throw error;
+  }
+}
+
+async function getExistingPriceRows(
+  admin: AdminClient,
+  ids: string[],
+): Promise<Map<string, ExistingPriceRow>> {
+  if (ids.length === 0) {
+    return new Map();
+  }
+
+  const { data, error } = await admin
+    .from("pokemon_cards")
+    .select([
+      "api_id",
+      "market_value",
+      "price_normal_usd",
+      "price_holo_usd",
+      "price_reverse_holo_usd",
+      "price_cardmarket_eur",
+      "price_reverse_holo_eur",
+      "market_value_normal_gbp",
+      "market_value_holo_gbp",
+      "market_value_reverse_holo_gbp",
+      "price_source",
+      "price_updated_at",
+      "tcgplayer_url",
+      "tcgplayer_updated_at",
+      "cardmarket_url",
+      "cardmarket_updated_at",
+    ].join(","))
+    .in("api_id", ids);
+
+  if (error) {
+    throw error;
+  }
+
+  const map = new Map<string, ExistingPriceRow>();
+
+  for (const row of (data || []) as ExistingPriceRow[]) {
+    const id = typeof row.api_id === "string" ? row.api_id.trim() : "";
+    if (id && !map.has(id)) {
+      map.set(id, row);
+    }
+  }
+
+  return map;
+}
+
+function preserveExistingPriceUpdate(
+  apiId: string,
+  existing: ExistingPriceRow | undefined,
+) {
+  const marketValue = cleanNumber(existing?.market_value);
+
+  if (marketValue === null) {
+    return null;
+  }
+
+  const now = new Date().toISOString();
+
+  return {
+    api_id: apiId,
+    has_price: true,
+    market_value: marketValue,
+    price_normal_usd: cleanNumber(existing?.price_normal_usd),
+    price_holo_usd: cleanNumber(existing?.price_holo_usd),
+    price_reverse_holo_usd: cleanNumber(existing?.price_reverse_holo_usd),
+    price_cardmarket_eur: cleanNumber(existing?.price_cardmarket_eur),
+    price_reverse_holo_eur: cleanNumber(existing?.price_reverse_holo_eur),
+    market_value_normal_gbp: cleanNumber(existing?.market_value_normal_gbp),
+    market_value_holo_gbp: cleanNumber(existing?.market_value_holo_gbp),
+    market_value_reverse_holo_gbp: cleanNumber(existing?.market_value_reverse_holo_gbp),
+    price_source: existing?.price_source || "Stored fallback",
+    price_updated_at: existing?.price_updated_at || now,
+    price_checked_at: now,
+    price_status: "priced",
+    price_error: null,
+    price_retry_after: null,
+    tcgplayer_url: existing?.tcgplayer_url || null,
+    tcgplayer_updated_at: existing?.tcgplayer_updated_at || null,
+    cardmarket_url: existing?.cardmarket_url || null,
+    cardmarket_updated_at: existing?.cardmarket_updated_at || null,
+  };
+}
+
+async function getJustTcgUnpricedCount(
+  admin: AdminClient,
+): Promise<number> {
+  const { data, error } = await admin.rpc("get_unpriced_justtcg_count");
+
+  if (error) {
+    throw error;
+  }
+
+  const raw = Array.isArray(data) ? data[0] : data;
+  if (typeof raw === "object" && raw !== null) {
+    const values = Object.values(raw as Record<string, unknown>);
+    return Math.max(0, Number(values[0]) || 0);
+  }
+
+  return Math.max(0, Number(raw) || 0);
+}
+
+async function getJustTcgRequestsToday(
+  admin: AdminClient,
+): Promise<number> {
+  const start = new Date();
+  start.setUTCHours(0, 0, 0, 0);
+
+  const { count, error } = await admin
+    .from("pokemon_cards")
+    .select("id", {
+      count: "exact",
+      head: true,
+    })
+    .gte("justtcg_checked_at", start.toISOString());
+
+  if (error) {
+    throw error;
+  }
+
+  return Math.max(0, count || 0);
+}
+
+function buildJustTcgSearchUrl(candidate: JustTcgCandidateRow): string {
+  const url = new URL(JUSTTCG_BASE_URL);
+  url.searchParams.set("game", "pokemon");
+  url.searchParams.set("q", String(candidate.name || "").trim());
+
+  const cardNumber = String(candidate.card_no || "").trim();
+  if (cardNumber) {
+    url.searchParams.set("number", cardNumber);
+  }
+
+  url.searchParams.set("condition", "NM");
+  url.searchParams.set("limit", "20");
+  url.searchParams.set("include_price_history", "false");
+  url.searchParams.set("include_statistics", "false");
+  return url.toString();
+}
+
+async function processJustTcgUnpriced(
+  admin: AdminClient,
+) {
+  const apiKey = process.env.JUSTTCG_API_KEY?.trim();
+  const dailyLimit = getJustTcgDailyLimit();
+  const minIntervalMs = getJustTcgMinIntervalMs();
+
+  if (!apiKey) {
+    return {
+      processed: 0,
+      priced: 0,
+      remaining: await getJustTcgUnpricedCount(admin),
+      done: true,
+      available: false,
+      dailyUsed: await getJustTcgRequestsToday(admin),
+      dailyLimit,
+      minIntervalMs,
+      plan: null,
+      apiRequestsRemaining: null,
+      message: "JUSTTCG_API_KEY is not configured on the server.",
+    };
+  }
+
+  const dailyUsedBefore = await getJustTcgRequestsToday(admin);
+  if (dailyUsedBefore >= dailyLimit) {
+    return {
+      processed: 0,
+      priced: 0,
+      remaining: await getJustTcgUnpricedCount(admin),
+      done: true,
+      available: true,
+      dailyUsed: dailyUsedBefore,
+      dailyLimit,
+      minIntervalMs,
+      plan: null,
+      apiRequestsRemaining: null,
+      rateLimited: true,
+      message: `JustTCG daily safety limit reached (${dailyUsedBefore}/${dailyLimit}).`,
+    };
+  }
+
+  const { data: candidateData, error: candidateError } = await admin.rpc(
+    "get_unpriced_justtcg_candidates",
+    { p_limit: 1 },
+  );
+
+  if (candidateError) {
+    throw candidateError;
+  }
+
+  const candidate = Array.isArray(candidateData)
+    ? (candidateData[0] as JustTcgCandidateRow | undefined)
+    : (candidateData as JustTcgCandidateRow | null | undefined);
+
+  if (!candidate?.card_id || !candidate.name) {
+    return {
+      processed: 0,
+      priced: 0,
+      remaining: 0,
+      done: true,
+      available: true,
+      dailyUsed: dailyUsedBefore,
+      dailyLimit,
+      minIntervalMs,
+      plan: null,
+      apiRequestsRemaining: null,
+      message: "No unpriced cards are currently due for JustTCG fallback.",
+    };
+  }
+
+  const response = await fetch(buildJustTcgSearchUrl(candidate), {
+    headers: {
+      Accept: "application/json",
+      "x-api-key": apiKey,
+    },
+    cache: "no-store",
+  });
+
+  const rawText = await response.text();
+  let body: JustTcgResponse | null = null;
+
+  try {
+    body = JSON.parse(rawText) as JustTcgResponse;
+  } catch {
+    body = null;
+  }
+
+  if (!response.ok) {
+    const message =
+      body?.error ||
+      rawText.trim() ||
+      `JustTCG returned HTTP ${response.status}.`;
+
+    if (response.status === 429 || body?.code === "DAILY_LIMIT_EXCEEDED" || body?.code === "REQUEST_LIMIT_EXCEEDED") {
+      return {
+        processed: 0,
+        priced: 0,
+        remaining: await getJustTcgUnpricedCount(admin),
+        done: true,
+        available: true,
+        dailyUsed: dailyUsedBefore,
+        dailyLimit,
+        minIntervalMs,
+        plan: body?._metadata?.apiPlan || null,
+        apiRequestsRemaining: body?._metadata?.apiRequestsRemaining ?? null,
+        rateLimited: true,
+        message,
+      };
+    }
+
+    throw new HttpError(`JustTCG: ${message}`, response.status || 502);
+  }
+
+  const cards = Array.isArray(body?.data) ? body!.data! : [];
+  const matched = chooseJustTcgCard(candidate, cards);
+  const variant = matched ? chooseJustTcgVariant(matched) : null;
+  const usdPrice = variant ? cleanNumber(variant.price) : null;
+  const now = new Date().toISOString();
+
+  let priced = 0;
+  let resultMessage = "No exact JustTCG match was found.";
+
+  if (matched && usdPrice !== null) {
+    const rates = await getRates(admin);
+    const gbpPrice = convert(usdPrice, rates.usdToGbp);
+
+    if (gbpPrice !== null) {
+      const { error: updateError } = await admin
+        .from("pokemon_cards")
+        .update({
+          market_value: gbpPrice,
+          price_source: "JustTCG",
+          price_updated_at: now,
+          price_status: "priced",
+          price_error: null,
+          price_retry_after: null,
+          justtcg_checked_at: now,
+          justtcg_price_usd: usdPrice,
+          justtcg_card_id: matched.id || matched.uuid || null,
+          justtcg_variant_id: variant?.id || variant?.uuid || null,
+          justtcg_error: null,
+        })
+        .eq("id", candidate.card_id);
+
+      if (updateError) {
+        throw updateError;
+      }
+
+      priced = 1;
+      resultMessage = `${candidate.name} priced from JustTCG.`;
+    }
+  } else {
+    const detail = matched
+      ? "Exact card matched, but no usable Near Mint raw price was returned."
+      : "No exact name + collector number + set match was returned.";
+
+    const { error: missError } = await admin
+      .from("pokemon_cards")
+      .update({
+        justtcg_checked_at: now,
+        justtcg_error: detail,
+      })
+      .eq("id", candidate.card_id);
+
+    if (missError) {
+      throw missError;
+    }
+
+    resultMessage = detail;
+  }
+
+  const [remaining, dailyUsedAfter] = await Promise.all([
+    getJustTcgUnpricedCount(admin),
+    getJustTcgRequestsToday(admin),
+  ]);
+
+  return {
+    processed: 1,
+    priced,
+    remaining,
+    done: remaining === 0 || dailyUsedAfter >= dailyLimit,
+    available: true,
+    dailyUsed: dailyUsedAfter,
+    dailyLimit,
+    minIntervalMs,
+    plan: body?._metadata?.apiPlan || null,
+    apiRequestsRemaining: body?._metadata?.apiRequestsRemaining ?? null,
+    cardName: candidate.name,
+    message: resultMessage,
+  };
+}
+
 async function processPriceBatch(
   admin: AdminClient,
+  options: { force: boolean; restart: boolean },
 ) {
   const apiKey =
     process.env.POKEMON_TCG_API_KEY;
@@ -1501,23 +2095,28 @@ async function processPriceBatch(
       hasApiKey,
     );
 
-  const dueBefore =
-    await getDuePriceCount(admin);
+  const force = options.force;
+  const restart = options.restart;
 
-  await ensurePricePass(
-    admin,
-    dueBefore,
-  );
+  const eligibleBefore = force
+    ? await getAllPriceCardCount(admin)
+    : await getDuePriceCount(admin);
 
-  if (dueBefore === 0) {
-    /*
-     * Keep the completed pass counters visible. A no-work click must not
-     * replace a finished 6,000/6,000 pass with 0/0.
-     */
+  if (restart) {
+    await resetPricePass(admin, eligibleBefore);
+  } else {
+    await ensurePricePass(admin, eligibleBefore);
+  }
+
+  const passBefore = await getPricePass(admin);
+  const passTotal = Math.max(0, Number(passBefore.price_pass_total) || 0);
+  const passProcessed = Math.max(0, Number(passBefore.price_pass_processed) || 0);
+
+  if (
+    eligibleBefore === 0 ||
+    (force && !restart && passTotal > 0 && passProcessed >= passTotal)
+  ) {
     await completePricePass(admin);
-
-    const pricePass =
-      await getPricePass(admin);
 
     return {
       processed: 0,
@@ -1526,10 +2125,9 @@ async function processPriceBatch(
       failed: 0,
       remaining: 0,
       done: true,
-      hasPokemonApiKey:
-        hasApiKey,
+      hasPokemonApiKey: hasApiKey,
       batchSize,
-      pricePass,
+      pricePass: await getPricePass(admin),
     };
   }
 
@@ -1540,7 +2138,7 @@ async function processPriceBatch(
     "get_due_price_card_ids",
     {
       p_limit: batchSize,
-      p_force: false,
+      p_force: force,
     },
   );
 
@@ -1656,14 +2254,17 @@ async function processPriceBatch(
     }
   }
 
+  const existingById = await getExistingPriceRows(admin, ids);
+
   const updates =
     ids.map((id) => {
-      const card =
-        cardsById.get(id);
+      const card = cardsById.get(id);
+      const existing = existingById.get(id);
 
       if (!card) {
-        return createMissingPriceUpdate(
-          id,
+        return (
+          preserveExistingPriceUpdate(id, existing) ||
+          createMissingPriceUpdate(id)
         );
       }
 
@@ -1675,6 +2276,13 @@ async function processPriceBatch(
         rates.usdToGbp,
         rates.eurToGbp,
       );
+
+      if (!hasPrice) {
+        const preserved = preserveExistingPriceUpdate(id, existing);
+        if (preserved) {
+          return preserved;
+        }
+      }
 
       return {
         api_id: id,
@@ -1745,18 +2353,21 @@ async function processPriceBatch(
       ) || 0,
     );
 
-  const remaining =
-    await getDuePriceCount(
-      admin,
-    );
+  let pricePass = await getPricePass(admin);
 
-  const done =
-    remaining === 0;
+  const remaining = force
+    ? Math.max(
+        0,
+        (Number(pricePass.price_pass_total) || 0) -
+          (Number(pricePass.price_pass_processed) || 0),
+      )
+    : await getDuePriceCount(admin);
+
+  const done = remaining === 0;
 
   if (done) {
-    await completePricePass(
-      admin,
-    );
+    await completePricePass(admin);
+    pricePass = await getPricePass(admin);
   }
 
   return {
@@ -1766,14 +2377,10 @@ async function processPriceBatch(
     failed,
     remaining,
     done,
-    hasPokemonApiKey:
-      hasApiKey,
+    hasPokemonApiKey: hasApiKey,
     batchSize,
     rates,
-    pricePass:
-      await getPricePass(
-        admin,
-      ),
+    pricePass,
   };
 }
 
@@ -1851,6 +2458,11 @@ export async function GET(request: Request) {
       throw settingsResult.error;
     }
 
+    const [justTcgRemaining, justTcgRequestsToday] = await Promise.all([
+      getJustTcgUnpricedCount(admin).catch(() => 0),
+      getJustTcgRequestsToday(admin).catch(() => 0),
+    ]);
+
     return NextResponse.json({
       stats:
         Array.isArray(
@@ -1875,6 +2487,17 @@ export async function GET(request: Request) {
           process.env
             .POKEMON_TCG_API_KEY,
         ),
+
+      hasJustTcgApiKey:
+        Boolean(
+          process.env
+            .JUSTTCG_API_KEY,
+        ),
+
+      justTcgRemaining,
+      justTcgRequestsToday,
+      justTcgDailyLimit: getJustTcgDailyLimit(),
+      justTcgMinIntervalMs: getJustTcgMinIntervalMs(),
 
       priceBatchSize:
         getPriceBatchSize(
@@ -1950,7 +2573,16 @@ export async function POST(request: Request) {
         return NextResponse.json(
           await processPriceBatch(
             admin,
+            {
+              force: body.force === true,
+              restart: body.restart === true,
+            },
           ),
+        );
+
+      case "justtcg_unpriced":
+        return NextResponse.json(
+          await processJustTcgUnpriced(admin),
         );
 
       case "pause_prices":

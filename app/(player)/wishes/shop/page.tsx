@@ -354,11 +354,6 @@ export default function WishShopPage() {
               ))}
             </div>
 
-            <div className={styles.rateBubble}>
-              <span>Starter bundle</span>
-              <strong>10 wishes</strong>
-              <small>£5.00</small>
-            </div>
           </div>
         </header>
 
