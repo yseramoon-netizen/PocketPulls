@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { type PointerEvent as ReactPointerEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import UnownText from "@/components/player/UnownText";
@@ -705,55 +705,51 @@ function buildZodiacConstellationStars(
   }
 
   const ambientStars = rankedStars.slice(anchorCount);
+  const scatteredPositions: ZodiacPoint[] = [];
 
   ambientStars.forEach((star, index) => {
     const random = seededRandom(
-      hashString(`zodiac-cloud:${zodiacSign}:${star.id}:${star.cardId}`),
+      hashString(`zodiac-scatter:${zodiacSign}:${star.id}:${star.cardId}`),
     );
-    const segmentIndex = index % shape.segments.length;
-    const cycle = Math.floor(index / shape.segments.length);
-    const [fromIndex, toIndex] = shape.segments[segmentIndex];
-    const from = shape.points[fromIndex];
-    const to = shape.points[toIndex];
+    const densityPressure = Math.min(2.05, Math.sqrt(index + 1) * 0.064);
+    const desiredSpacing = Math.max(1.45, 3.55 - densityPressure);
+    let best = { x: 50, y: 50, score: -1 };
 
-    const progressSeed = ((cycle * 0.61803398875 + random()) % 1);
-    const progress = 0.16 + progressSeed * 0.68;
-    const dx = to.x - from.x;
-    const dy = to.y - from.y;
-    const length = Math.max(1, Math.hypot(dx, dy));
-    const perpendicularX = -dy / length;
-    const perpendicularY = dx / length;
-    const band = Math.floor(cycle / 8);
-    const cloudSpread = Math.min(5.4, 0.9 + band * 0.42);
-    const side = (index + cycle) % 2 === 0 ? 1 : -1;
-    const perpendicularOffset =
-      side * (0.45 + random() * cloudSpread) +
-      (random() - 0.5) * 0.75;
-    const alongOffset = (random() - 0.5) * Math.min(2.1, 0.65 + band * 0.14);
+    for (let attempt = 0; attempt < 18; attempt += 1) {
+      const x = 5.5 + random() * 89;
+      const y = 7.5 + random() * 85;
+      let nearest = Number.POSITIVE_INFINITY;
 
-    placements.set(star.id, {
-      x: Math.max(
-        8,
-        Math.min(
-          92,
-          from.x +
-            dx * progress +
-            (dx / length) * alongOffset +
-            perpendicularX * perpendicularOffset,
-        ),
-      ),
-      y: Math.max(
-        9,
-        Math.min(
-          91,
-          from.y +
-            dy * progress +
-            (dy / length) * alongOffset +
-            perpendicularY * perpendicularOffset,
-        ),
-      ),
+      for (const point of shape.points) {
+        nearest = Math.min(nearest, Math.hypot(x - point.x, y - point.y));
+      }
+
+      for (const point of scatteredPositions.slice(-280)) {
+        nearest = Math.min(nearest, Math.hypot(x - point.x, y - point.y));
+      }
+
+      if (!Number.isFinite(nearest)) {
+        nearest = 999;
+      }
+
+      if (nearest > best.score) {
+        best = { x, y, score: nearest };
+      }
+
+      if (nearest >= desiredSpacing) {
+        best = { x, y, score: nearest };
+        break;
+      }
+    }
+
+    const placement = {
+      x: best.x,
+      y: best.y,
       zodiacAnchor: false,
-    });
+    };
+
+    placements.set(star.id, placement);
+    scatteredPositions.push({ x: placement.x, y: placement.y });
   });
 
   return baseStars.map((star) => {
@@ -914,6 +910,132 @@ export default function ConstellationPage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [mobileSky, setMobileSky] = useState(false);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [draggingSky, setDraggingSky] = useState(false);
+  const skyViewportRef = useRef<HTMLElement | null>(null);
+  const dragRef = useRef<{
+    pointerId: number;
+    startX: number;
+    startY: number;
+    originX: number;
+    originY: number;
+  } | null>(null);
+
+  const clampMobilePan = useCallback((nextX: number, nextY: number) => {
+    const viewport = skyViewportRef.current;
+
+    if (!viewport) {
+      return { x: nextX, y: nextY };
+    }
+
+    const viewportWidth = viewport.clientWidth;
+    const viewportHeight = viewport.clientHeight;
+    const canvasWidth = viewportWidth * 1.72;
+    const canvasHeight = viewportHeight * 1.36;
+
+    return {
+      x: Math.max(viewportWidth - canvasWidth, Math.min(0, nextX)),
+      y: Math.max(viewportHeight - canvasHeight, Math.min(0, nextY)),
+    };
+  }, []);
+
+  const recenterMobileSky = useCallback(() => {
+    const viewport = skyViewportRef.current;
+
+    if (!viewport) {
+      return;
+    }
+
+    const viewportWidth = viewport.clientWidth;
+    const viewportHeight = viewport.clientHeight;
+    const canvasWidth = viewportWidth * 1.72;
+    const canvasHeight = viewportHeight * 1.36;
+
+    setPan({
+      x: (viewportWidth - canvasWidth) / 2,
+      y: (viewportHeight - canvasHeight) / 2,
+    });
+  }, []);
+
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 767px)");
+
+    const sync = () => {
+      setMobileSky(media.matches);
+    };
+
+    sync();
+    media.addEventListener("change", sync);
+
+    return () => {
+      media.removeEventListener("change", sync);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!mobileSky) {
+      setPan({ x: 0, y: 0 });
+      return;
+    }
+
+    const frame = window.requestAnimationFrame(() => {
+      recenterMobileSky();
+    });
+
+    const handleResize = () => {
+      recenterMobileSky();
+    };
+
+    window.addEventListener("resize", handleResize);
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener("resize", handleResize);
+    };
+  }, [mobileSky, recenterMobileSky]);
+
+  const handleSkyPointerDown = useCallback((event: ReactPointerEvent<HTMLElement>) => {
+    if (!mobileSky) {
+      return;
+    }
+
+    const target = event.target as HTMLElement;
+    if (target.closest("button")) {
+      return;
+    }
+
+    event.currentTarget.setPointerCapture(event.pointerId);
+    dragRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      originX: pan.x,
+      originY: pan.y,
+    };
+    setDraggingSky(true);
+  }, [mobileSky, pan.x, pan.y]);
+
+  const handleSkyPointerMove = useCallback((event: ReactPointerEvent<HTMLElement>) => {
+    const drag = dragRef.current;
+
+    if (!mobileSky || !drag || drag.pointerId !== event.pointerId) {
+      return;
+    }
+
+    const next = clampMobilePan(
+      drag.originX + event.clientX - drag.startX,
+      drag.originY + event.clientY - drag.startY,
+    );
+    setPan(next);
+  }, [clampMobilePan, mobileSky]);
+
+  const finishSkyDrag = useCallback((event: ReactPointerEvent<HTMLElement>) => {
+    if (dragRef.current?.pointerId === event.pointerId) {
+      dragRef.current = null;
+      setDraggingSky(false);
+    }
+  }, []);
 
   const loadConstellation = useCallback(async (manual = false) => {
     if (manual) {
@@ -1005,14 +1127,10 @@ export default function ConstellationPage() {
 
       setSelectedStar((current) => {
         if (!current) {
-          return nextStars.at(-1) || null;
+          return null;
         }
 
-        return (
-          nextStars.find((star) => star.id === current.id) ||
-          nextStars.at(-1) ||
-          null
-        );
+        return nextStars.find((star) => star.id === current.id) || null;
       });
     } catch (error: unknown) {
       console.error("Constellation load error:", error);
@@ -1050,6 +1168,18 @@ export default function ConstellationPage() {
     })[0] || null;
   }, [stars]);
 
+  const zodiacAnchorRequirement = zodiacSign
+    ? ZODIAC_SHAPES[zodiacSign].points.length
+    : 0;
+  const zodiacAnchorsFilled = zodiacSign
+    ? Math.min(
+        zodiacAnchorRequirement,
+        stars.filter((star) => star.zodiacAnchor).length,
+      )
+    : 0;
+  const constellationComplete =
+    Boolean(zodiacSign) && zodiacAnchorRequirement > 0 && zodiacAnchorsFilled >= zodiacAnchorRequirement;
+
   return (
     <section className="relative min-h-[calc(100dvh-4.5rem)] w-full overflow-hidden bg-[#040515] text-white">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_45%,rgba(103,232,249,0.075),transparent_32%),radial-gradient(circle_at_20%_18%,rgba(196,181,253,0.08),transparent_26%),radial-gradient(circle_at_82%_17%,rgba(249,168,212,0.06),transparent_24%),linear-gradient(180deg,rgba(3,4,18,0.96),rgba(6,7,27,0.985))]" />
@@ -1069,9 +1199,23 @@ export default function ConstellationPage() {
               />
             </div>
             {zodiacSign ? (
-              <p className="mt-2 text-xs font-black uppercase tracking-[0.15em] text-violet-100/52">
-                {ZODIAC_SHAPES[zodiacSign].label} sky
-              </p>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <p className="text-xs font-black uppercase tracking-[0.15em] text-violet-100/52">
+                  {ZODIAC_SHAPES[zodiacSign].label} sky
+                </p>
+                <span
+                  className={[
+                    "rounded-full border px-2 py-1 text-[0.55rem] font-black uppercase tracking-[0.12em]",
+                    constellationComplete
+                      ? "border-cyan-100/20 bg-cyan-200/[0.08] text-cyan-50/80"
+                      : "border-white/10 bg-white/[0.04] text-white/36",
+                  ].join(" ")}
+                >
+                  {constellationComplete
+                    ? "Constellation complete"
+                    : `${zodiacAnchorsFilled}/${zodiacAnchorRequirement} anchors`}
+                </span>
+              </div>
             ) : (
               <p className="mt-2 text-xs font-bold text-white/28">
                 Choose a star sign in Profile to shape your sky.
@@ -1102,7 +1246,18 @@ export default function ConstellationPage() {
         </div>
       ) : null}
 
-      <article className="relative z-10 min-h-[calc(100dvh-4.5rem)] w-full overflow-hidden">
+      <article
+        ref={skyViewportRef}
+        onPointerDown={handleSkyPointerDown}
+        onPointerMove={handleSkyPointerMove}
+        onPointerUp={finishSkyDrag}
+        onPointerCancel={finishSkyDrag}
+        className={[
+          "relative z-10 h-[calc(100dvh-4.5rem)] min-h-[calc(100dvh-4.5rem)] w-full overflow-hidden",
+          mobileSky ? (draggingSky ? "cursor-grabbing" : "cursor-grab") : "",
+        ].join(" ")}
+        style={{ touchAction: mobileSky ? "none" : "auto" }}
+      >
         {loading ? (
           <div className="relative z-10 flex min-h-[calc(100dvh-4.5rem)] flex-col items-center justify-center text-center">
             <div className="h-16 w-16 animate-pulse rounded-full bg-white shadow-[0_0_55px_18px_rgba(255,255,255,0.3)]" />
@@ -1111,7 +1266,26 @@ export default function ConstellationPage() {
             </p>
           </div>
         ) : (
-          <div className="relative min-h-[calc(100dvh-4.5rem)] w-full">
+          <div
+            className="relative origin-top-left"
+            style={{
+              width: mobileSky ? "172vw" : "100%",
+              height: mobileSky ? "136dvh" : "calc(100dvh - 4.5rem)",
+              minHeight: mobileSky ? "136dvh" : "calc(100dvh - 4.5rem)",
+              transform: mobileSky
+                ? `translate3d(${pan.x}px, ${pan.y}px, 0)`
+                : undefined,
+              transition: mobileSky && !draggingSky ? "transform 180ms ease-out" : "none",
+            }}
+          >
+            <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
+              <span className="constellationNebula absolute left-[12%] top-[18%] h-56 w-72 rounded-full bg-violet-400/[0.035] blur-[80px]" />
+              <span className="constellationNebula constellationNebulaLate absolute bottom-[14%] right-[10%] h-64 w-80 rounded-full bg-cyan-300/[0.03] blur-[90px]" />
+              <span className="shootingStar shootingStarOne" />
+              <span className="shootingStar shootingStarTwo" />
+              <span className="shootingStar shootingStarThree" />
+            </div>
+
             {stars.length > 0 ? (
               <svg
                 viewBox="0 0 100 100"
@@ -1120,35 +1294,58 @@ export default function ConstellationPage() {
                 className="pointer-events-none absolute inset-0 h-full w-full"
               >
                 {zodiacSign
-                  ? ZODIAC_SHAPES[zodiacSign].segments.flatMap(
-                      ([fromIndex, toIndex], index) => {
-                        const from = ZODIAC_SHAPES[zodiacSign].points[fromIndex];
-                        const to = ZODIAC_SHAPES[zodiacSign].points[toIndex];
+                  ? constellationComplete
+                    ? ZODIAC_SHAPES[zodiacSign].segments.flatMap(
+                        ([fromIndex, toIndex], index) => {
+                          const from = ZODIAC_SHAPES[zodiacSign].points[fromIndex];
+                          const to = ZODIAC_SHAPES[zodiacSign].points[toIndex];
 
-                        return [
-                          <line
-                            key={`zodiac-glow-${zodiacSign}-${index}`}
-                            x1={from.x}
-                            y1={from.y}
-                            x2={to.x}
-                            y2={to.y}
-                            stroke="rgba(103,232,249,0.22)"
-                            strokeWidth="1.15"
-                            strokeLinecap="round"
-                          />,
-                          <line
-                            key={`zodiac-core-${zodiacSign}-${index}`}
-                            x1={from.x}
-                            y1={from.y}
-                            x2={to.x}
-                            y2={to.y}
-                            stroke="rgba(254,249,195,0.78)"
-                            strokeWidth="0.34"
-                            strokeLinecap="round"
-                          />,
-                        ];
-                      },
-                    )
+                          return [
+                            <line
+                              key={`zodiac-glow-${zodiacSign}-${index}`}
+                              className="constellationCompletedGlow"
+                              x1={from.x}
+                              y1={from.y}
+                              x2={to.x}
+                              y2={to.y}
+                              stroke="rgba(103,232,249,0.26)"
+                              strokeWidth="1.25"
+                              strokeLinecap="round"
+                            />,
+                            <line
+                              key={`zodiac-core-${zodiacSign}-${index}`}
+                              className="constellationCompletedCore"
+                              x1={from.x}
+                              y1={from.y}
+                              x2={to.x}
+                              y2={to.y}
+                              stroke="rgba(254,249,195,0.92)"
+                              strokeWidth="0.36"
+                              strokeLinecap="round"
+                            />,
+                          ];
+                        },
+                      )
+                    : ZODIAC_SHAPES[zodiacSign].segments.map(
+                        ([fromIndex, toIndex], index) => {
+                          const from = ZODIAC_SHAPES[zodiacSign].points[fromIndex];
+                          const to = ZODIAC_SHAPES[zodiacSign].points[toIndex];
+
+                          return (
+                            <line
+                              key={`zodiac-guide-${zodiacSign}-${index}`}
+                              x1={from.x}
+                              y1={from.y}
+                              x2={to.x}
+                              y2={to.y}
+                              stroke="rgba(196,181,253,0.42)"
+                              strokeWidth="0.28"
+                              strokeLinecap="round"
+                              strokeDasharray="1.1 1.35"
+                            />
+                          );
+                        },
+                      )
                   : stars.slice(1).map((star, index) => {
                       const previous = stars[index];
 
@@ -1207,7 +1404,7 @@ export default function ConstellationPage() {
                 >
                   <span
                     aria-hidden="true"
-                    className="absolute left-1/2 top-1/2 rounded-full"
+                    className="constellationStarLight absolute left-1/2 top-1/2 rounded-full"
                     style={{
                       width: `${star.size}px`,
                       height: `${star.size}px`,
@@ -1222,6 +1419,9 @@ export default function ConstellationPage() {
                         : undefined,
                       outlineOffset: star.zodiacAnchor ? "3px" : undefined,
                       transform: "translate(-50%, -50%)",
+                      ["--glimmer-delay" as string]: `${(hashString(`glimmer:${star.id}`) % 6200) / 1000}s`,
+                      ["--glimmer-duration" as string]: `${4.2 + (hashString(`duration:${star.id}`) % 4200) / 1000}s`,
+                      ["--glimmer-min" as string]: star.zodiacAnchor ? "0.78" : "0.48",
                     }}
                   />
                   {anniversaryYears > 0 ? (
@@ -1284,6 +1484,21 @@ export default function ConstellationPage() {
           </div>
         )}
       </article>
+
+      {mobileSky && !loading ? (
+        <div className="pointer-events-none absolute bottom-[5.8rem] left-1/2 z-50 flex -translate-x-1/2 items-center gap-2">
+          <span className="rounded-full border border-white/10 bg-[#050619]/78 px-3 py-2 text-[0.58rem] font-black uppercase tracking-[0.14em] text-white/42 shadow-xl backdrop-blur-xl">
+            Drag the sky to explore
+          </span>
+          <button
+            type="button"
+            onClick={recenterMobileSky}
+            className="pointer-events-auto min-h-9 rounded-full border border-cyan-100/15 bg-[#090b27]/88 px-3 text-[0.6rem] font-black uppercase tracking-[0.12em] text-cyan-50/72 shadow-xl backdrop-blur-xl"
+          >
+            Recenter
+          </button>
+        </div>
+      ) : null}
 
       {selectedStar ? (
         <aside className="fixed bottom-[5.8rem] right-3 z-[60] max-h-[72dvh] w-[min(92vw,22rem)] overflow-y-auto rounded-[1.7rem] border border-violet-200/16 bg-[#090b27]/94 p-4 shadow-[0_30px_100px_rgba(0,0,0,0.55)] backdrop-blur-2xl md:bottom-4 md:right-4">
@@ -1383,6 +1598,143 @@ export default function ConstellationPage() {
           100% {
             opacity: 1;
             filter: brightness(1);
+          }
+        }
+
+        .constellationStarLight {
+          animation: constellationGlimmer var(--glimmer-duration, 6s) ease-in-out
+            var(--glimmer-delay, 0s) infinite;
+          will-change: opacity;
+        }
+
+        .constellationCompletedGlow {
+          animation: constellationLineGlow 4.8s ease-in-out infinite;
+        }
+
+        .constellationCompletedCore {
+          animation: constellationLineCore 4.8s ease-in-out infinite;
+        }
+
+        .constellationNebula {
+          animation: constellationNebulaDrift 18s ease-in-out infinite alternate;
+        }
+
+        .constellationNebulaLate {
+          animation-delay: -8s;
+          animation-duration: 22s;
+        }
+
+        .shootingStar {
+          position: absolute;
+          width: 9rem;
+          height: 1px;
+          opacity: 0;
+          border-radius: 999px;
+          background: linear-gradient(90deg, transparent, rgba(255,255,255,0.92));
+          box-shadow: 0 0 10px rgba(165,243,252,0.45);
+          transform: rotate(-24deg);
+          transform-origin: right center;
+        }
+
+        .shootingStar::after {
+          content: "";
+          position: absolute;
+          right: -2px;
+          top: -2px;
+          width: 5px;
+          height: 5px;
+          border-radius: 999px;
+          background: white;
+          box-shadow: 0 0 14px rgba(255,255,255,0.9);
+        }
+
+        .shootingStarOne {
+          left: 12%;
+          top: 18%;
+          animation: constellationShootingStar 19s 3s linear infinite;
+        }
+
+        .shootingStarTwo {
+          left: 62%;
+          top: 31%;
+          animation: constellationShootingStar 24s 11s linear infinite;
+        }
+
+        .shootingStarThree {
+          left: 30%;
+          top: 67%;
+          animation: constellationShootingStar 28s 19s linear infinite;
+        }
+
+        @keyframes constellationGlimmer {
+          0%, 100% {
+            opacity: var(--glimmer-min, 0.5);
+          }
+          42% {
+            opacity: 0.9;
+          }
+          55% {
+            opacity: 1;
+          }
+          72% {
+            opacity: 0.68;
+          }
+        }
+
+        @keyframes constellationLineGlow {
+          0%, 100% {
+            opacity: 0.56;
+          }
+          50% {
+            opacity: 1;
+          }
+        }
+
+        @keyframes constellationLineCore {
+          0%, 100% {
+            opacity: 0.72;
+          }
+          50% {
+            opacity: 1;
+          }
+        }
+
+        @keyframes constellationNebulaDrift {
+          from {
+            transform: translate3d(-2%, -1%, 0) scale(0.96);
+            opacity: 0.55;
+          }
+          to {
+            transform: translate3d(3%, 2%, 0) scale(1.08);
+            opacity: 1;
+          }
+        }
+
+        @keyframes constellationShootingStar {
+          0%, 76% {
+            opacity: 0;
+            translate: 0 0;
+          }
+          78% {
+            opacity: 0.95;
+          }
+          82% {
+            opacity: 0;
+            translate: 34vw 18vw;
+          }
+          100% {
+            opacity: 0;
+            translate: 34vw 18vw;
+          }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .constellationStarLight,
+          .constellationCompletedGlow,
+          .constellationCompletedCore,
+          .constellationNebula,
+          .shootingStar {
+            animation: none !important;
           }
         }
       `}</style>
