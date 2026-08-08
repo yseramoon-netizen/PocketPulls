@@ -9,11 +9,6 @@ import {
   useState,
 } from "react";
 
-import {
-  primeWishAudio,
-  startWishAudio,
-  type WishAudioSession,
-} from "./wishAudio";
 import styles from "./WishCinematic.module.css";
 
 export type WishRevealCard = {
@@ -40,15 +35,9 @@ type WishCinematicProps = {
 
 type RarityTheme = {
   label: string;
-  tier: number;
   primary: string;
   secondary: string;
   glow: string;
-  particleCount: number;
-  impactScale: number;
-  shakeDistance: number;
-  flashStrength: number;
-  rayCount: number;
 };
 
 const ANIMATION_DURATION_MS = 7000;
@@ -57,111 +46,57 @@ const IMAGE_PRELOAD_TIMEOUT_MS = 1800;
 const THEMES: Record<string, RarityTheme> = {
   common: {
     label: "Common",
-    tier: 1,
     primary: "#e2e8f0",
     secondary: "#94a3b8",
     glow: "rgba(226,232,240,0.76)",
-    particleCount: 24,
-    impactScale: 6.4,
-    shakeDistance: 2,
-    flashStrength: 0.72,
-    rayCount: 12,
   },
   uncommon: {
     label: "Uncommon",
-    tier: 2,
     primary: "#86efac",
     secondary: "#22c55e",
     glow: "rgba(134,239,172,0.8)",
-    particleCount: 28,
-    impactScale: 7,
-    shakeDistance: 3,
-    flashStrength: 0.78,
-    rayCount: 14,
   },
   rare: {
     label: "Rare",
-    tier: 3,
     primary: "#7dd3fc",
     secondary: "#2563eb",
     glow: "rgba(125,211,252,0.84)",
-    particleCount: 34,
-    impactScale: 7.8,
-    shakeDistance: 4,
-    flashStrength: 0.84,
-    rayCount: 17,
   },
   doubleRare: {
     label: "Double Rare",
-    tier: 4,
     primary: "#c4b5fd",
     secondary: "#7c3aed",
     glow: "rgba(196,181,253,0.88)",
-    particleCount: 40,
-    impactScale: 8.7,
-    shakeDistance: 6,
-    flashStrength: 0.9,
-    rayCount: 20,
   },
   ultraRare: {
     label: "Ultra Rare",
-    tier: 5,
     primary: "#fde68a",
     secondary: "#f59e0b",
     glow: "rgba(253,230,138,0.92)",
-    particleCount: 48,
-    impactScale: 9.7,
-    shakeDistance: 8,
-    flashStrength: 0.96,
-    rayCount: 24,
   },
   illustrationRare: {
     label: "Illustration Rare",
-    tier: 5,
     primary: "#f9a8d4",
     secondary: "#a855f7",
     glow: "rgba(249,168,212,0.92)",
-    particleCount: 50,
-    impactScale: 9.8,
-    shakeDistance: 8,
-    flashStrength: 0.96,
-    rayCount: 25,
   },
   specialIllustrationRare: {
     label: "Special Illustration Rare",
-    tier: 6,
     primary: "#67e8f9",
     secondary: "#f9a8d4",
     glow: "rgba(103,232,249,0.96)",
-    particleCount: 58,
-    impactScale: 10.8,
-    shakeDistance: 10,
-    flashStrength: 1,
-    rayCount: 29,
   },
   hyperRare: {
     label: "Hyper Rare",
-    tier: 7,
     primary: "#fef08a",
     secondary: "#f59e0b",
     glow: "rgba(250,204,21,0.98)",
-    particleCount: 66,
-    impactScale: 11.8,
-    shakeDistance: 12,
-    flashStrength: 1,
-    rayCount: 33,
   },
   crownRare: {
     label: "Crown Rare",
-    tier: 8,
     primary: "#ffffff",
     secondary: "#fef08a",
     glow: "rgba(255,255,255,1)",
-    particleCount: 76,
-    impactScale: 13,
-    shakeDistance: 14,
-    flashStrength: 1,
-    rayCount: 38,
   },
 };
 
@@ -271,34 +206,16 @@ export default function WishCinematic({
   const completionTimerRef = useRef<number | null>(null);
   const finishedRef = useRef(false);
   const onFinishedRef = useRef(onFinished);
-  const audioSessionRef = useRef<WishAudioSession | null>(null);
 
   const [ready, setReady] = useState(false);
   const [complete, setComplete] = useState(false);
   const [skipped, setSkipped] = useState(false);
   const [runNumber, setRunNumber] = useState(0);
-  const [muted, setMuted] = useState(false);
 
   const theme = useMemo(
     () => getWishRarityTheme(card?.rarity),
     [card?.rarity],
   );
-
-  const rareSpirit = theme.tier >= 4;
-
-  const spirit = rareSpirit
-    ? {
-        src: "/mew.png",
-        alt: "Ancient Mew",
-        preparing: "An ancient presence is answering...",
-        granting: "Mew is awakening your rare wish...",
-      }
-    : {
-        src: "/jirachi.png",
-        alt: "Jirachi",
-        preparing: "Preparing your wish...",
-        granting: "Jirachi is granting your wish...",
-      };
 
   const cardKey = useMemo(() => {
     if (!card) {
@@ -316,23 +233,6 @@ export default function WishCinematic({
   useEffect(() => {
     onFinishedRef.current = onFinished;
   }, [onFinished]);
-
-  useEffect(() => {
-    try {
-      const stored = window.localStorage.getItem(
-        "pocketpulls-wish-muted",
-      );
-
-      setMuted(stored === "true");
-    } catch {
-      // Local storage is optional.
-    }
-  }, []);
-
-  const stopAudio = useCallback(() => {
-    audioSessionRef.current?.stop();
-    audioSessionRef.current = null;
-  }, []);
 
   const clearTimers = useCallback(() => {
     if (preloadTimerRef.current !== null) {
@@ -357,17 +257,15 @@ export default function WishCinematic({
 
   const revealImmediately = useCallback(() => {
     clearTimers();
-    stopAudio();
     setReady(true);
     setSkipped(true);
     setComplete(true);
     reportFinished();
-  }, [clearTimers, reportFinished, stopAudio]);
+  }, [clearTimers, reportFinished]);
 
   useEffect(() => {
     if (!open || !card) {
       clearTimers();
-      stopAudio();
       finishedRef.current = false;
       setReady(false);
       setComplete(false);
@@ -379,7 +277,6 @@ export default function WishCinematic({
     let started = false;
 
     clearTimers();
-    stopAudio();
     finishedRef.current = false;
     setReady(false);
     setComplete(false);
@@ -418,65 +315,8 @@ export default function WishCinematic({
     return () => {
       active = false;
       clearTimers();
-      stopAudio();
     };
-  }, [
-    open,
-    card,
-    cardKey,
-    clearTimers,
-    reportFinished,
-    stopAudio,
-  ]);
-
-  useEffect(() => {
-    if (!open || !ready || skipped) {
-      return;
-    }
-
-    let cancelled = false;
-
-    void primeWishAudio()
-      .then(() => {
-        if (cancelled) {
-          return;
-        }
-
-        stopAudio();
-        audioSessionRef.current = startWishAudio(
-          theme.tier,
-          muted,
-        );
-      })
-      .catch(() => {
-        // The animation remains fully usable without sound.
-      });
-
-    return () => {
-      cancelled = true;
-      stopAudio();
-    };
-  }, [
-    open,
-    ready,
-    runNumber,
-    skipped,
-    theme.tier,
-    stopAudio,
-  ]);
-
-  useEffect(() => {
-    audioSessionRef.current?.setMuted(muted);
-
-    try {
-      window.localStorage.setItem(
-        "pocketpulls-wish-muted",
-        String(muted),
-      );
-    } catch {
-      // Local storage is optional.
-    }
-  }, [muted]);
+  }, [open, card, cardKey, clearTimers, reportFinished]);
 
   useEffect(() => {
     if (!open) {
@@ -523,10 +363,6 @@ export default function WishCinematic({
     "--wish-primary": theme.primary,
     "--wish-secondary": theme.secondary,
     "--wish-glow": theme.glow,
-    "--impact-scale": String(theme.impactScale),
-    "--shake-distance": `${theme.shakeDistance}px`,
-    "--flash-strength": String(theme.flashStrength),
-    "--tier": String(theme.tier),
   } as CSSProperties;
 
   return (
@@ -538,38 +374,20 @@ export default function WishCinematic({
       aria-label={`Wish reveal for ${card.name}`}
     >
       <div className={styles.sky} />
-      <div className={styles.ancientCardGhost} />
       <div className={styles.stars} />
-      <div className={styles.holoDust} />
-      <div className={styles.ancientGlyphBandTop} />
-      <div className={styles.ancientGlyphBandBottom} />
-      <div className={styles.ancientFrame} />
       <div className={styles.vignette} />
-
-      <button
-        type="button"
-        className={styles.soundButton}
-        onClick={() => {
-          void primeWishAudio();
-          setMuted((current) => !current);
-        }}
-        aria-label={muted ? "Turn wish sound on" : "Mute wish sound"}
-      >
-        {muted ? "Sound Off" : "Sound On"}
-      </button>
 
       {!ready ? (
         <div className={styles.preparing}>
           <div className={styles.preparingGlow} />
 
           <img
-            src={spirit.src}
-            alt={spirit.alt}
+            src="/jirachi.png"
+            alt="Jirachi"
             draggable={false}
-            className={rareSpirit ? styles.preparingMew : ""}
           />
 
-          <p>{spirit.preparing}</p>
+          <p>Preparing your wish...</p>
         </div>
       ) : (
         <div
@@ -582,15 +400,13 @@ export default function WishCinematic({
             <div className={styles.jirachiAura} />
 
             <img
-              src={spirit.src}
-              alt={spirit.alt}
+              src="/jirachi.png"
+              alt="Jirachi"
               draggable={false}
-              className={`${styles.jirachi} ${
-                rareSpirit ? styles.mew : ""
-              }`}
+              className={styles.jirachi}
             />
 
-            <p>{spirit.granting}</p>
+            <p>Jirachi is granting your wish...</p>
           </div>
 
           <div className={styles.fallingStar}>
@@ -606,59 +422,23 @@ export default function WishCinematic({
             <div className={styles.impactRing} />
             <div className={styles.impactRingSecond} />
 
-            {theme.tier >= 4 ? (
-              <div className={styles.impactRingThird} />
-            ) : null}
-
-            <div className={styles.impactRays}>
-              {Array.from({ length: theme.rayCount }).map(
-                (_, index) => (
-                  <span
-                    key={index}
-                    style={
-                      {
-                        "--ray-angle": `${
-                          (360 / theme.rayCount) * index
-                        }deg`,
-                        "--ray-length": `${
-                          80 +
-                          theme.tier * 11 +
-                          (index % 6) * 16
-                        }px`,
-                        "--ray-delay": `${
-                          (index % 5) * 10
-                        }ms`,
-                      } as CSSProperties
-                    }
-                  />
-                ),
-              )}
-            </div>
-
             <div className={styles.particles}>
-              {Array.from({
-                length: theme.particleCount,
-              }).map((_, index) => (
+              {Array.from({ length: 32 }).map((_, index) => (
                 <span
                   key={index}
                   style={
                     {
                       "--particle-angle": `${
-                        (360 / theme.particleCount) *
-                        index
+                        (360 / 32) * index
                       }deg`,
                       "--particle-distance": `${
-                        105 +
-                        theme.tier * 10 +
-                        (index % 9) * 22
+                        115 + (index % 8) * 22
                       }px`,
                       "--particle-delay": `${
-                        (index % 7) * 11
+                        (index % 6) * 13
                       }ms`,
                       "--particle-size": `${
-                        2.5 +
-                        theme.tier * 0.18 +
-                        (index % 5)
+                        3 + (index % 4)
                       }px`,
                     } as CSSProperties
                   }
@@ -685,10 +465,6 @@ export default function WishCinematic({
               )}
 
               <div className={styles.cardShine} />
-
-              {theme.tier >= 5 ? (
-                <div className={styles.premiumCardShine} />
-              ) : null}
             </div>
           </div>
 

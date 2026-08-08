@@ -2,17 +2,13 @@
   --wish-primary: #e2e8f0;
   --wish-secondary: #94a3b8;
   --wish-glow: rgba(226, 232, 240, 0.76);
-  --impact-scale: 7;
-  --shake-distance: 4px;
-  --flash-strength: 0.84;
-  --tier: 3;
 
   position: fixed;
   inset: 0;
   z-index: 10000;
   overflow: hidden;
   color: #ffffff;
-  background: #030414;
+  background: #020617;
   isolation: isolate;
 }
 
@@ -33,25 +29,25 @@
 .sky {
   background:
     radial-gradient(
-      circle at 50% 8%,
-      rgba(244, 202, 114, 0.14),
-      transparent 29%
+      circle at 50% 12%,
+      rgba(255, 255, 255, 0.08),
+      transparent 31%
     ),
     radial-gradient(
       circle at 18% 36%,
-      rgba(45, 212, 191, 0.1),
-      transparent 29%
+      rgba(125, 211, 252, 0.07),
+      transparent 26%
     ),
     radial-gradient(
       circle at 84% 24%,
-      rgba(168, 85, 247, 0.13),
-      transparent 30%
+      rgba(196, 181, 253, 0.08),
+      transparent 27%
     ),
     linear-gradient(
       180deg,
-      #07051a 0%,
-      #0a0a2a 50%,
-      #030414 100%
+      #020617 0%,
+      #08132e 52%,
+      #020617 100%
     );
 }
 
@@ -138,33 +134,24 @@
   text-transform: uppercase;
 }
 
-.soundButton,
 .skipButton {
   position: absolute;
   z-index: 90;
   top: 1.25rem;
+  right: 1.25rem;
   min-height: 2.65rem;
-  border: 1px solid rgba(244, 202, 114, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 999px;
   padding: 0 1rem;
   color: rgba(255, 255, 255, 0.72);
-  background: rgba(10, 8, 34, 0.7);
+  background: rgba(0, 0, 0, 0.3);
   cursor: pointer;
   font-size: 0.68rem;
   font-weight: 900;
-  letter-spacing: 0.11em;
+  letter-spacing: 0.13em;
   text-transform: uppercase;
 }
 
-.soundButton {
-  left: 1.25rem;
-}
-
-.skipButton {
-  right: 1.25rem;
-}
-
-.soundButton:hover,
 .skipButton:hover {
   color: #ffffff;
   background: rgba(255, 255, 255, 0.09);
@@ -175,12 +162,6 @@
   overflow: hidden;
   transform: translateZ(0);
   backface-visibility: hidden;
-  animation:
-    sequenceShake 760ms 4.54s
-    cubic-bezier(0.36, 0.07, 0.19, 0.97)
-    both;
-  animation-play-state: running;
-  contain: layout paint style;
 }
 
 .jirachiScene {
@@ -357,17 +338,16 @@
   background: radial-gradient(
     circle at 50% 78%,
     #ffffff 0%,
-    var(--wish-primary) 9%,
-    var(--wish-glow) 24%,
-    transparent 54%
+    var(--wish-primary) 10%,
+    var(--wish-glow) 25%,
+    transparent 52%
   );
   opacity: 0;
-  animation: impactFlash 760ms 4.54s ease-out both;
+  animation: impactFlash 720ms 4.56s ease-out both;
 }
 
 .impactRing,
-.impactRingSecond,
-.impactRingThird {
+.impactRingSecond {
   position: absolute;
   top: 78%;
   left: 50%;
@@ -378,51 +358,11 @@
   box-shadow: 0 0 34px var(--wish-glow);
   opacity: 0;
   transform: translate(-50%, -50%) scale(0.18);
-  animation: impactRing 820ms 4.56s ease-out both;
+  animation: impactRing 780ms 4.57s ease-out both;
 }
 
 .impactRingSecond {
-  animation-delay: 4.64s;
-}
-
-.impactRingThird {
-  animation-delay: 4.72s;
-}
-
-.impactRays {
-  position: absolute;
-  top: 78%;
-  left: 50%;
-  width: 1px;
-  height: 1px;
-}
-
-.impactRays span {
-  --ray-angle: 0deg;
-  --ray-length: 130px;
-  --ray-delay: 0ms;
-
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: var(--ray-length);
-  height: 2px;
-  border-radius: 999px;
-  background: linear-gradient(
-    to right,
-    var(--wish-primary),
-    transparent
-  );
-  box-shadow: 0 0 9px var(--wish-glow);
-  opacity: 0;
-  transform:
-    rotate(var(--ray-angle))
-    translateX(12px)
-    scaleX(0.1);
-  transform-origin: left center;
-  animation: rayBurst 650ms
-    calc(4.55s + var(--ray-delay))
-    ease-out both;
+  animation-delay: 4.66s;
 }
 
 .particles {
@@ -452,8 +392,8 @@
     rotate(var(--particle-angle))
     translateX(0)
     scale(1);
-  animation: particleBurst 820ms
-    calc(4.57s + var(--particle-delay))
+  animation: particleBurst 760ms
+    calc(4.58s + var(--particle-delay))
     ease-out both;
 }
 
@@ -498,10 +438,9 @@
   overflow: hidden;
   border: 2px solid var(--wish-primary);
   border-radius: 1.35rem;
-  background: #07051a;
+  background: #07091f;
   box-shadow:
-    0 0 0 1px rgba(244, 202, 114, 0.2),
-    0 0 0 5px rgba(217, 154, 53, 0.055),
+    0 0 0 1px rgba(255, 255, 255, 0.08),
     0 0 46px var(--wish-glow),
     0 28px 75px rgba(0, 0, 0, 0.68);
   transform: translateZ(0);
@@ -541,8 +480,7 @@
   font-size: 1rem;
 }
 
-.cardShine,
-.premiumCardShine {
+.cardShine {
   position: absolute;
   inset: 0;
   pointer-events: none;
@@ -556,24 +494,6 @@
   );
   background-size: 260% 100%;
   animation: shine 2.4s 5.4s linear infinite;
-}
-
-.premiumCardShine {
-  inset: 0;
-  pointer-events: none;
-  background: conic-gradient(
-    from 115deg,
-    transparent,
-    rgba(103, 232, 249, 0.14),
-    rgba(249, 168, 212, 0.16),
-    rgba(254, 240, 138, 0.14),
-    transparent
-  );
-  mix-blend-mode: screen;
-  opacity: 0;
-  animation:
-    premiumShine 2.8s 5.25s linear infinite,
-    premiumShineIn 500ms 5.25s ease-out both;
 }
 
 .cardInfo {
@@ -723,128 +643,6 @@
   opacity: 1;
   animation: none;
   transform: translate3d(0, 0, 0);
-}
-
-
-.ancientCardGhost,
-.holoDust,
-.ancientGlyphBandTop,
-.ancientGlyphBandBottom,
-.ancientFrame {
-  position: absolute;
-  pointer-events: none;
-}
-
-.ancientCardGhost {
-  inset: -7%;
-  z-index: 0;
-  background:
-    linear-gradient(
-      rgba(3, 4, 20, 0.82),
-      rgba(3, 4, 20, 0.94)
-    ),
-    url("/unknown-pulls/ancient-mew-card.jpg")
-      center 34% / cover no-repeat;
-  opacity: 0.3;
-  mix-blend-mode: screen;
-  filter:
-    saturate(1.28)
-    contrast(1.08)
-    blur(0.5px);
-  transform: scale(1.08);
-}
-
-.holoDust {
-  inset: -18%;
-  z-index: 3;
-  opacity: 0.3;
-  background-image:
-    radial-gradient(circle at 7% 13%, #67e8f9 0 1px, transparent 2px),
-    radial-gradient(circle at 18% 27%, #fde68a 0 1.2px, transparent 2.4px),
-    radial-gradient(circle at 28% 8%, #f9a8d4 0 1px, transparent 2px),
-    radial-gradient(circle at 39% 42%, #a7f3d0 0 1.3px, transparent 2.4px),
-    radial-gradient(circle at 51% 17%, #c4b5fd 0 1px, transparent 2px),
-    radial-gradient(circle at 63% 35%, #fde68a 0 1.2px, transparent 2.4px),
-    radial-gradient(circle at 74% 11%, #67e8f9 0 1px, transparent 2px),
-    radial-gradient(circle at 87% 29%, #fb7185 0 1.2px, transparent 2.4px),
-    radial-gradient(circle at 11% 71%, #c4b5fd 0 1.2px, transparent 2.4px),
-    radial-gradient(circle at 44% 73%, #fde68a 0 1.2px, transparent 2.4px),
-    radial-gradient(circle at 77% 68%, #a7f3d0 0 1.3px, transparent 2.4px);
-  background-size: 300px 245px;
-  mix-blend-mode: screen;
-  animation: ancientDustDrift 34s linear infinite;
-}
-
-.ancientGlyphBandTop,
-.ancientGlyphBandBottom {
-  right: 0;
-  left: 0;
-  z-index: 6;
-  height: 36px;
-  background:
-    linear-gradient(
-      90deg,
-      rgba(217, 154, 53, 0.08),
-      rgba(244, 202, 114, 0.52),
-      rgba(103, 232, 249, 0.32),
-      rgba(244, 202, 114, 0.52),
-      rgba(217, 154, 53, 0.08)
-    );
-  -webkit-mask-image:
-    url("/unknown-pulls/unown-band.png");
-  mask-image:
-    url("/unknown-pulls/unown-band.png");
-  -webkit-mask-repeat: repeat-x;
-  mask-repeat: repeat-x;
-  -webkit-mask-position: center;
-  mask-position: center;
-  -webkit-mask-size: auto 32px;
-  mask-size: auto 32px;
-  opacity: 0.26;
-}
-
-.ancientGlyphBandTop {
-  top: 0;
-}
-
-.ancientGlyphBandBottom {
-  bottom: 0;
-  transform: rotate(180deg);
-}
-
-.ancientFrame {
-  z-index: 7;
-  inset: 10px;
-  border: 1px solid rgba(244, 202, 114, 0.2);
-  border-radius: 18px;
-  box-shadow:
-    inset 0 0 0 6px rgba(103, 232, 249, 0.015),
-    inset 0 0 42px rgba(217, 154, 53, 0.035);
-}
-
-.preparingMew {
-  width: 116% !important;
-  filter:
-    drop-shadow(0 0 18px var(--wish-glow))
-    drop-shadow(0 24px 32px rgba(0, 0, 0, 0.62)) !important;
-}
-
-.mew {
-  width: 118%;
-  max-width: none;
-  filter:
-    drop-shadow(0 0 20px var(--wish-glow))
-    drop-shadow(0 24px 34px rgba(0, 0, 0, 0.62));
-}
-
-@keyframes ancientDustDrift {
-  from {
-    transform: translate3d(0, 0, 0) rotate(0deg);
-  }
-
-  to {
-    transform: translate3d(-110px, 65px, 0) rotate(3deg);
-  }
 }
 
 @keyframes starsBreathe {
@@ -1010,8 +808,8 @@
     opacity: 0;
   }
 
-  7% {
-    opacity: var(--flash-strength);
+  8% {
+    opacity: 1;
   }
 
   100% {
@@ -1031,31 +829,7 @@
 
   100% {
     opacity: 0;
-    transform:
-      translate(-50%, -50%)
-      scale(var(--impact-scale));
-  }
-}
-
-@keyframes rayBurst {
-  0% {
-    opacity: 0;
-    transform:
-      rotate(var(--ray-angle))
-      translateX(12px)
-      scaleX(0.1);
-  }
-
-  8% {
-    opacity: 0.9;
-  }
-
-  100% {
-    opacity: 0;
-    transform:
-      rotate(var(--ray-angle))
-      translateX(20px)
-      scaleX(1);
+    transform: translate(-50%, -50%) scale(8);
   }
 }
 
@@ -1137,88 +911,7 @@
   }
 }
 
-
-@keyframes sequenceShake {
-  0%,
-  100% {
-    transform: translate3d(0, 0, 0);
-  }
-
-  12% {
-    transform: translate3d(
-      calc(var(--shake-distance) * -0.75),
-      calc(var(--shake-distance) * 0.22),
-      0
-    );
-  }
-
-  24% {
-    transform: translate3d(
-      var(--shake-distance),
-      calc(var(--shake-distance) * -0.3),
-      0
-    );
-  }
-
-  38% {
-    transform: translate3d(
-      calc(var(--shake-distance) * -0.8),
-      calc(var(--shake-distance) * 0.26),
-      0
-    );
-  }
-
-  52% {
-    transform: translate3d(
-      calc(var(--shake-distance) * 0.65),
-      calc(var(--shake-distance) * -0.18),
-      0
-    );
-  }
-
-  70% {
-    transform: translate3d(
-      calc(var(--shake-distance) * -0.32),
-      0,
-      0
-    );
-  }
-}
-
-@keyframes premiumShine {
-  from {
-    transform: rotate(0deg) scale(1.35);
-  }
-
-  to {
-    transform: rotate(360deg) scale(1.35);
-  }
-}
-
-@keyframes premiumShineIn {
-  from {
-    opacity: 0;
-  }
-
-  to {
-    opacity: 0.72;
-  }
-}
-
 @media (max-width: 640px) {
-  .ancientGlyphBandTop,
-  .ancientGlyphBandBottom {
-    height: 24px;
-    -webkit-mask-size: auto 21px;
-    mask-size: auto 21px;
-    opacity: 0.18;
-  }
-
-  .ancientFrame {
-    inset: 5px;
-    border-radius: 12px;
-  }
-
   .jirachiScene {
     top: 8%;
     width: min(68vw, 215px);
@@ -1254,3 +947,28 @@
   }
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .stars,
+  .preparingGlow,
+  .preparing img,
+  .jirachiScene,
+  .jirachiAura,
+  .jirachi,
+  .fallingStar,
+  .whiteTrail,
+  .rarityTrail,
+  .starOuterGlow,
+  .whiteCore,
+  .rarityCore,
+  .impactFlash,
+  .impactRing,
+  .impactRingSecond,
+  .particles span,
+  .cardScene,
+  .cardGlow,
+  .cardShine,
+  .cardInfo {
+    animation-duration: 1ms !important;
+    animation-delay: 0ms !important;
+  }
+}

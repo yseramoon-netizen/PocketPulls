@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import WishCinematic, { type WishRevealCard } from "@/components/player/WishCinematic";
 import { supabase } from "@/lib/supabase";
 
 type WalletRow = {
@@ -66,13 +67,6 @@ type WishReveal = {
   imageUrl: string | null;
   marketValue: number;
   wishBalance: number;
-};
-
-type PullPhase = "idle" | "charging" | "searching" | "revealing";
-
-type MakeWishResponse = {
-  ok: true;
-  result: Record<string, unknown>;
 };
 
 type DashboardData = {
@@ -162,73 +156,12 @@ function formatDate(value: string): string {
   }).format(date);
 }
 
-function sleep(milliseconds: number): Promise<void> {
-  return new Promise((resolve) => {
-    window.setTimeout(resolve, milliseconds);
-  });
-}
-
-async function playerFetch<T>(
-  input: string,
-  init: RequestInit = {},
-): Promise<T> {
-  const { data, error } = await supabase.auth.getSession();
-
-  if (error) {
-    throw error;
-  }
-
-  // Do not force a refresh from the pull button. On mobile, a failed refresh
-  // could emit SIGNED_OUT and throw the player out of the Jirachi shell while
-  // a wish was in flight. The normal Supabase client already auto-refreshes
-  // valid sessions in the background; if no token exists here we fail safely
-  // without mutating auth state.
-  if (!data.session?.access_token) {
-    throw new Error(
-      "Your trainer session is not ready. Reload the page, then try the wish again.",
-    );
-  }
-
-  const headers = new Headers(init.headers);
-  headers.set("Authorization", `Bearer ${data.session.access_token}`);
-
-  if (init.body && !headers.has("Content-Type")) {
-    headers.set("Content-Type", "application/json");
-  }
-
-  const response = await fetch(input, {
-    ...init,
-    headers,
-    cache: "no-store",
-  });
-
-  const payload = (await response.json().catch(() => null)) as
-    | T
-    | { error?: { message?: string } }
-    | null;
-
-  if (!response.ok) {
-    const message =
-      payload &&
-      typeof payload === "object" &&
-      "error" in payload &&
-      typeof payload.error?.message === "string"
-        ? payload.error.message
-        : "Jirachi could not complete that wish.";
-
-    throw new Error(message);
-  }
-
-  return payload as T;
-}
-
 export default function WishesPage() {
   const [dashboard, setDashboard] = useState<DashboardData>(EMPTY_DASHBOARD);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [makingWish, setMakingWish] = useState(false);
-  const [pullPhase, setPullPhase] = useState<PullPhase>("idle");
   const [wishReveal, setWishReveal] = useState<WishReveal | null>(null);
 
   const loadDashboard = useCallback(async (background = false) => {
@@ -477,63 +410,35 @@ export default function WishesPage() {
     }
 
     setMakingWish(true);
-    setPullPhase("charging");
-    setWishReveal(null);
     setErrorMessage(null);
 
     try {
-      const animation = (async () => {
-        await sleep(850);
-        setPullPhase("searching");
-        await sleep(1500);
-      })();
+      const { data, error } = await supabase.rpc("make_player_wish");
 
-      const request = playerFetch<MakeWishResponse>(
-        "/api/player/wishes/make",
-        { method: "POST" },
-      );
+      if (error) {
+        throw error;
+      }
 
-      const [response] = await Promise.all([request, animation]);
-      const result = response.result;
+      const row = Array.isArray(data) ? data[0] : data;
+
+      if (!row || typeof row !== "object") {
+        throw new Error("Jirachi completed the wish, but the card reveal was missing.");
+      }
+
+      const result = row as Record<string, unknown>;
       const nextBalance = toWholeNumber(result.wish_balance);
 
-      const reveal: WishReveal = {
+      setWishReveal({
         wishId: String(result.wish_id ?? ""),
         cardId: String(result.card_id ?? ""),
-        cardName:
-          typeof result.name === "string" && result.name.trim()
-            ? result.name.trim()
-            : "Mystery card",
-        setName:
-          typeof result.set_name === "string" && result.set_name.trim()
-            ? result.set_name.trim()
-            : "Unknown set",
-        cardNumber:
-          typeof result.card_no === "string" && result.card_no.trim()
-            ? result.card_no.trim()
-            : "-",
-        rarity:
-          typeof result.rarity === "string" && result.rarity.trim()
-            ? result.rarity.trim()
-            : "Unlisted rarity",
-        imageUrl:
-          typeof result.image_url === "string" && result.image_url.trim()
-            ? result.image_url.trim()
-            : null,
+        cardName: typeof result.name === "string" && result.name.trim() ? result.name.trim() : "Mystery card",
+        setName: typeof result.set_name === "string" && result.set_name.trim() ? result.set_name.trim() : "Unknown set",
+        cardNumber: typeof result.card_no === "string" && result.card_no.trim() ? result.card_no.trim() : "-",
+        rarity: typeof result.rarity === "string" && result.rarity.trim() ? result.rarity.trim() : "Unlisted rarity",
+        imageUrl: typeof result.image_url === "string" && result.image_url.trim() ? result.image_url.trim() : null,
         marketValue: toNumber(result.market_value),
         wishBalance: nextBalance,
-      };
-
-      setPullPhase("revealing");
-      await sleep(650);
-      setWishReveal(reveal);
-      setPullPhase("idle");
-
-      setDashboard((current) => ({
-        ...current,
-        wishBalance: nextBalance,
-        lifetimeWishesSpent: current.lifetimeWishesSpent + 1,
-      }));
+      });
 
       window.dispatchEvent(
         new CustomEvent("pocketpulls:wish-balance", {
@@ -541,10 +446,9 @@ export default function WishesPage() {
         }),
       );
 
-      void loadDashboard(true);
+      await loadDashboard(true);
     } catch (error: unknown) {
       console.error("Make wish error:", error);
-      setPullPhase("idle");
       setErrorMessage(
         getErrorMessage(error, "Jirachi could not complete that wish."),
       );
@@ -675,24 +579,25 @@ export default function WishesPage() {
         <QuickLinks />
       </div>
 
-      <WishAnimationStyles />
-
-      {pullPhase !== "idle" ? (
-        <WishSummoningOverlay phase={pullPhase} />
-      ) : null}
-
-      {wishReveal ? (
-        <WishRevealModal
-          reveal={wishReveal}
-          onClose={() => setWishReveal(null)}
-          onWishAgain={() => {
-            setWishReveal(null);
-            window.setTimeout(() => void makeWish(), 120);
-          }}
-          canWishAgain={wishReveal.wishBalance > 0}
-          busy={makingWish}
-        />
-      ) : null}
+      <WishCinematic
+        open={Boolean(wishReveal)}
+        card={wishReveal ? ({
+          id: wishReveal.wishId || wishReveal.cardId,
+          name: wishReveal.cardName,
+          rarity: wishReveal.rarity,
+          imageUrl: wishReveal.imageUrl,
+          setName: wishReveal.setName,
+          cardNumber: wishReveal.cardNumber,
+          marketValue: wishReveal.marketValue,
+        } satisfies WishRevealCard) : null}
+        onClose={() => setWishReveal(null)}
+        onWishAgain={() => {
+          setWishReveal(null);
+          window.setTimeout(() => void makeWish(), 120);
+        }}
+        canWishAgain={Boolean(wishReveal && wishReveal.wishBalance > 0)}
+        busy={makingWish}
+      />
     </section>
   );
 }
@@ -825,122 +730,6 @@ function WishChamber({
   );
 }
 
-function WishAnimationStyles() {
-  return (
-    <style jsx global>{`
-        @keyframes wishJirachiRise {
-          0%, 100% { transform: translateY(12px) rotate(-2deg) scale(0.96); }
-          50% { transform: translateY(-18px) rotate(2deg) scale(1.04); }
-        }
-        @keyframes wishRingSpin {
-          to { transform: rotate(360deg); }
-        }
-        @keyframes wishRingSpinReverse {
-          to { transform: rotate(-360deg); }
-        }
-        @keyframes wishStarConverge {
-          0% { opacity: 0.18; transform: scale(0.6) rotate(0deg); }
-          45% { opacity: 1; transform: scale(1.45) rotate(90deg); }
-          100% { opacity: 0.3; transform: scale(0.85) rotate(180deg); }
-        }
-        @keyframes wishOrbit {
-          from { transform: rotate(var(--wish-angle)) translateX(132px); }
-          to { transform: rotate(calc(var(--wish-angle) + 360deg)) translateX(132px); }
-        }
-        @keyframes wishRevealIn {
-          0% { opacity: 0; transform: translateY(18px) scale(0.88); filter: blur(12px); }
-          70% { opacity: 1; transform: translateY(-3px) scale(1.025); filter: blur(0); }
-          100% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
-        }
-        @keyframes wishCardArrival {
-          0% { opacity: 0; transform: rotateY(90deg) scale(0.72); filter: brightness(2.4) blur(8px); }
-          58% { opacity: 1; transform: rotateY(-8deg) scale(1.06); filter: brightness(1.35) blur(0); }
-          100% { opacity: 1; transform: rotateY(0) scale(1); filter: brightness(1) blur(0); }
-        }
-        .wish-jirachi { animation: wishJirachiRise 1.25s ease-in-out infinite; }
-        .wish-ring-one { animation: wishRingSpin 2.4s linear infinite; }
-        .wish-ring-two { animation: wishRingSpinReverse 1.8s linear infinite; }
-        .wish-summon-star { animation: wishStarConverge 1.05s ease-in-out infinite; text-shadow: 0 0 12px rgba(254,249,195,.8); }
-        .wish-orbit-star { left: 50%; top: 50%; animation: wishOrbit 3s linear infinite; text-shadow: 0 0 12px rgba(254,249,195,.9), 0 0 24px rgba(103,232,249,.35); }
-        .wish-reveal-card { animation: wishRevealIn .52s cubic-bezier(.2,.85,.2,1) both; perspective: 1000px; }
-        .wish-card-arrival { animation: wishCardArrival .78s cubic-bezier(.2,.8,.2,1) .12s both; transform-style: preserve-3d; }
-        @media (max-width: 640px) {
-          @keyframes wishOrbit {
-            from { transform: rotate(var(--wish-angle)) translateX(104px); }
-            to { transform: rotate(calc(var(--wish-angle) + 360deg)) translateX(104px); }
-          }
-        }
-    `}</style>
-  );
-}
-
-function WishSummoningOverlay({ phase }: { phase: PullPhase }) {
-  const label =
-    phase === "charging"
-      ? "Jirachi heard your wish..."
-      : phase === "searching"
-        ? "Searching the constellation..."
-        : "A star is answering...";
-
-  return (
-    <div className="fixed inset-0 z-[155] flex items-center justify-center overflow-hidden bg-[#020318]/88 p-4 backdrop-blur-xl">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(250,225,120,0.13),transparent_22%),radial-gradient(circle_at_50%_45%,rgba(103,232,249,0.11),transparent_34%),radial-gradient(circle_at_50%_55%,rgba(139,92,246,0.12),transparent_48%)]" />
-
-      {Array.from({ length: 26 }, (_, index) => (
-        <span
-          key={index}
-          className="wish-summon-star absolute text-yellow-100"
-          style={{
-            left: `${(index * 41 + 7) % 96}%`,
-            top: `${(index * 59 + 9) % 90}%`,
-            animationDelay: `${(index % 9) * 90}ms`,
-            fontSize: `${0.5 + (index % 4) * 0.22}rem`,
-          }}
-        >
-          ✦
-        </span>
-      ))}
-
-      <div className="relative flex flex-col items-center text-center">
-        <div className="relative flex h-72 w-72 items-center justify-center sm:h-96 sm:w-96">
-          <div className="wish-ring-one absolute h-[82%] w-[82%] rounded-[50%] border border-yellow-100/25" />
-          <div className="wish-ring-two absolute h-[58%] w-[94%] rounded-[50%] border border-cyan-100/20" />
-          <div className="absolute h-52 w-52 rounded-full bg-yellow-200/15 blur-[65px] sm:h-64 sm:w-64" />
-
-          <img
-            src="/jirachi.png"
-            alt="Jirachi making a wish"
-            draggable={false}
-            className="wish-jirachi relative z-10 w-40 object-contain drop-shadow-[0_28px_40px_rgba(0,0,0,0.55)] sm:w-52"
-          />
-
-          {Array.from({ length: 10 }, (_, index) => (
-            <span
-              key={`orbit-${index}`}
-              className="wish-orbit-star absolute z-20 text-yellow-100"
-              style={{
-                ["--wish-angle" as string]: `${index * 36}deg`,
-                animationDelay: `${index * -180}ms`,
-              }}
-            >
-              ✦
-            </span>
-          ))}
-        </div>
-
-        <p className="text-xs font-black uppercase tracking-[0.24em] text-yellow-100/55">
-          Wish in progress
-        </p>
-        <h2 className="mt-3 text-2xl font-black text-white sm:text-3xl">
-          {label}
-        </h2>
-      </div>
-
-
-    </div>
-  );
-}
-
 function WishRevealModal({
   reveal,
   onClose,
@@ -958,7 +747,7 @@ function WishRevealModal({
     <div className="fixed inset-0 z-[160] flex items-center justify-center bg-[#020318]/82 p-4 backdrop-blur-xl">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(250,225,120,0.12),transparent_28%),radial-gradient(circle_at_45%_45%,rgba(117,220,255,0.10),transparent_34%)]" />
 
-      <article className="wish-reveal-card relative w-full max-w-2xl overflow-hidden rounded-[2.4rem] border border-yellow-100/20 bg-[#080a25]/95 p-6 shadow-[0_35px_140px_rgba(0,0,0,0.7)] sm:p-9">
+      <article className="relative w-full max-w-2xl overflow-hidden rounded-[2.4rem] border border-yellow-100/20 bg-[#080a25]/95 p-6 shadow-[0_35px_140px_rgba(0,0,0,0.7)] sm:p-9">
         <div className="pointer-events-none absolute -left-20 -top-20 h-64 w-64 rounded-full bg-violet-300/10 blur-[90px]" />
         <div className="pointer-events-none absolute -bottom-24 -right-12 h-72 w-72 rounded-full bg-yellow-200/10 blur-[100px]" />
 
@@ -978,7 +767,7 @@ function WishRevealModal({
               <img
                 src={reveal.imageUrl}
                 alt={reveal.cardName}
-                className="wish-card-arrival relative z-10 h-full w-full object-contain drop-shadow-[0_24px_30px_rgba(0,0,0,0.5)]"
+                className="relative z-10 h-full w-full object-contain drop-shadow-[0_24px_30px_rgba(0,0,0,0.5)]"
               />
             ) : (
               <span className="relative z-10 text-8xl text-yellow-100/20">✦</span>

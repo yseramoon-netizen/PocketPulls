@@ -2,108 +2,130 @@
   position: relative;
   min-height: 100dvh;
   overflow: hidden;
-  background:
-    radial-gradient(circle at 50% -10%, rgba(103, 232, 249, 0.11), transparent 28%),
-    radial-gradient(circle at 15% 20%, rgba(124, 58, 237, 0.11), transparent 26%),
-    linear-gradient(180deg, #05071c 0%, #07091f 55%, #040617 100%);
+  padding: 2rem 0 5rem;
 }
 
 .sky {
+  pointer-events: none;
   position: fixed;
   inset: 0;
-  pointer-events: none;
+  z-index: 0;
   overflow: hidden;
+  background:
+    radial-gradient(circle at 20% 16%, rgba(250, 204, 21, 0.04), transparent 18%),
+    radial-gradient(circle at 80% 24%, rgba(103, 232, 249, 0.035), transparent 20%);
 }
 
 .spark {
   position: absolute;
-  width: 3px;
-  height: 3px;
   border-radius: 999px;
-  background: #fff6bf;
-  box-shadow: 0 0 10px rgba(255, 236, 153, 0.8);
+  background: rgba(255, 247, 184, 0.95);
+  box-shadow:
+    0 0 8px rgba(255, 234, 135, 0.85),
+    0 0 22px rgba(103, 232, 249, 0.35);
   animation: twinkle ease-in-out infinite;
 }
 
 .content {
   position: relative;
   z-index: 1;
-  width: min(1500px, calc(100% - 2rem));
+  width: min(1580px, calc(100% - 2rem));
   margin: 0 auto;
-  padding: 2rem 0 5rem;
 }
 
 .hero {
+  position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(320px, 0.72fr);
-  align-items: center;
+  grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.85fr);
   gap: 2rem;
-  min-height: 23rem;
+  overflow: hidden;
+  border-radius: 2.4rem;
+  border: 1px solid rgba(250, 204, 21, 0.15);
+  background:
+    radial-gradient(circle at 82% 18%, rgba(250, 204, 21, 0.12), transparent 25%),
+    radial-gradient(circle at 74% 80%, rgba(103, 232, 249, 0.1), transparent 28%),
+    linear-gradient(135deg, rgba(13, 14, 48, 0.96), rgba(7, 8, 31, 0.95) 58%, rgba(18, 9, 39, 0.95));
+  padding: 2rem;
+  box-shadow: 0 35px 110px rgba(0, 0, 0, 0.34);
 }
 
 .heroCopy {
-  max-width: 48rem;
+  align-self: center;
 }
 
-.topRow {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.7rem;
-  align-items: center;
-  margin-bottom: 1.4rem;
-}
-
-.backButton,
-.firstRechargePill {
-  display: inline-flex;
-  min-height: 2.25rem;
-  align-items: center;
-  justify-content: center;
-  border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  padding: 0.35rem 0.8rem;
-  font-size: 0.72rem;
+.eyebrow,
+.bannerKicker {
+  font-size: 0.64rem;
   font-weight: 900;
-  text-decoration: none;
-}
-
-.backButton {
-  background: rgba(255, 255, 255, 0.045);
-  color: rgba(255, 255, 255, 0.62);
-}
-
-.firstRechargePill {
-  border-color: rgba(250, 204, 21, 0.2);
-  background: rgba(250, 204, 21, 0.09);
-  color: #fff5c2;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
 }
 
 .eyebrow {
-  font-size: 0.66rem;
-  font-weight: 950;
-  letter-spacing: 0.23em;
-  text-transform: uppercase;
-  color: rgba(207, 250, 254, 0.46);
+  color: rgba(254, 249, 195, 0.52);
 }
 
 .heroCopy h1 {
-  margin-top: 0.75rem;
-  font-size: clamp(3rem, 6vw, 6rem);
-  line-height: 0.9;
-  letter-spacing: -0.06em;
+  margin-top: 0.8rem;
+  max-width: 11ch;
+  font-size: clamp(2.8rem, 5vw, 5.7rem);
+  line-height: 0.94;
+  letter-spacing: -0.055em;
   font-weight: 950;
+  color: #fff;
 }
 
-.heroLine {
-  margin-top: 1.1rem;
+.heroCopy > p:not(.eyebrow) {
+  margin-top: 1.2rem;
+  max-width: 44rem;
   font-size: 1rem;
-  font-weight: 800;
-  color: rgba(255, 255, 255, 0.45);
+  line-height: 1.85;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.heroActions {
+  margin-top: 1.5rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.secondaryButton,
+.jirachiButton {
+  display: inline-flex;
+  min-height: 3rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 0.8rem 1.05rem;
+  text-decoration: none;
+  font-size: 0.85rem;
+  font-weight: 900;
+  transition: 180ms ease;
+}
+
+.secondaryButton {
+  background: rgba(255, 255, 255, 0.045);
+  color: rgba(255, 255, 255, 0.74);
+}
+
+.jirachiButton {
+  cursor: pointer;
+  background: linear-gradient(90deg, rgba(250, 204, 21, 0.17), rgba(103, 232, 249, 0.1));
+  color: rgba(255, 252, 220, 0.94);
+}
+
+.secondaryButton:hover,
+.jirachiButton:hover {
+  transform: translateY(-1px);
+  border-color: rgba(255, 255, 255, 0.17);
 }
 
 .jirachiStage {
   position: relative;
-  min-height: 23rem;
+  min-height: 26rem;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -115,36 +137,506 @@
   width: 18rem;
   height: 18rem;
   border-radius: 999px;
-  background: radial-gradient(circle, rgba(253, 230, 138, 0.15), rgba(125, 211, 252, 0.05) 42%, transparent 72%);
-  filter: blur(4px);
-  animation: haloPulse 4s ease-in-out infinite;
+  background: radial-gradient(circle, rgba(250, 204, 21, 0.2), rgba(103, 232, 249, 0.08) 48%, transparent 72%);
+  filter: blur(8px);
+  animation: breathe 4s ease-in-out infinite;
 }
 
 .orbitOne,
 .orbitTwo {
   position: absolute;
-  left: 50%;
-  top: 50%;
-  border-radius: 50%;
-  border: 1px solid rgba(224, 242, 254, 0.18);
-  pointer-events: none;
+  border-radius: 999px;
+  border: 1px solid rgba(254, 249, 195, 0.18);
 }
 
 .orbitOne {
   width: 19rem;
-  height: 9.2rem;
-  margin-left: -9.5rem;
-  margin-top: -4.6rem;
-  animation: ringSpinOne 16s linear infinite;
+  height: 9rem;
+  transform: rotate(18deg);
+  animation: orbit 12s linear infinite;
 }
 
 .orbitTwo {
-  width: 13rem;
-  height: 21rem;
-  margin-left: -6.5rem;
-  margin-top: -10.5rem;
-  border-color: rgba(216, 180, 254, 0.16);
-  animation: ringSpinTwo 20s linear infinite reverse;
+  width: 14rem;
+  height: 22rem;
+  transform: rotate(-38deg);
+  border-color: rgba(165, 243, 252, 0.13);
+  animation: orbitReverse 15s linear infinite;
+}
+
+.jirachiImageButton {
+  position: relative;
+  z-index: 4;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+}
+
+.jirachiImage {
+  position: relative;
+  z-index: 2;
+  width: min(70%, 19rem);
+  object-fit: contain;
+  filter: drop-shadow(0 24px 38px rgba(0, 0, 0, 0.45));
+  animation: float 4.5s ease-in-out infinite;
+}
+
+.wishCounterBubble {
+  position: absolute;
+  z-index: 3;
+  right: 0.5rem;
+  bottom: 1.5rem;
+  display: grid;
+  min-width: 8.5rem;
+  border-radius: 1.4rem;
+  border: 1px solid rgba(250, 204, 21, 0.18);
+  background: rgba(9, 11, 39, 0.8);
+  padding: 0.9rem 1rem;
+  text-align: center;
+  backdrop-filter: blur(18px);
+}
+
+.wishCounterBubble span,
+.wishCounterBubble small {
+  font-size: 0.62rem;
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.42);
+}
+
+.wishCounterBubble strong {
+  margin: 0.15rem 0;
+  font-size: 1.7rem;
+  font-weight: 950;
+  color: #fff7b8;
+}
+
+.firstRechargeBanner {
+  margin-top: 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.25rem;
+  border-radius: 1.8rem;
+  border: 1px solid rgba(250, 204, 21, 0.18);
+  background:
+    radial-gradient(circle at 90% 50%, rgba(250, 204, 21, 0.14), transparent 25%),
+    linear-gradient(90deg, rgba(93, 62, 18, 0.35), rgba(11, 16, 42, 0.78));
+  padding: 1.2rem 1.25rem;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.22);
+}
+
+.bannerKicker {
+  color: rgba(254, 249, 195, 0.55);
+}
+
+.firstRechargeBanner h2 {
+  margin-top: 0.4rem;
+  font-size: clamp(1.45rem, 3vw, 2.2rem);
+  font-weight: 950;
+  letter-spacing: -0.035em;
+}
+
+.firstRechargeBanner p:not(.bannerKicker) {
+  margin-top: 0.4rem;
+  max-width: 56rem;
+  font-size: 0.86rem;
+  line-height: 1.7;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.discountOrb {
+  display: flex;
+  width: 5.4rem;
+  height: 5.4rem;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 248, 182, 0.24);
+  background: radial-gradient(circle at 35% 30%, #fff6ba, #eab308 48%, #854d0e 100%);
+  box-shadow: 0 0 30px rgba(250, 204, 21, 0.22);
+  font-size: 1.35rem;
+  font-weight: 950;
+  color: #271a04;
+}
+
+.errorBanner,
+.successBanner {
+  margin-top: 1rem;
+  border-radius: 1.25rem;
+  padding: 1rem 1.05rem;
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.errorBanner {
+  border: 1px solid rgba(248, 113, 113, 0.18);
+  background: rgba(248, 113, 113, 0.08);
+  color: #fee2e2;
+}
+
+.successBanner {
+  border: 1px solid rgba(110, 231, 183, 0.18);
+  background: rgba(110, 231, 183, 0.08);
+  color: #d1fae5;
+}
+
+.loadingCard {
+  margin-top: 1.25rem;
+  min-height: 18rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  border-radius: 2rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(8, 10, 34, 0.68);
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.58);
+}
+
+.loadingStar {
+  font-size: 3rem;
+  color: #fff4a8;
+  animation: spin 2.2s linear infinite;
+}
+
+.shopGrid {
+  margin-top: 1.25rem;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(330px, 0.34fr);
+  gap: 1.2rem;
+  align-items: start;
+}
+
+.packagesGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.packageCard {
+  position: relative;
+  min-height: 20rem;
+  overflow: hidden;
+  text-align: left;
+  border-radius: 1.7rem;
+  border: 1px solid rgba(255, 255, 255, 0.085);
+  background:
+    radial-gradient(circle at 85% 14%, rgba(250, 204, 21, 0.08), transparent 23%),
+    linear-gradient(145deg, rgba(13, 15, 49, 0.86), rgba(8, 9, 32, 0.9));
+  padding: 1.25rem;
+  color: white;
+  cursor: pointer;
+  transition: 190ms ease;
+}
+
+.packageCard:hover,
+.packageCardActive {
+  transform: translateY(-3px);
+  border-color: rgba(250, 204, 21, 0.24);
+  box-shadow:
+    0 24px 60px rgba(0, 0, 0, 0.28),
+    inset 0 0 32px rgba(103, 232, 249, 0.035);
+}
+
+.packageCardActive {
+  background:
+    radial-gradient(circle at 85% 14%, rgba(250, 204, 21, 0.15), transparent 25%),
+    radial-gradient(circle at 20% 100%, rgba(103, 232, 249, 0.09), transparent 28%),
+    linear-gradient(145deg, rgba(20, 20, 61, 0.94), rgba(9, 10, 36, 0.96));
+}
+
+.packageBadge {
+  position: absolute;
+  right: 0.9rem;
+  top: 0.9rem;
+  border-radius: 999px;
+  border: 1px solid rgba(250, 204, 21, 0.16);
+  background: rgba(250, 204, 21, 0.1);
+  padding: 0.35rem 0.65rem;
+  font-size: 0.58rem;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #fff5bd;
+}
+
+.packageStars {
+  display: flex;
+  gap: 0.3rem;
+  font-size: 1.1rem;
+  color: rgba(254, 249, 195, 0.65);
+}
+
+.packageStars span:nth-child(2) {
+  color: rgba(165, 243, 252, 0.62);
+}
+
+.packageName {
+  margin-top: 1rem;
+  font-size: 0.76rem;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.packageWishes {
+  margin-top: 0.35rem;
+  font-size: 2rem;
+  font-weight: 950;
+  letter-spacing: -0.045em;
+  color: #fff;
+}
+
+.packageSubtitle {
+  margin-top: 0.55rem;
+  min-height: 2.8rem;
+  font-size: 0.79rem;
+  line-height: 1.65;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.packagePriceBlock {
+  margin-top: 1.4rem;
+  display: grid;
+}
+
+.originalPrice {
+  margin-bottom: 0.15rem;
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-decoration: line-through;
+  color: rgba(255, 255, 255, 0.32);
+}
+
+.packagePriceBlock strong {
+  font-size: 1.65rem;
+  font-weight: 950;
+  color: #fff5b9;
+}
+
+.packagePriceBlock small {
+  margin-top: 0.15rem;
+  font-size: 0.68rem;
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.34);
+}
+
+.savingsRow {
+  margin-top: 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.savingsRow span {
+  border-radius: 999px;
+  background: rgba(103, 232, 249, 0.07);
+  padding: 0.28rem 0.55rem;
+  font-size: 0.58rem;
+  font-weight: 900;
+  color: rgba(207, 250, 254, 0.68);
+}
+
+.checkoutCard {
+  position: sticky;
+  top: 6rem;
+  overflow: hidden;
+  border-radius: 2rem;
+  border: 1px solid rgba(250, 204, 21, 0.15);
+  background:
+    radial-gradient(circle at 50% 0%, rgba(250, 204, 21, 0.12), transparent 25%),
+    linear-gradient(180deg, rgba(13, 14, 48, 0.96), rgba(8, 9, 31, 0.95));
+  padding: 1.35rem;
+  box-shadow: 0 28px 90px rgba(0, 0, 0, 0.3);
+}
+
+.checkoutWishOrb {
+  margin: 1.2rem auto 0;
+  display: grid;
+  width: 9rem;
+  height: 9rem;
+  place-items: center;
+  align-content: center;
+  border-radius: 999px;
+  border: 1px solid rgba(250, 204, 21, 0.2);
+  background:
+    radial-gradient(circle at 35% 30%, rgba(255, 249, 190, 0.23), rgba(250, 204, 21, 0.08) 52%, rgba(14, 16, 49, 0.8));
+  box-shadow:
+    0 0 40px rgba(250, 204, 21, 0.1),
+    inset 0 0 28px rgba(103, 232, 249, 0.05);
+}
+
+.checkoutWishOrb > span {
+  font-size: 1.25rem;
+  color: #fff5a9;
+}
+
+.checkoutWishOrb strong {
+  font-size: 2rem;
+  line-height: 1;
+  font-weight: 950;
+}
+
+.checkoutWishOrb small {
+  margin-top: 0.25rem;
+  font-size: 0.62rem;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.checkoutCard h2 {
+  margin-top: 1.2rem;
+  font-size: 1.8rem;
+  font-weight: 950;
+  letter-spacing: -0.04em;
+}
+
+.checkoutDescription {
+  margin-top: 0.55rem;
+  font-size: 0.82rem;
+  line-height: 1.75;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.46);
+}
+
+.checkoutBreakdown {
+  margin-top: 1.1rem;
+  display: grid;
+  gap: 0.65rem;
+}
+
+.checkoutBreakdown > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  border-radius: 0.95rem;
+  background: rgba(255, 255, 255, 0.035);
+  padding: 0.72rem 0.8rem;
+}
+
+.checkoutBreakdown span {
+  font-size: 0.74rem;
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.42);
+}
+
+.checkoutBreakdown strong {
+  font-size: 0.84rem;
+  font-weight: 900;
+}
+
+.firstDiscountLine strong {
+  color: #fef08a;
+}
+
+.totalLine {
+  border: 1px solid rgba(250, 204, 21, 0.13);
+  background: rgba(250, 204, 21, 0.06) !important;
+}
+
+.totalLine strong {
+  font-size: 1.12rem;
+  color: #fff6b3;
+}
+
+.checkoutButton {
+  margin-top: 1rem;
+  width: 100%;
+  min-height: 3.3rem;
+  border: none;
+  border-radius: 1rem;
+  background: linear-gradient(90deg, #fde68a, #a5f3fc 52%, #ddd6fe);
+  padding: 0.9rem 1rem;
+  font-size: 0.88rem;
+  font-weight: 950;
+  color: #171225;
+  cursor: pointer;
+  transition: 180ms ease;
+}
+
+.checkoutButton:hover:not(:disabled) {
+  transform: translateY(-1px) scale(1.005);
+  filter: brightness(1.04);
+}
+
+.checkoutButton:disabled {
+  cursor: wait;
+  opacity: 0.62;
+}
+
+.secureNote {
+  margin-top: 0.75rem;
+  text-align: center;
+  font-size: 0.63rem;
+  line-height: 1.6;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.28);
+}
+
+.explainerGrid {
+  margin-top: 1.25rem;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.explainerGrid article {
+  border-radius: 1.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(10, 11, 37, 0.7);
+  padding: 1rem;
+}
+
+.explainerGlyph {
+  display: inline-flex;
+  min-width: 2.5rem;
+  min-height: 2.5rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.9rem;
+  border: 1px solid rgba(250, 204, 21, 0.14);
+  background: rgba(250, 204, 21, 0.07);
+  font-size: 0.8rem;
+  font-weight: 950;
+  color: #fff6b0;
+}
+
+.explainerGrid h3 {
+  margin-top: 0.75rem;
+  font-size: 1rem;
+  font-weight: 900;
+}
+
+.explainerGrid p {
+  margin-top: 0.4rem;
+  font-size: 0.78rem;
+  line-height: 1.7;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+
+
+.floatingRune {
+  position: absolute;
+  color: rgba(255, 245, 179, 0.26);
+  text-shadow:
+    0 0 16px rgba(250, 204, 21, 0.18),
+    0 0 26px rgba(103, 232, 249, 0.1);
+  animation: runeFloat linear infinite;
 }
 
 .orbitStarOne,
@@ -152,404 +644,194 @@
   position: absolute;
   left: 50%;
   top: 50%;
-  z-index: 2;
+  z-index: 1;
+  display: block;
   width: var(--size);
   height: var(--size);
   margin-left: calc(var(--size) / -2);
   margin-top: calc(var(--size) / -2);
-  color: rgba(255, 244, 183, 0.96);
-  font-size: var(--size);
-  text-shadow: 0 0 12px rgba(255, 232, 130, 0.82), 0 0 26px rgba(103, 232, 249, 0.24);
+  border-radius: 999px;
+  opacity: 0.92;
 }
 
 .orbitStarOne {
-  animation: orbitStarOne 12s linear infinite, starPulse 2.9s ease-in-out infinite;
+  animation:
+    orbitStarOne 12s linear infinite,
+    starPulse 2.9s ease-in-out infinite;
   animation-delay: var(--delay), var(--delay);
 }
 
 .orbitStarTwo {
-  animation: orbitStarTwo 15s linear infinite, starPulse 3.4s ease-in-out infinite;
+  animation:
+    orbitStarTwo 15s linear infinite,
+    starPulse 3.4s ease-in-out infinite;
   animation-delay: var(--delay), var(--delay);
 }
 
-.jirachiButton {
-  position: relative;
-  z-index: 4;
-  border: 0;
-  background: transparent;
-  padding: 0;
-  cursor: pointer;
+.burstLayer {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
 }
 
-.jirachiImage {
-  width: min(20rem, 72vw);
-  max-height: 19rem;
-  object-fit: contain;
-  user-select: none;
-  filter: drop-shadow(0 26px 38px rgba(0, 0, 0, 0.46));
-  animation: jirachiFloat 4.5s ease-in-out infinite;
-}
-
-.errorBanner,
-.successBanner {
-  margin-bottom: 1rem;
-  border-radius: 1rem;
-  padding: 0.9rem 1rem;
-  font-size: 0.88rem;
-  font-weight: 850;
-}
-
-.errorBanner {
-  border: 1px solid rgba(248, 113, 113, 0.2);
-  background: rgba(127, 29, 29, 0.18);
-  color: #fee2e2;
-}
-
-.successBanner {
-  border: 1px solid rgba(134, 239, 172, 0.18);
-  background: rgba(20, 83, 45, 0.18);
-  color: #dcfce7;
-}
-
-.loadingCard {
-  min-height: 18rem;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 0.7rem;
-  border-radius: 2rem;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.025);
-  color: rgba(255, 255, 255, 0.48);
-  font-weight: 850;
-}
-
-.loadingCard span {
-  font-size: 2rem;
-  color: #fff4b5;
-  animation: starPulse 1.3s ease-in-out infinite;
-}
-
-.packagesGrid {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 0.8rem;
-}
-
-.packageCard {
-  position: relative;
-  min-height: 14rem;
-  border-radius: 1.55rem;
-  border: 1px solid rgba(255, 255, 255, 0.085);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.022)), rgba(8, 10, 31, 0.8);
-  padding: 1rem;
-  text-align: left;
-  color: #fff;
-  cursor: pointer;
-  transition: 180ms ease;
-}
-
-.packageCard:hover {
-  transform: translateY(-3px);
-  border-color: rgba(255, 244, 183, 0.2);
-}
-
-.packageCardActive {
-  border-color: rgba(253, 230, 138, 0.4);
-  background: radial-gradient(circle at 50% 0%, rgba(250, 204, 21, 0.09), transparent 40%), rgba(11, 14, 40, 0.94);
-  box-shadow: 0 18px 55px rgba(0, 0, 0, 0.25), 0 0 36px rgba(250, 204, 21, 0.05);
-}
-
-.packageTopRow {
-  min-height: 2rem;
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 0.45rem;
-}
-
-.packageName {
-  font-size: 0.76rem;
-  font-weight: 900;
-  color: rgba(255, 255, 255, 0.6);
-}
-
-.packageBadge {
-  border-radius: 999px;
-  border: 1px solid rgba(103, 232, 249, 0.14);
-  background: rgba(103, 232, 249, 0.08);
-  padding: 0.24rem 0.5rem;
-  font-size: 0.54rem;
-  font-weight: 950;
-  color: #cffafe;
-}
-
-.packageWishes {
-  display: block;
-  margin-top: 1rem;
-  font-size: clamp(2.6rem, 4vw, 4rem);
-  line-height: 0.9;
-  letter-spacing: -0.06em;
-  font-weight: 950;
-}
-
-.wishesLabel {
-  display: block;
-  margin-top: 0.35rem;
-  font-size: 0.68rem;
-  font-weight: 900;
-  text-transform: uppercase;
-  letter-spacing: 0.16em;
-  color: rgba(255, 244, 183, 0.4);
-}
-
-.packagePriceRow {
-  margin-top: 1.1rem;
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0.4rem;
-}
-
-.packagePriceRow strong {
-  font-size: 1.1rem;
-  font-weight: 950;
-  color: #fff9d4;
-}
-
-.packagePriceRow span,
-.originalPrice,
-.saving {
-  font-size: 0.64rem;
-  font-weight: 800;
-}
-
-.packagePriceRow span {
-  color: rgba(255, 255, 255, 0.34);
-}
-
-.originalPrice {
-  display: block;
-  margin-top: 0.6rem;
-  color: rgba(255, 255, 255, 0.26);
-  text-decoration: line-through;
-}
-
-.saving {
-  display: block;
-  margin-top: 0.6rem;
-  color: rgba(167, 243, 208, 0.58);
-}
-
-.checkoutBar {
-  margin-top: 1rem;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(20rem, 0.9fr) auto;
-  align-items: center;
-  gap: 1rem;
-  border-radius: 1.6rem;
-  border: 1px solid rgba(253, 230, 138, 0.18);
-  background: linear-gradient(90deg, rgba(13, 17, 47, 0.96), rgba(7, 9, 26, 0.96));
-  padding: 1rem 1.1rem;
-  box-shadow: 0 18px 55px rgba(0, 0, 0, 0.22);
-}
-
-.checkoutMain {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-}
-
-.checkoutLabel {
-  font-size: 0.7rem;
-  font-weight: 900;
-  color: rgba(255, 255, 255, 0.4);
-}
-
-.checkoutWishes {
-  margin-top: 0.15rem;
-  font-size: 1.45rem;
-  font-weight: 950;
-  color: #fff;
-}
-
-.checkoutPrice {
-  text-align: right;
-}
-
-.checkoutPrice strong {
-  display: block;
-  font-size: 1.75rem;
+.burstStar {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  font-size: 1rem;
   line-height: 1;
-  font-weight: 950;
-  color: #fff7c7;
+  color: rgba(255, 246, 186, 0.98);
+  text-shadow:
+    0 0 10px rgba(255, 231, 133, 0.9),
+    0 0 24px rgba(103, 232, 249, 0.22);
+  transform: translate(-50%, -50%) rotate(var(--burst-angle));
+  animation: burstOut 0.95s ease-out forwards;
+  animation-delay: var(--burst-delay);
 }
-
-.checkoutPrice span {
-  display: block;
-  margin-top: 0.28rem;
-  font-size: 0.66rem;
-  font-weight: 800;
-  color: rgba(255, 255, 255, 0.34);
-}
-
-.confirmRow {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.65rem;
-  font-size: 0.72rem;
-  font-weight: 750;
-  line-height: 1.5;
-  color: rgba(255, 255, 255, 0.48);
-  cursor: pointer;
-}
-
-.confirmRow input {
-  width: 1rem;
-  height: 1rem;
-  margin-top: 0.08rem;
-  accent-color: #fde68a;
-}
-
-.confirmRow a {
-  color: rgba(207, 250, 254, 0.8);
-  font-weight: 900;
-}
-
-.checkoutButton {
-  min-height: 3.2rem;
-  border: 0;
-  border-radius: 1rem;
-  background: linear-gradient(90deg, #fde68a, #cffafe);
-  padding: 0.75rem 1.2rem;
-  color: #111329;
-  font-size: 0.82rem;
-  font-weight: 950;
-  cursor: pointer;
-}
-
-.checkoutButton:disabled {
-  cursor: not-allowed;
-  opacity: 0.42;
-}
-
-.trustLinks {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 0.6rem 1.1rem;
-  margin-top: 1rem;
-  font-size: 0.7rem;
-  font-weight: 850;
-}
-
-.trustLinks a {
-  color: rgba(255, 255, 255, 0.36);
-  text-decoration: none;
-  transition: 160ms ease;
-}
-
-.trustLinks a:hover {
-  color: rgba(207, 250, 254, 0.78);
-}
-
-@media (max-width: 1100px) {
-  .packagesGrid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  .checkoutBar {
+@media (max-width: 1180px) {
+  .shopGrid {
     grid-template-columns: 1fr;
   }
 
-  .checkoutButton {
-    width: 100%;
+  .checkoutCard {
+    position: relative;
+    top: auto;
   }
 }
 
-@media (max-width: 820px) {
-  .content {
-    width: min(100% - 1rem, 1500px);
-    padding-top: 1rem;
-  }
-
+@media (max-width: 960px) {
   .hero {
     grid-template-columns: 1fr;
-    gap: 0;
-    min-height: auto;
-  }
-
-  .heroCopy {
-    padding: 1rem 0 0;
-  }
-
-  .heroCopy h1 {
-    font-size: clamp(3rem, 15vw, 5rem);
   }
 
   .jirachiStage {
-    min-height: 21rem;
+    min-height: 19rem;
   }
 
-  .packagesGrid {
+  .packagesGrid,
+  .explainerGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 620px) {
+  .page {
+    padding-top: 1rem;
+  }
+
+  .content {
+    width: min(100% - 1rem, 1580px);
+  }
+
+  .hero {
+    padding: 1.25rem;
+    border-radius: 1.8rem;
+  }
+
+  .heroActions {
+    flex-direction: column;
+  }
+
+  .packagesGrid,
+  .explainerGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .firstRechargeBanner {
+    align-items: flex-start;
+  }
+
+  .discountOrb {
+    width: 4.4rem;
+    height: 4.4rem;
+    font-size: 1rem;
   }
 
   .packageCard {
-    min-height: 13rem;
+    min-height: 18rem;
   }
 }
 
-@media (max-width: 480px) {
-  .packagesGrid {
-    grid-template-columns: 1fr 1fr;
-  }
-
-  .packageCard:last-child {
-    grid-column: 1 / -1;
-  }
-
-  .checkoutMain {
-    align-items: flex-end;
-  }
-}
 
 @keyframes twinkle {
-  0%, 100% { opacity: 0.15; transform: scale(0.7); }
-  50% { opacity: 1; transform: scale(1.3); }
+  0%, 100% { opacity: 0.2; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1.45); }
 }
 
-@keyframes haloPulse {
-  0%, 100% { transform: scale(0.94); opacity: 0.65; }
-  50% { transform: scale(1.04); opacity: 1; }
+@keyframes float {
+  0%, 100% { transform: translateY(0) rotate(-1deg); }
+  50% { transform: translateY(-10px) rotate(1deg); }
 }
 
-@keyframes ringSpinOne {
+@keyframes breathe {
+  0%, 100% { transform: scale(0.96); opacity: 0.65; }
+  50% { transform: scale(1.05); opacity: 1; }
+}
+
+@keyframes orbit {
+  to { transform: rotate(378deg); }
+}
+
+@keyframes orbitReverse {
+  to { transform: rotate(-398deg); }
+}
+
+@keyframes spin {
   to { transform: rotate(360deg); }
 }
 
-@keyframes ringSpinTwo {
-  to { transform: rotate(-360deg); }
-}
 
 @keyframes orbitStarOne {
-  from { transform: rotate(var(--angle)) translateX(var(--radius-x)); }
-  to { transform: rotate(calc(var(--angle) + 360deg)) translateX(var(--radius-x)); }
+  from {
+    transform: rotate(var(--angle)) translateX(var(--radius-x)) scale(0.92);
+  }
+  to {
+    transform: rotate(calc(var(--angle) + 360deg)) translateX(var(--radius-x)) scale(0.92);
+  }
 }
 
 @keyframes orbitStarTwo {
-  from { transform: rotate(var(--angle)) translateY(var(--radius-y)); }
-  to { transform: rotate(calc(var(--angle) - 360deg)) translateY(var(--radius-y)); }
+  from {
+    transform: rotate(var(--angle)) translateY(var(--radius-y)) scale(0.95);
+  }
+  to {
+    transform: rotate(calc(var(--angle) - 360deg)) translateY(var(--radius-y)) scale(0.95);
+  }
 }
 
 @keyframes starPulse {
-  0%, 100% { opacity: 0.35; }
+  0%, 100% { opacity: 0.38; }
   50% { opacity: 1; }
 }
 
-@keyframes jirachiFloat {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-12px); }
+@keyframes burstOut {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) rotate(var(--burst-angle)) translateY(0) scale(0.35);
+  }
+  15% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) rotate(var(--burst-angle)) translateY(calc(var(--burst-distance) * -1)) scale(1.18);
+  }
+}
+
+@keyframes runeFloat {
+  0% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+    opacity: 0.18;
+  }
+  35% {
+    opacity: 0.46;
+  }
+  70% {
+    opacity: 0.26;
+  }
+  100% {
+    transform: translate3d(0, -16px, 0) rotate(10deg);
+    opacity: 0.16;
+  }
 }
