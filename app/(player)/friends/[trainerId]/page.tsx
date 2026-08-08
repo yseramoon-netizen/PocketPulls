@@ -4,12 +4,8 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import BinderSpread, {
-  type BinderDisplayCard,
-} from "@/components/player/BinderSpread";
-import PlayerCardModal, {
-  type PlayerCardModalCard,
-} from "@/components/player/PlayerCardModal";
+import BinderSpread, { type BinderDisplayCard } from "@/components/player/BinderSpread";
+import PlayerCardModal, { type PlayerCardModalCard } from "@/components/player/PlayerCardModal";
 import {
   CardArtwork,
   PlayerErrorBanner,
@@ -50,6 +46,7 @@ type FriendProfileRow = {
   signature_market_value: number | string | null;
   signature_image_url: string | null;
   binder_theme_key: string | null;
+  binder_name: string | null;
   online: boolean | null;
   last_seen_at: string | null;
 };
@@ -90,6 +87,7 @@ type FriendProfile = {
   signatureMarketValue: number;
   signatureImageUrl: string | null;
   binderThemeKey: string;
+  binderName: string;
   online: boolean;
   lastSeenAt: string | null;
 };
@@ -99,7 +97,7 @@ type FriendBinderCard = PlayerCardModalCard & BinderDisplayCard & {
   isSignature: boolean;
 };
 
-const PAGE_SIZE = 24;
+const PAGE_SIZE = 18;
 
 function parseProfile(value: unknown): FriendProfile | null {
   const row = Array.isArray(value) ? value[0] : value;
@@ -129,6 +127,7 @@ function parseProfile(value: unknown): FriendProfile | null {
     signatureMarketValue: toNumber(data.signature_market_value),
     signatureImageUrl: data.signature_image_url || null,
     binderThemeKey: data.binder_theme_key || "classic",
+    binderName: data.binder_name?.trim() || `${data.display_name || data.username || "Trainer"}'s Binder`,
     online: data.online === true,
     lastSeenAt: data.last_seen_at,
   };
@@ -364,9 +363,9 @@ export default function FriendProfilePage() {
             <div className="mb-3 flex items-end justify-between gap-4 px-1">
               <div>
                 <p className="text-xs font-black uppercase tracking-[0.18em] text-cyan-100/38">
-                  {profile.displayName}&apos;s binder
+                  Friend binder
                 </p>
-                <h2 className="mt-1 text-2xl font-black text-white">Their collection</h2>
+                <h2 className="mt-1 text-2xl font-black text-white">{profile.binderName}</h2>
               </div>
               <span className="text-xs font-bold text-white/28">
                 {formatWholeNumber(totalCount)} unique cards

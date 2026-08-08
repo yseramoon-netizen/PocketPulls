@@ -230,13 +230,21 @@ export function PlayerEmptyState({
         />
       </div>
 
-      <div className="mt-5 max-w-full overflow-hidden">
-        <UnownText
-          text={title}
-          size="clamp(1.45rem, 4vw, 2.35rem)"
-          tone="ancient"
-          centred
-        />
+      <div className="mt-5 w-full max-w-xl px-2 text-center">
+        {title.length <= 14 ? (
+          <div className="mx-auto max-w-full overflow-hidden">
+            <UnownText
+              text={title}
+              size="clamp(1.35rem, 3.6vw, 2.15rem)"
+              tone="ancient"
+              centred
+            />
+          </div>
+        ) : (
+          <h3 className="text-balance text-xl font-black leading-tight tracking-tight text-white sm:text-2xl">
+            {title}
+          </h3>
+        )}
       </div>
 
       <p className="mt-4 max-w-md text-sm font-semibold leading-7 text-white/40">

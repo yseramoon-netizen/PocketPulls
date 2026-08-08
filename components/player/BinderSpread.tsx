@@ -37,9 +37,9 @@ export default function BinderSpread({
   dimmed = false,
 }: BinderSpreadProps) {
   const theme = getBinderTheme(themeKey);
-  const slots = Array.from({ length: 24 }, (_, index) => cards[index] ?? null);
-  const left = slots.slice(0, 12);
-  const right = slots.slice(12, 24);
+  const slots = Array.from({ length: 18 }, (_, index) => cards[index] ?? null);
+  const left = slots.slice(0, 9);
+  const right = slots.slice(9, 18);
 
   const style = {
     "--binder-cover-base": theme.coverBase,

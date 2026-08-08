@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  type CSSProperties,
   useCallback,
   useEffect,
   useMemo,
@@ -9,15 +8,17 @@ import {
   useState,
 } from "react";
 
+import BinderSpread, {
+  type BinderDisplayCard,
+} from "@/components/player/BinderSpread";
 import PlayerCardModal, {
   type PlayerCardModalCard,
 } from "@/components/player/PlayerCardModal";
 import {
-  CardArtwork,
   PlayerErrorBanner,
   PlayerSecondaryButton,
 } from "@/components/player/PlayerUI";
-import { supabase } from "@/lib/supabase";
+import { BINDER_THEMES } from "@/lib/player/binder";
 import {
   formatMoney,
   formatWholeNumber,
@@ -26,7 +27,7 @@ import {
   toNumber,
   toWholeNumber,
 } from "@/lib/player/format";
-import { getPlayerRarityTheme } from "@/lib/player/rarity";
+import { supabase } from "@/lib/supabase";
 
 import styles from "./collection.module.css";
 
@@ -56,7 +57,23 @@ type OverviewRow = {
   rarities: unknown;
 };
 
-type CollectionCard = PlayerCardModalCard & {
+type BinderSettingsRow = {
+  theme_key: string | null;
+  binder_name: string | null;
+};
+
+type BinderThemeUnlockRow = {
+  theme_key: string | null;
+  unlocked: boolean | null;
+  achievement_title: string | null;
+  requirement: string | null;
+};
+
+type BinderPositionRow = {
+  binder_position: number | string | null;
+};
+
+type CollectionCard = PlayerCardModalCard & BinderDisplayCard & {
   quantity: number;
   reservedQuantity: number;
   availableQuantity: number;
@@ -74,19 +91,8 @@ type Overview = {
   rarities: string[];
 };
 
-type Availability =
-  | "all"
-  | "available"
-  | "reserved"
-  | "duplicates";
-
-type SortOption =
-  | "name"
-  | "value_desc"
-  | "value_asc"
-  | "quantity_desc";
-
-const PAGE_SIZE = 24;
+type Availability = "all" | "available" | "reserved" | "duplicates";
+const PAGE_SIZE = 18;
 
 const EMPTY_OVERVIEW: Overview = {
   totalCards: 0,
@@ -118,15 +124,9 @@ function parseOverview(value: unknown): Overview {
   };
 }
 
-function parseRows(value: unknown): {
-  cards: CollectionCard[];
-  totalCount: number;
-} {
+function parseRows(value: unknown): { cards: CollectionCard[]; totalCount: number } {
   if (!Array.isArray(value)) {
-    return {
-      cards: [],
-      totalCount: 0,
-    };
+    return { cards: [], totalCount: 0 };
   }
 
   const rows = value as CollectionRow[];
@@ -141,19 +141,12 @@ function parseRows(value: unknown): {
       marketValue: toNumber(row.market_value),
       imageUrl: row.image_url?.trim() || null,
       quantity: toWholeNumber(row.quantity),
-      reservedQuantity: toWholeNumber(
-        row.reserved_quantity,
-      ),
-      availableQuantity: toWholeNumber(
-        row.available_quantity,
-      ),
+      reservedQuantity: toWholeNumber(row.reserved_quantity),
+      availableQuantity: toWholeNumber(row.available_quantity),
       ownedValue: toNumber(row.owned_value),
       isSignature: row.is_signature === true,
     })),
-    totalCount:
-      rows.length > 0
-        ? toWholeNumber(rows[0]?.total_count)
-        : 0,
+    totalCount: rows.length > 0 ? toWholeNumber(rows[0]?.total_count) : 0,
   };
 }
 
@@ -162,49 +155,82 @@ export default function CollectionPage() {
   const searchTimerRef = useRef<number | null>(null);
 
   const [cards, setCards] = useState<CollectionCard[]>([]);
-  const [overview, setOverview] =
-    useState<Overview>(EMPTY_OVERVIEW);
+  const [overview, setOverview] = useState<Overview>(EMPTY_OVERVIEW);
+  const [themeKey, setThemeKey] = useState("classic");
+  const [binderName, setBinderName] = useState("My Binder");
+  const [binderNameInput, setBinderNameInput] = useState("My Binder");
+  const [themePickerOpen, setThemePickerOpen] = useState(false);
+  const [themeUnlocks, setThemeUnlocks] = useState<Record<string, BinderThemeUnlockRow>>({});
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [setName, setSetName] = useState("");
   const [rarity, setRarity] = useState("");
-  const [availability, setAvailability] =
-    useState<Availability>("all");
-  const [sort, setSort] = useState<SortOption>("name");
+  const [availability, setAvailability] = useState<Availability>("all");
   const [page, setPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
 
+  const [prepared, setPrepared] = useState(false);
   const [loading, setLoading] = useState(true);
   const [filtering, setFiltering] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [signatureBusy, setSignatureBusy] = useState(false);
-  const [errorMessage, setErrorMessage] =
-    useState<string | null>(null);
-  const [selectedCard, setSelectedCard] =
-    useState<CollectionCard | null>(null);
+  const [themeBusy, setThemeBusy] = useState(false);
+  const [nameBusy, setNameBusy] = useState(false);
+  const [swapBusy, setSwapBusy] = useState(false);
+  const [swapSource, setSwapSource] = useState<CollectionCard | null>(null);
+  const [swapMessage, setSwapMessage] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [selectedCard, setSelectedCard] = useState<CollectionCard | null>(null);
 
-  const totalPages = Math.max(
-    1,
-    Math.ceil(totalCount / PAGE_SIZE),
-  );
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 
   const hasFilters =
     search.length > 0 ||
     setName.length > 0 ||
     rarity.length > 0 ||
-    availability !== "all" ||
-    sort !== "name";
+    availability !== "all";
 
   const loadOverview = useCallback(async () => {
-    const { data, error } = await supabase.rpc(
-      "get_player_collection_overview",
-    );
+    const { data, error } = await supabase.rpc("get_player_collection_overview");
+    if (error) throw error;
+    setOverview(parseOverview(data));
+  }, []);
 
-    if (error) {
-      throw error;
+  const loadBinderSettings = useCallback(async () => {
+    const [settingsResult, themesResult] = await Promise.all([
+      supabase.rpc("get_player_binder_settings"),
+      supabase.rpc("get_player_binder_themes"),
+    ]);
+
+    if (settingsResult.error) throw settingsResult.error;
+    if (themesResult.error) throw themesResult.error;
+
+    const row = Array.isArray(settingsResult.data)
+      ? settingsResult.data[0]
+      : settingsResult.data;
+
+    if (row && typeof row === "object") {
+      const settings = row as BinderSettingsRow;
+      const theme = settings.theme_key;
+      const name = settings.binder_name?.trim() || "My Binder";
+      setThemeKey(typeof theme === "string" && theme.trim() ? theme : "classic");
+      setBinderName(name);
+      setBinderNameInput(name);
     }
 
-    setOverview(parseOverview(data));
+    const unlockMap: Record<string, BinderThemeUnlockRow> = {};
+    if (Array.isArray(themesResult.data)) {
+      for (const raw of themesResult.data as BinderThemeUnlockRow[]) {
+        const key = raw.theme_key?.trim();
+        if (key) unlockMap[key] = raw;
+      }
+    }
+    setThemeUnlocks(unlockMap);
+  }, []);
+
+  const syncBinderPositions = useCallback(async () => {
+    const { error } = await supabase.rpc("sync_player_binder_positions");
+    if (error) throw error;
   }, []);
 
   const loadCards = useCallback(
@@ -212,51 +238,32 @@ export default function CollectionPage() {
       const request = requestRef.current + 1;
       requestRef.current = request;
 
-      if (background) {
-        setFiltering(true);
-      } else {
-        setLoading(true);
-      }
+      if (background) setFiltering(true);
+      else setLoading(true);
 
       setErrorMessage(null);
 
       try {
-        const { data, error } = await supabase.rpc(
-          "get_player_collection",
-          {
-            p_search: search,
-            p_set_name: setName,
-            p_rarity: rarity,
-            p_availability: availability,
-            p_sort: sort,
-            p_page: page,
-            p_page_size: PAGE_SIZE,
-          },
-        );
+        const { data, error } = await supabase.rpc("get_player_collection", {
+          p_search: search,
+          p_set_name: setName,
+          p_rarity: rarity,
+          p_availability: availability,
+          p_sort: "binder",
+          p_page: page,
+          p_page_size: PAGE_SIZE,
+        });
 
-        if (error) {
-          throw error;
-        }
-
-        if (request !== requestRef.current) {
-          return;
-        }
+        if (error) throw error;
+        if (request !== requestRef.current) return;
 
         const parsed = parseRows(data);
         setCards(parsed.cards);
         setTotalCount(parsed.totalCount);
       } catch (error: unknown) {
-        if (request !== requestRef.current) {
-          return;
-        }
-
+        if (request !== requestRef.current) return;
         console.error("Collection error:", error);
-        setErrorMessage(
-          getErrorMessage(
-            error,
-            "Your binder could not be loaded.",
-          ),
-        );
+        setErrorMessage(getErrorMessage(error, "Your collection could not be loaded."));
         setCards([]);
         setTotalCount(0);
       } finally {
@@ -266,50 +273,47 @@ export default function CollectionPage() {
         }
       }
     },
-    [
-      search,
-      setName,
-      rarity,
-      availability,
-      sort,
-      page,
-    ],
+    [search, setName, rarity, availability, page],
   );
 
   const refresh = useCallback(async () => {
     setRefreshing(true);
+    setErrorMessage(null);
 
     try {
-      await Promise.all([
-        loadOverview(),
-        loadCards(true),
-      ]);
+      await syncBinderPositions();
+      await Promise.all([loadOverview(), loadBinderSettings(), loadCards(true)]);
     } catch (error: unknown) {
-      setErrorMessage(
-        getErrorMessage(
-          error,
-          "Your binder could not be refreshed.",
-        ),
-      );
+      setErrorMessage(getErrorMessage(error, "Your collection could not be refreshed."));
     } finally {
       setRefreshing(false);
     }
-  }, [loadCards, loadOverview]);
+  }, [loadBinderSettings, loadCards, loadOverview, syncBinderPositions]);
 
   useEffect(() => {
-    void Promise.all([
-      loadOverview(),
-      loadCards(false),
-    ]).catch((error: unknown) => {
-      setErrorMessage(
-        getErrorMessage(
-          error,
-          "Your binder could not be prepared.",
-        ),
-      );
-      setLoading(false);
-    });
-  }, [loadCards, loadOverview]);
+    let active = true;
+
+    void (async () => {
+      try {
+        await syncBinderPositions();
+        await Promise.all([loadOverview(), loadBinderSettings()]);
+        if (active) setPrepared(true);
+      } catch (error: unknown) {
+        if (!active) return;
+        setErrorMessage(getErrorMessage(error, "Your binder could not be prepared."));
+        setLoading(false);
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [loadBinderSettings, loadOverview, syncBinderPositions]);
+
+  useEffect(() => {
+    if (!prepared) return;
+    void loadCards(false);
+  }, [prepared, loadCards]);
 
   useEffect(() => {
     if (searchTimerRef.current !== null) {
@@ -334,57 +338,31 @@ export default function CollectionPage() {
     setSetName("");
     setRarity("");
     setAvailability("all");
-    setSort("name");
     setPage(1);
   }, []);
 
   const setSignature = useCallback(
     async (card: CollectionCard) => {
-      if (signatureBusy || card.isSignature) {
-        return;
-      }
+      if (signatureBusy || card.isSignature) return;
 
       setSignatureBusy(true);
       setErrorMessage(null);
 
       try {
-        const { error } = await supabase.rpc(
-          "set_player_signature_card",
-          {
-            p_card_id: card.id,
-          },
-        );
-
-        if (error) {
-          throw error;
-        }
+        const { error } = await supabase.rpc("set_player_signature_card", {
+          p_card_id: card.id,
+        });
+        if (error) throw error;
 
         setCards((current) =>
-          current.map((item) => ({
-            ...item,
-            isSignature: item.id === card.id,
-          })),
+          current.map((item) => ({ ...item, isSignature: item.id === card.id })),
         );
-
         setSelectedCard((current) =>
-          current
-            ? {
-                ...current,
-                isSignature: current.id === card.id,
-              }
-            : null,
+          current ? { ...current, isSignature: current.id === card.id } : null,
         );
-
-        window.dispatchEvent(
-          new CustomEvent("pocketpulls:profile-updated"),
-        );
+        window.dispatchEvent(new CustomEvent("pocketpulls:profile-updated"));
       } catch (error: unknown) {
-        setErrorMessage(
-          getErrorMessage(
-            error,
-            "Your signature card could not be saved.",
-          ),
-        );
+        setErrorMessage(getErrorMessage(error, "Your signature card could not be saved."));
       } finally {
         setSignatureBusy(false);
       }
@@ -392,38 +370,132 @@ export default function CollectionPage() {
     [signatureBusy],
   );
 
+  const selectTheme = useCallback(
+    async (nextTheme: string) => {
+      if (themeBusy || nextTheme === themeKey) return;
+
+      setThemeBusy(true);
+      setErrorMessage(null);
+
+      try {
+        const { error } = await supabase.rpc("set_player_binder_theme", {
+          p_theme_key: nextTheme,
+        });
+        if (error) throw error;
+        setThemeKey(nextTheme);
+        window.dispatchEvent(new CustomEvent("pocketpulls:binder-updated"));
+      } catch (error: unknown) {
+        setErrorMessage(getErrorMessage(error, "Your binder style could not be saved."));
+      } finally {
+        setThemeBusy(false);
+      }
+    },
+    [themeBusy, themeKey],
+  );
+
+  const saveBinderName = useCallback(async () => {
+    const nextName = binderNameInput.trim().slice(0, 40);
+    if (!nextName || nameBusy) return;
+
+    setNameBusy(true);
+    setErrorMessage(null);
+
+    try {
+      const { error } = await supabase.rpc("set_player_binder_name", {
+        p_binder_name: nextName,
+      });
+      if (error) throw error;
+      setBinderName(nextName);
+      setBinderNameInput(nextName);
+      window.dispatchEvent(new CustomEvent("pocketpulls:binder-updated"));
+    } catch (error: unknown) {
+      setErrorMessage(getErrorMessage(error, "Your binder name could not be saved."));
+    } finally {
+      setNameBusy(false);
+    }
+  }, [binderNameInput, nameBusy]);
+
+  const startSwap = useCallback(async (card: CollectionCard) => {
+    setSelectedCard(null);
+    setSwapMessage(null);
+    setErrorMessage(null);
+
+    try {
+      const { data, error } = await supabase.rpc("get_player_binder_position", {
+        p_card_id: card.id,
+      });
+      if (error) throw error;
+
+      const row = Array.isArray(data) ? data[0] : data;
+      const position =
+        row && typeof row === "object"
+          ? toWholeNumber((row as BinderPositionRow).binder_position)
+          : 0;
+
+      setSearchInput("");
+      setSearch("");
+      setSetName("");
+      setRarity("");
+      setAvailability("all");
+      if (position > 0) setPage(Math.max(1, Math.ceil(position / PAGE_SIZE)));
+      setSwapSource(card);
+      setSwapMessage(`Choose the card that should swap places with ${card.name}.`);
+    } catch (error: unknown) {
+      setErrorMessage(getErrorMessage(error, "Swap mode could not be started."));
+    }
+  }, []);
+
+  const swapWith = useCallback(
+    async (target: BinderDisplayCard) => {
+      if (!swapSource || swapBusy) return;
+
+      if (target.id === swapSource.id) {
+        setSwapSource(null);
+        setSwapMessage(null);
+        return;
+      }
+
+      setSwapBusy(true);
+      setErrorMessage(null);
+
+      try {
+        const { error } = await supabase.rpc("swap_player_binder_positions", {
+          p_first_card_id: swapSource.id,
+          p_second_card_id: target.id,
+        });
+        if (error) throw error;
+
+        const sourceName = swapSource.name;
+        setSwapSource(null);
+        setSwapMessage(`${sourceName} and ${target.name} swapped places.`);
+        await loadCards(true);
+        window.dispatchEvent(new CustomEvent("pocketpulls:binder-updated"));
+        window.setTimeout(() => setSwapMessage(null), 2600);
+      } catch (error: unknown) {
+        setErrorMessage(getErrorMessage(error, "Those binder positions could not be swapped."));
+      } finally {
+        setSwapBusy(false);
+      }
+    },
+    [loadCards, swapBusy, swapSource],
+  );
+
   const filterOptions = useMemo(
     () => [
-      {
-        value: "all" as Availability,
-        label: "All cards",
-      },
-      {
-        value: "available" as Availability,
-        label: "Available",
-      },
-      {
-        value: "reserved" as Availability,
-        label: "Reserved",
-      },
-      {
-        value: "duplicates" as Availability,
-        label: "Duplicates",
-      },
+      { value: "all" as Availability, label: "All cards" },
+      { value: "available" as Availability, label: "Available" },
+      { value: "reserved" as Availability, label: "Reserved" },
+      { value: "duplicates" as Availability, label: "Duplicates" },
     ],
     [],
   );
-
-  const binderSlots = Array.from({ length: PAGE_SIZE }, (_, index) => cards[index] ?? null);
-  const leftPage = binderSlots.slice(0, 12);
-  const rightPage = binderSlots.slice(12, 24);
 
   return (
     <section className={styles.pageShell}>
       <header className={styles.header}>
         <div>
-          <p className={styles.eyebrow}>Your card binder</p>
-          <h1 className={styles.title}>Binder</h1>
+          <p className={styles.eyebrow}>Your binder</p>
+          <h1 className={styles.title}>{binderName}</h1>
         </div>
 
         <div className={styles.headerStats}>
@@ -462,18 +534,12 @@ export default function CollectionPage() {
           {overview.rarities.map((item) => <option key={item} value={item}>{item}</option>)}
         </select>
 
-        <select
-          value={sort}
-          onChange={(event) => { setSort(event.target.value as SortOption); setPage(1); }}
-          className={styles.select}
+        <button
+          type="button"
+          onClick={() => void refresh()}
+          disabled={refreshing}
+          className={styles.refreshButton}
         >
-          <option value="name">A–Z</option>
-          <option value="value_desc">Highest value</option>
-          <option value="value_asc">Lowest value</option>
-          <option value="quantity_desc">Most copies</option>
-        </select>
-
-        <button type="button" onClick={() => void refresh()} disabled={refreshing} className={styles.refreshButton}>
           {refreshing ? "Refreshing..." : "Refresh"}
         </button>
       </div>
@@ -490,8 +556,115 @@ export default function CollectionPage() {
           </button>
         ))}
         <span className={styles.entryCount}>{formatWholeNumber(totalCount)} entries</span>
-        {hasFilters ? <button type="button" onClick={clearFilters} className={styles.clearButton}>Clear</button> : null}
+        {hasFilters ? (
+          <button type="button" onClick={clearFilters} className={styles.clearButton}>
+            Clear
+          </button>
+        ) : null}
       </div>
+
+      <section className={styles.binderControls}>
+        <div className={styles.nameControl}>
+          <div>
+            <p>Binder name</p>
+            <span>This is what friends see above your binder.</span>
+          </div>
+          <div className={styles.nameEditor}>
+            <input
+              value={binderNameInput}
+              maxLength={40}
+              onChange={(event) => setBinderNameInput(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") void saveBinderName();
+              }}
+              aria-label="Binder name"
+            />
+            <button
+              type="button"
+              onClick={() => void saveBinderName()}
+              disabled={nameBusy || !binderNameInput.trim() || binderNameInput.trim() === binderName}
+            >
+              {nameBusy ? "Saving..." : "Save name"}
+            </button>
+          </div>
+        </div>
+
+        <div className={styles.themeToggleRow}>
+          <div>
+            <p>Binder style</p>
+            <span>{BINDER_THEMES.find((theme) => theme.key === themeKey)?.label || "Classic Leather"}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setThemePickerOpen((current) => !current)}
+            className={styles.themeToggle}
+            aria-expanded={themePickerOpen}
+          >
+            {themePickerOpen ? "Hide styles" : "Change style"}
+          </button>
+        </div>
+
+        {themePickerOpen ? (
+          <div className={styles.themePanel}>
+            <div className={styles.themeGrid}>
+              {BINDER_THEMES.map((theme) => {
+                const unlock = themeUnlocks[theme.key];
+                const unlocked = theme.key === "classic" || unlock?.unlocked === true;
+
+                return (
+                  <button
+                    key={theme.key}
+                    type="button"
+                    disabled={themeBusy || !unlocked}
+                    onClick={() => void selectTheme(theme.key)}
+                    className={`${styles.themeCard} ${themeKey === theme.key ? styles.themeCardActive : ""} ${!unlocked ? styles.themeCardLocked : ""}`}
+                  >
+                    <span
+                      className={styles.themePreview}
+                      style={{
+                        background: theme.imageUrl
+                          ? `linear-gradient(rgba(7,8,24,0.08), rgba(7,8,24,0.18)), url(${theme.imageUrl}) center/cover no-repeat`
+                          : `linear-gradient(135deg, ${theme.coverBase}, ${theme.coverAccent}, ${theme.coverBase})`,
+                      }}
+                    />
+                    <strong>{theme.label}</strong>
+                    {themeKey === theme.key ? (
+                      <span className={styles.themeSelected}>Selected</span>
+                    ) : unlocked ? (
+                      <span className={styles.themeUnlocked}>Unlocked</span>
+                    ) : (
+                      <span className={styles.themeLocked}>
+                        {unlock?.achievement_title || "Binder achievement"}
+                      </span>
+                    )}
+                    {!unlocked && unlock?.requirement ? (
+                      <small>{unlock.requirement}</small>
+                    ) : null}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ) : null}
+      </section>
+
+      {swapSource || swapMessage ? (
+        <div className={styles.swapBar}>
+          <div>
+            <strong>{swapSource ? `Swapping ${swapSource.name}` : "Binder updated"}</strong>
+            <span>{swapMessage}</span>
+          </div>
+          {swapSource ? (
+            <button
+              type="button"
+              onClick={() => { setSwapSource(null); setSwapMessage(null); }}
+              disabled={swapBusy}
+            >
+              Cancel swap
+            </button>
+          ) : null}
+        </div>
+      ) : null}
 
       {loading ? (
         <div className={styles.binderLoading}>Opening your binder...</div>
@@ -505,22 +678,31 @@ export default function CollectionPage() {
           </div>
         </div>
       ) : (
-        <div className={`${styles.binder} ${filtering ? styles.binderFiltering : ""}`}>
-          <div className={styles.coverEdgeLeft} />
-          <BinderPage cards={leftPage} side="left" onOpen={setSelectedCard} />
-          <div className={styles.spine} aria-hidden="true">
-            {Array.from({ length: 6 }, (_, index) => <span key={index} className={styles.ring} />)}
-          </div>
-          <BinderPage cards={rightPage} side="right" onOpen={setSelectedCard} />
-          <div className={styles.coverEdgeRight} />
-        </div>
+        <BinderSpread
+          cards={cards}
+          themeKey={themeKey}
+          onOpen={(card) => setSelectedCard(card as CollectionCard)}
+          swapSourceId={swapSource?.id || null}
+          onSwapTarget={(card) => void swapWith(card)}
+          dimmed={filtering || swapBusy}
+        />
       )}
 
       <div className={styles.pagination}>
         <span>Spread {page} of {totalPages}</span>
         <div>
-          <PlayerSecondaryButton onClick={() => setPage((current) => Math.max(1, current - 1))} disabled={page <= 1}>Previous</PlayerSecondaryButton>
-          <PlayerSecondaryButton onClick={() => setPage((current) => Math.min(totalPages, current + 1))} disabled={page >= totalPages}>Next</PlayerSecondaryButton>
+          <PlayerSecondaryButton
+            onClick={() => setPage((current) => Math.max(1, current - 1))}
+            disabled={page <= 1 || swapBusy}
+          >
+            Previous
+          </PlayerSecondaryButton>
+          <PlayerSecondaryButton
+            onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
+            disabled={page >= totalPages || swapBusy}
+          >
+            Next
+          </PlayerSecondaryButton>
         </div>
       </div>
 
@@ -530,59 +712,9 @@ export default function CollectionPage() {
           onClose={() => setSelectedCard(null)}
           signatureBusy={signatureBusy}
           onSetSignature={() => void setSignature(selectedCard)}
+          onSwapPosition={() => void startSwap(selectedCard)}
         />
       ) : null}
     </section>
-  );
-}
-
-function BinderPage({
-  cards,
-  side,
-  onOpen,
-}: {
-  cards: Array<CollectionCard | null>;
-  side: "left" | "right";
-  onOpen: (card: CollectionCard) => void;
-}) {
-  return (
-    <div className={`${styles.binderPage} ${side === "left" ? styles.leftPage : styles.rightPage}`}>
-      <div className={styles.pageSheen} />
-      <div className={styles.pocketGrid}>
-        {cards.map((card, index) => (
-          card ? (
-            <BinderPocket key={card.id} card={card} onOpen={() => onOpen(card)} />
-          ) : (
-            <div key={`empty-${side}-${index}`} className={styles.emptyPocket} aria-hidden="true">
-              <span>✦</span>
-            </div>
-          )
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function BinderPocket({ card, onOpen }: { card: CollectionCard; onOpen: () => void }) {
-  const theme = getPlayerRarityTheme(card.rarity);
-  const style = {
-    "--rarity-colour": theme.primary,
-    "--rarity-glow": theme.glow,
-  } as CSSProperties;
-
-  return (
-    <button type="button" onClick={onOpen} style={style} className={styles.pocket}>
-      <span className={styles.pocketPlastic} />
-      {card.isSignature ? <span className={styles.signatureBadge}>★</span> : null}
-      {card.quantity > 1 ? <span className={styles.quantityBadge}>×{card.quantity}</span> : null}
-
-      <CardArtwork
-        name={card.name}
-        imageUrl={card.imageUrl}
-        rarity={card.rarity}
-        className={styles.cardArtwork}
-      />
-
-    </button>
   );
 }

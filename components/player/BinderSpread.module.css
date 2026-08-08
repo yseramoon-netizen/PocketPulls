@@ -3,7 +3,7 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) 3.7rem minmax(0, 1fr);
   gap: 0;
-  min-height: 58rem;
+  min-height: 43rem;
   margin-top: 0.4rem;
   border-radius: 2.2rem;
   border: 0.85rem solid var(--binder-cover-base);
@@ -202,7 +202,7 @@
 }
 
 @media (max-width: 1200px) {
-  .binder { min-height: 48rem; }
+  .binder { min-height: 38rem; }
 }
 
 @media (max-width: 840px) {
@@ -225,6 +225,6 @@
   }
 
   .rightPage { margin-top: 0.55rem; }
-  .pocketGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.55rem; }
+  .pocketGrid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.42rem; }
   .coverArtwork { background-size: cover, 22rem auto; }
 }
