@@ -614,28 +614,24 @@ export default function ProfilePage() {
                   />
                 </ProfileField>
 
-                <ProfileField
-                  label="Star sign"
-                  hint="Shapes your Wish Constellation"
-                >
-                  <select
+                <div className="block">
+                  <span className="mb-2 flex items-center justify-between gap-3 text-xs font-black uppercase tracking-[0.12em] text-white/35">
+                    <span>Star sign</span>
+                    <span className="normal-case tracking-normal text-white/20">
+                      Shapes your Wish Constellation
+                    </span>
+                  </span>
+
+                  <ZodiacPicker
                     value={form.zodiacSign}
-                    onChange={(event) =>
+                    onChange={(zodiacSign) =>
                       setForm((current) => ({
                         ...current,
-                        zodiacSign:
-                          event.target.value as ZodiacSign,
+                        zodiacSign,
                       }))
                     }
-                    className="profile-input"
-                  >
-                    {ZODIAC_OPTIONS.map((option) => (
-                      <option key={option.value || "none"} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </ProfileField>
+                  />
+                </div>
 
                 <ProfileField
                   label="Avatar image URL"
@@ -844,6 +840,106 @@ export default function ProfilePage() {
         }
       `}</style>
     </section>
+  );
+}
+
+function ZodiacPicker({
+  value,
+  onChange,
+}: {
+  value: ZodiacSign;
+  onChange: (value: ZodiacSign) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement | null>(null);
+
+  const selected =
+    ZODIAC_OPTIONS.find((option) => option.value === value) ??
+    ZODIAC_OPTIONS[0];
+
+  useEffect(() => {
+    if (!open) return;
+
+    const close = (event: MouseEvent) => {
+      if (
+        rootRef.current &&
+        event.target instanceof Node &&
+        !rootRef.current.contains(event.target)
+      ) {
+        setOpen(false);
+      }
+    };
+
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+
+    document.addEventListener("mousedown", close);
+    window.addEventListener("keydown", closeOnEscape);
+
+    return () => {
+      document.removeEventListener("mousedown", close);
+      window.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [open]);
+
+  return (
+    <div ref={rootRef} className="relative">
+      <button
+        type="button"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        onClick={() => setOpen((current) => !current)}
+        className="flex min-h-12 w-full items-center justify-between rounded-xl border border-white/10 bg-white/[0.045] px-4 text-left text-sm font-semibold text-white outline-none transition hover:border-violet-200/20 hover:bg-white/[0.06] focus-visible:border-indigo-200/30 focus-visible:ring-2 focus-visible:ring-indigo-200/[0.08]"
+      >
+        <span>{selected.label}</span>
+        <span
+          aria-hidden="true"
+          className={[
+            "text-white/45 transition-transform",
+            open ? "rotate-180" : "",
+          ].join(" ")}
+        >
+          ▾
+        </span>
+      </button>
+
+      {open ? (
+        <div
+          role="listbox"
+          aria-label="Star sign"
+          className="absolute inset-x-0 top-[calc(100%+0.45rem)] z-[80] max-h-72 overflow-y-auto rounded-2xl border border-violet-200/15 bg-[#100d2b]/98 p-1.5 shadow-[0_24px_70px_rgba(0,0,0,0.62)] backdrop-blur-2xl"
+        >
+          {ZODIAC_OPTIONS.map((option) => {
+            const active = option.value === value;
+
+            return (
+              <button
+                key={option.value || "none"}
+                type="button"
+                role="option"
+                aria-selected={active}
+                onClick={() => {
+                  onChange(option.value);
+                  setOpen(false);
+                }}
+                className={[
+                  "flex min-h-10 w-full items-center justify-between rounded-xl px-3 text-left text-sm font-bold transition",
+                  active
+                    ? "bg-violet-400/18 text-violet-50"
+                    : "text-white/62 hover:bg-white/[0.06] hover:text-white",
+                ].join(" ")}
+              >
+                <span>{option.label}</span>
+                {active ? (
+                  <span aria-hidden="true" className="text-cyan-100">✦</span>
+                ) : null}
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
+    </div>
   );
 }
 
