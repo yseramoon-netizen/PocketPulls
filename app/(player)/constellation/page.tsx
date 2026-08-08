@@ -1051,368 +1051,307 @@ export default function ConstellationPage() {
   }, [stars]);
 
   return (
-    <section className="mx-auto w-full max-w-[1600px] px-4 py-8 sm:px-6 lg:px-8">
-      <header className="relative overflow-hidden rounded-[2rem] border border-violet-200/15 bg-[#090b27]/76 p-5 shadow-[0_24px_90px_rgba(0,0,0,0.22)] backdrop-blur-xl sm:p-7">
-        <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-amber-100/45 to-transparent" />
-        <div className="relative flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <p className="text-xs font-black uppercase tracking-[0.22em] text-cyan-100/40">
-            Jirachi&apos;s memory
-          </p>
+    <section className="relative min-h-[calc(100dvh-4.5rem)] w-full overflow-hidden bg-[#040515] text-white">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_45%,rgba(103,232,249,0.075),transparent_32%),radial-gradient(circle_at_20%_18%,rgba(196,181,253,0.08),transparent_26%),radial-gradient(circle_at_82%_17%,rgba(249,168,212,0.06),transparent_24%),linear-gradient(180deg,rgba(3,4,18,0.96),rgba(6,7,27,0.985))]" />
+      <div className="pointer-events-none absolute inset-0 opacity-65 [background-image:radial-gradient(circle_at_7%_14%,white_0_1px,transparent_1.5px),radial-gradient(circle_at_14%_43%,white_0_1px,transparent_1.5px),radial-gradient(circle_at_26%_21%,white_0_1px,transparent_1.5px),radial-gradient(circle_at_34%_68%,white_0_1px,transparent_1.5px),radial-gradient(circle_at_42%_11%,white_0_1px,transparent_1.5px),radial-gradient(circle_at_53%_31%,white_0_1px,transparent_1.5px),radial-gradient(circle_at_61%_76%,white_0_1px,transparent_1.5px),radial-gradient(circle_at_69%_13%,white_0_1px,transparent_1.5px),radial-gradient(circle_at_79%_42%,white_0_1px,transparent_1.5px),radial-gradient(circle_at_88%_19%,white_0_1px,transparent_1.5px),radial-gradient(circle_at_94%_72%,white_0_1px,transparent_1.5px)]" />
 
-          <div className="mt-4 max-w-full overflow-hidden">
-            <UnownText
-              text="Your Constellation"
-              size="clamp(1.9rem, 4.6vw, 3.75rem)"
-              tone="holo"
-            />
+      <div className="absolute left-3 top-3 z-40 max-w-[min(92vw,34rem)] rounded-[1.6rem] border border-violet-200/12 bg-[#080a25]/72 p-4 shadow-[0_20px_70px_rgba(0,0,0,0.3)] backdrop-blur-2xl sm:left-5 sm:top-5 sm:p-5">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <p className="text-[0.62rem] font-black uppercase tracking-[0.2em] text-cyan-100/38">
+              Jirachi&apos;s memory
+            </p>
+            <div className="mt-2 overflow-hidden">
+              <UnownText
+                text="Your Constellation"
+                size="clamp(1.45rem, 3.2vw, 2.45rem)"
+                tone="holo"
+              />
+            </div>
+            {zodiacSign ? (
+              <p className="mt-2 text-xs font-black uppercase tracking-[0.15em] text-violet-100/52">
+                {ZODIAC_SHAPES[zodiacSign].label} sky
+              </p>
+            ) : (
+              <p className="mt-2 text-xs font-bold text-white/28">
+                Choose a star sign in Profile to shape your sky.
+              </p>
+            )}
           </div>
 
-          <p className="mt-4 max-w-3xl text-sm font-semibold leading-7 text-white/45 sm:text-base">
-            Every card Jirachi has granted you lives here as a permanent
-            light. Better rarities burn brighter and valuable cards glow larger.
-          </p>
-
-          {zodiacSign ? (
-            <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-violet-200/15 bg-violet-300/[0.07] px-3 py-2 text-[0.68rem] font-black uppercase tracking-[0.14em] text-violet-100/65">
-              <span aria-hidden="true">✦</span>
-              {ZODIAC_SHAPES[zodiacSign].label} sky
-            </div>
-          ) : (
-            <p className="mt-4 text-xs font-bold text-white/28">
-              Choose a star sign in Profile to shape your sky.
-            </p>
-          )}
+          <button
+            type="button"
+            onClick={() => void loadConstellation(true)}
+            disabled={refreshing}
+            className="min-h-10 flex-none rounded-xl border border-white/10 bg-white/[0.05] px-3 text-[0.7rem] font-black uppercase tracking-[0.12em] text-white/55 transition hover:bg-white/10 hover:text-white disabled:cursor-wait disabled:opacity-50"
+          >
+            {refreshing ? "Reading..." : "Refresh"}
+          </button>
         </div>
 
-        <button
-          type="button"
-          onClick={() => {
-            void loadConstellation(true);
-          }}
-          disabled={refreshing}
-          className="min-h-12 rounded-xl border border-white/10 bg-white/[0.05] px-5 text-sm font-black text-white/65 transition hover:bg-white/10 hover:text-white disabled:cursor-wait disabled:opacity-50"
-        >
-          {refreshing ? "Reading the stars..." : "Refresh constellation"}
-        </button>
+        <div className="mt-4 grid grid-cols-3 gap-2">
+          <SkyStat label="Stars" value={String(stars.length)} />
+          <SkyStat label="Value" value={formatMoney(totalValue)} />
+          <SkyStat label="Brightest" value={rarestStar?.name || "Waiting"} />
         </div>
-      </header>
+      </div>
 
       {errorMessage ? (
-        <div className="mt-6 rounded-2xl border border-red-200/15 bg-red-400/[0.08] p-4 text-sm font-semibold text-red-100">
+        <div className="absolute left-1/2 top-4 z-50 w-[min(92vw,36rem)] -translate-x-1/2 rounded-2xl border border-red-200/15 bg-red-950/85 p-4 text-sm font-semibold text-red-100 shadow-2xl backdrop-blur-xl">
           {errorMessage}
         </div>
       ) : null}
 
-      <div className="mt-7 grid gap-5 sm:grid-cols-3">
-        <StatCard
-          label="Stars"
-          value={String(stars.length)}
-          detail={getMilestoneMessage(stars.length)}
-        />
+      <article className="relative z-10 min-h-[calc(100dvh-4.5rem)] w-full overflow-hidden">
+        {loading ? (
+          <div className="relative z-10 flex min-h-[calc(100dvh-4.5rem)] flex-col items-center justify-center text-center">
+            <div className="h-16 w-16 animate-pulse rounded-full bg-white shadow-[0_0_55px_18px_rgba(255,255,255,0.3)]" />
+            <p className="mt-7 text-xs font-black uppercase tracking-[0.2em] text-white/35">
+              Rebuilding your night sky
+            </p>
+          </div>
+        ) : (
+          <div className="relative min-h-[calc(100dvh-4.5rem)] w-full">
+            {stars.length > 0 ? (
+              <svg
+                viewBox="0 0 100 100"
+                preserveAspectRatio="none"
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-0 h-full w-full"
+              >
+                {zodiacSign
+                  ? ZODIAC_SHAPES[zodiacSign].segments.flatMap(
+                      ([fromIndex, toIndex], index) => {
+                        const from = ZODIAC_SHAPES[zodiacSign].points[fromIndex];
+                        const to = ZODIAC_SHAPES[zodiacSign].points[toIndex];
 
-        <StatCard
-          label="Starlight value"
-          value={formatMoney(totalValue)}
-          detail="Value when each wish was granted"
-        />
-
-        <StatCard
-          label="Brightest star"
-          value={rarestStar?.name || "Waiting"}
-          detail={
-            rarestStar
-              ? rarestStar.rarity
-              : "Your first wish will appear here"
-          }
-        />
-      </div>
-
-      <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1fr)_23rem]">
-        <article className="relative min-h-[680px] overflow-hidden rounded-[2rem] border border-violet-200/15 bg-[#050619] shadow-[0_35px_120px_rgba(0,0,0,0.35)]">
-          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_46%,rgba(103,232,249,0.08),transparent_32%),radial-gradient(circle_at_25%_15%,rgba(196,181,253,0.08),transparent_27%),radial-gradient(circle_at_80%_20%,rgba(249,168,212,0.06),transparent_25%)]" />
-
-          <div className="pointer-events-none absolute inset-0 opacity-70 [background-image:radial-gradient(circle_at_10%_18%,white_0_1px,transparent_1.5px),radial-gradient(circle_at_21%_43%,white_0_1px,transparent_1.5px),radial-gradient(circle_at_38%_17%,white_0_1px,transparent_1.5px),radial-gradient(circle_at_55%_29%,white_0_1px,transparent_1.5px),radial-gradient(circle_at_69%_12%,white_0_1px,transparent_1.5px),radial-gradient(circle_at_82%_37%,white_0_1px,transparent_1.5px),radial-gradient(circle_at_91%_18%,white_0_1px,transparent_1.5px),radial-gradient(circle_at_14%_72%,white_0_1px,transparent_1.5px),radial-gradient(circle_at_36%_82%,white_0_1px,transparent_1.5px),radial-gradient(circle_at_62%_69%,white_0_1px,transparent_1.5px),radial-gradient(circle_at_84%_79%,white_0_1px,transparent_1.5px)]" />
-
-          {loading ? (
-            <div className="relative z-10 flex min-h-[680px] flex-col items-center justify-center text-center">
-              <div className="h-16 w-16 animate-pulse rounded-full bg-white shadow-[0_0_55px_18px_rgba(255,255,255,0.3)]" />
-
-              <p className="mt-7 text-xs font-black uppercase tracking-[0.2em] text-white/35">
-                Rebuilding your night sky
-              </p>
-            </div>
-          ) : (
-            <div className="relative z-10 min-h-[680px]">
-              {stars.length > 0 ? (
-                <svg
-                  viewBox="0 0 100 100"
-                  preserveAspectRatio="none"
-                  aria-hidden="true"
-                  className="pointer-events-none absolute inset-0 h-full w-full opacity-20"
-                >
-                  {zodiacSign
-                    ? ZODIAC_SHAPES[zodiacSign].segments.map(
-                        ([fromIndex, toIndex], index) => {
-                          const from = ZODIAC_SHAPES[zodiacSign].points[fromIndex];
-                          const to = ZODIAC_SHAPES[zodiacSign].points[toIndex];
-
-                          return (
-                            <line
-                              key={`zodiac-${zodiacSign}-${index}`}
-                              x1={from.x}
-                              y1={from.y}
-                              x2={to.x}
-                              y2={to.y}
-                              stroke="rgba(254,249,195,0.76)"
-                              strokeWidth="0.22"
-                              strokeDasharray="0.8 1.1"
-                            />
-                          );
-                        },
-                      )
-                    : stars.slice(1).map((star, index) => {
-                        const previous = stars[index];
-
-                        return (
+                        return [
                           <line
-                            key={`${previous.id}-${star.id}`}
-                            x1={previous.x}
-                            y1={previous.y}
-                            x2={star.x}
-                            y2={star.y}
-                            stroke="rgba(196,181,253,0.65)"
-                            strokeWidth="0.12"
-                            strokeDasharray="0.6 1.1"
-                          />
-                        );
-                      })}
-                </svg>
-              ) : null}
+                            key={`zodiac-glow-${zodiacSign}-${index}`}
+                            x1={from.x}
+                            y1={from.y}
+                            x2={to.x}
+                            y2={to.y}
+                            stroke="rgba(103,232,249,0.22)"
+                            strokeWidth="1.15"
+                            strokeLinecap="round"
+                          />,
+                          <line
+                            key={`zodiac-core-${zodiacSign}-${index}`}
+                            x1={from.x}
+                            y1={from.y}
+                            x2={to.x}
+                            y2={to.y}
+                            stroke="rgba(254,249,195,0.78)"
+                            strokeWidth="0.34"
+                            strokeLinecap="round"
+                          />,
+                        ];
+                      },
+                    )
+                  : stars.slice(1).map((star, index) => {
+                      const previous = stars[index];
 
-              {stars.length === 0 ? (
-                <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center px-6 text-center">
-                  <div className="text-8xl text-yellow-100/30">*</div>
-                  <h2 className="mt-4 text-2xl font-black text-white">
-                    The sky is waiting for you.
-                  </h2>
-                  <p className="mt-3 max-w-md text-sm font-semibold leading-7 text-white/40">
-                    Return to the Wish Chamber and let Jirachi place your first permanent star here.
-                  </p>
-                </div>
-              ) : null}
+                      return (
+                        <line
+                          key={`${previous.id}-${star.id}`}
+                          x1={previous.x}
+                          y1={previous.y}
+                          x2={star.x}
+                          y2={star.y}
+                          stroke="rgba(196,181,253,0.4)"
+                          strokeWidth="0.14"
+                          strokeDasharray="0.65 1.05"
+                        />
+                      );
+                    })}
+              </svg>
+            ) : null}
 
-              {stars.map((star) => {
-                const active = selectedStar?.id === star.id;
-                const hitSize = Math.max(22, star.size + 12);
-                const anniversaryYears = getAnniversaryYears(star.grantedAt);
+            {stars.length === 0 ? (
+              <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center px-6 text-center">
+                <div className="text-8xl text-yellow-100/30">*</div>
+                <h2 className="mt-4 text-2xl font-black text-white">
+                  The sky is waiting for you.
+                </h2>
+                <p className="mt-3 max-w-md text-sm font-semibold leading-7 text-white/40">
+                  Return to the Wish Chamber and let Jirachi place your first permanent star here.
+                </p>
+              </div>
+            ) : null}
 
-                return (
-                  <button
-                    key={star.id}
-                    type="button"
-                    onClick={() => setSelectedStar(star)}
-                    aria-label={`${star.name}, ${star.rarity}`}
-                    title={anniversaryYears > 0 ? anniversaryMessage(anniversaryYears) : undefined}
-                    className={[
-                      "absolute rounded-full transition duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white",
-                      active ? "z-20 scale-[1.08]" : "z-10 hover:scale-110",
-                    ].join(" ")}
+            {stars.map((star) => {
+              const active = selectedStar?.id === star.id;
+              const hitSize = Math.max(24, star.size + 14);
+              const anniversaryYears = getAnniversaryYears(star.grantedAt);
+
+              return (
+                <button
+                  key={star.id}
+                  type="button"
+                  onClick={() => setSelectedStar(star)}
+                  aria-label={`${star.name}, ${star.rarity}`}
+                  title={anniversaryYears > 0 ? anniversaryMessage(anniversaryYears) : undefined}
+                  className={[
+                    "absolute rounded-full transition duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white",
+                    active ? "z-30 scale-[1.12]" : "z-20 hover:scale-125",
+                  ].join(" ")}
+                  style={{
+                    left: `${star.x}%`,
+                    top: `${star.y}%`,
+                    width: `${hitSize}px`,
+                    height: `${hitSize}px`,
+                    transform: "translate(-50%, -50%)",
+                    animation: `constellationStarIn 650ms ${star.delay}ms ease-out both`,
+                  }}
+                >
+                  <span
+                    aria-hidden="true"
+                    className="absolute left-1/2 top-1/2 rounded-full"
                     style={{
-                      left: `${star.x}%`,
-                      top: `${star.y}%`,
-                      width: `${hitSize}px`,
-                      height: `${hitSize}px`,
+                      width: `${star.size}px`,
+                      height: `${star.size}px`,
+                      background: star.colour,
+                      boxShadow: active
+                        ? `0 0 ${star.size * 3.1}px ${star.size * 0.85}px ${star.glow}`
+                        : star.zodiacAnchor
+                          ? `0 0 ${star.size * 2.6}px ${star.size * 0.68}px ${star.glow}`
+                          : `0 0 ${star.size * 1.75}px ${star.size * 0.36}px ${star.glow}`,
+                      outline: star.zodiacAnchor
+                        ? "2px solid rgba(254,249,195,0.48)"
+                        : undefined,
+                      outlineOffset: star.zodiacAnchor ? "3px" : undefined,
                       transform: "translate(-50%, -50%)",
-                      animation: `constellationStarIn 650ms ${star.delay}ms ease-out both`,
                     }}
-                  >
+                  />
+                  {anniversaryYears > 0 ? (
                     <span
                       aria-hidden="true"
-                      className="absolute left-1/2 top-1/2 rounded-full"
-                      style={{
-                        width: `${star.size}px`,
-                        height: `${star.size}px`,
-                        background: star.colour,
-                        boxShadow: active
-                          ? `0 0 ${star.size * 2.8}px ${star.size * 0.72}px ${star.glow}`
-                          : star.zodiacAnchor
-                            ? `0 0 ${star.size * 2.35}px ${star.size * 0.56}px ${star.glow}`
-                            : `0 0 ${star.size * 1.8}px ${star.size * 0.4}px ${star.glow}`,
-                        outline: star.zodiacAnchor
-                          ? "1px solid rgba(255,255,255,0.24)"
-                          : undefined,
-                        outlineOffset: star.zodiacAnchor ? "2px" : undefined,
-                        transform: "translate(-50%, -50%)",
-                      }}
-                    />
-                    {anniversaryYears > 0 ? (
-                      <span
-                        aria-hidden="true"
-                        className="absolute -right-0.5 -top-0.5 z-20 text-[0.7rem] text-yellow-100 drop-shadow-[0_0_8px_rgba(250,204,21,0.9)]"
-                      >
-                        ✦
-                      </span>
-                    ) : null}
-                    <span className="sr-only">{star.name}</span>
-                  </button>
-                );
-              })}
-
-              {friendStars.map((friend) => (
-                <button
-                  key={`friend-${friend.userId}`}
-                  type="button"
-                  onClick={() => router.push(`/friends/${encodeURIComponent(friend.userId)}`)}
-                  aria-label={`Open ${friend.displayName}'s trainer profile`}
-                  className="group absolute z-30 flex h-9 w-9 items-center justify-center rounded-full border border-cyan-100/25 bg-[#090b27]/90 shadow-[0_0_24px_rgba(103,232,249,0.34)] transition duration-200 hover:scale-125 hover:border-yellow-100/45 hover:shadow-[0_0_32px_rgba(250,204,21,0.4)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-100"
-                  style={{
-                    left: `${friend.x}%`,
-                    top: `${friend.y}%`,
-                    transform: "translate(-50%, -50%)",
-                    animation: `friendStarIn 700ms ${friend.delay}ms ease-out both`,
-                  }}
-                >
-                  <span className="pointer-events-none absolute -inset-2 rounded-full bg-cyan-200/10 blur-md" />
-                  <span className="pointer-events-none absolute text-[2.1rem] leading-none text-cyan-100/80 drop-shadow-[0_0_12px_rgba(103,232,249,0.75)]">
-                    ✦
-                  </span>
-                  {friend.avatarUrl ? (
-                    <img
-                      src={friend.avatarUrl}
-                      alt=""
-                      className="relative z-10 h-5 w-5 rounded-full border border-white/30 object-cover"
-                    />
-                  ) : (
-                    <span className="relative z-10 text-[0.58rem] font-black text-white">
-                      {friend.displayName.slice(0, 1).toUpperCase()}
+                      className="absolute -right-0.5 -top-0.5 z-20 text-[0.7rem] text-yellow-100 drop-shadow-[0_0_8px_rgba(250,204,21,0.9)]"
+                    >
+                      ✦
                     </span>
-                  )}
-                  <span className="pointer-events-none absolute left-1/2 top-full mt-2 hidden -translate-x-1/2 whitespace-nowrap rounded-full border border-white/10 bg-[#07091f]/95 px-2.5 py-1 text-[0.58rem] font-black text-white/80 shadow-xl group-hover:block group-focus-visible:block">
-                    {friend.displayName}
-                  </span>
+                  ) : null}
+                  <span className="sr-only">{star.name}</span>
                 </button>
-              ))}
+              );
+            })}
 
-              <div className="pointer-events-none absolute bottom-4 left-1/2 flex -translate-x-1/2 items-center gap-3 whitespace-nowrap text-[0.56rem] font-black uppercase tracking-[0.16em] text-white/20">
-                <span>Select a light to remember its wish</span>
-                {friendStars.length > 0 ? (
-                  <>
-                    <span className="h-1 w-1 rounded-full bg-white/20" />
-                    <span className="text-cyan-100/30">Large stars are friends</span>
-                  </>
-                ) : null}
-              </div>
+            {friendStars.map((friend) => (
+              <button
+                key={`friend-${friend.userId}`}
+                type="button"
+                onClick={() => router.push(`/friends/${encodeURIComponent(friend.userId)}`)}
+                aria-label={`Open ${friend.displayName}'s trainer profile`}
+                className="group absolute z-40 flex h-10 w-10 items-center justify-center rounded-full border border-cyan-100/28 bg-[#090b27]/90 shadow-[0_0_28px_rgba(103,232,249,0.38)] transition duration-200 hover:scale-125 hover:border-yellow-100/45 hover:shadow-[0_0_36px_rgba(250,204,21,0.42)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-100"
+                style={{
+                  left: `${friend.x}%`,
+                  top: `${friend.y}%`,
+                  transform: "translate(-50%, -50%)",
+                  animation: `friendStarIn 700ms ${friend.delay}ms ease-out both`,
+                }}
+              >
+                <span className="pointer-events-none absolute -inset-2 rounded-full bg-cyan-200/10 blur-md" />
+                <span className="pointer-events-none absolute text-[2.25rem] leading-none text-cyan-100/80 drop-shadow-[0_0_12px_rgba(103,232,249,0.75)]">
+                  ✦
+                </span>
+                {friend.avatarUrl ? (
+                  <img
+                    src={friend.avatarUrl}
+                    alt=""
+                    className="relative z-10 h-5 w-5 rounded-full border border-white/30 object-cover"
+                  />
+                ) : (
+                  <span className="relative z-10 text-[0.58rem] font-black text-white">
+                    {friend.displayName.slice(0, 1).toUpperCase()}
+                  </span>
+                )}
+                <span className="pointer-events-none absolute left-1/2 top-full mt-2 hidden -translate-x-1/2 whitespace-nowrap rounded-full border border-white/10 bg-[#07091f]/95 px-2.5 py-1 text-[0.58rem] font-black text-white/80 shadow-xl group-hover:block group-focus-visible:block">
+                  {friend.displayName}
+                </span>
+              </button>
+            ))}
+
+            <div className="pointer-events-none absolute bottom-4 left-1/2 z-30 flex -translate-x-1/2 items-center gap-3 whitespace-nowrap rounded-full border border-white/[0.06] bg-[#050619]/55 px-4 py-2 text-[0.56rem] font-black uppercase tracking-[0.16em] text-white/24 backdrop-blur-md">
+              <span>Select a light to remember its wish</span>
+              {friendStars.length > 0 ? (
+                <>
+                  <span className="h-1 w-1 rounded-full bg-white/20" />
+                  <span className="text-cyan-100/36">Large stars are friends</span>
+                </>
+              ) : null}
             </div>
-          )}
-        </article>
+          </div>
+        )}
+      </article>
 
-        <aside className="overflow-hidden rounded-[2rem] border border-violet-200/15 bg-[#090b27]/85 p-5 backdrop-blur-xl">
-          {selectedStar ? (
-            <>
-              <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-black/20 p-4">
-                <div
-                  className="pointer-events-none absolute inset-0 opacity-25"
-                  style={{
-                    background: `radial-gradient(circle at 50% 35%, ${selectedStar.glow}, transparent 55%)`,
-                  }}
+      {selectedStar ? (
+        <aside className="fixed bottom-[5.8rem] right-3 z-[60] max-h-[72dvh] w-[min(92vw,22rem)] overflow-y-auto rounded-[1.7rem] border border-violet-200/16 bg-[#090b27]/94 p-4 shadow-[0_30px_100px_rgba(0,0,0,0.55)] backdrop-blur-2xl md:bottom-4 md:right-4">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p
+                className="text-[0.58rem] font-black uppercase tracking-[0.18em]"
+                style={{ color: selectedStar.colour }}
+              >
+                {selectedStar.rarity}
+              </p>
+              <h2 className="mt-1 truncate text-xl font-black tracking-tight text-white">
+                {selectedStar.name}
+              </h2>
+            </div>
+            <button
+              type="button"
+              onClick={() => setSelectedStar(null)}
+              aria-label="Close memory"
+              className="flex h-9 w-9 flex-none items-center justify-center rounded-xl border border-white/10 bg-white/[0.05] text-lg font-black text-white/55 transition hover:bg-white/10 hover:text-white"
+            >
+              ×
+            </button>
+          </div>
+
+          <div className="mt-4 grid grid-cols-[7rem_minmax(0,1fr)] gap-4">
+            <div className="aspect-[0.716] overflow-hidden rounded-xl border border-white/10 bg-black/25 shadow-[0_15px_45px_rgba(0,0,0,0.45)]">
+              {selectedStar.imageUrl ? (
+                <img
+                  src={selectedStar.imageUrl}
+                  alt={selectedStar.name}
+                  className="h-full w-full object-contain"
                 />
-
-                <div className="relative mx-auto aspect-[0.716] w-full max-w-[15rem] overflow-hidden rounded-xl bg-[#050713] shadow-[0_20px_55px_rgba(0,0,0,0.55)]">
-                  {selectedStar.imageUrl ? (
-                    <img
-                      src={selectedStar.imageUrl}
-                      alt={selectedStar.name}
-                      className="h-full w-full object-contain"
-                    />
-                  ) : (
-                    <div className="flex h-full w-full flex-col items-center justify-center gap-4 p-5 text-center">
-                      <span
-                        className="text-7xl"
-                        style={{
-                          color: selectedStar.colour,
-                          filter: `drop-shadow(0 0 22px ${selectedStar.glow})`,
-                        }}
-                      >
-                        *
-                      </span>
-
-                      <strong className="text-white">
-                        {selectedStar.name}
-                      </strong>
-                    </div>
-                  )}
+              ) : (
+                <div className="flex h-full w-full items-center justify-center text-5xl" style={{ color: selectedStar.colour }}>
+                  *
                 </div>
-              </div>
+              )}
+            </div>
 
-              <div className="mt-5">
-                <p
-                  className="text-[0.62rem] font-black uppercase tracking-[0.18em]"
-                  style={{ color: selectedStar.colour }}
-                >
-                  {selectedStar.rarity}
-                </p>
+            <div className="min-w-0 space-y-2">
+              <MemoryRow label="Wish granted" value={formatDate(selectedStar.grantedAt)} />
+              <MemoryRow label="Value" value={formatMoney(selectedStar.marketValue)} />
+              <MemoryRow
+                label="Star"
+                value={`#${stars.findIndex((star) => star.id === selectedStar.id) + 1}`}
+              />
+            </div>
+          </div>
 
-                <h2 className="mt-2 text-2xl font-black tracking-tight text-white">
-                  {selectedStar.name}
-                </h2>
+          <p className="mt-3 text-xs font-semibold text-white/38">
+            {[selectedStar.setName, selectedStar.cardNumber ? `#${selectedStar.cardNumber}` : null]
+              .filter(Boolean)
+              .join(" · ")}
+          </p>
 
-                <p className="mt-2 text-sm font-semibold text-white/40">
-                  {[
-                    selectedStar.setName,
-                    selectedStar.cardNumber
-                      ? `#${selectedStar.cardNumber}`
-                      : null,
-                  ]
-                    .filter(Boolean)
-                    .join(" - ")}
-                </p>
-
-                <div className="mt-5 space-y-3">
-                  <MemoryRow
-                    label="Wish granted"
-                    value={formatDate(selectedStar.grantedAt)}
-                  />
-
-                  <MemoryRow
-                    label="Value that night"
-                    value={formatMoney(selectedStar.marketValue)}
-                  />
-
-                  <MemoryRow
-                    label="Star number"
-                    value={`#${stars.findIndex(
-                      (star) => star.id === selectedStar.id,
-                    ) + 1}`}
-                  />
-                </div>
-
-                {getAnniversaryYears(selectedStar.grantedAt) > 0 ? (
-                  <div className="mt-4 rounded-xl border border-yellow-100/15 bg-yellow-200/[0.06] p-4">
-                    <p className="text-[0.62rem] font-black uppercase tracking-[0.18em] text-yellow-100/55">
-                      ✦ Wish anniversary
-                    </p>
-                    <p className="mt-2 text-sm font-bold leading-6 text-yellow-50/80">
-                      {anniversaryMessage(getAnniversaryYears(selectedStar.grantedAt))}
-                    </p>
-                  </div>
-                ) : null}
-
-                <p className="mt-6 rounded-xl border border-white/10 bg-white/[0.04] p-4 text-sm font-semibold italic leading-6 text-white/40">
-                  “A wish remembered becomes a light that never disappears.”
-                </p>
-              </div>
-            </>
-          ) : (
-            <div className="flex min-h-[34rem] flex-col items-center justify-center text-center">
-              <span className="text-7xl text-yellow-100/25">*</span>
-              <p className="mt-4 text-sm font-bold text-white/35">
-                Select a star from your sky.
+          {getAnniversaryYears(selectedStar.grantedAt) > 0 ? (
+            <div className="mt-3 rounded-xl border border-yellow-100/15 bg-yellow-200/[0.06] p-3">
+              <p className="text-[0.58rem] font-black uppercase tracking-[0.16em] text-yellow-100/55">
+                ✦ Wish anniversary
+              </p>
+              <p className="mt-1 text-xs font-bold leading-5 text-yellow-50/78">
+                {anniversaryMessage(getAnniversaryYears(selectedStar.grantedAt))}
               </p>
             </div>
-          )}
+          ) : null}
         </aside>
-      </div>
+      ) : null}
 
       <style jsx global>{`
         @keyframes friendStarIn {
@@ -1451,29 +1390,22 @@ export default function ConstellationPage() {
   );
 }
 
-function StatCard({
+function SkyStat({
   label,
   value,
-  detail,
 }: {
   label: string;
   value: string;
-  detail: string;
 }) {
   return (
-    <article className="rounded-2xl border border-white/10 bg-white/[0.04] p-5">
-      <p className="text-[0.6rem] font-black uppercase tracking-[0.16em] text-white/30">
+    <div className="min-w-0 rounded-xl border border-white/[0.07] bg-white/[0.035] px-3 py-2.5">
+      <p className="text-[0.52rem] font-black uppercase tracking-[0.14em] text-white/26">
         {label}
       </p>
-
-      <p className="mt-3 truncate text-2xl font-black text-white">
+      <p className="mt-1 truncate text-sm font-black text-white/82">
         {value}
       </p>
-
-      <p className="mt-2 text-xs font-semibold text-white/30">
-        {detail}
-      </p>
-    </article>
+    </div>
   );
 }
 
