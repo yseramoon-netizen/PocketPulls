@@ -9,20 +9,13 @@ export type WishPackage = {
 };
 
 export const FIRST_RECHARGE_DISCOUNT_PERCENT = 20;
+export const MINIMUM_WISH_RECHARGE = 10;
 
 export const WISH_PACKAGES: readonly WishPackage[] = [
   {
-    id: "single",
-    name: "Single Wish",
-    subtitle: "Just one little star.",
-    wishes: 1,
-    amountPence: 50,
-    bulkDiscountPercent: 0,
-  },
-  {
     id: "little-star",
     name: "Little Star",
-    subtitle: "A small bundle for a few pulls.",
+    subtitle: "10 wishes",
     wishes: 10,
     amountPence: 475,
     bulkDiscountPercent: 5,
@@ -30,7 +23,7 @@ export const WISH_PACKAGES: readonly WishPackage[] = [
   {
     id: "wishing-cluster",
     name: "Wishing Cluster",
-    subtitle: "Enough for a proper little session.",
+    subtitle: "25 wishes",
     wishes: 25,
     amountPence: 1125,
     bulkDiscountPercent: 10,
@@ -38,7 +31,7 @@ export const WISH_PACKAGES: readonly WishPackage[] = [
   {
     id: "starfall",
     name: "Starfall",
-    subtitle: "A bigger reserve with stronger value.",
+    subtitle: "50 wishes",
     wishes: 50,
     amountPence: 2125,
     bulkDiscountPercent: 15,
@@ -47,7 +40,7 @@ export const WISH_PACKAGES: readonly WishPackage[] = [
   {
     id: "constellation",
     name: "Constellation",
-    subtitle: "A serious stock of wishes.",
+    subtitle: "100 wishes",
     wishes: 100,
     amountPence: 4000,
     bulkDiscountPercent: 20,
@@ -56,7 +49,7 @@ export const WISH_PACKAGES: readonly WishPackage[] = [
   {
     id: "celestial-vault",
     name: "Celestial Vault",
-    subtitle: "Maximum package savings.",
+    subtitle: "250 wishes",
     wishes: 250,
     amountPence: 9375,
     bulkDiscountPercent: 25,
@@ -65,7 +58,13 @@ export const WISH_PACKAGES: readonly WishPackage[] = [
 ] as const;
 
 export function getWishPackage(packageId: string): WishPackage | null {
-  return WISH_PACKAGES.find((item) => item.id === packageId) ?? null;
+  const wishPackage = WISH_PACKAGES.find((item) => item.id === packageId) ?? null;
+
+  if (!wishPackage || wishPackage.wishes < MINIMUM_WISH_RECHARGE) {
+    return null;
+  }
+
+  return wishPackage;
 }
 
 export function applyFirstRechargeDiscount(amountPence: number): number {
