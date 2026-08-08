@@ -19,7 +19,7 @@ function safeNextPath(value: string | null): string {
     value.startsWith("/admin") ||
     value.startsWith("/sign-in")
   ) {
-    return "/wishes";
+    return "/hq";
   }
 
   return value;

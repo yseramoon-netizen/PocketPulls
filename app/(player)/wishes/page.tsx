@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import WishCinematic, { type WishRevealCard } from "@/components/player/WishCinematic";
 import { supabase } from "@/lib/supabase";
@@ -157,12 +157,14 @@ function formatDate(value: string): string {
 }
 
 export default function WishesPage() {
+  const replayHandledRef = useRef(false);
   const [dashboard, setDashboard] = useState<DashboardData>(EMPTY_DASHBOARD);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [makingWish, setMakingWish] = useState(false);
   const [wishReveal, setWishReveal] = useState<WishReveal | null>(null);
+  const [forceFullSequence, setForceFullSequence] = useState(false);
 
   const loadDashboard = useCallback(async (background = false) => {
     if (background) {
@@ -370,7 +372,7 @@ export default function WishesPage() {
         };
       });
 
-      setDashboard({
+      const nextDashboard: DashboardData = {
         wishBalance: toWholeNumber(wallet?.wish_balance),
         lifetimeWishesSpent: Math.max(
           toWholeNumber(wallet?.lifetime_wishes_spent),
@@ -384,7 +386,40 @@ export default function WishesPage() {
         leaderboardScore,
         shippingThreshold,
         recentWishes,
-      });
+      };
+
+      setDashboard(nextDashboard);
+
+      if (
+        !background &&
+        !replayHandledRef.current &&
+        typeof window !== "undefined" &&
+        new URLSearchParams(window.location.search).get("replay") === "latest"
+      ) {
+        replayHandledRef.current = true;
+        window.history.replaceState({}, "", "/wishes");
+
+        const latest = recentWishes[0];
+
+        if (latest) {
+          setForceFullSequence(true);
+          setWishReveal({
+            wishId: latest.id,
+            cardId: latest.cardId,
+            cardName: latest.cardName,
+            setName: latest.setName,
+            cardNumber: latest.cardNumber,
+            rarity: latest.rarity,
+            imageUrl: latest.imageUrl,
+            marketValue: latest.valueAtWish,
+            wishBalance: nextDashboard.wishBalance,
+          });
+        } else {
+          setErrorMessage(
+            "Make your first wish before replaying a pull cinematic.",
+          );
+        }
+      }
     } catch (error: unknown) {
       console.error("Wishes dashboard error:", error);
 
@@ -410,6 +445,7 @@ export default function WishesPage() {
     }
 
     window.dispatchEvent(new Event("unown-pulls:close-more"));
+    setForceFullSequence(false);
     setMakingWish(true);
     setErrorMessage(null);
 
@@ -600,13 +636,18 @@ export default function WishesPage() {
         onFinished={() => {
           void loadDashboard(true);
         }}
-        onClose={() => setWishReveal(null)}
         onWishAgain={() => {
           setWishReveal(null);
+          setForceFullSequence(false);
           window.setTimeout(() => void makeWish(), 120);
         }}
         canWishAgain={Boolean(wishReveal && wishReveal.wishBalance > 0)}
         busy={makingWish}
+        forceFullSequence={forceFullSequence}
+        onClose={() => {
+          setWishReveal(null);
+          setForceFullSequence(false);
+        }}
       />
     </section>
   );

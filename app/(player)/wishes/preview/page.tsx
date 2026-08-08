@@ -182,6 +182,7 @@ export default function WishPreviewPage() {
         open={open}
         card={selectedCard}
         allowSkip
+        respectPreferences={false}
         onFinished={() => {
           console.log(
             "PocketPulls wish ceremony completed.",

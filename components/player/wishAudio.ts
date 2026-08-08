@@ -2,6 +2,7 @@
 
 export type WishAudioSession = {
   setMuted: (muted: boolean) => void;
+  setVolume: (volume: number) => void;
   stop: () => void;
 };
 
@@ -48,6 +49,7 @@ export async function primeWishAudio(): Promise<void> {
 export function startWishAudio(
   tier: number,
   muted: boolean,
+  volume = 72,
 ): WishAudioSession | null {
   const context = getAudioContext();
 
@@ -59,6 +61,8 @@ export function startWishAudio(
   const startedAt = context.currentTime + 0.045;
   const master = context.createGain();
   const compressor = context.createDynamicsCompressor();
+  let currentMuted = muted;
+  let preferredGain = 0.72 * Math.max(0, Math.min(100, volume)) / 100;
 
   compressor.threshold.value = -17;
   compressor.knee.value = 16;
@@ -66,7 +70,7 @@ export function startWishAudio(
   compressor.attack.value = 0.005;
   compressor.release.value = 0.22;
 
-  master.gain.setValueAtTime(muted ? 0 : 0.72, startedAt);
+  master.gain.setValueAtTime(currentMuted ? 0 : preferredGain, startedAt);
   master.connect(compressor);
   compressor.connect(context.destination);
 
@@ -85,9 +89,31 @@ export function startWishAudio(
         return;
       }
 
+      currentMuted = nextMuted;
       const now = context.currentTime;
       master.gain.cancelScheduledValues(now);
-      master.gain.setTargetAtTime(nextMuted ? 0 : 0.72, now, 0.025);
+      master.gain.setTargetAtTime(
+        currentMuted ? 0 : preferredGain,
+        now,
+        0.025,
+      );
+    },
+
+    setVolume(nextVolume: number) {
+      if (stopped) {
+        return;
+      }
+
+      preferredGain =
+        0.72 * Math.max(0, Math.min(100, Number(nextVolume) || 0)) / 100;
+
+      const now = context.currentTime;
+      master.gain.cancelScheduledValues(now);
+      master.gain.setTargetAtTime(
+        currentMuted ? 0 : preferredGain,
+        now,
+        0.025,
+      );
     },
 
     stop() {

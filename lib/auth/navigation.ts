@@ -59,7 +59,7 @@ export function getConfiguredPublicOrigin():
 }
 
 export function getSafeNextPath(
-  fallback = "/wishes",
+  fallback = "/hq",
 ): string {
   if (
     typeof window ===
@@ -84,7 +84,7 @@ export function normaliseNextPath(
     | string
     | null
     | undefined,
-  fallback = "/wishes",
+  fallback = "/hq",
 ): string {
   if (
     !value ||

@@ -47,12 +47,12 @@ export default function UnknownPullsBackdrop() {
   return (
     <div aria-hidden="true" className={styles.backdrop}>
       <div className={styles.deepSpace} />
-      <div className={styles.ancientMewGhost} />
+      <div className={styles.ancientMewGhost} data-pocketpulls-ambient="heavy" />
       <div className={styles.papyrusWash} />
-      <div className={styles.prismField} />
-      <div className={styles.holoDust} />
+      <div className={styles.prismField} data-pocketpulls-ambient="heavy" />
+      <div className={styles.holoDust} data-pocketpulls-ambient="heavy" />
 
-      <div className={styles.unownField}>
+      <div className={styles.unownField} data-pocketpulls-ambient="heavy">
         {TRAVELLERS.map((traveller, index) => {
           const style = {
             "--traveller-size": `${traveller.size}px`,
@@ -94,11 +94,11 @@ export default function UnknownPullsBackdrop() {
         })}
       </div>
 
-      <div className={styles.nebulaCyan} />
-      <div className={styles.nebulaViolet} />
-      <div className={styles.nebulaScarlet} />
-      <div className={styles.nebulaEmerald} />
-      <div className={styles.nebulaGold} />
+      <div className={styles.nebulaCyan} data-pocketpulls-ambient="heavy" />
+      <div className={styles.nebulaViolet} data-pocketpulls-ambient="heavy" />
+      <div className={styles.nebulaScarlet} data-pocketpulls-ambient="heavy" />
+      <div className={styles.nebulaEmerald} data-pocketpulls-ambient="heavy" />
+      <div className={styles.nebulaGold} data-pocketpulls-ambient="heavy" />
       <div className={styles.topGlyphBand} />
       <div className={styles.bottomGlyphBand} />
       <div className={styles.frame} />

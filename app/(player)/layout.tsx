@@ -551,6 +551,40 @@ export default function PlayerLayout({ children }: PlayerLayoutProps) {
             rgba(229, 169, 63, 0.42)
             rgba(5, 4, 17, 0.72);
         }
+
+        html[data-pp-larger-text="true"] {
+          font-size: 112.5%;
+        }
+
+        html[data-pp-reduced-motion="true"] .unknown-pulls-shell *,
+        html[data-pp-reduced-motion="true"] .unknown-pulls-shell *::before,
+        html[data-pp-reduced-motion="true"] .unknown-pulls-shell *::after {
+          animation-delay: 0ms !important;
+          animation-duration: 1ms !important;
+          animation-iteration-count: 1 !important;
+          scroll-behavior: auto !important;
+          transition-delay: 0ms !important;
+          transition-duration: 1ms !important;
+        }
+
+        html[data-pp-low-effects="true"] [data-pocketpulls-ambient="heavy"],
+        html[data-pp-data-saver="true"] [data-pocketpulls-ambient="heavy"] {
+          display: none !important;
+        }
+
+        html[data-pp-low-effects="true"] .unknown-pulls-shell [class*="backdrop-blur"] {
+          backdrop-filter: none !important;
+        }
+
+        html[data-pp-low-effects="true"] .unknown-pulls-shell [class*="shadow-["] {
+          box-shadow: 0 14px 36px rgba(0, 0, 0, 0.32) !important;
+        }
+
+        @media (max-width: 520px) {
+          html[data-pp-larger-text="true"] {
+            font-size: 106.25%;
+          }
+        }
       `}</style>
     </div>
   );

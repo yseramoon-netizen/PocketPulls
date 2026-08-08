@@ -20,7 +20,7 @@ export default function WelcomePage() {
   const nextPath = useMemo(
     () =>
       typeof window === "undefined"
-        ? "/wishes"
+        ? "/hq"
         : getSafeNextPath(),
     [],
   );

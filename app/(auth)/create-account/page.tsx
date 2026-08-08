@@ -55,7 +55,7 @@ export default function CreateAccountPage() {
   const nextPath = useMemo(
     () =>
       typeof window === "undefined"
-        ? "/wishes"
+        ? "/hq"
         : getSafeNextPath(),
     [],
   );

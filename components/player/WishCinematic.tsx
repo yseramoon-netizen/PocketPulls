@@ -14,6 +14,9 @@ import {
   startWishAudio,
   type WishAudioSession,
 } from "./wishAudio";
+import usePlayerPreferences from "./usePlayerPreferences";
+import { publishPlayerPreferences } from "@/lib/player/preferences";
+import { supabase } from "@/lib/supabase";
 import styles from "./WishCinematic.module.css";
 
 export type WishRevealCard = {
@@ -36,6 +39,8 @@ type WishCinematicProps = {
   busy?: boolean;
   actionError?: string | null;
   allowSkip?: boolean;
+  forceFullSequence?: boolean;
+  respectPreferences?: boolean;
 };
 
 type RarityTheme = {
@@ -266,18 +271,31 @@ export default function WishCinematic({
   busy = false,
   actionError = null,
   allowSkip = true,
+  forceFullSequence = false,
+  respectPreferences = true,
 }: WishCinematicProps) {
   const preloadTimerRef = useRef<number | null>(null);
   const completionTimerRef = useRef<number | null>(null);
   const finishedRef = useRef(false);
   const onFinishedRef = useRef(onFinished);
   const audioSessionRef = useRef<WishAudioSession | null>(null);
+  const markedSeenRef = useRef(false);
+  const preferences = usePlayerPreferences();
 
   const [ready, setReady] = useState(false);
   const [complete, setComplete] = useState(false);
   const [skipped, setSkipped] = useState(false);
   const [runNumber, setRunNumber] = useState(0);
   const [muted, setMuted] = useState(false);
+
+  const revealFromPreferences =
+    respectPreferences &&
+    (
+      preferences.reducedMotion ||
+      (!forceFullSequence &&
+        (preferences.dataSaver ||
+          (preferences.skipPullCinematic && preferences.cinematicSeen)))
+    );
 
   const theme = useMemo(
     () => getWishRarityTheme(card?.rarity),
@@ -372,6 +390,7 @@ export default function WishCinematic({
       setReady(false);
       setComplete(false);
       setSkipped(false);
+      markedSeenRef.current = false;
       return;
     }
 
@@ -384,6 +403,18 @@ export default function WishCinematic({
     setReady(false);
     setComplete(false);
     setSkipped(false);
+
+    if (revealFromPreferences) {
+      setReady(true);
+      setSkipped(true);
+      setComplete(true);
+      reportFinished();
+      return () => {
+        active = false;
+        clearTimers();
+        stopAudio();
+      };
+    }
 
     const startSequence = () => {
       if (!active || started) {
@@ -426,6 +457,7 @@ export default function WishCinematic({
     clearTimers,
     reportFinished,
     stopAudio,
+    revealFromPreferences,
   ]);
 
   useEffect(() => {
@@ -445,6 +477,7 @@ export default function WishCinematic({
         audioSessionRef.current = startWishAudio(
           theme.tier,
           muted,
+          preferences.sfxVolume,
         );
       })
       .catch(() => {
@@ -462,10 +495,12 @@ export default function WishCinematic({
     skipped,
     theme.tier,
     stopAudio,
+    preferences.sfxVolume,
   ]);
 
   useEffect(() => {
     audioSessionRef.current?.setMuted(muted);
+    audioSessionRef.current?.setVolume(preferences.sfxVolume);
 
     try {
       window.localStorage.setItem(
@@ -475,7 +510,31 @@ export default function WishCinematic({
     } catch {
       // Local storage is optional.
     }
-  }, [muted]);
+  }, [muted, preferences.sfxVolume]);
+
+  useEffect(() => {
+    if (
+      !open ||
+      !complete ||
+      !respectPreferences ||
+      markedSeenRef.current ||
+      preferences.cinematicSeen
+    ) {
+      return;
+    }
+
+    markedSeenRef.current = true;
+    publishPlayerPreferences({
+      ...preferences,
+      cinematicSeen: true,
+    });
+
+    void supabase.rpc("mark_player_cinematic_seen").then(({ error }) => {
+      if (error) {
+        console.warn("Cinematic viewing could not sync:", error.message);
+      }
+    });
+  }, [complete, open, preferences, respectPreferences]);
 
   useEffect(() => {
     if (!open) {

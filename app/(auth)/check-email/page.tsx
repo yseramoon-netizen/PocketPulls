@@ -17,7 +17,7 @@ export default function CheckEmailPage() {
 
   const params = useMemo(() => {
     if (typeof window === "undefined") {
-      return { email: "", next: "/wishes" };
+      return { email: "", next: "/hq" };
     }
 
     const search = new URLSearchParams(window.location.search);

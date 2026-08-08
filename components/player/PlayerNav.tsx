@@ -13,6 +13,7 @@ import {
 } from "react";
 
 import NotificationCentre from "@/components/player/NotificationCentre";
+import PlayerPreferencesPanel from "@/components/player/PlayerPreferences";
 import UnownText from "@/components/player/UnownText";
 import { supabase } from "@/lib/supabase";
 
@@ -36,6 +37,11 @@ type NavGroup = {
 };
 
 const PRIMARY_ITEMS: NavItem[] = [
+  {
+    href: "/hq",
+    label: "HQ",
+    glyph: "⌂",
+  },
   {
     href: "/wishes",
     label: "Wishes",
@@ -121,7 +127,7 @@ const ALL_ITEMS = [
 
 const MOBILE_DOCK_ITEMS = [
   PRIMARY_ITEMS[0],
-  PRIMARY_ITEMS[2],
+  PRIMARY_ITEMS[1],
   PRIMARY_ITEMS[3],
   PRIMARY_ITEMS[4],
 ];
@@ -133,13 +139,14 @@ const DRAWER_GROUPS: NavGroup[] = [
       PRIMARY_ITEMS[0],
       PRIMARY_ITEMS[1],
       PRIMARY_ITEMS[2],
+      PRIMARY_ITEMS[3],
     ],
   },
   {
     label: "Social",
     items: [
-      PRIMARY_ITEMS[3],
       PRIMARY_ITEMS[4],
+      PRIMARY_ITEMS[5],
       MORE_ITEMS[4],
     ],
   },
@@ -616,7 +623,7 @@ export default function PlayerNav({
           </button>
 
           <Link
-            href="/wishes"
+            href="/hq"
             onClick={closeMore}
             title="Unown Pulls"
             className="
@@ -869,6 +876,8 @@ export default function PlayerNav({
               xl:ml-2
             "
           >
+            <PlayerPreferencesPanel />
+
             <NotificationCentre />
 
             <Link

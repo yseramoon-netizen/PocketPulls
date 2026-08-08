@@ -4,6 +4,7 @@ import { type PointerEvent as ReactPointerEvent, type WheelEvent as ReactWheelEv
 import { useRouter } from "next/navigation";
 
 import UnownText from "@/components/player/UnownText";
+import usePlayerPreferences from "@/components/player/usePlayerPreferences";
 import { supabase } from "@/lib/supabase";
 
 type WishRow = {
@@ -1009,6 +1010,7 @@ function getMilestoneMessage(count: number): string {
 
 export default function ConstellationPage() {
   const router = useRouter();
+  const preferences = usePlayerPreferences();
   const [stars, setStars] = useState<ConstellationStar[]>([]);
   const [friendStars, setFriendStars] = useState<FriendStar[]>([]);
   const [zodiacSign, setZodiacSign] = useState<ZodiacSign | null>(null);
@@ -1309,11 +1311,18 @@ export default function ConstellationPage() {
 
   const projectedVolumeStars = useMemo(
     () =>
-      VOLUME_STARS.map((star) => ({
+      VOLUME_STARS.slice(
+        0,
+        preferences.dataSaver
+          ? 32
+          : preferences.lowVisualEffects
+            ? 58
+            : VOLUME_STARS.length,
+      ).map((star) => ({
         star,
         projected: projectSpatialPoint(star, rotation),
       })).sort((first, second) => first.projected.depth - second.projected.depth),
-    [rotation],
+    [preferences.dataSaver, preferences.lowVisualEffects, rotation],
   );
 
   const projectedStars = useMemo(
@@ -1463,7 +1472,7 @@ export default function ConstellationPage() {
                 transition: draggingSky ? "none" : "transform 160ms ease-out",
               }}
             >
-            <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden" style={{ transformStyle: "preserve-3d" }}>
+            <div aria-hidden="true" data-pocketpulls-ambient="heavy" className="pointer-events-none absolute inset-0 overflow-hidden" style={{ transformStyle: "preserve-3d" }}>
               <span className="constellationOrbitRing absolute left-1/2 top-1/2 h-[58%] w-[74%] -translate-x-1/2 -translate-y-1/2 rounded-[50%] border border-cyan-100/[0.055]" />
               <span className="constellationOrbitRing constellationOrbitRingTwo absolute left-1/2 top-1/2 h-[78%] w-[88%] -translate-x-1/2 -translate-y-1/2 rounded-[50%] border border-violet-100/[0.035]" />
               <span className="constellationNebula absolute left-[12%] top-[18%] h-56 w-72 rounded-full bg-violet-400/[0.035] blur-[80px]" />
