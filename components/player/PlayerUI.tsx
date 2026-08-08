@@ -217,41 +217,42 @@ export function PlayerEmptyState({
   description: string;
   action?: ReactNode;
 }) {
+  const titleSize =
+    title.length > 24
+      ? "clamp(0.78rem, 2.2vw, 1.12rem)"
+      : title.length > 16
+        ? "clamp(0.92rem, 2.6vw, 1.35rem)"
+        : "clamp(1.08rem, 3vw, 1.6rem)";
+
   return (
-    <PlayerPanel className="mt-6 flex min-h-[28rem] flex-col items-center justify-center px-6 text-center">
-      <div className="relative grid h-28 w-28 place-items-center">
-        <div className="absolute inset-3 animate-pulse rounded-full bg-cyan-200/10 blur-2xl" />
+    <PlayerPanel className="mt-6 flex min-h-[22rem] flex-col items-center justify-center px-6 py-10 text-center sm:min-h-[24rem]">
+      <div className="relative mx-auto flex h-24 w-24 flex-none items-center justify-center">
+        <div className="absolute inset-3 rounded-full bg-cyan-200/10 blur-2xl" />
+        <div className="absolute inset-5 animate-pulse rounded-full bg-yellow-100/[0.06] blur-xl" />
 
         <img
           src="/jirachi.png"
           alt=""
           draggable={false}
-          className="relative h-24 w-24 object-contain opacity-82 drop-shadow-[0_14px_22px_rgba(0,0,0,0.4)]"
+          className="relative z-10 block h-20 w-20 object-contain opacity-90 drop-shadow-[0_14px_22px_rgba(0,0,0,0.4)]"
         />
       </div>
 
-      <div className="mt-5 w-full max-w-xl px-2 text-center">
-        {title.length <= 14 ? (
-          <div className="mx-auto max-w-full overflow-hidden">
-            <UnownText
-              text={title}
-              size="clamp(1.35rem, 3.6vw, 2.15rem)"
-              tone="ancient"
-              centred
-            />
-          </div>
-        ) : (
-          <h3 className="text-balance text-xl font-black leading-tight tracking-tight text-white sm:text-2xl">
-            {title}
-          </h3>
-        )}
+      <div className="mt-5 flex w-full max-w-[34rem] justify-center overflow-hidden px-1">
+        <UnownText
+          text={title}
+          size={titleSize}
+          tone="ancient"
+          centred
+          wrap={false}
+        />
       </div>
 
-      <p className="mt-4 max-w-md text-sm font-semibold leading-7 text-white/40">
+      <p className="mx-auto mt-4 max-w-md text-sm font-semibold leading-7 text-white/40">
         {description}
       </p>
 
-      {action ? <div className="mt-6">{action}</div> : null}
+      {action ? <div className="mt-6 flex justify-center">{action}</div> : null}
     </PlayerPanel>
   );
 }

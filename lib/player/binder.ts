@@ -25,7 +25,7 @@ export const BINDER_THEMES: BinderTheme[] = [
   {
     key: "midnight",
     label: "Midnight",
-    imageUrl: "/binders/midnight.png",
+    imageUrl: null,
     coverBase: "#11172d",
     coverAccent: "#293965",
     pageBase: "#11182b",
@@ -36,7 +36,7 @@ export const BINDER_THEMES: BinderTheme[] = [
   {
     key: "ancient",
     label: "Ancient Gold",
-    imageUrl: "/binders/ancient.png",
+    imageUrl: null,
     coverBase: "#3a2613",
     coverAccent: "#8c6429",
     pageBase: "#2a2118",
@@ -47,7 +47,7 @@ export const BINDER_THEMES: BinderTheme[] = [
   {
     key: "arcane",
     label: "Arcane",
-    imageUrl: "/binders/arcane.png",
+    imageUrl: null,
     coverBase: "#2d174b",
     coverAccent: "#8b5bc5",
     pageBase: "#1f1834",
@@ -58,7 +58,7 @@ export const BINDER_THEMES: BinderTheme[] = [
   {
     key: "frostbite",
     label: "Frostbite",
-    imageUrl: "/binders/frostbite.png",
+    imageUrl: null,
     coverBase: "#1c5573",
     coverAccent: "#83d7ff",
     pageBase: "#17314a",
@@ -69,7 +69,7 @@ export const BINDER_THEMES: BinderTheme[] = [
   {
     key: "sunset",
     label: "Sunset",
-    imageUrl: "/binders/sunset.png",
+    imageUrl: null,
     coverBase: "#6a2d1e",
     coverAccent: "#f28d56",
     pageBase: "#3a211f",
@@ -80,7 +80,7 @@ export const BINDER_THEMES: BinderTheme[] = [
   {
     key: "shadow",
     label: "Shadow",
-    imageUrl: "/binders/shadow.png",
+    imageUrl: null,
     coverBase: "#1e171c",
     coverAccent: "#8f302d",
     pageBase: "#211a25",
@@ -91,7 +91,7 @@ export const BINDER_THEMES: BinderTheme[] = [
   {
     key: "forest",
     label: "Forest",
-    imageUrl: "/binders/forest.png",
+    imageUrl: null,
     coverBase: "#26351b",
     coverAccent: "#668b42",
     pageBase: "#1d2a20",
