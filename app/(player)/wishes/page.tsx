@@ -55,6 +55,19 @@ type RecentWish = {
   createdAt: string;
 };
 
+
+type WishReveal = {
+  wishId: string;
+  cardId: string;
+  cardName: string;
+  setName: string;
+  cardNumber: string;
+  rarity: string;
+  imageUrl: string | null;
+  marketValue: number;
+  wishBalance: number;
+};
+
 type DashboardData = {
   wishBalance: number;
   lifetimeWishesSpent: number;
@@ -147,6 +160,8 @@ export default function WishesPage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [makingWish, setMakingWish] = useState(false);
+  const [wishReveal, setWishReveal] = useState<WishReveal | null>(null);
 
   const loadDashboard = useCallback(async (background = false) => {
     if (background) {
@@ -230,9 +245,10 @@ export default function WishesPage() {
         throw ordersResult.error;
       }
 
-      if (wishPurchaseOrdersResult.error) {
-        throw wishPurchaseOrdersResult.error;
-      }
+      // V15 originally revoked this table from authenticated players while
+      // the dashboard still queried it. V16 fixes the RLS policy in SQL, but
+      // the dashboard also degrades gracefully until that migration is run.
+      const purchaseLedgerReadable = !wishPurchaseOrdersResult.error;
 
       if (wishesResult.error) {
         throw wishesResult.error;
@@ -250,8 +266,9 @@ export default function WishesPage() {
       const orders =
         (ordersResult.data as unknown as OrderRow[] | null) || [];
 
-      const wishPurchaseOrders =
-        (wishPurchaseOrdersResult.data as unknown as WishPurchaseOrderRow[] | null) || [];
+      const wishPurchaseOrders = purchaseLedgerReadable
+        ? (wishPurchaseOrdersResult.data as unknown as WishPurchaseOrderRow[] | null) || []
+        : [];
 
       const recentWishRows =
         (wishesResult.data as unknown as WishRow[] | null) || [];
@@ -386,6 +403,59 @@ export default function WishesPage() {
     void loadDashboard(false);
   }, [loadDashboard]);
 
+  const makeWish = useCallback(async () => {
+    if (makingWish || dashboard.wishBalance < 1) {
+      return;
+    }
+
+    setMakingWish(true);
+    setErrorMessage(null);
+
+    try {
+      const { data, error } = await supabase.rpc("make_player_wish");
+
+      if (error) {
+        throw error;
+      }
+
+      const row = Array.isArray(data) ? data[0] : data;
+
+      if (!row || typeof row !== "object") {
+        throw new Error("Jirachi completed the wish, but the card reveal was missing.");
+      }
+
+      const result = row as Record<string, unknown>;
+      const nextBalance = toWholeNumber(result.wish_balance);
+
+      setWishReveal({
+        wishId: String(result.wish_id ?? ""),
+        cardId: String(result.card_id ?? ""),
+        cardName: typeof result.name === "string" && result.name.trim() ? result.name.trim() : "Mystery card",
+        setName: typeof result.set_name === "string" && result.set_name.trim() ? result.set_name.trim() : "Unknown set",
+        cardNumber: typeof result.card_no === "string" && result.card_no.trim() ? result.card_no.trim() : "-",
+        rarity: typeof result.rarity === "string" && result.rarity.trim() ? result.rarity.trim() : "Unlisted rarity",
+        imageUrl: typeof result.image_url === "string" && result.image_url.trim() ? result.image_url.trim() : null,
+        marketValue: toNumber(result.market_value),
+        wishBalance: nextBalance,
+      });
+
+      window.dispatchEvent(
+        new CustomEvent("pocketpulls:wish-balance", {
+          detail: { wishBalance: nextBalance },
+        }),
+      );
+
+      await loadDashboard(true);
+    } catch (error: unknown) {
+      console.error("Make wish error:", error);
+      setErrorMessage(
+        getErrorMessage(error, "Jirachi could not complete that wish."),
+      );
+    } finally {
+      setMakingWish(false);
+    }
+  }, [dashboard.wishBalance, loadDashboard, makingWish]);
+
   const shippingProgress = useMemo(() => {
     return Math.min(
       100,
@@ -489,6 +559,8 @@ export default function WishesPage() {
         <WishChamber
           wishBalance={dashboard.wishBalance}
           totalWishes={dashboard.lifetimeWishesSpent}
+          makingWish={makingWish}
+          onMakeWish={() => void makeWish()}
         />
 
         <ShippingProgress
@@ -505,6 +577,19 @@ export default function WishesPage() {
 
         <QuickLinks />
       </div>
+
+      {wishReveal ? (
+        <WishRevealModal
+          reveal={wishReveal}
+          onClose={() => setWishReveal(null)}
+          onWishAgain={() => {
+            setWishReveal(null);
+            window.setTimeout(() => void makeWish(), 120);
+          }}
+          canWishAgain={wishReveal.wishBalance > 0}
+          busy={makingWish}
+        />
+      ) : null}
     </section>
   );
 }
@@ -550,9 +635,13 @@ function MetricCard({
 function WishChamber({
   wishBalance,
   totalWishes,
+  makingWish,
+  onMakeWish,
 }: {
   wishBalance: number;
   totalWishes: number;
+  makingWish: boolean;
+  onMakeWish: () => void;
 }) {
   const hasWishes = wishBalance > 0;
 
@@ -593,23 +682,34 @@ function WishChamber({
             {hasWishes
               ? `You have ${formatWholeNumber(wishBalance)} wish${
                   wishBalance === 1 ? "" : "es"
-                } available. The secure card-opening engine is the next system being connected.`
+                } available. Spend one to reveal a real card from the Unown Pulls stock pool.`
               : "Purchase or receive wish credits to open real cards from the Unown Pulls stock pool."}
           </p>
 
           <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-            <Link
-              href="/wishes/shop"
-              className="flex min-h-13 flex-1 items-center justify-center rounded-xl bg-gradient-to-r from-yellow-200 via-cyan-100 to-violet-200 px-5 text-sm font-black text-[#111329] transition hover:brightness-105"
-            >
-              Recharge Wishes
-            </Link>
+            {hasWishes ? (
+              <button
+                type="button"
+                onClick={onMakeWish}
+                disabled={makingWish}
+                className="min-h-13 flex-1 rounded-xl bg-gradient-to-r from-yellow-200 via-cyan-100 to-violet-200 px-5 text-sm font-black text-[#111329] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-55"
+              >
+                {makingWish ? "Jirachi is choosing..." : "Make 1 Wish ✦"}
+              </button>
+            ) : (
+              <Link
+                href="/wishes/shop"
+                className="flex min-h-13 flex-1 items-center justify-center rounded-xl bg-gradient-to-r from-yellow-200 via-cyan-100 to-violet-200 px-5 text-sm font-black text-[#111329] transition hover:brightness-105"
+              >
+                Get Wishes
+              </Link>
+            )}
 
             <Link
-              href="/catalogue"
+              href={hasWishes ? "/wishes/shop" : "/catalogue"}
               className="flex min-h-13 flex-1 items-center justify-center rounded-xl border border-white/10 bg-white/[0.05] px-5 text-sm font-black text-white/70 transition hover:bg-white/10 hover:text-white"
             >
-              Browse the catalogue
+              {hasWishes ? "Wish Shop" : "Browse the catalogue"}
             </Link>
           </div>
 
@@ -619,6 +719,106 @@ function WishChamber({
         </div>
       </div>
     </article>
+  );
+}
+
+function WishRevealModal({
+  reveal,
+  onClose,
+  onWishAgain,
+  canWishAgain,
+  busy,
+}: {
+  reveal: WishReveal;
+  onClose: () => void;
+  onWishAgain: () => void;
+  canWishAgain: boolean;
+  busy: boolean;
+}) {
+  return (
+    <div className="fixed inset-0 z-[160] flex items-center justify-center bg-[#020318]/82 p-4 backdrop-blur-xl">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(250,225,120,0.12),transparent_28%),radial-gradient(circle_at_45%_45%,rgba(117,220,255,0.10),transparent_34%)]" />
+
+      <article className="relative w-full max-w-2xl overflow-hidden rounded-[2.4rem] border border-yellow-100/20 bg-[#080a25]/95 p-6 shadow-[0_35px_140px_rgba(0,0,0,0.7)] sm:p-9">
+        <div className="pointer-events-none absolute -left-20 -top-20 h-64 w-64 rounded-full bg-violet-300/10 blur-[90px]" />
+        <div className="pointer-events-none absolute -bottom-24 -right-12 h-72 w-72 rounded-full bg-yellow-200/10 blur-[100px]" />
+
+        <button
+          type="button"
+          onClick={onClose}
+          className="absolute right-5 top-5 z-20 flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/[0.05] text-lg font-black text-white/55 transition hover:bg-white/10 hover:text-white"
+          aria-label="Close wish reveal"
+        >
+          ×
+        </button>
+
+        <div className="relative grid gap-7 md:grid-cols-[0.82fr_1.18fr] md:items-center">
+          <div className="relative mx-auto flex aspect-[4/5] w-full max-w-[18rem] items-center justify-center overflow-hidden rounded-[1.8rem] border border-white/10 bg-black/20 p-5">
+            <div className="absolute inset-7 animate-pulse rounded-full bg-yellow-200/10 blur-3xl" />
+            {reveal.imageUrl ? (
+              <img
+                src={reveal.imageUrl}
+                alt={reveal.cardName}
+                className="relative z-10 h-full w-full object-contain drop-shadow-[0_24px_30px_rgba(0,0,0,0.5)]"
+              />
+            ) : (
+              <span className="relative z-10 text-8xl text-yellow-100/20">✦</span>
+            )}
+          </div>
+
+          <div className="relative">
+            <p className="text-xs font-black uppercase tracking-[0.22em] text-yellow-100/50">
+              Wish granted
+            </p>
+            <h2 className="mt-3 text-3xl font-black tracking-tight text-white sm:text-4xl">
+              {reveal.cardName}
+            </h2>
+            <p className="mt-2 text-sm font-bold text-violet-100/45">
+              {reveal.setName} · {reveal.cardNumber}
+            </p>
+
+            <div className="mt-5 flex flex-wrap gap-2">
+              <span className="rounded-full border border-violet-100/15 bg-violet-300/[0.07] px-3 py-1.5 text-xs font-black text-violet-50/80">
+                {reveal.rarity}
+              </span>
+              <span className="rounded-full border border-yellow-100/15 bg-yellow-200/[0.07] px-3 py-1.5 text-xs font-black text-yellow-50/85">
+                {formatMoney(reveal.marketValue)} value
+              </span>
+            </div>
+
+            <p className="mt-6 text-sm font-semibold leading-7 text-white/45">
+              Jirachi moved this physical card from the Unown Pulls stock pool into your collection. You have {formatWholeNumber(reveal.wishBalance)} wish{reveal.wishBalance === 1 ? "" : "es"} left.
+            </p>
+
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+              {canWishAgain ? (
+                <button
+                  type="button"
+                  onClick={onWishAgain}
+                  disabled={busy}
+                  className="min-h-12 flex-1 rounded-xl bg-gradient-to-r from-yellow-200 via-cyan-100 to-violet-200 px-5 text-sm font-black text-[#111329] transition hover:brightness-105 disabled:opacity-50"
+                >
+                  Wish again ✦
+                </button>
+              ) : (
+                <Link
+                  href="/wishes/shop"
+                  className="flex min-h-12 flex-1 items-center justify-center rounded-xl bg-gradient-to-r from-yellow-200 via-cyan-100 to-violet-200 px-5 text-sm font-black text-[#111329]"
+                >
+                  Visit Wish Shop
+                </Link>
+              )}
+              <Link
+                href="/collection"
+                className="flex min-h-12 flex-1 items-center justify-center rounded-xl border border-white/10 bg-white/[0.05] px-5 text-sm font-black text-white/70 transition hover:bg-white/10 hover:text-white"
+              >
+                View collection
+              </Link>
+            </div>
+          </div>
+        </div>
+      </article>
+    </div>
   );
 }
 
@@ -795,8 +995,8 @@ function QuickLinks() {
   const links = [
     {
       href: "/wishes/shop",
-      title: "Recharge Wishes",
-      detail: "Wish bundles from 50p with first recharge savings",
+      title: "Wish Shop",
+      detail: "Top up when you want more wishes — your current balance stays ready to use",
     },
     {
       href: "/catalogue",

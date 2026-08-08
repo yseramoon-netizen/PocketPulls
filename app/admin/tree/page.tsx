@@ -6,15 +6,13 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 
 import AdminNav from "@/components/AdminNav";
 import { adminFetch } from "@/lib/admin/client-auth";
-import {
-  closeTreeGate,
-  isTreeGateOpen,
-} from "@/lib/admin/tree-gate";
+import { closeTreeGate, isTreeGateOpen } from "@/lib/admin/tree-gate";
 
 import styles from "./tree.module.css";
 
@@ -25,12 +23,6 @@ type Branch = {
   plantingSessions: number;
   lastPlantedAt: string | null;
   activeThisWeek: boolean;
-};
-
-type Milestone = {
-  score: number;
-  label: string;
-  reached: boolean;
 };
 
 type TreeSnapshot = {
@@ -55,7 +47,6 @@ type TreeSnapshot = {
   latestActivityAt: string | null;
   bothActiveThisWeek: boolean;
   branches: Branch[];
-  milestones: Milestone[];
 };
 
 type TreeResponse = {
@@ -72,6 +63,9 @@ type WonderState = {
   goldenSeeds: number;
   leafClicks: number;
   catchesToday: number;
+  fairyVisits: number;
+  fairyBlessings: number;
+  moonWhispers: number;
   notes: string[];
 };
 
@@ -81,57 +75,73 @@ type Toast = {
   body: string;
 };
 
-type VisualStage = {
-  key:
-    | "seed"
-    | "sapling"
-    | "young"
-    | "moon"
-    | "grove"
-    | "ancient"
-    | "million";
+type Drop = {
+  id: number;
+  src: string;
+  left: string;
+  top: string;
   label: string;
-  asset: string;
-  assetClassName: string;
-  description: string;
-  features: string[];
-  leafHotspots: Array<{
-    left: string;
-    top: string;
-  }>;
-  fireflies: Array<{
-    left: string;
-    top: string;
-    delay: string;
-    size: number;
-  }>;
-  decorations: Array<{
-    src: string;
-    left: string;
-    top: string;
-    width: string;
-    className?: string;
-  }>;
 };
 
-const WONDER_KEY = "unown-pulls:tree-wonder:v14";
+type FairyVisit = {
+  id: number;
+  src: string;
+  top: string;
+  fromLeft: boolean;
+  scale: number;
+};
+
+type VisualStage = {
+  key: "seed" | "sapling" | "young" | "grove" | "ancient" | "million";
+  label: string;
+  asset: string;
+  description: string;
+  assetClassName: string;
+  leafHotspots: Array<{ left: string; top: string }>;
+  baseFireflies: number;
+  ambientLevel: number;
+};
+
+const WONDER_KEY = "unown-pulls:tree-wonder:v16";
+const LEGACY_WONDER_KEY = "unown-pulls:tree-wonder:v14";
 const MILLION_GOAL = 1_000_000;
 
-const DEFAULT_WONDER_STATE: WonderState = {
+const FAIRIES = [
+  "/tree-wonder/visitors/01-lantern-fairy.png",
+  "/tree-wonder/visitors/02-waving-fairy.png",
+  "/tree-wonder/visitors/03-gliding-fairy.png",
+  "/tree-wonder/visitors/04-seed-fairy.png",
+  "/tree-wonder/visitors/05-fairy-pair.png",
+  "/tree-wonder/visitors/07-leaf-rest-fairy.png",
+  "/tree-wonder/visitors/08-sleepy-leaf-fairy.png",
+  "/tree-wonder/visitors/09-dancing-fairy.png",
+  "/tree-wonder/visitors/10-peek-fairy.png",
+  "/tree-wonder/visitors/12-tiny-fairy.png",
+] as const;
+
+const MOON_WHISPERS = [
+  "The garden remembers every quiet bit of progress.",
+  "Small roots still count. Keep building.",
+  "Some nights are for growth. Some are simply for staying close to the light.",
+  "The tree does not rush its seasons.",
+  "A million begins with a seed that somebody kept watering.",
+] as const;
+
+const DEFAULT_WONDER: WonderState = {
   firefliesCaught: 0,
   leafFood: 0,
   rareCareTreats: 0,
   goldenSeeds: 0,
   leafClicks: 0,
   catchesToday: 0,
+  fairyVisits: 0,
+  fairyBlessings: 0,
+  moonWhispers: 0,
   notes: [],
 };
 
-function safeParseWonderState(raw: string | null): WonderState {
-  if (!raw) {
-    return DEFAULT_WONDER_STATE;
-  }
-
+function parseWonder(raw: string | null): WonderState {
+  if (!raw) return DEFAULT_WONDER;
   try {
     const value = JSON.parse(raw) as Partial<WonderState>;
     return {
@@ -141,731 +151,473 @@ function safeParseWonderState(raw: string | null): WonderState {
       goldenSeeds: Math.max(0, Number(value.goldenSeeds) || 0),
       leafClicks: Math.max(0, Number(value.leafClicks) || 0),
       catchesToday: Math.max(0, Number(value.catchesToday) || 0),
+      fairyVisits: Math.max(0, Number(value.fairyVisits) || 0),
+      fairyBlessings: Math.max(0, Number(value.fairyBlessings) || 0),
+      moonWhispers: Math.max(0, Number(value.moonWhispers) || 0),
       notes: Array.isArray(value.notes)
-        ? value.notes
-            .filter((item): item is string => typeof item === "string")
-            .slice(0, 10)
+        ? value.notes.filter((item): item is string => typeof item === "string").slice(0, 8)
         : [],
     };
   } catch {
-    return DEFAULT_WONDER_STATE;
+    return DEFAULT_WONDER;
   }
 }
 
-function formatWholeNumber(value: number): string {
+function formatNumber(value: number): string {
   return new Intl.NumberFormat("en-GB").format(Math.max(0, Math.round(value)));
 }
 
-function formatMoney(value: number): string {
-  return new Intl.NumberFormat("en-GB", {
-    style: "currency",
-    currency: "GBP",
-    maximumFractionDigits: 0,
-  }).format(Math.max(0, value));
-}
-
-function formatDate(value: string | null): string {
-  if (!value) {
-    return "No recent activity";
-  }
-
-  const date = new Date(value);
-
-  if (!Number.isFinite(date.getTime())) {
-    return "No recent activity";
-  }
-
-  return new Intl.DateTimeFormat("en-GB", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(date);
-}
-
-function buildVisualStage(growthScore: number): VisualStage {
-  if (growthScore >= MILLION_GOAL) {
+function buildStage(growth: number): VisualStage {
+  if (growth >= MILLION_GOAL) {
     return {
       key: "million",
       label: "The hidden door awakens",
       asset: "/tree-wonder/tree-door.png",
-      assetClassName: styles.assetAncient,
-      description:
-        "Unown Pulls has crossed the million-growth promise. The bark opens, the grove becomes a place of memory, and the little door appears in the trunk.",
-      features: [
-        "Secret tree door",
-        "Root frame fully awakened",
-        "Glowing vines",
-        "Woodland visitors",
-        "Maximum fireflies",
-      ],
+      assetClassName: styles.treeMillion,
+      description: "The million-growth promise has been reached. The old bark has opened a little door into whatever comes next.",
       leafHotspots: [
-        { left: "24%", top: "25%" },
-        { left: "38%", top: "19%" },
-        { left: "51%", top: "24%" },
-        { left: "66%", top: "22%" },
-        { left: "78%", top: "33%" },
-        { left: "31%", top: "40%" },
-        { left: "48%", top: "42%" },
-        { left: "64%", top: "43%" },
+        { left: "31%", top: "32%" }, { left: "41%", top: "23%" }, { left: "52%", top: "28%" },
+        { left: "63%", top: "23%" }, { left: "73%", top: "34%" }, { left: "38%", top: "43%" },
+        { left: "58%", top: "45%" }, { left: "68%", top: "42%" },
       ],
-      fireflies: [
-        { left: "21%", top: "24%", delay: "0s", size: 18 },
-        { left: "30%", top: "51%", delay: "0.8s", size: 14 },
-        { left: "43%", top: "27%", delay: "1.2s", size: 16 },
-        { left: "53%", top: "54%", delay: "0.4s", size: 14 },
-        { left: "64%", top: "30%", delay: "1.5s", size: 18 },
-        { left: "74%", top: "44%", delay: "0.3s", size: 16 },
-        { left: "80%", top: "61%", delay: "1.1s", size: 14 },
-        { left: "19%", top: "67%", delay: "1.7s", size: 12 },
-      ],
-      decorations: [
-        {
-          src: "/tree-wonder/icons/10-vine-a.png",
-          left: "18%",
-          top: "29%",
-          width: "9rem",
-          className: styles.hangingVine,
-        },
-        {
-          src: "/tree-wonder/icons/11-vine-b.png",
-          left: "70%",
-          top: "31%",
-          width: "8rem",
-          className: styles.hangingVine,
-        },
-      ],
+      baseFireflies: 14,
+      ambientLevel: 5,
     };
   }
-
-  if (growthScore >= 700_000) {
+  if (growth >= 700_000) {
     return {
       key: "ancient",
       label: "Ancient luminous grove",
       asset: "/tree-wonder/tree-vines.png",
-      assetClassName: styles.assetAncient,
-      description:
-        "The grove is now deep and unforgettable. Mushrooms glow, vines begin to hang from the canopy, and little animals feel safe near the roots.",
-      features: [
-        "Glowing vines",
-        "More fireflies",
-        "Woodland animals",
-        "Mushrooms around the roots",
-      ],
+      assetClassName: styles.treeAncient,
+      description: "The canopy is old enough to collect its own little ecosystem: vines, visitors, mushrooms and wandering lights.",
       leafHotspots: [
-        { left: "24%", top: "24%" },
-        { left: "38%", top: "18%" },
-        { left: "52%", top: "22%" },
-        { left: "67%", top: "22%" },
-        { left: "78%", top: "34%" },
-        { left: "29%", top: "41%" },
-        { left: "47%", top: "44%" },
-        { left: "64%", top: "43%" },
+        { left: "31%", top: "32%" }, { left: "41%", top: "23%" }, { left: "52%", top: "28%" },
+        { left: "63%", top: "23%" }, { left: "73%", top: "34%" }, { left: "38%", top: "43%" }, { left: "58%", top: "45%" },
       ],
-      fireflies: [
-        { left: "21%", top: "27%", delay: "0.2s", size: 18 },
-        { left: "31%", top: "50%", delay: "0.7s", size: 14 },
-        { left: "41%", top: "28%", delay: "1.4s", size: 16 },
-        { left: "55%", top: "55%", delay: "0.4s", size: 14 },
-        { left: "65%", top: "29%", delay: "1.5s", size: 18 },
-        { left: "75%", top: "41%", delay: "0.3s", size: 16 },
-        { left: "80%", top: "60%", delay: "1.2s", size: 14 },
-      ],
-      decorations: [
-        {
-          src: "/tree-wonder/icons/10-vine-a.png",
-          left: "18%",
-          top: "31%",
-          width: "8rem",
-          className: styles.hangingVine,
-        },
-        {
-          src: "/tree-wonder/icons/11-vine-b.png",
-          left: "68%",
-          top: "32%",
-          width: "7rem",
-          className: styles.hangingVine,
-        },
-      ],
+      baseFireflies: 11,
+      ambientLevel: 4,
     };
   }
-
-  if (growthScore >= 350_000) {
+  if (growth >= 350_000) {
     return {
       key: "grove",
-      label: "Rooted moon grove",
+      label: "Living moon grove",
       asset: "/tree-wonder/tree-friends.png",
-      assetClassName: styles.assetLarge,
-      description:
-        "The trunk thickens, the canopy becomes bolder, and the grove starts feeling inhabited. Mushrooms and little creatures begin to appear.",
-      features: [
-        "Woodland creatures",
-        "Mushrooms",
-        "Brighter roots",
-        "More canopy leaves",
-      ],
+      assetClassName: styles.treeLarge,
+      description: "The tree has become a real landmark. Tiny woodland visitors now treat the roots like home.",
       leafHotspots: [
-        { left: "23%", top: "25%" },
-        { left: "37%", top: "20%" },
-        { left: "51%", top: "24%" },
-        { left: "67%", top: "22%" },
-        { left: "77%", top: "36%" },
-        { left: "31%", top: "43%" },
-        { left: "49%", top: "45%" },
+        { left: "32%", top: "34%" }, { left: "43%", top: "26%" }, { left: "54%", top: "29%" },
+        { left: "66%", top: "28%" }, { left: "72%", top: "39%" }, { left: "43%", top: "45%" },
       ],
-      fireflies: [
-        { left: "21%", top: "28%", delay: "0s", size: 18 },
-        { left: "31%", top: "53%", delay: "0.7s", size: 14 },
-        { left: "45%", top: "30%", delay: "1.4s", size: 16 },
-        { left: "56%", top: "57%", delay: "0.4s", size: 14 },
-        { left: "66%", top: "30%", delay: "1.1s", size: 16 },
-        { left: "77%", top: "43%", delay: "0.8s", size: 14 },
-      ],
-      decorations: [
-        {
-          src: "/tree-wonder/icons/08-mushrooms.png",
-          left: "14%",
-          top: "79%",
-          width: "5rem",
-        },
-        {
-          src: "/tree-wonder/icons/12-shaymin.png",
-          left: "73%",
-          top: "79%",
-          width: "5rem",
-        },
-      ],
+      baseFireflies: 8,
+      ambientLevel: 3,
     };
   }
-
-  if (growthScore >= 150_000) {
-    return {
-      key: "moon",
-      label: "Moonlit young tree",
-      asset: "/tree-wonder/tree-friends.png",
-      assetClassName: styles.assetYoung,
-      description:
-        "It is unmistakably a tree now. The moonlight catches in the bark, the roots spread, and fireflies start gathering on their own.",
-      features: [
-        "Young glowing tree",
-        "Brighter roots",
-        "Steadier fireflies",
-      ],
-      leafHotspots: [
-        { left: "26%", top: "29%" },
-        { left: "40%", top: "23%" },
-        { left: "54%", top: "27%" },
-        { left: "66%", top: "28%" },
-        { left: "34%", top: "44%" },
-        { left: "53%", top: "46%" },
-      ],
-      fireflies: [
-        { left: "26%", top: "31%", delay: "0s", size: 17 },
-        { left: "37%", top: "55%", delay: "0.8s", size: 14 },
-        { left: "50%", top: "33%", delay: "1.4s", size: 15 },
-        { left: "62%", top: "57%", delay: "0.4s", size: 14 },
-        { left: "72%", top: "42%", delay: "1.1s", size: 15 },
-      ],
-      decorations: [],
-    };
-  }
-
-  if (growthScore >= 35_000) {
+  if (growth >= 100_000) {
     return {
       key: "young",
-      label: "Bright little sapling",
-      asset: "/tree-wonder/sapling.png",
-      assetClassName: styles.assetSapling,
-      description:
-        "The first true trunk appears. The little grove begins to remember your work and the first clusters of fireflies arrive.",
-      features: [
-        "Sapling form",
-        "First real fireflies",
-        "Tiny mushroom glow",
-      ],
+      label: "Young moonlit tree",
+      asset: "/tree-wonder/tree-friends.png",
+      assetClassName: styles.treeYoung,
+      description: "The trunk is finding its shape and the garden is beginning to attract more than just fireflies.",
       leafHotspots: [
-        { left: "40%", top: "26%" },
-        { left: "51%", top: "25%" },
-        { left: "60%", top: "29%" },
-        { left: "46%", top: "38%" },
+        { left: "38%", top: "34%" }, { left: "48%", top: "28%" }, { left: "58%", top: "31%" }, { left: "52%", top: "42%" },
       ],
-      fireflies: [
-        { left: "31%", top: "30%", delay: "0s", size: 14 },
-        { left: "45%", top: "57%", delay: "0.7s", size: 12 },
-        { left: "60%", top: "36%", delay: "1.3s", size: 14 },
-        { left: "71%", top: "51%", delay: "0.4s", size: 12 },
-      ],
-      decorations: [
-        {
-          src: "/tree-wonder/icons/08-mushrooms.png",
-          left: "64%",
-          top: "77%",
-          width: "4rem",
-        },
-      ],
+      baseFireflies: 6,
+      ambientLevel: 2,
     };
   }
-
-  if (growthScore >= 10_000) {
+  if (growth >= 15_000) {
     return {
       key: "sapling",
       label: "First green awakening",
       asset: "/tree-wonder/sapling.png",
-      assetClassName: styles.assetSeed,
-      description:
-        "The seed has broken the soil. A tiny glow appears, and the garden finally starts looking alive.",
-      features: [
-        "Small green sprout",
-        "Soft floating lights",
-      ],
+      assetClassName: styles.treeSapling,
+      description: "The seed has broken the soil. A few wandering lights have noticed.",
       leafHotspots: [
-        { left: "45%", top: "32%" },
-        { left: "54%", top: "30%" },
-        { left: "49%", top: "40%" },
+        { left: "44%", top: "38%" }, { left: "52%", top: "34%" }, { left: "57%", top: "40%" },
       ],
-      fireflies: [
-        { left: "41%", top: "22%", delay: "0s", size: 12 },
-        { left: "60%", top: "35%", delay: "0.9s", size: 12 },
-      ],
-      decorations: [],
+      baseFireflies: 3,
+      ambientLevel: 1,
     };
   }
-
   return {
     key: "seed",
     label: "A promise in the soil",
     asset: "/tree-wonder/seedling.png",
-    assetClassName: styles.assetSeed,
-    description:
-      "Right now the tree stays humble on purpose: just a seedling, a little light, and the promise that the whole place will grow with Unown Pulls.",
-    features: [
-      "Seed stage",
-      "Leaf clicks already work",
-      "First catchable fireflies",
-    ],
+    assetClassName: styles.treeSeed,
+    description: "For now, it is meant to be small: a seedling, a few lights, and everything still ahead of Unown Pulls.",
     leafHotspots: [
-      { left: "46%", top: "34%" },
-      { left: "53%", top: "31%" },
-      { left: "50%", top: "40%" },
+      { left: "47%", top: "43%" }, { left: "53%", top: "39%" },
     ],
-    fireflies: [
-      { left: "44%", top: "22%", delay: "0s", size: 12 },
-      { left: "57%", top: "35%", delay: "0.8s", size: 12 },
-    ],
-    decorations: [],
+    baseFireflies: 2,
+    ambientLevel: 0,
   };
 }
 
-function getProgressToMillion(growthScore: number): number {
-  return Math.max(0, Math.min(100, (growthScore / MILLION_GOAL) * 100));
-}
-
-export default function TreeWonderPage() {
+export default function TreePage() {
   const router = useRouter();
+  const fairyTimer = useRef<number | null>(null);
+  const fairyExitTimer = useRef<number | null>(null);
 
-  const [data, setData] = useState<TreeResponse | null>(null);
+  const [gateReady, setGateReady] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [gateReady, setGateReady] = useState(false);
-  const [wonderState, setWonderState] = useState<WonderState>(DEFAULT_WONDER_STATE);
-  const [toastQueue, setToastQueue] = useState<Toast[]>([]);
+  const [data, setData] = useState<TreeResponse | null>(null);
+  const [wonder, setWonder] = useState<WonderState>(DEFAULT_WONDER);
+  const [toasts, setToasts] = useState<Toast[]>([]);
+  const [drops, setDrops] = useState<Drop[]>([]);
   const [hiddenFireflies, setHiddenFireflies] = useState<number[]>([]);
+  const [fairy, setFairy] = useState<FairyVisit | null>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [journalOpen, setJournalOpen] = useState(false);
 
   const tree = data?.tree ?? null;
-  const visualStage = useMemo(() => buildVisualStage(tree?.growthScore ?? 0), [tree?.growthScore]);
-  const millionProgress = getProgressToMillion(tree?.growthScore ?? 0);
+  const stage = useMemo(() => buildStage(tree?.growthScore ?? 0), [tree?.growthScore]);
+  const millionProgress = Math.max(0, Math.min(100, ((tree?.growthScore ?? 0) / MILLION_GOAL) * 100));
 
-  const pushToast = useCallback((title: string, body: string) => {
+  const toast = useCallback((title: string, body: string) => {
     const id = Date.now() + Math.floor(Math.random() * 1000);
-    setToastQueue((current) => [...current, { id, title, body }].slice(-3));
-    window.setTimeout(() => {
-      setToastQueue((current) => current.filter((toast) => toast.id !== id));
-    }, 3200);
+    setToasts((items) => [...items, { id, title, body }].slice(-3));
+    window.setTimeout(() => setToasts((items) => items.filter((item) => item.id !== id)), 3200);
   }, []);
 
-  const appendNote = useCallback((message: string) => {
-    setWonderState((current) => ({
-      ...current,
-      notes: [message, ...current.notes].slice(0, 6),
-    }));
+  const note = useCallback((message: string) => {
+    setWonder((current) => ({ ...current, notes: [message, ...current.notes].slice(0, 8) }));
   }, []);
 
-  const loadTree = useCallback(async (countVisit: boolean) => {
+  const load = useCallback(async (visit = false) => {
     setLoading(true);
     setError("");
-
     try {
-      const suffix = countVisit ? "?visit=1" : "";
-      const response = await adminFetch<TreeResponse>(`/api/admin/tree${suffix}`);
+      const response = await adminFetch<TreeResponse>(`/api/admin/tree${visit ? "?visit=1" : ""}`);
       setData(response);
     } catch (loadError: unknown) {
-      setError(
-        loadError instanceof Error
-          ? loadError.message
-          : "The hidden grove could not be opened.",
-      );
+      setError(loadError instanceof Error ? loadError.message : "The hidden grove could not be opened.");
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    if (typeof window === "undefined") {
-      return;
-    }
-
-    setWonderState(
-      safeParseWonderState(window.localStorage.getItem(WONDER_KEY)),
-    );
-  }, []);
-
-  useEffect(() => {
-    if (typeof window === "undefined") {
-      return;
-    }
-
-    window.localStorage.setItem(WONDER_KEY, JSON.stringify(wonderState));
-  }, [wonderState]);
-
-  useEffect(() => {
     if (!isTreeGateOpen()) {
       router.replace("/admin");
       return;
     }
-
     setGateReady(true);
-    void loadTree(true);
-  }, [loadTree, router]);
+    void load(true);
+  }, [load, router]);
 
-  const handleCatchFirefly = useCallback(
-    (index: number) => {
-      if (hiddenFireflies.includes(index)) {
-        return;
-      }
+  useEffect(() => {
+    const raw = window.localStorage.getItem(WONDER_KEY) ?? window.localStorage.getItem(LEGACY_WONDER_KEY);
+    setWonder(parseWonder(raw));
+  }, []);
 
-      setHiddenFireflies((current) => [...current, index]);
-      setWonderState((current) => ({
-        ...current,
-        firefliesCaught: current.firefliesCaught + 1,
-        catchesToday: current.catchesToday + 1,
-      }));
-      pushToast("Firefly caught", "One little light has been safely added to your jar.");
-      appendNote("A firefly settled into the jar.");
+  useEffect(() => {
+    window.localStorage.setItem(WONDER_KEY, JSON.stringify(wonder));
+  }, [wonder]);
 
-      window.setTimeout(() => {
-        setHiddenFireflies((current) => current.filter((value) => value !== index));
-      }, 15_000);
-    },
-    [appendNote, hiddenFireflies, pushToast],
-  );
+  const scheduleFairy = useCallback(() => {
+    if (fairyTimer.current !== null) window.clearTimeout(fairyTimer.current);
+    const level = stage.ambientLevel;
+    const min = Math.max(9_000, 22_000 - level * 2_200);
+    const max = Math.max(18_000, 42_000 - level * 3_300);
+    const delay = Math.round(min + Math.random() * (max - min));
 
-  const handleLeafClick = useCallback(
-    () => {
-      const roll = Math.random();
+    fairyTimer.current = window.setTimeout(() => {
+      const next: FairyVisit = {
+        id: Date.now(),
+        src: FAIRIES[Math.floor(Math.random() * FAIRIES.length)],
+        top: `${18 + Math.round(Math.random() * 48)}%`,
+        fromLeft: Math.random() > 0.5,
+        scale: 0.78 + Math.random() * 0.38,
+      };
+      setFairy(next);
+      setWonder((current) => ({ ...current, fairyVisits: current.fairyVisits + 1 }));
+      note("A little fairy visited the grove.");
 
-      if (roll < 0.16) {
-        setWonderState((current) => ({
-          ...current,
-          leafClicks: current.leafClicks + 1,
-          rareCareTreats: current.rareCareTreats + 1,
-        }));
-        pushToast("Rare Shaymin treat", "A special care snack fell from the leaves for the mood room.");
-        appendNote("A rare Shaymin care treat fell from the canopy.");
-        return;
-      }
+      fairyExitTimer.current = window.setTimeout(() => {
+        setFairy(null);
+        scheduleFairy();
+      }, 13_500);
+    }, delay);
+  }, [note, stage.ambientLevel]);
 
-      if (roll < 0.26) {
-        setWonderState((current) => ({
-          ...current,
-          leafClicks: current.leafClicks + 1,
-          goldenSeeds: current.goldenSeeds + 1,
-        }));
-        pushToast("Golden seed", "A glowing seed dropped from the grove. Keep it safe.");
-        appendNote("A golden seed appeared between the roots.");
-        return;
-      }
+  useEffect(() => {
+    const first = window.setTimeout(() => {
+      const next: FairyVisit = {
+        id: Date.now(),
+        src: FAIRIES[Math.floor(Math.random() * FAIRIES.length)],
+        top: `${20 + Math.round(Math.random() * 38)}%`,
+        fromLeft: Math.random() > 0.5,
+        scale: 0.85,
+      };
+      setFairy(next);
+      setWonder((current) => ({ ...current, fairyVisits: current.fairyVisits + 1 }));
+      fairyExitTimer.current = window.setTimeout(() => {
+        setFairy(null);
+        scheduleFairy();
+      }, 13_500);
+    }, 4_500);
 
-      setWonderState((current) => ({
-        ...current,
-        leafClicks: current.leafClicks + 1,
-        leafFood: current.leafFood + 1,
-      }));
-      pushToast("Shaymin food found", "A little snack dropped from the leaves.");
-      appendNote("You shook a snack free from the leaves.");
-    },
-    [appendNote, pushToast],
-  );
+    return () => {
+      window.clearTimeout(first);
+      if (fairyTimer.current !== null) window.clearTimeout(fairyTimer.current);
+      if (fairyExitTimer.current !== null) window.clearTimeout(fairyExitTimer.current);
+    };
+  }, [scheduleFairy]);
 
-  const topNote = wonderState.notes[0] ?? visualStage.description;
+  const fireflies = useMemo(() => {
+    return Array.from({ length: stage.baseFireflies }, (_, index) => ({
+      left: `${15 + ((index * 23 + 9) % 72)}%`,
+      top: `${26 + ((index * 17 + 5) % 48)}%`,
+      delay: `${(index % 7) * 0.55}s`,
+      size: 10 + (index % 3) * 3,
+    }));
+  }, [stage.baseFireflies]);
+
+  const catchFirefly = useCallback((index: number) => {
+    if (hiddenFireflies.includes(index)) return;
+    setHiddenFireflies((items) => [...items, index]);
+    setWonder((current) => ({
+      ...current,
+      firefliesCaught: current.firefliesCaught + 1,
+      catchesToday: current.catchesToday + 1,
+    }));
+    toast("Firefly caught", "A warm little light settled into your jar.");
+    note("You caught a firefly and tucked its glow into the garden jar.");
+    window.setTimeout(() => setHiddenFireflies((items) => items.filter((item) => item !== index)), 14_000);
+  }, [hiddenFireflies, note, toast]);
+
+  const spawnDrop = useCallback((src: string, label: string, left: string, top: string) => {
+    const id = Date.now() + Math.floor(Math.random() * 1000);
+    setDrops((items) => [...items, { id, src, label, left, top }].slice(-4));
+    window.setTimeout(() => setDrops((items) => items.filter((item) => item.id !== id)), 2600);
+  }, []);
+
+  const shakeLeaf = useCallback((left: string, top: string) => {
+    const roll = Math.random();
+    if (roll < 0.14) {
+      setWonder((current) => ({ ...current, leafClicks: current.leafClicks + 1, rareCareTreats: current.rareCareTreats + 1 }));
+      spawnDrop("/tree-wonder/icons/06-cupcake.png", "Rare Shaymin treat", left, top);
+      toast("Rare Shaymin treat!", "A special mood-room snack fell from the leaves.");
+      note("A rare Shaymin care treat tumbled out of the tree.");
+      return;
+    }
+    if (roll < 0.24) {
+      setWonder((current) => ({ ...current, leafClicks: current.leafClicks + 1, goldenSeeds: current.goldenSeeds + 1 }));
+      spawnDrop("/tree-wonder/icons/07-golden-seed.png", "Golden seed", left, top);
+      toast("Golden seed", "Something unusually bright was hiding in the leaves.");
+      note("A golden seed dropped into the grass.");
+      return;
+    }
+    setWonder((current) => ({ ...current, leafClicks: current.leafClicks + 1, leafFood: current.leafFood + 1 }));
+    spawnDrop("/tree-wonder/icons/05-flower-food.png", "Shaymin food", left, top);
+    toast("Shaymin food", "A little snack fell free from the leaves.");
+    note("You shook a Shaymin snack from the tree.");
+  }, [note, spawnDrop, toast]);
+
+  const blessFairy = useCallback(() => {
+    if (!fairy) return;
+    setWonder((current) => ({ ...current, fairyBlessings: current.fairyBlessings + 1 }));
+    toast("Fairy blessing", "The visitor left a tiny trail of stardust behind.");
+    note("A visiting fairy left the grove with a happy sparkle.");
+    setFairy(null);
+    if (fairyExitTimer.current !== null) window.clearTimeout(fairyExitTimer.current);
+    scheduleFairy();
+  }, [fairy, note, scheduleFairy, toast]);
+
+  const hearMoon = useCallback(() => {
+    const message = MOON_WHISPERS[Math.floor(Math.random() * MOON_WHISPERS.length)];
+    setWonder((current) => ({ ...current, moonWhispers: current.moonWhispers + 1 }));
+    toast("Moon whisper", message);
+    note(`Moon whisper: ${message}`);
+  }, [note, toast]);
 
   if (!gateReady || (loading && !tree)) {
     return (
-      <main className={styles.pageShell}>
-        <div className={styles.backgroundGlow} />
-        <div className={styles.pageInner}>
-          <AdminNav />
-          <div className={styles.loadingPanel}>
-            <div className={styles.loadingOrb} />
-            <p>Opening the hidden grove...</p>
-          </div>
-        </div>
+      <main className={styles.loadingPage}>
+        <div className={styles.loadingOrb} />
+        <p>Walking into the grove...</p>
       </main>
     );
   }
 
   return (
-    <main className={styles.pageShell}>
-      <div className={styles.backgroundGlow} />
-      <div className={styles.stars} />
-      <div className={styles.pageInner}>
-        <AdminNav />
+    <main className={styles.gardenPage}>
+      <div className={styles.backgroundImage} />
+      <div className={styles.backgroundVignette} />
+      <div className={styles.starLayer} />
+      <div className={styles.mistLayer} />
 
-        <header className={styles.header}>
-          <div>
-            <p className={styles.eyebrow}>Shared hidden space</p>
-            <h1 className={styles.title}>The Tree We Grow</h1>
-            <p className={styles.description}>
-              Rebuilt around your reference: a moonlit, layered, interactive grove for Unown Pulls. It starts as a seed, grows with the business, lets you catch fireflies, and drops little Shaymin snacks from the leaves.
-            </p>
+      <div className={styles.navWrap}><AdminNav /></div>
+
+      <section className={styles.gardenStage} aria-label="The Tree We Grow garden">
+        <button type="button" className={styles.moonButton} onClick={hearMoon} aria-label="Listen to the moon" title="Listen to the moon" />
+
+        <div className={styles.topHud}>
+          <div className={styles.stagePill}>
+            <span className={styles.stageDot} />
+            <div>
+              <small>{stage.label}</small>
+              <strong>{formatNumber(tree?.growthScore ?? 0)} growth</strong>
+            </div>
           </div>
 
-          <div className={styles.headerActions}>
-            <button
-              type="button"
-              onClick={() => void loadTree(false)}
-              className={styles.actionButton}
-              disabled={loading}
-            >
-              {loading ? "Refreshing..." : "Refresh grove"}
-            </button>
-            <Link href="/admin" className={styles.secondaryActionButton}>
-              Back to admin
-            </Link>
-            <button
-              type="button"
-              onClick={() => {
-                closeTreeGate();
-                router.push("/admin");
-              }}
-              className={styles.ghostActionButton}
-            >
-              Close secret path
-            </button>
+          <div className={styles.topActions}>
+            <button type="button" onClick={() => setJournalOpen((value) => !value)} className={styles.hudButton}>Journal</button>
+            <button type="button" onClick={() => setDetailsOpen((value) => !value)} className={styles.hudButton}>Grove details</button>
+            <button type="button" onClick={() => void load(false)} className={styles.hudButton}>{loading ? "Refreshing…" : "Refresh"}</button>
           </div>
-        </header>
+        </div>
 
         {error ? <div className={styles.errorBanner}>{error}</div> : null}
 
-        <section className={styles.mainGrid}>
-          <article className={styles.scenePanel}>
-            <div className={styles.sceneBackdrop} />
-            <div className={styles.sceneAura} />
-            <img
-              src="/tree-wonder/root-frame.png"
-              alt=""
-              className={styles.rootFrame}
-              draggable={false}
+        <div className={styles.treeWorld}>
+          <div className={styles.treeHalo} />
+          <img src={stage.asset} alt="The current growth stage of the Unown Pulls tree" draggable={false} className={`${styles.treeAsset} ${stage.assetClassName}`} />
+
+          {stage.leafHotspots.map((spot, index) => (
+            <button
+              key={`${spot.left}-${spot.top}`}
+              type="button"
+              className={styles.leafHotspot}
+              style={{ left: spot.left, top: spot.top }}
+              onClick={() => shakeLeaf(spot.left, spot.top)}
+              aria-label={`Shake leaf cluster ${index + 1} for Shaymin food`}
+              title="Shake the leaves"
+            ><span /></button>
+          ))}
+
+          {fireflies.map((firefly, index) => (
+            <button
+              key={`firefly-${index}`}
+              type="button"
+              className={styles.firefly}
+              style={{
+                left: firefly.left,
+                top: firefly.top,
+                width: `${firefly.size}px`,
+                height: `${firefly.size}px`,
+                animationDelay: firefly.delay,
+                opacity: hiddenFireflies.includes(index) ? 0 : 1,
+              }}
+              onClick={() => catchFirefly(index)}
+              aria-label="Catch firefly"
+              title="Catch firefly"
             />
+          ))}
 
-            <div className={styles.sceneCopyCard}>
-              <div className={styles.sceneBadgeRow}>
-                <span className={styles.sceneBadge}>{visualStage.label}</span>
-                <span className={styles.sceneBadgeSoft}>{formatWholeNumber(tree?.growthScore ?? 0)} growth</span>
-                {tree?.bothActiveThisWeek ? (
-                  <span className={styles.sceneBadgeSoft}>Both branches active</span>
-                ) : null}
-              </div>
-              <h2 className={styles.sceneHeading}>A more memorable hidden grove</h2>
-              <p className={styles.sceneBody}>{visualStage.description}</p>
-            </div>
+          {fairy ? (
+            <button
+              key={fairy.id}
+              type="button"
+              onClick={blessFairy}
+              className={`${styles.fairyVisitor} ${fairy.fromLeft ? styles.fairyFromLeft : styles.fairyFromRight}`}
+              style={{ top: fairy.top, ["--fairy-scale" as string]: String(fairy.scale) }}
+              aria-label="Greet visiting fairy"
+              title="A fairy is visiting — say hello"
+            >
+              <img src={fairy.src} alt="A tiny visiting garden fairy" draggable={false} />
+            </button>
+          ) : null}
 
-            <div className={styles.treeViewport}>
-              <img
-                src={visualStage.asset}
-                alt="The current tree growth stage"
-                draggable={false}
-                className={`${styles.treeAsset} ${visualStage.assetClassName}`}
-              />
-
-              {visualStage.decorations.map((decoration) => (
-                <img
-                  key={`${decoration.src}-${decoration.left}-${decoration.top}`}
-                  src={decoration.src}
-                  alt=""
-                  draggable={false}
-                  className={`${styles.decoration} ${decoration.className ?? ""}`}
-                  style={{
-                    left: decoration.left,
-                    top: decoration.top,
-                    width: decoration.width,
-                  }}
-                />
-              ))}
-
-              {visualStage.leafHotspots.map((spot, index) => (
-                <button
-                  key={`leaf-${index}`}
-                  type="button"
-                  onClick={handleLeafClick}
-                  className={styles.leafHotspot}
-                  style={{ left: spot.left, top: spot.top }}
-                  aria-label="Shake the leaves for Shaymin food"
-                  title="Shake the leaves"
-                >
-                  <span className={styles.leafPulse} />
-                </button>
-              ))}
-
-              {visualStage.fireflies.map((firefly, index) => (
-                <button
-                  key={`firefly-${index}`}
-                  type="button"
-                  onClick={() => handleCatchFirefly(index)}
-                  className={styles.fireflyButton}
-                  style={{
-                    left: firefly.left,
-                    top: firefly.top,
-                    width: `${firefly.size}px`,
-                    height: `${firefly.size}px`,
-                    animationDelay: firefly.delay,
-                    opacity: hiddenFireflies.includes(index) ? 0 : 1,
-                  }}
-                  aria-label="Catch firefly"
-                  title="Catch firefly"
-                />
-              ))}
-            </div>
-
-            <div className={styles.progressCard}>
-              <div className={styles.progressHeader}>
-                <div>
-                  <p className={styles.miniLabel}>Progress to the hidden door</p>
-                  <p className={styles.progressValue}>{millionProgress.toFixed(1)}%</p>
-                </div>
-                <div className={styles.progressAside}>
-                  <span>Current {formatWholeNumber(tree?.growthScore ?? 0)}</span>
-                  <span>Door at 1,000,000</span>
-                </div>
-              </div>
-              <div className={styles.progressTrack}>
-                <span className={styles.progressFill} style={{ width: `${millionProgress}%` }} />
-              </div>
-            </div>
-          </article>
-
-          <div className={styles.sidebar}>
-            <article className={styles.infoCard}>
-              <p className={styles.eyebrowMuted}>Grove inventory</p>
-              <h3 className={styles.cardTitle}>Cute little systems</h3>
-              <div className={styles.inventoryGrid}>
-                <div className={styles.inventoryItem}>
-                  <img src="/tree-wonder/icons/02-jar.png" alt="" className={styles.inventoryIcon} draggable={false} />
-                  <div>
-                    <p className={styles.inventoryLabel}>Caught fireflies</p>
-                    <p className={styles.inventoryValue}>{formatWholeNumber(wonderState.firefliesCaught)}</p>
-                  </div>
-                </div>
-
-                <div className={styles.inventoryItem}>
-                  <img src="/tree-wonder/icons/05-flower-food.png" alt="" className={styles.inventoryIcon} draggable={false} />
-                  <div>
-                    <p className={styles.inventoryLabel}>Leaf food</p>
-                    <p className={styles.inventoryValue}>{formatWholeNumber(wonderState.leafFood)}</p>
-                  </div>
-                </div>
-
-                <div className={styles.inventoryItem}>
-                  <img src="/tree-wonder/icons/06-cupcake.png" alt="" className={styles.inventoryIcon} draggable={false} />
-                  <div>
-                    <p className={styles.inventoryLabel}>Mood-room treats</p>
-                    <p className={styles.inventoryValue}>{formatWholeNumber(wonderState.rareCareTreats)}</p>
-                  </div>
-                </div>
-
-                <div className={styles.inventoryItem}>
-                  <img src="/tree-wonder/icons/07-golden-seed.png" alt="" className={styles.inventoryIcon} draggable={false} />
-                  <div>
-                    <p className={styles.inventoryLabel}>Golden seeds</p>
-                    <p className={styles.inventoryValue}>{formatWholeNumber(wonderState.goldenSeeds)}</p>
-                  </div>
-                </div>
-              </div>
-
-              <p className={styles.tipLine}>
-                Tip: click the glowing leaf points to shake snacks loose, and catch the floating lights before they drift away.
-              </p>
-            </article>
-
-            <article className={styles.infoCard}>
-              <p className={styles.eyebrowMuted}>Current atmosphere</p>
-              <h3 className={styles.cardTitle}>{visualStage.label}</h3>
-              <p className={styles.bodyText}>{topNote}</p>
-
-              <div className={styles.featureList}>
-                {visualStage.features.map((feature) => (
-                  <div key={feature} className={styles.featureChip}>
-                    {feature}
-                  </div>
-                ))}
-              </div>
-            </article>
-
-            <article className={styles.infoCard}>
-              <p className={styles.eyebrowMuted}>Business pulse</p>
-              <h3 className={styles.cardTitle}>What is feeding the roots</h3>
-
-              <div className={styles.statRows}>
-                <div className={styles.statRow}>
-                  <span>Stock cards</span>
-                  <strong>{formatWholeNumber(tree?.stockCards ?? 0)}</strong>
-                </div>
-                <div className={styles.statRow}>
-                  <span>Trainers</span>
-                  <strong>{formatWholeNumber(tree?.trainers ?? 0)}</strong>
-                </div>
-                <div className={styles.statRow}>
-                  <span>Cards found</span>
-                  <strong>{formatWholeNumber(tree?.cardsFound ?? 0)}</strong>
-                </div>
-                <div className={styles.statRow}>
-                  <span>Value shared</span>
-                  <strong>{formatMoney(tree?.valueShared ?? 0)}</strong>
-                </div>
-                <div className={styles.statRow}>
-                  <span>Wishes available</span>
-                  <strong>{formatWholeNumber(tree?.availableWishes ?? 0)}</strong>
-                </div>
-                <div className={styles.statRow}>
-                  <span>Last activity</span>
-                  <strong>{formatDate(tree?.latestActivityAt ?? null)}</strong>
-                </div>
-              </div>
-            </article>
-
-            <article className={styles.infoCard}>
-              <p className={styles.eyebrowMuted}>Keeper branches</p>
-              <h3 className={styles.cardTitle}>Who fed the grove</h3>
-              <div className={styles.branchList}>
-                {(tree?.branches ?? []).map((branch) => (
-                  <div key={branch.email} className={styles.branchItem}>
-                    <div>
-                      <p className={styles.branchName}>{branch.name}</p>
-                      <p className={styles.branchMeta}>{formatWholeNumber(branch.cardsPlanted)} cards · {formatWholeNumber(branch.plantingSessions)} sessions</p>
-                    </div>
-                    <span className={branch.activeThisWeek ? styles.branchDotActive : styles.branchDot} />
-                  </div>
-                ))}
-              </div>
-            </article>
-          </div>
-        </section>
-
-        <div className={styles.toastStack}>
-          {toastQueue.map((toast) => (
-            <div key={toast.id} className={styles.toastCard}>
-              <p className={styles.toastTitle}>{toast.title}</p>
-              <p className={styles.toastBody}>{toast.body}</p>
+          {drops.map((drop) => (
+            <div key={drop.id} className={styles.fallingDrop} style={{ left: drop.left, top: drop.top }}>
+              <img src={drop.src} alt="" draggable={false} />
+              <span>{drop.label}</span>
             </div>
           ))}
+
+          {stage.ambientLevel >= 1 ? (
+            <>
+              <img src="/tree-wonder/visitors/blue-butterfly.png" alt="" draggable={false} className={`${styles.ambientSprite} ${styles.butterflyOne}`} />
+              <img src="/tree-wonder/visitors/small-butterfly.png" alt="" draggable={false} className={`${styles.ambientSprite} ${styles.butterflyTwo}`} />
+            </>
+          ) : null}
+
+          {stage.ambientLevel >= 2 ? (
+            <>
+              <img src="/tree-wonder/visitors/moth.png" alt="" draggable={false} className={`${styles.ambientSprite} ${styles.moth}`} />
+              <img src="/tree-wonder/visitors/wisp-a.png" alt="" draggable={false} className={`${styles.ambientSprite} ${styles.wispOne}`} />
+            </>
+          ) : null}
+
+          {stage.ambientLevel >= 3 ? (
+            <>
+              <img src="/tree-wonder/visitors/snail.png" alt="" draggable={false} className={`${styles.groundSprite} ${styles.snail}`} />
+              <img src="/tree-wonder/visitors/frog.png" alt="" draggable={false} className={`${styles.groundSprite} ${styles.frog}`} />
+              <img src="/tree-wonder/visitors/warm-mushrooms.png" alt="" draggable={false} className={`${styles.groundSprite} ${styles.warmMushrooms}`} />
+            </>
+          ) : null}
+
+          {stage.ambientLevel >= 4 ? (
+            <>
+              <img src="/tree-wonder/visitors/rabbit.png" alt="" draggable={false} className={`${styles.groundSprite} ${styles.rabbit}`} />
+              <img src="/tree-wonder/visitors/dragonfly.png" alt="" draggable={false} className={`${styles.ambientSprite} ${styles.dragonfly}`} />
+              <img src="/tree-wonder/visitors/blue-mushrooms.png" alt="" draggable={false} className={`${styles.groundSprite} ${styles.blueMushrooms}`} />
+              <img src="/tree-wonder/visitors/vine.png" alt="" draggable={false} className={`${styles.groundSprite} ${styles.magicVine}`} />
+            </>
+          ) : null}
         </div>
+
+        <div className={styles.bottomHud}>
+          <div className={styles.inventoryStrip}>
+            <div><img src="/tree-wonder/icons/02-jar.png" alt="" /><span>Fireflies</span><strong>{formatNumber(wonder.firefliesCaught)}</strong></div>
+            <div><img src="/tree-wonder/icons/05-flower-food.png" alt="" /><span>Shaymin food</span><strong>{formatNumber(wonder.leafFood)}</strong></div>
+            <div><img src="/tree-wonder/icons/06-cupcake.png" alt="" /><span>Rare treats</span><strong>{formatNumber(wonder.rareCareTreats)}</strong></div>
+            <div><img src="/tree-wonder/icons/07-golden-seed.png" alt="" /><span>Golden seeds</span><strong>{formatNumber(wonder.goldenSeeds)}</strong></div>
+            <div className={styles.fairyCounter}><span>✧</span><span>Fairy blessings</span><strong>{formatNumber(wonder.fairyBlessings)}</strong></div>
+          </div>
+
+          <div className={styles.millionProgress}>
+            <div className={styles.progressCopy}>
+              <span>Hidden door</span>
+              <strong>{millionProgress.toFixed(1)}%</strong>
+              <small>{formatNumber(tree?.growthScore ?? 0)} / 1,000,000</small>
+            </div>
+            <div className={styles.progressTrack}><span style={{ width: `${millionProgress}%` }} /></div>
+          </div>
+        </div>
+
+        {journalOpen ? (
+          <aside className={styles.journalPanel}>
+            <div className={styles.panelHeader}><div><small>Garden journal</small><h2>Things that happened here</h2></div><button onClick={() => setJournalOpen(false)}>×</button></div>
+            <div className={styles.journalStats}>
+              <span>{wonder.fairyVisits} fairy visits</span><span>{wonder.moonWhispers} moon whispers</span><span>{wonder.leafClicks} leaf shakes</span>
+            </div>
+            <div className={styles.noteList}>
+              {wonder.notes.length ? wonder.notes.map((item, index) => <p key={`${item}-${index}`}>{item}</p>) : <p>The garden is quiet. Go catch a firefly or listen to the moon.</p>}
+            </div>
+          </aside>
+        ) : null}
+
+        {detailsOpen ? (
+          <aside className={styles.detailsPanel}>
+            <div className={styles.panelHeader}><div><small>Unown Pulls garden</small><h2>{stage.label}</h2></div><button onClick={() => setDetailsOpen(false)}>×</button></div>
+            <p className={styles.panelBody}>{stage.description}</p>
+            <div className={styles.detailGrid}>
+              <div><span>Stock cards</span><strong>{formatNumber(tree?.stockCards ?? 0)}</strong></div>
+              <div><span>Trainers</span><strong>{formatNumber(tree?.trainers ?? 0)}</strong></div>
+              <div><span>Cards found</span><strong>{formatNumber(tree?.cardsFound ?? 0)}</strong></div>
+              <div><span>Wishes spent</span><strong>{formatNumber(tree?.wishesSpent ?? 0)}</strong></div>
+            </div>
+            <div className={styles.branchList}>
+              {(tree?.branches ?? []).map((branch) => (
+                <div key={branch.email}><span className={branch.activeThisWeek ? styles.activeBranch : styles.inactiveBranch} /><p><strong>{branch.name}</strong><small>{formatNumber(branch.cardsPlanted)} cards planted</small></p></div>
+              ))}
+            </div>
+            <div className={styles.panelActions}>
+              <Link href="/admin">Back to operations</Link>
+              <button onClick={() => { closeTreeGate(); router.push("/admin"); }}>Close secret path</button>
+            </div>
+          </aside>
+        ) : null}
+      </section>
+
+      <div className={styles.toastStack}>
+        {toasts.map((item) => <div key={item.id}><strong>{item.title}</strong><p>{item.body}</p></div>)}
       </div>
     </main>
   );

@@ -95,7 +95,7 @@ const MORE_ITEMS: NavItem[] = [
   },
   {
     href: "/wishes/shop",
-    label: "Recharge",
+    label: "Wish Shop",
     glyph: "✦",
   },
 ];
