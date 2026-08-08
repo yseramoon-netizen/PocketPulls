@@ -25,6 +25,7 @@ export type PlayerCardModalCard = {
   availableQuantity?: number;
   reservedQuantity?: number;
   isSignature?: boolean;
+  anniversaryYears?: number;
 };
 
 export default function PlayerCardModal({
@@ -112,6 +113,17 @@ export default function PlayerCardModal({
               ? ` · Card #${card.cardNumber}`
               : ""}
           </p>
+
+          {(card.anniversaryYears || 0) > 0 ? (
+            <div className="mt-5 rounded-2xl border border-yellow-100/15 bg-yellow-200/[0.06] px-4 py-3">
+              <p className="text-[0.6rem] font-black uppercase tracking-[0.16em] text-yellow-100/55">
+                ✦ Wish anniversary
+              </p>
+              <p className="mt-1.5 text-sm font-bold text-yellow-50/82">
+                {card.anniversaryYears} year{card.anniversaryYears === 1 ? "" : "s"} ago today you summoned this card.
+              </p>
+            </div>
+          ) : null}
 
           <div className="mt-7 grid gap-3 sm:grid-cols-2">
             <ModalValue

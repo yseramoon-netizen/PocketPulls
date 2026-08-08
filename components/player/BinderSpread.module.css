@@ -109,6 +109,26 @@
 }
 
 .pocket,
+
+.anniversaryBadge {
+  position: absolute;
+  z-index: 8;
+  left: 0.5rem;
+  bottom: 0.5rem;
+  display: grid;
+  width: 1.65rem;
+  height: 1.65rem;
+  place-items: center;
+  border-radius: 999px;
+  border: 1px solid rgba(254, 240, 138, 0.3);
+  background: rgba(38, 30, 6, 0.86);
+  color: #fef08a;
+  font-size: 0.78rem;
+  font-weight: 950;
+  box-shadow: 0 0 14px rgba(250, 204, 21, 0.28);
+  backdrop-filter: blur(8px);
+}
+
 .emptyPocket {
   position: relative;
   aspect-ratio: 0.716;

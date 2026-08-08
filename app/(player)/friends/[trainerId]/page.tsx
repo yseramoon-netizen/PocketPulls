@@ -47,7 +47,6 @@ type FriendProfileRow = {
   signature_image_url: string | null;
   binder_theme_key: string | null;
   binder_name: string | null;
-  binder_name: string | null;
   online: boolean | null;
   last_seen_at: string | null;
 };
@@ -89,7 +88,6 @@ type FriendProfile = {
   signatureImageUrl: string | null;
   binderThemeKey: string;
   binderName: string;
-  binderName: string;
   online: boolean;
   lastSeenAt: string | null;
 };
@@ -129,7 +127,6 @@ function parseProfile(value: unknown): FriendProfile | null {
     signatureMarketValue: toNumber(data.signature_market_value),
     signatureImageUrl: data.signature_image_url || null,
     binderThemeKey: data.binder_theme_key || "classic",
-    binderName: data.binder_name?.trim() || `${data.display_name || data.username || "Trainer"}’s Binder`,
     binderName: data.binder_name?.trim() || `${data.display_name || data.username || "Trainer"}'s Binder`,
     online: data.online === true,
     lastSeenAt: data.last_seen_at,
@@ -366,7 +363,7 @@ export default function FriendProfilePage() {
             <div className="mb-3 flex items-end justify-between gap-4 px-1">
               <div>
                 <p className="text-xs font-black uppercase tracking-[0.18em] text-cyan-100/38">
-                  {profile.binderName}
+                  Friend binder
                 </p>
                 <h2 className="mt-1 text-2xl font-black text-white">{profile.binderName}</h2>
               </div>

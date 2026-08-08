@@ -69,6 +69,13 @@ type BinderThemeUnlockRow = {
   requirement: string | null;
 };
 
+
+type AnniversaryRow = {
+  card_id: string | number | null;
+  years_ago: number | string | null;
+  wished_at: string | null;
+};
+
 type BinderPositionRow = {
   binder_position: number | string | null;
 };
@@ -150,6 +157,15 @@ function parseRows(value: unknown): { cards: CollectionCard[]; totalCount: numbe
   };
 }
 
+
+function getLocalDateKey(): string {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 export default function CollectionPage() {
   const requestRef = useRef(0);
   const searchTimerRef = useRef<number | null>(null);
@@ -161,6 +177,7 @@ export default function CollectionPage() {
   const [binderNameInput, setBinderNameInput] = useState("My Binder");
   const [themePickerOpen, setThemePickerOpen] = useState(false);
   const [themeUnlocks, setThemeUnlocks] = useState<Record<string, BinderThemeUnlockRow>>({});
+  const [anniversaryYearsByCard, setAnniversaryYearsByCard] = useState<Record<string, number>>({});
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [setName, setSetName] = useState("");
@@ -228,6 +245,31 @@ export default function CollectionPage() {
     setThemeUnlocks(unlockMap);
   }, []);
 
+  const loadWishAnniversaries = useCallback(async () => {
+    const { data, error } = await supabase.rpc("get_player_wish_anniversaries", {
+      p_today: getLocalDateKey(),
+    });
+
+    if (error) {
+      console.warn("Wish anniversary lookup unavailable:", error);
+      setAnniversaryYearsByCard({});
+      return;
+    }
+
+    const next: Record<string, number> = {};
+    if (Array.isArray(data)) {
+      for (const raw of data as AnniversaryRow[]) {
+        const cardId = raw.card_id === null || raw.card_id === undefined
+          ? ""
+          : String(raw.card_id);
+        const years = toWholeNumber(raw.years_ago);
+        if (cardId && years > 0) next[cardId] = Math.max(next[cardId] || 0, years);
+      }
+    }
+
+    setAnniversaryYearsByCard(next);
+  }, []);
+
   const syncBinderPositions = useCallback(async () => {
     const { error } = await supabase.rpc("sync_player_binder_positions");
     if (error) throw error;
@@ -282,13 +324,13 @@ export default function CollectionPage() {
 
     try {
       await syncBinderPositions();
-      await Promise.all([loadOverview(), loadBinderSettings(), loadCards(true)]);
+      await Promise.all([loadOverview(), loadBinderSettings(), loadWishAnniversaries(), loadCards(true)]);
     } catch (error: unknown) {
       setErrorMessage(getErrorMessage(error, "Your collection could not be refreshed."));
     } finally {
       setRefreshing(false);
     }
-  }, [loadBinderSettings, loadCards, loadOverview, syncBinderPositions]);
+  }, [loadBinderSettings, loadCards, loadOverview, loadWishAnniversaries, syncBinderPositions]);
 
   useEffect(() => {
     let active = true;
@@ -296,7 +338,7 @@ export default function CollectionPage() {
     void (async () => {
       try {
         await syncBinderPositions();
-        await Promise.all([loadOverview(), loadBinderSettings()]);
+        await Promise.all([loadOverview(), loadBinderSettings(), loadWishAnniversaries()]);
         if (active) setPrepared(true);
       } catch (error: unknown) {
         if (!active) return;
@@ -308,7 +350,7 @@ export default function CollectionPage() {
     return () => {
       active = false;
     };
-  }, [loadBinderSettings, loadOverview, syncBinderPositions]);
+  }, [loadBinderSettings, loadOverview, loadWishAnniversaries, syncBinderPositions]);
 
   useEffect(() => {
     if (!prepared) return;
@@ -478,6 +520,15 @@ export default function CollectionPage() {
       }
     },
     [loadCards, swapBusy, swapSource],
+  );
+
+  const displayCards = useMemo(
+    () =>
+      cards.map((card) => ({
+        ...card,
+        anniversaryYears: anniversaryYearsByCard[card.id] || 0,
+      })),
+    [anniversaryYearsByCard, cards],
   );
 
   const filterOptions = useMemo(
@@ -679,7 +730,7 @@ export default function CollectionPage() {
         </div>
       ) : (
         <BinderSpread
-          cards={cards}
+          cards={displayCards}
           themeKey={themeKey}
           onOpen={(card) => setSelectedCard(card as CollectionCard)}
           swapSourceId={swapSource?.id || null}

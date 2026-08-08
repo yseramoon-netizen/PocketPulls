@@ -15,6 +15,7 @@ export type BinderDisplayCard = {
   imageUrl: string | null;
   quantity?: number;
   isSignature?: boolean;
+  anniversaryYears?: number;
 };
 
 type BinderSpreadProps = {
@@ -179,6 +180,15 @@ function BinderPocket({
       ) : null}
       {(card.quantity || 0) > 1 ? (
         <span className={styles.quantityBadge}>×{card.quantity}</span>
+      ) : null}
+      {(card.anniversaryYears || 0) > 0 ? (
+        <span
+          className={styles.anniversaryBadge}
+          title={`${card.anniversaryYears} year${card.anniversaryYears === 1 ? "" : "s"} ago today you summoned this card.`}
+          aria-label={`${card.anniversaryYears} year${card.anniversaryYears === 1 ? "" : "s"} ago today you summoned this card.`}
+        >
+          ✦
+        </span>
       ) : null}
 
       <CardArtwork

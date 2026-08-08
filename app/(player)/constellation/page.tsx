@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 
 import UnownText from "@/components/player/UnownText";
 import { supabase } from "@/lib/supabase";
@@ -37,6 +38,26 @@ type ConstellationStar = {
   size: number;
   colour: string;
   glow: string;
+  delay: number;
+};
+
+
+type FriendRow = {
+  other_user_id: string | null;
+  username: string | null;
+  display_name: string | null;
+  avatar_url: string | null;
+  relationship_status: string | null;
+  direction: string | null;
+};
+
+type FriendStar = {
+  userId: string;
+  username: string;
+  displayName: string;
+  avatarUrl: string | null;
+  x: number;
+  y: number;
   delay: number;
 };
 
@@ -303,6 +324,59 @@ function buildConstellationStars(
   return positioned;
 }
 
+
+function buildFriendStars(rows: FriendRow[]): FriendStar[] {
+  const friends = rows.filter(
+    (row) =>
+      row.relationship_status === "accepted" &&
+      row.direction === "accepted" &&
+      typeof row.other_user_id === "string" &&
+      row.other_user_id.length > 0,
+  );
+
+  return friends.map((row, index) => {
+    const ring = Math.floor(index / 12);
+    const indexOnRing = index % 12;
+    const countOnRing = Math.min(12, Math.max(1, friends.length - ring * 12));
+    const angle =
+      -Math.PI / 2 +
+      (indexOnRing / countOnRing) * Math.PI * 2 +
+      ring * 0.18;
+    const radiusX = Math.max(36, 46 - ring * 5.5);
+    const radiusY = Math.max(32, 44 - ring * 5);
+
+    return {
+      userId: row.other_user_id as string,
+      username: row.username?.trim() || "trainer",
+      displayName: row.display_name?.trim() || row.username?.trim() || "Trainer",
+      avatarUrl: row.avatar_url?.trim() || null,
+      x: Math.max(4.5, Math.min(95.5, 50 + Math.cos(angle) * radiusX)),
+      y: Math.max(5.5, Math.min(94.5, 50 + Math.sin(angle) * radiusY)),
+      delay: 120 + index * 55,
+    };
+  });
+}
+
+function getAnniversaryYears(value: string | null): number {
+  if (!value) return 0;
+
+  const wished = new Date(value);
+  if (Number.isNaN(wished.getTime())) return 0;
+
+  const today = new Date();
+  const sameMonth = wished.getMonth() === today.getMonth();
+  const sameDay = wished.getDate() === today.getDate();
+
+  if (!sameMonth || !sameDay) return 0;
+
+  const years = today.getFullYear() - wished.getFullYear();
+  return years >= 1 ? years : 0;
+}
+
+function anniversaryMessage(years: number): string {
+  return `${years} year${years === 1 ? "" : "s"} ago today you summoned this card.`;
+}
+
 function formatMoney(value: number): string {
   return new Intl.NumberFormat("en-GB", {
     style: "currency",
@@ -371,7 +445,9 @@ function getMilestoneMessage(count: number): string {
 }
 
 export default function ConstellationPage() {
+  const router = useRouter();
   const [stars, setStars] = useState<ConstellationStar[]>([]);
+  const [friendStars, setFriendStars] = useState<FriendStar[]>([]);
   const [selectedStar, setSelectedStar] =
     useState<ConstellationStar | null>(null);
   const [loading, setLoading] = useState(true);
@@ -401,18 +477,25 @@ export default function ConstellationPage() {
         throw new Error("You must be signed in to see your constellation.");
       }
 
-      const { data: wishData, error: wishError } = await supabase
-        .from("player_wishes")
-        .select("id, card_id, market_value_at_wish, created_at")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: true })
-        .limit(1600);
+      const [wishResult, friendResult] = await Promise.all([
+        supabase
+          .from("player_wishes")
+          .select("id, card_id, market_value_at_wish, created_at")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: true })
+          .limit(1600),
+        supabase.rpc("get_player_friend_dashboard"),
+      ]);
 
-      if (wishError) {
-        throw wishError;
+      if (wishResult.error) {
+        throw wishResult.error;
       }
 
-      const wishes = (wishData || []) as WishRow[];
+      const wishes = (wishResult.data || []) as WishRow[];
+      const friendRows = Array.isArray(friendResult.data)
+        ? (friendResult.data as FriendRow[])
+        : [];
+      setFriendStars(friendResult.error ? [] : buildFriendStars(friendRows));
       const cardIds = Array.from(
         new Set(
           wishes
@@ -578,48 +661,50 @@ export default function ConstellationPage() {
                 Rebuilding your night sky
               </p>
             </div>
-          ) : stars.length === 0 ? (
-            <div className="relative z-10 flex min-h-[680px] flex-col items-center justify-center px-6 text-center">
-              <div className="text-8xl text-yellow-100/30">*</div>
-
-              <h2 className="mt-4 text-2xl font-black text-white">
-                The sky is waiting for you.
-              </h2>
-
-              <p className="mt-3 max-w-md text-sm font-semibold leading-7 text-white/40">
-                Return to the Wish Chamber and let Jirachi place your first
-                permanent star here.
-              </p>
-            </div>
           ) : (
             <div className="relative z-10 min-h-[680px]">
-              <svg
-                viewBox="0 0 100 100"
-                preserveAspectRatio="none"
-                aria-hidden="true"
-                className="pointer-events-none absolute inset-0 h-full w-full opacity-20"
-              >
-                {stars.slice(1).map((star, index) => {
-                  const previous = stars[index];
+              {stars.length > 0 ? (
+                <svg
+                  viewBox="0 0 100 100"
+                  preserveAspectRatio="none"
+                  aria-hidden="true"
+                  className="pointer-events-none absolute inset-0 h-full w-full opacity-20"
+                >
+                  {stars.slice(1).map((star, index) => {
+                    const previous = stars[index];
 
-                  return (
-                    <line
-                      key={`${previous.id}-${star.id}`}
-                      x1={previous.x}
-                      y1={previous.y}
-                      x2={star.x}
-                      y2={star.y}
-                      stroke="rgba(196,181,253,0.65)"
-                      strokeWidth="0.12"
-                      strokeDasharray="0.6 1.1"
-                    />
-                  );
-                })}
-              </svg>
+                    return (
+                      <line
+                        key={`${previous.id}-${star.id}`}
+                        x1={previous.x}
+                        y1={previous.y}
+                        x2={star.x}
+                        y2={star.y}
+                        stroke="rgba(196,181,253,0.65)"
+                        strokeWidth="0.12"
+                        strokeDasharray="0.6 1.1"
+                      />
+                    );
+                  })}
+                </svg>
+              ) : null}
+
+              {stars.length === 0 ? (
+                <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center px-6 text-center">
+                  <div className="text-8xl text-yellow-100/30">*</div>
+                  <h2 className="mt-4 text-2xl font-black text-white">
+                    The sky is waiting for you.
+                  </h2>
+                  <p className="mt-3 max-w-md text-sm font-semibold leading-7 text-white/40">
+                    Return to the Wish Chamber and let Jirachi place your first permanent star here.
+                  </p>
+                </div>
+              ) : null}
 
               {stars.map((star) => {
                 const active = selectedStar?.id === star.id;
                 const hitSize = Math.max(22, star.size + 12);
+                const anniversaryYears = getAnniversaryYears(star.grantedAt);
 
                 return (
                   <button
@@ -627,11 +712,10 @@ export default function ConstellationPage() {
                     type="button"
                     onClick={() => setSelectedStar(star)}
                     aria-label={`${star.name}, ${star.rarity}`}
+                    title={anniversaryYears > 0 ? anniversaryMessage(anniversaryYears) : undefined}
                     className={[
                       "absolute rounded-full transition duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white",
-                      active
-                        ? "z-20 scale-[1.08]"
-                        : "z-10 hover:scale-110",
+                      active ? "z-20 scale-[1.08]" : "z-10 hover:scale-110",
                     ].join(" ")}
                     style={{
                       left: `${star.x}%`,
@@ -655,14 +739,63 @@ export default function ConstellationPage() {
                         transform: "translate(-50%, -50%)",
                       }}
                     />
+                    {anniversaryYears > 0 ? (
+                      <span
+                        aria-hidden="true"
+                        className="absolute -right-0.5 -top-0.5 z-20 text-[0.7rem] text-yellow-100 drop-shadow-[0_0_8px_rgba(250,204,21,0.9)]"
+                      >
+                        ✦
+                      </span>
+                    ) : null}
                     <span className="sr-only">{star.name}</span>
                   </button>
                 );
               })}
 
-              <p className="absolute bottom-5 left-1/2 -translate-x-1/2 whitespace-nowrap text-[0.58rem] font-black uppercase tracking-[0.18em] text-white/20">
-                Select any star to remember its wish
-              </p>
+              {friendStars.map((friend) => (
+                <button
+                  key={`friend-${friend.userId}`}
+                  type="button"
+                  onClick={() => router.push(`/friends/${encodeURIComponent(friend.userId)}`)}
+                  aria-label={`Open ${friend.displayName}'s trainer profile`}
+                  className="group absolute z-30 flex h-9 w-9 items-center justify-center rounded-full border border-cyan-100/25 bg-[#090b27]/90 shadow-[0_0_24px_rgba(103,232,249,0.34)] transition duration-200 hover:scale-125 hover:border-yellow-100/45 hover:shadow-[0_0_32px_rgba(250,204,21,0.4)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-100"
+                  style={{
+                    left: `${friend.x}%`,
+                    top: `${friend.y}%`,
+                    transform: "translate(-50%, -50%)",
+                    animation: `friendStarIn 700ms ${friend.delay}ms ease-out both`,
+                  }}
+                >
+                  <span className="pointer-events-none absolute -inset-2 rounded-full bg-cyan-200/10 blur-md" />
+                  <span className="pointer-events-none absolute text-[2.1rem] leading-none text-cyan-100/80 drop-shadow-[0_0_12px_rgba(103,232,249,0.75)]">
+                    ✦
+                  </span>
+                  {friend.avatarUrl ? (
+                    <img
+                      src={friend.avatarUrl}
+                      alt=""
+                      className="relative z-10 h-5 w-5 rounded-full border border-white/30 object-cover"
+                    />
+                  ) : (
+                    <span className="relative z-10 text-[0.58rem] font-black text-white">
+                      {friend.displayName.slice(0, 1).toUpperCase()}
+                    </span>
+                  )}
+                  <span className="pointer-events-none absolute left-1/2 top-full mt-2 hidden -translate-x-1/2 whitespace-nowrap rounded-full border border-white/10 bg-[#07091f]/95 px-2.5 py-1 text-[0.58rem] font-black text-white/80 shadow-xl group-hover:block group-focus-visible:block">
+                    {friend.displayName}
+                  </span>
+                </button>
+              ))}
+
+              <div className="pointer-events-none absolute bottom-4 left-1/2 flex -translate-x-1/2 items-center gap-3 whitespace-nowrap text-[0.56rem] font-black uppercase tracking-[0.16em] text-white/20">
+                <span>Select a light to remember its wish</span>
+                {friendStars.length > 0 ? (
+                  <>
+                    <span className="h-1 w-1 rounded-full bg-white/20" />
+                    <span className="text-cyan-100/30">Large stars are friends</span>
+                  </>
+                ) : null}
+              </div>
             </div>
           )}
         </article>
@@ -747,6 +880,17 @@ export default function ConstellationPage() {
                   />
                 </div>
 
+                {getAnniversaryYears(selectedStar.grantedAt) > 0 ? (
+                  <div className="mt-4 rounded-xl border border-yellow-100/15 bg-yellow-200/[0.06] p-4">
+                    <p className="text-[0.62rem] font-black uppercase tracking-[0.18em] text-yellow-100/55">
+                      ✦ Wish anniversary
+                    </p>
+                    <p className="mt-2 text-sm font-bold leading-6 text-yellow-50/80">
+                      {anniversaryMessage(getAnniversaryYears(selectedStar.grantedAt))}
+                    </p>
+                  </div>
+                ) : null}
+
                 <p className="mt-6 rounded-xl border border-white/10 bg-white/[0.04] p-4 text-sm font-semibold italic leading-6 text-white/40">
                   “A wish remembered becomes a light that never disappears.”
                 </p>
@@ -764,6 +908,21 @@ export default function ConstellationPage() {
       </div>
 
       <style jsx global>{`
+        @keyframes friendStarIn {
+          0% {
+            opacity: 0;
+            filter: brightness(2.4);
+          }
+          70% {
+            opacity: 1;
+            filter: brightness(1.35);
+          }
+          100% {
+            opacity: 1;
+            filter: brightness(1);
+          }
+        }
+
         @keyframes constellationStarIn {
           0% {
             opacity: 0;
