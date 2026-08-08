@@ -52,6 +52,7 @@ type FriendRow = {
 
 type SearchRow = {
   user_id: string;
+  trainer_code: string;
   username:
     | string
     | null;
@@ -435,10 +436,13 @@ export default function FriendsPage() {
         query,
       );
 
-    const delay =
-      cleaned
-        ? 180
-        : 0;
+    if (!cleaned) {
+      setSearchResults([]);
+      setSelfMatch(false);
+      setDirectoryCount(0);
+      setSearching(false);
+      return;
+    }
 
     const timer =
       window.setTimeout(
@@ -487,7 +491,7 @@ export default function FriendsPage() {
             }
           }
         },
-        delay,
+        180,
       );
 
     return () => {
@@ -680,7 +684,7 @@ export default function FriendsPage() {
       <PlayerPageHeader
         eyebrow="Trainer connections"
         title="Friends"
-        description="Find trainers, manage requests, see who is online and open a protected card trade with any accepted friend."
+        description="Search by Trainer ID or username, manage requests and open your friends’ trainer profiles."
       />
 
       <PlayerErrorBanner
@@ -743,7 +747,7 @@ export default function FriendsPage() {
             </p>
 
             <h2 className="mt-2 text-2xl font-black text-white">
-              Search usernames
+              Search trainers
             </h2>
 
             <div className="relative mt-5">
@@ -758,7 +762,7 @@ export default function FriendsPage() {
                       .value,
                   )
                 }
-                placeholder="Username or display name..."
+                placeholder="Trainer ID or username..."
                 className="min-h-14 w-full rounded-2xl border border-white/10 bg-black/20 px-5 pr-14 font-bold text-white outline-none placeholder:text-white/25 focus:border-cyan-200/30"
               />
 
@@ -770,30 +774,25 @@ export default function FriendsPage() {
             </div>
 
             <p className="mt-3 text-xs font-semibold leading-5 text-white/32">
-              The leading @ is optional. Your own signed-in account is hidden
-              because a trainer cannot add themselves.
+              Nothing is shown until you search. Use a Trainer ID such as UP-1234-ABCD-5678 or a username; @ is optional.
             </p>
 
             <div className="mt-4 space-y-3">
-              {searchResults.length ===
-                0 &&
-                !searching ? (
+              {searchResults.length === 0 && !searching ? (
                 <PlayerEmptyState
                   title={
                     selfMatch
                       ? "That is your own account"
-                      : directoryCount ===
-                        0
-                      ? "No other trainer accounts yet"
-                      : "No trainers found"
+                      : query.trim()
+                        ? "No trainers found"
+                        : "Search when you are ready"
                   }
                   description={
                     selfMatch
                       ? "You cannot send a friend request to the account you are currently signed into."
-                      : directoryCount ===
-                        0
-                      ? "Create or confirm a second Jirachi account, then search again."
-                      : "Search by username or display name. The leading @ is optional."
+                      : query.trim()
+                        ? "Check the Trainer ID or username and try again."
+                        : "Your player directory stays private until you enter a Trainer ID or username."
                   }
                 />
               ) : (
@@ -1095,6 +1094,10 @@ function SearchResultCard({
         )}
       />
 
+      <p className="mt-3 rounded-lg border border-white/8 bg-black/15 px-3 py-2 text-[0.62rem] font-black uppercase tracking-[0.1em] text-cyan-100/38">
+        Trainer ID · {row.trainer_code || "Pending"}
+      </p>
+
       <div className="mt-4">
         {row.relationship_status ===
         "none" ? (
@@ -1129,12 +1132,16 @@ function SearchResultCard({
           >
             Unblock
           </PlayerSecondaryButton>
+        ) : row.relationship_status === "accepted" ? (
+          <Link
+            href={`/friends/${encodeURIComponent(row.user_id)}`}
+            className="flex min-h-11 items-center justify-center rounded-xl border border-violet-200/18 bg-violet-300/[0.08] px-4 text-sm font-black text-violet-50 transition hover:bg-violet-300/[0.14]"
+          >
+            View friend profile
+          </Link>
         ) : (
           <div className="rounded-xl border border-white/10 bg-black/15 px-4 py-3 text-center text-xs font-black uppercase tracking-[0.12em] text-white/40">
-            {row.relationship_status ===
-            "accepted"
-              ? "Already friends"
-              : "Request pending"}
+            Request pending
           </div>
         )}
       </div>
@@ -1181,6 +1188,13 @@ function FriendCard({
         {row.relationship_status ===
         "accepted" ? (
           <>
+            <Link
+              href={`/friends/${encodeURIComponent(row.other_user_id)}`}
+              className="inline-flex min-h-11 flex-1 items-center justify-center rounded-xl border border-violet-200/20 bg-violet-300/[0.08] px-4 text-sm font-black text-violet-50 transition hover:bg-violet-300/[0.14]"
+            >
+              View profile
+            </Link>
+
             <Link
               href={`/trade?friend=${encodeURIComponent(
                 row.other_user_id,

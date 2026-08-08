@@ -1,0 +1,230 @@
+.binder {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 3.7rem minmax(0, 1fr);
+  gap: 0;
+  min-height: 58rem;
+  margin-top: 0.4rem;
+  border-radius: 2.2rem;
+  border: 0.85rem solid var(--binder-cover-base);
+  background:
+    radial-gradient(circle at 50% 0%, rgba(255,255,255,0.05), transparent 25%),
+    linear-gradient(90deg, color-mix(in srgb, var(--binder-cover-base) 72%, #000), var(--binder-cover-accent) 9%, var(--binder-cover-base) 50%, var(--binder-cover-accent) 91%, color-mix(in srgb, var(--binder-cover-base) 72%, #000));
+  box-shadow:
+    0 30px 90px rgba(0,0,0,0.42),
+    inset 0 0 0 1px rgba(255,255,255,0.05),
+    inset 0 0 30px rgba(0,0,0,0.42);
+  overflow: hidden;
+  isolation: isolate;
+  transition: opacity 180ms ease, border-color 220ms ease;
+}
+
+.dimmed { opacity: 0.52; }
+
+.coverArtwork {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(90deg, rgba(2,3,13,0.72), rgba(2,3,13,0.2) 24%, rgba(2,3,13,0.36) 50%, rgba(2,3,13,0.2) 76%, rgba(2,3,13,0.72)),
+    var(--binder-cover-image);
+  background-size: cover, 34rem auto;
+  background-position: center, center;
+  background-repeat: no-repeat;
+  opacity: 0.32;
+  filter: saturate(1.06) contrast(1.04);
+}
+
+.coverEdgeLeft,
+.coverEdgeRight {
+  position: absolute;
+  z-index: 3;
+  top: 0;
+  bottom: 0;
+  width: 1.2rem;
+  background: linear-gradient(90deg, rgba(0,0,0,0.28), transparent);
+  pointer-events: none;
+}
+
+.coverEdgeLeft { left: 0; }
+.coverEdgeRight { right: 0; transform: scaleX(-1); }
+
+.binderPage {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+  margin: 0.8rem 0;
+  padding: 1rem;
+  background:
+    linear-gradient(180deg, rgba(239,244,255,0.07), rgba(255,255,255,0.025)),
+    radial-gradient(circle at 50% 15%, var(--binder-page-glow), transparent 48%),
+    var(--binder-page-base);
+  box-shadow: inset 0 0 24px rgba(0,0,0,0.24);
+}
+
+.leftPage {
+  margin-left: 0.8rem;
+  border-radius: 1rem 0.4rem 0.4rem 1rem;
+}
+
+.rightPage {
+  margin-right: 0.8rem;
+  border-radius: 0.4rem 1rem 1rem 0.4rem;
+}
+
+.pageSheen {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(125deg, rgba(255,255,255,0.06), transparent 23%, transparent 72%, rgba(103,232,249,0.025));
+}
+
+.pocketGrid {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.72rem;
+}
+
+.spine {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-around;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--binder-spine-base) 72%, #000), var(--binder-spine-base) 35%, var(--binder-spine-base) 65%, color-mix(in srgb, var(--binder-spine-base) 72%, #000));
+  box-shadow: inset 0 0 18px rgba(0,0,0,0.5);
+}
+
+.ring {
+  width: 4.6rem;
+  height: 1.1rem;
+  border-radius: 999px;
+  border: 0.28rem solid var(--binder-ring);
+  background: transparent;
+  box-shadow: 0 3px 5px rgba(0,0,0,0.5), inset 0 1px 2px rgba(255,255,255,0.55);
+}
+
+.pocket,
+.emptyPocket {
+  position: relative;
+  aspect-ratio: 0.716;
+  overflow: hidden;
+  border-radius: 0.65rem;
+  border: 1px solid rgba(215,231,255,0.16);
+  background: linear-gradient(145deg, rgba(255,255,255,0.05), rgba(5,8,20,0.55));
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.03), 0 7px 18px rgba(0,0,0,0.18);
+}
+
+.pocket {
+  padding: 0.28rem;
+  cursor: pointer;
+  text-align: left;
+  transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease, opacity 180ms ease;
+}
+
+.pocket:hover {
+  transform: translateY(-2px) scale(1.01);
+  border-color: color-mix(in srgb, var(--rarity-colour) 50%, rgba(255,255,255,0.2));
+  box-shadow: 0 10px 28px var(--rarity-glow), inset 0 0 0 1px rgba(255,255,255,0.05);
+}
+
+.swapSelected {
+  border-color: rgba(250, 204, 21, 0.8);
+  box-shadow: 0 0 0 3px rgba(250, 204, 21, 0.16), 0 12px 34px rgba(250, 204, 21, 0.22);
+  transform: translateY(-3px) scale(1.015);
+}
+
+.swapCandidate { cursor: crosshair; }
+.swapCandidate:hover { border-color: rgba(103,232,249,0.75); }
+
+.swapBadge {
+  position: absolute;
+  z-index: 9;
+  left: 50%;
+  bottom: 0.7rem;
+  transform: translateX(-50%);
+  border-radius: 999px;
+  border: 1px solid rgba(250,204,21,0.28);
+  background: rgba(18,16,8,0.88);
+  padding: 0.32rem 0.6rem;
+  color: #fef3c7;
+  font-size: 0.54rem;
+  font-weight: 950;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  white-space: nowrap;
+}
+
+.pocketPlastic {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+  background: linear-gradient(118deg, rgba(255,255,255,0.11), transparent 18%, transparent 63%, rgba(255,255,255,0.045) 80%, transparent 90%);
+  mix-blend-mode: screen;
+}
+
+.cardArtwork {
+  width: 100%;
+  aspect-ratio: 0.716;
+  border-radius: 0.45rem;
+}
+
+.signatureBadge,
+.quantityBadge {
+  position: absolute;
+  top: 0.55rem;
+  z-index: 7;
+  display: grid;
+  min-width: 1.7rem;
+  min-height: 1.7rem;
+  place-items: center;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.14);
+  background: rgba(5,8,20,0.76);
+  font-size: 0.65rem;
+  font-weight: 950;
+  backdrop-filter: blur(8px);
+}
+
+.signatureBadge { left: 0.55rem; color: #fff1a6; }
+.quantityBadge { right: 0.55rem; color: #fff; }
+
+.emptyPocket {
+  display: grid;
+  place-items: center;
+  color: rgba(255,255,255,0.08);
+  font-size: 2rem;
+}
+
+@media (max-width: 1200px) {
+  .binder { min-height: 48rem; }
+}
+
+@media (max-width: 840px) {
+  .binder {
+    display: block;
+    min-height: auto;
+    border-width: 0.55rem;
+    overflow: visible;
+  }
+
+  .spine,
+  .coverEdgeLeft,
+  .coverEdgeRight { display: none; }
+
+  .leftPage,
+  .rightPage {
+    margin: 0;
+    border-radius: 0.9rem;
+    padding: 0.7rem;
+  }
+
+  .rightPage { margin-top: 0.55rem; }
+  .pocketGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.55rem; }
+  .coverArtwork { background-size: cover, 22rem auto; }
+}

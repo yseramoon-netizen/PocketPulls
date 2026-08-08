@@ -31,12 +31,16 @@ export default function PlayerCardModal({
   card,
   onClose,
   onSetSignature,
+  onSwapPosition,
   signatureBusy = false,
+  showShippingLink = true,
 }: {
   card: PlayerCardModalCard;
   onClose: () => void;
   onSetSignature?: () => void;
+  onSwapPosition?: () => void;
   signatureBusy?: boolean;
+  showShippingLink?: boolean;
 }) {
   useEffect(() => {
     const previousOverflow = document.body.style.overflow;
@@ -150,13 +154,24 @@ export default function PlayerCardModal({
               </PlayerSecondaryButton>
             ) : null}
 
-            <Link
-              href="/shipping"
-              onClick={onClose}
-              className="flex min-h-12 flex-1 items-center justify-center rounded-xl bg-gradient-to-r from-[#e7ad46] via-[#48d5ca] to-[#d84f78] px-5 text-sm font-black text-[#111329] transition hover:-translate-y-0.5 hover:brightness-110"
-            >
-              Shipping centre
-            </Link>
+            {onSwapPosition ? (
+              <PlayerSecondaryButton
+                onClick={onSwapPosition}
+                className="flex-1"
+              >
+                ⇄ Swap position
+              </PlayerSecondaryButton>
+            ) : null}
+
+            {showShippingLink ? (
+              <Link
+                href="/shipping"
+                onClick={onClose}
+                className="flex min-h-12 flex-1 items-center justify-center rounded-xl bg-gradient-to-r from-[#e7ad46] via-[#48d5ca] to-[#d84f78] px-5 text-sm font-black text-[#111329] transition hover:-translate-y-0.5 hover:brightness-110"
+              >
+                Shipping centre
+              </Link>
+            ) : null}
           </div>
         </div>
       </article>

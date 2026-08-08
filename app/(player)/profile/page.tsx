@@ -19,6 +19,7 @@ import {
   PlayerStatCard,
   RarityPill,
 } from "@/components/player/PlayerUI";
+import { formatTrainerCode } from "@/lib/player/binder";
 import { supabase } from "@/lib/supabase";
 import {
   formatDate,
@@ -356,6 +357,10 @@ export default function ProfilePage() {
       .charAt(0)
       .toUpperCase();
 
+  const trainerCode = profile.userId
+    ? formatTrainerCode(profile.userId)
+    : "";
+
   return (
     <section className="mx-auto w-full max-w-[1450px] px-4 py-8 sm:px-6 lg:px-8">
       <PlayerPageHeader
@@ -453,6 +458,17 @@ export default function ProfilePage() {
                   <p className="mt-1 text-sm font-bold text-violet-100/38">
                     @{form.username || "trainer"}
                   </p>
+
+                  {trainerCode ? (
+                    <button
+                      type="button"
+                      onClick={() => void navigator.clipboard?.writeText(trainerCode)}
+                      className="mt-3 inline-flex min-h-9 items-center rounded-xl border border-cyan-100/12 bg-cyan-200/[0.05] px-3 text-[0.65rem] font-black uppercase tracking-[0.1em] text-cyan-50/65 transition hover:bg-cyan-200/[0.1] hover:text-cyan-50"
+                      title="Copy Trainer ID"
+                    >
+                      Trainer ID · {trainerCode}
+                    </button>
+                  ) : null}
 
                   <p className="mt-3 text-xs font-semibold text-white/28">
                     Joined {formatDate(profile.joinedAt)}
