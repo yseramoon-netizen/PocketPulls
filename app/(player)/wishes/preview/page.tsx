@@ -80,6 +80,14 @@ const DEMO_CARDS: WishRevealCard[] = [
     cardNumber: "009",
     marketValue: 500,
   },
+  {
+    id: "black-hole-preview",
+    name: "Event Horizon Relic",
+    rarity: "Crown Rare",
+    setName: "Ancient Pulls Preview",
+    cardNumber: "010",
+    marketValue: 501,
+  },
 ];
 
 export default function WishPreviewPage() {
@@ -116,11 +124,11 @@ export default function WishPreviewPage() {
         </h1>
 
         <p className="mt-4 max-w-3xl text-sm font-semibold leading-7 text-white/45 sm:text-base">
-          Nebu performs first, then the falling star carries the
-          card into its reveal. Common ceremonies take about five
-          seconds, while Crown Rare builds to roughly eleven. Test
-          every rarity here before a real wish. The current pacing is
-          deliberately relaxed so every Nebu pose has time to read.
+          Nebu walks out of the pyramid as the star rises behind the
+          mountains. Each rarity makes the sky hotter and earns a new
+          cooling reaction. Cards valued above £500 replace the sun
+          with the black-hole finale. Test every stage here before a
+          real wish.
         </p>
 
         <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -149,11 +157,15 @@ export default function WishPreviewPage() {
                     color: theme.primary,
                   }}
                 >
-                  Tier {theme.tier}
+                  {Number(card.marketValue) > 500
+                    ? "£500+ override"
+                    : `Tier ${theme.tier}`}
                 </p>
 
                 <h2 className="mt-2 text-lg font-black text-white">
-                  {theme.label}
+                  {Number(card.marketValue) > 500
+                    ? "Black Hole"
+                    : theme.label}
                 </h2>
 
                 <p className="mt-2 text-sm font-semibold text-white/35">

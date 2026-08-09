@@ -1,0 +1,43 @@
+.viewport {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  aspect-ratio: 1;
+  contain: layout paint style;
+  opacity: 0;
+  transform: translateZ(0);
+  transition: opacity 180ms ease;
+}
+
+.viewport[data-started="true"] {
+  opacity: 1;
+}
+
+.sheet {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: block;
+  width: 400%;
+  max-width: none;
+  height: 400%;
+  object-fit: fill;
+  pointer-events: none;
+  user-select: none;
+  filter: var(--nebu-image-filter);
+  image-rendering: pixelated;
+  transform:
+    translate3d(
+      calc(var(--nebu-frame-column) * -25%),
+      calc(var(--nebu-frame-row) * -25%),
+      0
+    );
+  backface-visibility: hidden;
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .viewport {
+    transition: none;
+  }
+}

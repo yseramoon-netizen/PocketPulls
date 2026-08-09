@@ -1,408 +1,332 @@
 "use client";
 
-import type { CSSProperties, ReactNode } from "react";
-
-import NebuSprite, { type NebuPose } from "./NebuSprite";
 import {
-  getNebuPerformance,
-  type NebuSceneKey,
-} from "@/lib/player/nebuPerformances";
+  type CSSProperties,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+
+import NebuPerformanceSprite from "./NebuPerformanceSprite";
 import styles from "./AncientCatPullScene.module.css";
 
 type AncientCatPullSceneProps = {
-  scene: NebuSceneKey;
-  performanceId: string;
-  epilogue?: boolean;
+  tier: number;
+  escalationStartMs: number;
+  stepDurationMs: number;
+  cardRevealAtMs: number;
+  blackHole?: boolean;
   lowEffects?: boolean;
 };
 
-const CONSTELLATION_STARS = [
-  [9, 28],
-  [19, 17],
-  [29, 34],
-  [40, 15],
-  [51, 29],
-  [62, 12],
-  [72, 31],
-  [82, 18],
-  [91, 36],
-  [15, 51],
-  [34, 54],
-  [58, 49],
-  [77, 55],
-  [94, 61],
+type Grade = {
+  name: string;
+  skyTop: string;
+  skyBottom: string;
+  accent: string;
+  glow: string;
+};
+
+const WALK_SHEET = "/ancient-pulls/scene/nebu-pyramid-exit-v1.png";
+const REACTION_SHEET = "/ancient-pulls/scene/nebu-heat-reactions-v1.png";
+
+const GRADES: readonly Grade[] = [
+  {
+    name: "Gentle dawn",
+    skyTop: "#172746",
+    skyBottom: "#ba7048",
+    accent: "#fde68a",
+    glow: "rgba(253, 230, 138, 0.72)",
+  },
+  {
+    name: "Verdant light",
+    skyTop: "#183d54",
+    skyBottom: "#b87f55",
+    accent: "#86efac",
+    glow: "rgba(134, 239, 172, 0.74)",
+  },
+  {
+    name: "Azure heat",
+    skyTop: "#21376c",
+    skyBottom: "#be6c5a",
+    accent: "#7dd3fc",
+    glow: "rgba(125, 211, 252, 0.78)",
+  },
+  {
+    name: "Violet flare",
+    skyTop: "#47295f",
+    skyBottom: "#c26255",
+    accent: "#c4b5fd",
+    glow: "rgba(196, 181, 253, 0.82)",
+  },
+  {
+    name: "Golden blaze",
+    skyTop: "#6b301f",
+    skyBottom: "#dd7144",
+    accent: "#fbbf24",
+    glow: "rgba(251, 191, 36, 0.84)",
+  },
+  {
+    name: "Rosefire",
+    skyTop: "#65264f",
+    skyBottom: "#ed725b",
+    accent: "#f9a8d4",
+    glow: "rgba(249, 168, 212, 0.86)",
+  },
+  {
+    name: "Prismatic heat",
+    skyTop: "#44215e",
+    skyBottom: "#d95f74",
+    accent: "#67e8f9",
+    glow: "rgba(103, 232, 249, 0.9)",
+  },
+  {
+    name: "Molten sky",
+    skyTop: "#641c1c",
+    skyBottom: "#f05c2f",
+    accent: "#fb923c",
+    glow: "rgba(251, 146, 60, 0.94)",
+  },
+  {
+    name: "Crownfire",
+    skyTop: "#8c2818",
+    skyBottom: "#ff9a42",
+    accent: "#fff7c2",
+    glow: "rgba(255, 247, 194, 0.98)",
+  },
 ] as const;
 
-const ACCENT_PARTICLES = Array.from({ length: 18 }, (_, index) => index);
+const REACTION_FRAMES = [
+  [0, 1],
+  [2, 3],
+  [4, 5],
+  [6, 7],
+  [8, 9],
+  [10, 10],
+  [11, 11],
+  [12, 12],
+  [13, 13],
+] as const;
 
-function Actor({
-  pose,
-  className,
-}: {
-  pose: NebuPose;
-  className: string;
-}) {
-  return <NebuSprite pose={pose} className={`${styles.actor} ${className}`} />;
+const TIER_LABELS = [
+  "Common",
+  "Uncommon",
+  "Rare",
+  "Double Rare",
+  "Ultra Rare",
+  "Illustration Rare",
+  "Special Illustration Rare",
+  "Hyper Rare",
+  "Crown Rare",
+] as const;
+
+const EMBERS = Array.from({ length: 18 }, (_, index) => index);
+
+function clampTier(tier: number): number {
+  return Math.max(1, Math.min(GRADES.length, Math.round(tier)));
 }
 
-function CommonScene({ performanceId }: { performanceId: string }) {
-  const actionPose: NebuPose =
-    performanceId === "sand_sneeze" ? "puffed" : "wiggle";
+export default function AncientCatPullScene({
+  tier,
+  escalationStartMs,
+  stepDurationMs,
+  cardRevealAtMs,
+  blackHole = false,
+  lowEffects = false,
+}: AncientCatPullSceneProps) {
+  const finalTier = clampTier(tier);
+  const [activeTier, setActiveTier] = useState(1);
+  const [reactionBeat, setReactionBeat] = useState(0);
+  const [reactionsStarted, setReactionsStarted] = useState(false);
 
-  return (
-    <>
-      <div className={styles.commonProp}>
-        <span className={styles.commonPropRim} />
-        <span className={styles.commonPropSand} />
-        <span className={styles.commonCard}>✦</span>
-      </div>
-      <div className={styles.dustPuff}>
-        <span />
-        <span />
-        <span />
-        <span />
-      </div>
-      <Actor pose="walk" className={styles.actorStart} />
-      <Actor pose={actionPose} className={styles.actorAction} />
-      <Actor pose="smug" className={styles.actorReaction} />
-    </>
+  useEffect(() => {
+    const timers: number[] = [];
+
+    timers.push(
+      window.setTimeout(() => {
+        setReactionsStarted(true);
+        setActiveTier(blackHole ? finalTier : 1);
+      }, escalationStartMs),
+    );
+
+    if (!blackHole) {
+      for (let nextTier = 1; nextTier <= finalTier; nextTier += 1) {
+        const stepStartsAt =
+          escalationStartMs + (nextTier - 1) * stepDurationMs;
+
+        timers.push(
+          window.setTimeout(() => {
+            setActiveTier(nextTier);
+            setReactionBeat(0);
+          }, stepStartsAt),
+        );
+
+        timers.push(
+          window.setTimeout(() => {
+            setReactionBeat(1);
+          }, stepStartsAt + Math.round(stepDurationMs * 0.48)),
+        );
+      }
+    }
+
+    return () => {
+      for (const timer of timers) {
+        window.clearTimeout(timer);
+      }
+    };
+  }, [blackHole, escalationStartMs, finalTier, stepDurationMs]);
+
+  const grade = GRADES[activeTier - 1];
+  const reactionFrame = blackHole
+    ? 14
+    : REACTION_FRAMES[activeTier - 1][reactionBeat];
+  const walkDurationMs = Math.max(1900, escalationStartMs - 260);
+  const heatLevel = (activeTier - 1) / (GRADES.length - 1);
+
+  const sceneStyle = {
+    "--active-accent": grade.accent,
+    "--active-glow": grade.glow,
+    "--escalation-start": `${escalationStartMs}ms`,
+    "--step-duration": `${stepDurationMs}ms`,
+    "--scene-clear-at": `${cardRevealAtMs}ms`,
+    "--walk-duration": `${walkDurationMs}ms`,
+    "--heat-level": String(heatLevel),
+    "--final-tier": String(finalTier),
+    "--sky-star-opacity": String(0.55 - heatLevel * 0.38),
+    "--sun-halo-opacity": String(0.42 + heatLevel * 0.42),
+    "--sun-ray-opacity": String(0.18 + heatLevel * 0.42),
+    "--mount-brightness": String(0.88 + heatLevel * 0.22),
+    "--mount-saturation": String(0.82 + heatLevel * 0.48),
+    "--sand-gold": `${Math.round(88 - heatLevel * 30)}%`,
+    "--pyramid-brightness": String(0.86 + heatLevel * 0.24),
+    "--pyramid-saturation": String(0.92 + heatLevel * 0.22),
+    "--scorch-opacity": String(Math.max(0, (heatLevel - 0.55) * 1.9)),
+    "--scorch-scale": String(0.45 + heatLevel * 0.55),
+    "--haze-opacity": String(heatLevel * 0.58),
+    "--ember-opacity": String(Math.max(0, (heatLevel - 0.62) * 2.6)),
+  } as CSSProperties;
+
+  const activeGradeStyle = useMemo(
+    () =>
+      ({
+        "--grade-top": grade.skyTop,
+        "--grade-bottom": grade.skyBottom,
+      }) as CSSProperties,
+    [grade],
   );
-}
 
-function UncommonScene({ performanceId }: { performanceId: string }) {
   return (
-    <>
-      <div className={styles.balloonProp}>
-        <span className={styles.balloonOrb}>
-          {performanceId === "papyrus_mouse" ? "◈" : "✦"}
-        </span>
-        <span className={styles.balloonString} />
-      </div>
-      <div className={styles.popBurst}>✦</div>
-      <Actor pose="wiggle" className={styles.actorStart} />
-      <Actor pose="swipe" className={styles.actorAction} />
-      <Actor
-        pose={performanceId === "papyrus_mouse" ? "pounce" : "puffed"}
-        className={styles.actorReaction}
+    <div
+      className={styles.scene}
+      data-tier={activeTier}
+      data-black-hole={blackHole ? "true" : "false"}
+      data-low-effects={lowEffects ? "true" : "false"}
+      style={sceneStyle}
+      aria-hidden="true"
+    >
+      <div className={styles.nightSky} />
+      <div
+        key={`grade-${activeTier}`}
+        className={styles.gradeLayer}
+        style={activeGradeStyle}
       />
-    </>
-  );
-}
+      <div className={styles.skyStars} />
 
-function RareScene({ performanceId }: { performanceId: string }) {
-  return (
-    <>
-      <div className={styles.chaseOrb}>
-        {performanceId === "moon_moth" ? (
-          <>
-            <span className={styles.mothWingLeft} />
-            <span className={styles.mothCore}>✦</span>
-            <span className={styles.mothWingRight} />
-          </>
-        ) : (
-          <span className={styles.yarnOrb}>✦</span>
-        )}
-      </div>
-      <div className={styles.goldenThread} />
-      <Actor pose="run" className={styles.actorStart} />
-      <Actor pose="pounce" className={styles.actorAction} />
-      <Actor pose="yarn" className={styles.actorReaction} />
-    </>
-  );
-}
+      <div className={styles.world}>
+        <div className={styles.sun}>
+          <span className={styles.sunCore} />
+          <span className={styles.sunHalo} />
+          <span className={styles.sunRayOne} />
+          <span className={styles.sunRayTwo} />
+        </div>
 
-function DoubleRareScene({ performanceId }: { performanceId: string }) {
-  return (
-    <>
-      {performanceId === "temple_domino" ? (
-        <div className={styles.dominoes}>
-          {Array.from({ length: 7 }, (_, index) => (
+        <img
+          src="/ancient-pulls/scene/distant-mountains-village-v1.png"
+          alt=""
+          draggable={false}
+          className={styles.horizon}
+        />
+
+        <div className={styles.sandGround} />
+        <div className={styles.scorchedSand} />
+
+        <div className={styles.walkStage}>
+          <NebuPerformanceSprite
+            sheet={WALK_SHEET}
+            durationMs={walkDurationMs}
+            delayMs={180}
+            className={styles.walkSprite}
+          />
+        </div>
+
+        <div className={styles.pyramidWrap}>
+          <img
+            src="/ancient-pulls/scene/pyramid-right-v1.png"
+            alt=""
+            draggable={false}
+            className={styles.pyramid}
+          />
+        </div>
+
+        <div
+          className={styles.reactionStage}
+          data-visible={reactionsStarted ? "true" : "false"}
+          key={`${activeTier}-${reactionBeat}-${blackHole ? "void" : "sun"}`}
+        >
+          <NebuPerformanceSprite
+            sheet={REACTION_SHEET}
+            durationMs={1000}
+            staticFrame={reactionFrame}
+            className={styles.reactionSprite}
+          />
+        </div>
+
+        <div className={styles.heatHaze} />
+        <div className={styles.embers}>
+          {EMBERS.map((index) => (
             <span
               key={index}
               style={
                 {
-                  "--domino-delay": `${index * 55}ms`,
-                  "--domino-height": `${42 + index * 4}px`,
+                  "--ember-left": `${8 + ((index * 41) % 85)}%`,
+                  "--ember-delay": `${(index % 6) * 130}ms`,
+                  "--ember-drift": `${-18 + (index % 7) * 6}px`,
                 } as CSSProperties
               }
             />
           ))}
         </div>
-      ) : (
-        <div className={styles.templeBird}>
-          <span className={styles.birdWing} />
-          <span className={styles.birdBody}>◆</span>
-          <span className={styles.birdRibbon} />
-        </div>
-      )}
-      <Actor pose="groom" className={styles.actorStart} />
-      <Actor pose="leap" className={styles.actorAction} />
-      <Actor pose="smug" className={styles.actorReaction} />
-    </>
-  );
-}
+      </div>
 
-function UltraRareScene({ performanceId }: { performanceId: string }) {
-  return (
-    <>
-      {performanceId === "balance_heart" ? (
-        <div className={styles.heartScale}>
-          <span className={styles.scaleBeam} />
-          <span className={styles.scaleLeft}>✦</span>
-          <span className={styles.scaleRight}>◆</span>
-        </div>
-      ) : (
-        <div className={styles.mirrorVault}>
-          <span className={styles.mirrorOne} />
-          <span className={styles.mirrorTwo} />
-          <span className={styles.mirrorThree} />
-          <span className={styles.sunbeam} />
-        </div>
-      )}
-      <div className={styles.vaultDoor}>
-        <span>◈</span>
-      </div>
-      <Actor pose="walk" className={styles.actorStart} />
-      <Actor pose="sacred" className={styles.actorAction} />
-      <Actor pose="crown" className={styles.actorReaction} />
-    </>
-  );
-}
+      {!blackHole && reactionsStarted ? (
+        <div
+          key={`flare-${activeTier}`}
+          className={styles.rarityFlare}
+        />
+      ) : null}
 
-function IllustrationScene({ performanceId }: { performanceId: string }) {
-  return (
-    <>
-      <div
-        className={`${styles.mural} ${
-          performanceId === "papyrus_theatre" ? styles.papyrusTheatre : ""
-        }`}
-      >
-        <div className={styles.muralSun} />
-        <div className={styles.muralRiver} />
-        <NebuSprite pose="sacred" className={styles.muralNebu} />
-        <span className={styles.muralCurtainLeft} />
-        <span className={styles.muralCurtainRight} />
-      </div>
-      <div className={styles.inkTrail}>
-        {Array.from({ length: 8 }, (_, index) => (
-          <span key={index}>◆</span>
-        ))}
-      </div>
-      <Actor pose="idle" className={styles.actorStart} />
-      <Actor pose="leap" className={styles.actorAction} />
-      <Actor pose="sacred" className={styles.actorReaction} />
-    </>
-  );
-}
+      {blackHole ? (
+        <>
+          <div className={styles.blackHole}>
+            <span className={styles.blackHoleCore} />
+            <span className={styles.blackHoleRing} />
+            <span className={styles.blackHoleRingOuter} />
+          </div>
+          <div className={styles.goldenGlimmer}>
+            <span />
+          </div>
+        </>
+      ) : null}
 
-function SpecialIllustrationScene({
-  performanceId,
-}: {
-  performanceId: string;
-}) {
-  return (
-    <>
-      <div
-        className={`${styles.skyMirror} ${
-          performanceId === "sky_mirror" ? styles.skyMirrorActive : ""
-        }`}
-      >
-        <span />
-      </div>
-      <div className={styles.eyeReflection}>
-        <span>✦</span>
-      </div>
-      <Actor pose="back" className={styles.actorStart} />
-      <Actor pose="sacred" className={styles.actorAction} />
-      <Actor pose="leap" className={styles.actorReaction} />
-    </>
-  );
-}
-
-function HyperRareScene({ performanceId }: { performanceId: string }) {
-  return (
-    <>
-      <div
-        className={`${styles.solarBoat} ${
-          performanceId === "eclipse_thief" ? styles.eclipseBoat : ""
-        }`}
-      >
-        <span className={styles.boatHull} />
-        <span className={styles.boatMast} />
-        <span className={styles.solarDisc}>✦</span>
-      </div>
-      <div className={styles.starBridge}>
-        {Array.from({ length: 9 }, (_, index) => (
-          <span key={index} />
-        ))}
-      </div>
-      <Actor pose="run" className={styles.actorStart} />
-      <Actor pose="leap" className={styles.actorAction} />
-      <Actor pose="crown" className={styles.actorReaction} />
-    </>
-  );
-}
-
-function CrownRareScene({ performanceId }: { performanceId: string }) {
-  return (
-    <>
-      {performanceId === "hall_eight" ? (
-        <div className={styles.eightDoors}>
-          {Array.from({ length: 8 }, (_, index) => (
-            <span
-              key={index}
-              style={
-                {
-                  "--door-delay": `${index * 70}ms`,
-                  "--door-height": `${42 + index * 3}%`,
-                } as CSSProperties
-              }
-            >
-              ◈
-            </span>
-          ))}
+      {!blackHole && reactionsStarted ? (
+        <div
+          key={`caption-${activeTier}`}
+          className={styles.heatCaption}
+        >
+          <span>{grade.name}</span>
+          <strong>{TIER_LABELS[activeTier - 1]}</strong>
         </div>
       ) : null}
-      <div className={styles.catConstellation}>
-        <span className={styles.constellationHead} />
-        <span className={styles.constellationEarLeft} />
-        <span className={styles.constellationEarRight} />
-        <span className={styles.constellationBody} />
-        <span className={styles.constellationTail} />
-      </div>
-      <div className={styles.screenCrack}>✦</div>
-      <Actor pose="sacred" className={styles.actorStart} />
-      <Actor pose="leap" className={styles.actorAction} />
-      <Actor pose="crown" className={styles.actorReaction} />
-    </>
-  );
-}
-
-function SceneContent({
-  scene,
-  performanceId,
-}: {
-  scene: NebuSceneKey;
-  performanceId: string;
-}): ReactNode {
-  switch (scene) {
-    case "common":
-      return <CommonScene performanceId={performanceId} />;
-    case "uncommon":
-      return <UncommonScene performanceId={performanceId} />;
-    case "rare":
-      return <RareScene performanceId={performanceId} />;
-    case "doubleRare":
-      return <DoubleRareScene performanceId={performanceId} />;
-    case "ultraRare":
-      return <UltraRareScene performanceId={performanceId} />;
-    case "illustrationRare":
-      return <IllustrationScene performanceId={performanceId} />;
-    case "specialIllustrationRare":
-      return <SpecialIllustrationScene performanceId={performanceId} />;
-    case "hyperRare":
-      return <HyperRareScene performanceId={performanceId} />;
-    case "crownRare":
-      return <CrownRareScene performanceId={performanceId} />;
-  }
-}
-
-function Epilogue({ scene }: { scene: NebuSceneKey }) {
-  const isCatnip = scene === "specialIllustrationRare";
-  const isSolar = scene === "hyperRare";
-
-  return (
-    <div className={styles.epilogue}>
-      <div className={styles.epilogueGlow} />
-      <NebuSprite
-        pose={isCatnip ? "catnip" : isSolar ? "yarn" : "crown"}
-        className={styles.epilogueNebu}
-      />
-      <div className={styles.epilogueObject}>
-        {isCatnip ? "☘" : isSolar ? "✦" : "♛"}
-      </div>
-      <p>
-        {isCatnip
-          ? "The star was catnip."
-          : isSolar
-            ? "The replacement sun was yarn."
-            : "The crown was slightly too large."}
-      </p>
-      <span>Nebu knew exactly what he was doing.</span>
-    </div>
-  );
-}
-
-export default function AncientCatPullScene({
-  scene,
-  performanceId,
-  epilogue = false,
-  lowEffects = false,
-}: AncientCatPullSceneProps) {
-  const performance = getNebuPerformance(scene, performanceId);
-
-  return (
-    <div
-      className={styles.scene}
-      data-scene={scene}
-      data-performance={performance.id}
-      data-epilogue={epilogue ? "true" : "false"}
-      data-low-effects={lowEffects ? "true" : "false"}
-      aria-hidden="true"
-    >
-      <div className={styles.constellation}>
-        <span className={`${styles.line} ${styles.lineOne}`} />
-        <span className={`${styles.line} ${styles.lineTwo}`} />
-        <span className={`${styles.line} ${styles.lineThree}`} />
-        <span className={`${styles.line} ${styles.lineFour}`} />
-        <span className={`${styles.line} ${styles.lineFive}`} />
-
-        {CONSTELLATION_STARS.map(([left, top], index) => (
-          <span
-            key={`${left}-${top}`}
-            className={styles.constellationStar}
-            style={
-              {
-                "--star-left": `${left}%`,
-                "--star-top": `${top}%`,
-                "--star-delay": `${index * 70}ms`,
-              } as CSSProperties
-            }
-          />
-        ))}
-      </div>
-
-      <div className={styles.moonDisc} />
-      <div className={styles.templeSilhouette}>
-        <span />
-        <span />
-        <span />
-      </div>
-      <div className={styles.desertHorizon} />
-      <div className={styles.duneNear} />
-
-      <div className={styles.primaryScene}>
-        <SceneContent scene={scene} performanceId={performance.id} />
-      </div>
-
-      <div className={styles.signatureParticles}>
-        {ACCENT_PARTICLES.map((index) => (
-          <span
-            key={index}
-            style={
-              {
-                "--accent-size": `${3 + (index % 4)}px`,
-                "--accent-left": `${7 + ((index * 37) % 88)}%`,
-                "--accent-top": `${10 + ((index * 53) % 72)}%`,
-                "--accent-delay": `${(index % 7) * 130}ms`,
-              } as CSSProperties
-            }
-          />
-        ))}
-      </div>
-
-      <p className={styles.performanceLabel}>{performance.label}</p>
-      <Epilogue scene={scene} />
     </div>
   );
 }

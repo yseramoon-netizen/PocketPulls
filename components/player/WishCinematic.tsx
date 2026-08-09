@@ -16,14 +16,6 @@ import {
 } from "./wishAudio";
 import usePlayerPreferences from "./usePlayerPreferences";
 import { publishPlayerPreferences } from "@/lib/player/preferences";
-import {
-  DEFAULT_NEBU_PERFORMANCES,
-  NEBU_PERFORMANCE_CHANGE_EVENT,
-  normaliseNebuPerformances,
-  readNebuPerformances,
-  type NebuPerformanceSelections,
-  type NebuSceneKey,
-} from "@/lib/player/nebuPerformances";
 import { supabase } from "@/lib/supabase";
 import AncientCatPullScene from "./AncientCatPullScene";
 import styles from "./WishCinematic.module.css";
@@ -55,11 +47,6 @@ type WishCinematicProps = {
 type RarityTheme = {
   label: string;
   tier: number;
-  scene: NebuSceneKey;
-  durationMs: number;
-  impactAtMs: number;
-  cardAtMs: number;
-  infoAtMs: number;
   primary: string;
   secondary: string;
   glow: string;
@@ -70,17 +57,20 @@ type RarityTheme = {
   rayCount: number;
 };
 
-const IMAGE_PRELOAD_TIMEOUT_MS = 1800;
+const IMAGE_PRELOAD_TIMEOUT_MS = 3500;
+const ESCALATION_START_MS = 2600;
+const RARITY_STEP_MS = 720;
+const SCENE_SPRITES = [
+  "/ancient-pulls/scene/pyramid-right-v1.png",
+  "/ancient-pulls/scene/distant-mountains-village-v1.png",
+  "/ancient-pulls/scene/nebu-pyramid-exit-v1.png",
+  "/ancient-pulls/scene/nebu-heat-reactions-v1.png",
+] as const;
 
 const THEMES: Record<string, RarityTheme> = {
   common: {
     label: "Common",
     tier: 1,
-    scene: "common",
-    durationMs: 5200,
-    impactAtMs: 2700,
-    cardAtMs: 3100,
-    infoAtMs: 3900,
     primary: "#e2e8f0",
     secondary: "#94a3b8",
     glow: "rgba(226,232,240,0.76)",
@@ -93,11 +83,6 @@ const THEMES: Record<string, RarityTheme> = {
   uncommon: {
     label: "Uncommon",
     tier: 2,
-    scene: "uncommon",
-    durationMs: 5600,
-    impactAtMs: 3000,
-    cardAtMs: 3400,
-    infoAtMs: 4250,
     primary: "#86efac",
     secondary: "#22c55e",
     glow: "rgba(134,239,172,0.8)",
@@ -110,11 +95,6 @@ const THEMES: Record<string, RarityTheme> = {
   rare: {
     label: "Rare",
     tier: 3,
-    scene: "rare",
-    durationMs: 6200,
-    impactAtMs: 3550,
-    cardAtMs: 4000,
-    infoAtMs: 4900,
     primary: "#7dd3fc",
     secondary: "#2563eb",
     glow: "rgba(125,211,252,0.84)",
@@ -127,11 +107,6 @@ const THEMES: Record<string, RarityTheme> = {
   doubleRare: {
     label: "Double Rare",
     tier: 4,
-    scene: "doubleRare",
-    durationMs: 6900,
-    impactAtMs: 4250,
-    cardAtMs: 4700,
-    infoAtMs: 5600,
     primary: "#c4b5fd",
     secondary: "#7c3aed",
     glow: "rgba(196,181,253,0.88)",
@@ -144,11 +119,6 @@ const THEMES: Record<string, RarityTheme> = {
   ultraRare: {
     label: "Ultra Rare",
     tier: 5,
-    scene: "ultraRare",
-    durationMs: 7900,
-    impactAtMs: 5250,
-    cardAtMs: 5750,
-    infoAtMs: 6700,
     primary: "#fde68a",
     secondary: "#f59e0b",
     glow: "rgba(253,230,138,0.92)",
@@ -160,12 +130,7 @@ const THEMES: Record<string, RarityTheme> = {
   },
   illustrationRare: {
     label: "Illustration Rare",
-    tier: 5,
-    scene: "illustrationRare",
-    durationMs: 8200,
-    impactAtMs: 5450,
-    cardAtMs: 5960,
-    infoAtMs: 6950,
+    tier: 6,
     primary: "#f9a8d4",
     secondary: "#a855f7",
     glow: "rgba(249,168,212,0.92)",
@@ -177,12 +142,7 @@ const THEMES: Record<string, RarityTheme> = {
   },
   specialIllustrationRare: {
     label: "Special Illustration Rare",
-    tier: 6,
-    scene: "specialIllustrationRare",
-    durationMs: 9200,
-    impactAtMs: 6500,
-    cardAtMs: 7050,
-    infoAtMs: 8150,
+    tier: 7,
     primary: "#67e8f9",
     secondary: "#f9a8d4",
     glow: "rgba(103,232,249,0.96)",
@@ -194,12 +154,7 @@ const THEMES: Record<string, RarityTheme> = {
   },
   hyperRare: {
     label: "Hyper Rare",
-    tier: 7,
-    scene: "hyperRare",
-    durationMs: 10200,
-    impactAtMs: 7500,
-    cardAtMs: 8075,
-    infoAtMs: 9300,
+    tier: 8,
     primary: "#fef08a",
     secondary: "#f59e0b",
     glow: "rgba(250,204,21,0.98)",
@@ -211,12 +166,7 @@ const THEMES: Record<string, RarityTheme> = {
   },
   crownRare: {
     label: "Crown Rare",
-    tier: 8,
-    scene: "crownRare",
-    durationMs: 11400,
-    impactAtMs: 8625,
-    cardAtMs: 9250,
-    infoAtMs: 10400,
+    tier: 9,
     primary: "#ffffff",
     secondary: "#fef08a",
     glow: "rgba(255,255,255,1)",
@@ -338,7 +288,6 @@ export default function WishCinematic({
 }: WishCinematicProps) {
   const preloadTimerRef = useRef<number | null>(null);
   const completionTimerRef = useRef<number | null>(null);
-  const epilogueTimerRef = useRef<number | null>(null);
   const finishedRef = useRef(false);
   const onFinishedRef = useRef(onFinished);
   const audioSessionRef = useRef<WishAudioSession | null>(null);
@@ -348,13 +297,8 @@ export default function WishCinematic({
   const [ready, setReady] = useState(false);
   const [complete, setComplete] = useState(false);
   const [skipped, setSkipped] = useState(false);
-  const [epilogue, setEpilogue] = useState(false);
   const [runNumber, setRunNumber] = useState(0);
   const [muted, setMuted] = useState(false);
-  const [performances, setPerformances] =
-    useState<NebuPerformanceSelections>({
-      ...DEFAULT_NEBU_PERFORMANCES,
-    });
 
   const revealFromPreferences =
     respectPreferences &&
@@ -369,7 +313,31 @@ export default function WishCinematic({
     () => getWishRarityTheme(card?.rarity),
     [card?.rarity],
   );
-  const performanceId = performances[theme.scene];
+  const isBlackHole = Number(card?.marketValue) > 500;
+  const sequenceTiming = useMemo(() => {
+    if (isBlackHole) {
+      return {
+        impactAtMs: 5400,
+        cardAtMs: 7080,
+        infoAtMs: 7800,
+        durationMs: 8600,
+      };
+    }
+
+    const impactAtMs =
+      ESCALATION_START_MS +
+      (theme.tier - 1) * RARITY_STEP_MS +
+      Math.round(RARITY_STEP_MS * 0.78);
+    const cardAtMs = impactAtMs + 700;
+    const infoAtMs = cardAtMs + 720;
+
+    return {
+      impactAtMs,
+      cardAtMs,
+      infoAtMs,
+      durationMs: infoAtMs + 720,
+    };
+  }, [isBlackHole, theme.tier]);
 
   const cardKey = useMemo(() => {
     if (!card) {
@@ -381,6 +349,7 @@ export default function WishCinematic({
       card.name,
       card.rarity ?? "",
       card.imageUrl ?? "",
+      card.marketValue ?? "",
     ].join("|");
   }, [card]);
 
@@ -402,33 +371,6 @@ export default function WishCinematic({
     }
   }, []);
 
-  useEffect(() => {
-    const frame = window.requestAnimationFrame(() => {
-      setPerformances(readNebuPerformances());
-    });
-
-    const handlePerformanceChange = (event: Event) => {
-      const detail = (
-        event as CustomEvent<NebuPerformanceSelections>
-      ).detail;
-
-      setPerformances(normaliseNebuPerformances(detail));
-    };
-
-    window.addEventListener(
-      NEBU_PERFORMANCE_CHANGE_EVENT,
-      handlePerformanceChange,
-    );
-
-    return () => {
-      window.cancelAnimationFrame(frame);
-      window.removeEventListener(
-        NEBU_PERFORMANCE_CHANGE_EVENT,
-        handlePerformanceChange,
-      );
-    };
-  }, []);
-
   const stopAudio = useCallback(() => {
     audioSessionRef.current?.stop();
     audioSessionRef.current = null;
@@ -445,10 +387,6 @@ export default function WishCinematic({
       completionTimerRef.current = null;
     }
 
-    if (epilogueTimerRef.current !== null) {
-      window.clearTimeout(epilogueTimerRef.current);
-      epilogueTimerRef.current = null;
-    }
   }, []);
 
   const reportFinished = useCallback(() => {
@@ -470,18 +408,9 @@ export default function WishCinematic({
   }, [clearTimers, reportFinished, stopAudio]);
 
   const handleContinue = useCallback(() => {
-    if (theme.tier < 6 || skipped || epilogue) {
-      onClose();
-      return;
-    }
-
     stopAudio();
-    setEpilogue(true);
-    epilogueTimerRef.current = window.setTimeout(
-      onClose,
-      2900,
-    );
-  }, [epilogue, onClose, skipped, stopAudio, theme.tier]);
+    onClose();
+  }, [onClose, stopAudio]);
 
   useEffect(() => {
     if (!open || !card) {
@@ -493,7 +422,6 @@ export default function WishCinematic({
       setReady(false);
       setComplete(false);
       setSkipped(false);
-      setEpilogue(false);
       markedSeenRef.current = false;
       return;
     }
@@ -507,7 +435,6 @@ export default function WishCinematic({
     setReady(false);
     setComplete(false);
     setSkipped(false);
-    setEpilogue(false);
 
     if (revealFromPreferences) {
       setReady(true);
@@ -533,23 +460,34 @@ export default function WishCinematic({
       completionTimerRef.current = window.setTimeout(() => {
         setComplete(true);
         reportFinished();
-      }, theme.durationMs);
+      }, sequenceTiming.durationMs);
     };
 
-    if (!card.imageUrl) {
-      startSequence();
-    } else {
+    const preloadSources = [...SCENE_SPRITES, card.imageUrl].filter(
+      (source): source is string => Boolean(source),
+    );
+    let remainingImages = preloadSources.length;
+
+    const imageSettled = () => {
+      remainingImages -= 1;
+
+      if (remainingImages <= 0) {
+        startSequence();
+      }
+    };
+
+    for (const source of preloadSources) {
       const image = new Image();
 
-      image.onload = startSequence;
-      image.onerror = startSequence;
-      image.src = card.imageUrl;
-
-      preloadTimerRef.current = window.setTimeout(
-        startSequence,
-        IMAGE_PRELOAD_TIMEOUT_MS,
-      );
+      image.onload = imageSettled;
+      image.onerror = imageSettled;
+      image.src = source;
     }
+
+    preloadTimerRef.current = window.setTimeout(
+      startSequence,
+      IMAGE_PRELOAD_TIMEOUT_MS,
+    );
 
     return () => {
       active = false;
@@ -564,7 +502,7 @@ export default function WishCinematic({
     reportFinished,
     stopAudio,
     revealFromPreferences,
-    theme.durationMs,
+    sequenceTiming.durationMs,
   ]);
 
   useEffect(() => {
@@ -582,12 +520,12 @@ export default function WishCinematic({
 
         stopAudio();
         audioSessionRef.current = startWishAudio(
-          theme.tier,
+          isBlackHole ? 8 : theme.tier,
           muted,
           preferences.sfxVolume,
           {
-            impactAtMs: theme.impactAtMs,
-            revealAtMs: theme.cardAtMs,
+            impactAtMs: sequenceTiming.impactAtMs,
+            revealAtMs: sequenceTiming.cardAtMs,
           },
         );
       })
@@ -604,9 +542,10 @@ export default function WishCinematic({
     ready,
     runNumber,
     skipped,
+    isBlackHole,
     theme.tier,
-    theme.impactAtMs,
-    theme.cardAtMs,
+    sequenceTiming.impactAtMs,
+    sequenceTiming.cardAtMs,
     muted,
     stopAudio,
     preferences.sfxVolume,
@@ -691,12 +630,6 @@ export default function WishCinematic({
     return null;
   }
 
-  const starDurationMs = Math.min(
-    1300,
-    Math.max(800, Math.round(theme.impactAtMs * 0.2)),
-  );
-  const starStartMs = theme.impactAtMs - starDurationMs;
-
   const rootStyle = {
     "--wish-primary": theme.primary,
     "--wish-secondary": theme.secondary,
@@ -705,19 +638,14 @@ export default function WishCinematic({
     "--shake-distance": `${theme.shakeDistance}px`,
     "--flash-strength": String(theme.flashStrength),
     "--tier": String(theme.tier),
-    "--scene-duration": `${theme.impactAtMs}ms`,
-    "--star-start": `${starStartMs}ms`,
-    "--star-duration": `${starDurationMs}ms`,
-    "--impact-at": `${theme.impactAtMs}ms`,
-    "--card-at": `${theme.cardAtMs}ms`,
-    "--info-at": `${theme.infoAtMs}ms`,
+    "--impact-at": `${sequenceTiming.impactAtMs}ms`,
+    "--card-at": `${sequenceTiming.cardAtMs}ms`,
+    "--info-at": `${sequenceTiming.infoAtMs}ms`,
   } as CSSProperties;
 
   return (
     <div
-      className={`${styles.overlay} ${
-        epilogue ? styles.epilogueActive : ""
-      }`}
+      className={styles.overlay}
       style={rootStyle}
       role="dialog"
       aria-modal="true"
@@ -762,25 +690,21 @@ export default function WishCinematic({
           key={runNumber}
           className={`${styles.sequence} ${
             skipped ? styles.sequenceSkipped : ""
+          } ${
+            isBlackHole ? styles.blackHoleSequence : ""
           }`}
         >
           <div className={styles.catScene}>
             <AncientCatPullScene
-              scene={theme.scene}
-              performanceId={performanceId}
-              epilogue={epilogue}
+              tier={theme.tier}
+              escalationStartMs={ESCALATION_START_MS}
+              stepDurationMs={RARITY_STEP_MS}
+              cardRevealAtMs={sequenceTiming.cardAtMs}
+              blackHole={isBlackHole}
               lowEffects={
                 preferences.lowVisualEffects || preferences.dataSaver
               }
             />
-          </div>
-
-          <div className={styles.fallingStar}>
-            <div className={styles.whiteTrail} />
-            <div className={styles.rarityTrail} />
-            <div className={styles.starOuterGlow} />
-            <div className={styles.whiteCore} />
-            <div className={styles.rarityCore} />
           </div>
 
           <div className={styles.impact}>

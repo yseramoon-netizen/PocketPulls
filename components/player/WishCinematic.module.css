@@ -6,8 +6,6 @@
   --shake-distance: 4px;
   --flash-strength: 0.84;
   --tier: 3;
-  --star-start: 850ms;
-  --star-duration: 2000ms;
   --impact-at: 2850ms;
   --card-at: 3160ms;
   --info-at: 3900ms;
@@ -195,110 +193,6 @@
   inset: 0;
 }
 
-.fallingStar {
-  position: absolute;
-  z-index: 28;
-  top: 50%;
-  left: 50%;
-  width: 76px;
-  height: 76px;
-  opacity: 0;
-  animation: starJourney var(--star-duration) var(--star-start)
-    cubic-bezier(0.34, 0.05, 0.64, 1) both;
-  transform: translate3d(-50%, -50%, 0);
-  transform-origin: center;
-  backface-visibility: hidden;
-  will-change: transform, opacity;
-}
-
-.whiteTrail,
-.rarityTrail {
-  position: absolute;
-  left: 50%;
-  bottom: 42px;
-  width: 18px;
-  height: 225px;
-  border-radius: 999px;
-  filter: blur(7px);
-  transform: translateX(-50%);
-  transform-origin: bottom;
-}
-
-.whiteTrail {
-  background: linear-gradient(
-    to top,
-    rgba(255, 255, 255, 0.96),
-    rgba(255, 255, 255, 0.34) 36%,
-    transparent
-  );
-  opacity: 0.92;
-  animation: whiteFades var(--star-duration) var(--star-start) linear both;
-}
-
-.rarityTrail {
-  background: linear-gradient(
-    to top,
-    #ffffff,
-    var(--wish-primary) 28%,
-    var(--wish-secondary) 58%,
-    transparent
-  );
-  opacity: 0;
-  animation: rarityAppears var(--star-duration) var(--star-start) linear both;
-}
-
-.starOuterGlow {
-  position: absolute;
-  inset: -36px;
-  border-radius: 999px;
-  background: radial-gradient(
-    circle,
-    rgba(255, 255, 255, 0.34),
-    transparent 68%
-  );
-  filter: blur(18px);
-  animation:
-    gentlePulse 620ms ease-in-out infinite alternate,
-    glowChanges var(--star-duration) var(--star-start) linear both;
-}
-
-.whiteCore,
-.rarityCore {
-  position: absolute;
-  inset: 0;
-  border-radius: 999px;
-}
-
-.whiteCore {
-  background: radial-gradient(
-    circle,
-    #ffffff 0%,
-    #ffffff 52%,
-    rgba(255, 255, 255, 0.68) 76%,
-    transparent 100%
-  );
-  box-shadow:
-    0 0 25px 8px rgba(255, 255, 255, 0.62),
-    0 0 70px 22px rgba(255, 255, 255, 0.28);
-  opacity: 1;
-  animation: whiteFades var(--star-duration) var(--star-start) linear both;
-}
-
-.rarityCore {
-  background: radial-gradient(
-    circle,
-    #ffffff 0%,
-    var(--wish-primary) 42%,
-    var(--wish-secondary) 78%,
-    transparent 100%
-  );
-  box-shadow:
-    0 0 28px 9px var(--wish-primary),
-    0 0 88px 30px var(--wish-glow);
-  opacity: 0;
-  animation: rarityAppears var(--star-duration) var(--star-start) linear both;
-}
-
 .impact {
   position: absolute;
   z-index: 40;
@@ -310,7 +204,7 @@
   position: absolute;
   inset: 0;
   background: radial-gradient(
-    circle at 50% 78%,
+    circle at 50% 42%,
     #ffffff 0%,
     var(--wish-primary) 9%,
     var(--wish-glow) 24%,
@@ -324,7 +218,7 @@
 .impactRingSecond,
 .impactRingThird {
   position: absolute;
-  top: 78%;
+  top: 42%;
   left: 50%;
   width: 78px;
   height: 78px;
@@ -346,7 +240,7 @@
 
 .impactRays {
   position: absolute;
-  top: 78%;
+  top: 42%;
   left: 50%;
   width: 1px;
   height: 1px;
@@ -382,7 +276,7 @@
 
 .particles {
   position: absolute;
-  top: 78%;
+  top: 42%;
   left: 50%;
   width: 1px;
   height: 1px;
@@ -660,8 +554,11 @@
 }
 
 .sequenceSkipped .catScene,
-.sequenceSkipped .fallingStar,
 .sequenceSkipped .impact {
+  display: none;
+}
+
+.blackHoleSequence .impact {
   display: none;
 }
 
@@ -679,16 +576,6 @@
   animation: none;
   transform: translate3d(0, 0, 0);
 }
-
-.epilogueActive .cardScene,
-.epilogueActive .cardInfo,
-.epilogueActive .fallingStar,
-.epilogueActive .impact {
-  opacity: 0 !important;
-  visibility: hidden;
-  transition: opacity 220ms ease;
-}
-
 
 .ancientCardGhost,
 .holoDust,
@@ -833,109 +720,6 @@
 
   50% {
     transform: translate3d(0, 9px, 0);
-  }
-}
-
-@keyframes starJourney {
-  0% {
-    opacity: 0;
-    transform:
-      translate3d(-50%, calc(-50% - 27vh), 0)
-      scale(0.16);
-  }
-
-  8% {
-    opacity: 1;
-    transform:
-      translate3d(-50%, calc(-50% - 25vh), 0)
-      scale(0.72);
-  }
-
-  28% {
-    opacity: 1;
-    transform:
-      translate3d(
-        calc(-50% + 20vw),
-        calc(-50% - 19vh),
-        0
-      )
-      scale(0.84);
-  }
-
-  55% {
-    opacity: 1;
-    transform:
-      translate3d(
-        calc(-50% + 26vw),
-        calc(-50% - 2vh),
-        0
-      )
-      scale(0.98);
-  }
-
-  78% {
-    opacity: 1;
-    transform:
-      translate3d(
-        calc(-50% - 19vw),
-        calc(-50% + 10vh),
-        0
-      )
-      scale(1.08);
-  }
-
-  100% {
-    opacity: 1;
-    transform:
-      translate3d(
-        -50%,
-        calc(-50% + 28vh),
-        0
-      )
-      scale(1.25);
-  }
-}
-
-@keyframes whiteFades {
-  0%,
-  56% {
-    opacity: 1;
-  }
-
-  82%,
-  100% {
-    opacity: 0;
-  }
-}
-
-@keyframes rarityAppears {
-  0%,
-  54% {
-    opacity: 0;
-  }
-
-  80%,
-  100% {
-    opacity: 1;
-  }
-}
-
-@keyframes glowChanges {
-  0%,
-  54% {
-    background: radial-gradient(
-      circle,
-      rgba(255, 255, 255, 0.34),
-      transparent 68%
-    );
-  }
-
-  100% {
-    background: radial-gradient(
-      circle,
-      var(--wish-glow),
-      transparent 68%
-    );
   }
 }
 
@@ -1149,11 +933,6 @@
   .ancientFrame {
     inset: 5px;
     border-radius: 12px;
-  }
-
-  .fallingStar {
-    width: 64px;
-    height: 64px;
   }
 
   .cardScene {
