@@ -3,6 +3,9 @@ import type {
   Viewport,
 } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+
+import NebuSkinController from "@/components/player/NebuSkinController";
+
 import "./globals.css";
 
 
@@ -39,9 +42,13 @@ export default function RootLayout({
   return (
     <html
       lang="en"
+      data-nebu-skin="midnight"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <NebuSkinController />
+        {children}
+      </body>
     </html>
   );
 }

@@ -162,7 +162,7 @@ export default function WishShopPage() {
       setStore(response);
     } catch (error: unknown) {
       setErrorMessage(
-        error instanceof Error ? error.message : "Aaru could not open the wish shop.",
+        error instanceof Error ? error.message : "Nebu could not open the wish shop.",
       );
     } finally {
       setLoading(false);
@@ -178,7 +178,7 @@ export default function WishShopPage() {
 
         if (response.purchase.status === "paid") {
           setSuccessMessage(
-            `${response.purchase.wishes} wishes have landed in your balance. Aaru approves.`,
+            `${response.purchase.wishes} wishes have landed in your balance. Nebu approves.`,
           );
           triggerTwinkle();
           window.dispatchEvent(
@@ -211,7 +211,7 @@ export default function WishShopPage() {
     const sessionId = params.get("session_id");
 
     if (purchase === "success" && sessionId) {
-      setSuccessMessage("Aaru is counting your new wishes...");
+      setSuccessMessage("Nebu is counting your new wishes...");
       void checkCompletedPurchase(sessionId);
     } else if (purchase === "cancelled") {
       setErrorMessage("Checkout was cancelled. No wishes were charged.");
@@ -249,7 +249,7 @@ export default function WishShopPage() {
       window.location.assign(response.checkoutUrl);
     } catch (error: unknown) {
       setErrorMessage(
-        error instanceof Error ? error.message : "Aaru could not start checkout.",
+        error instanceof Error ? error.message : "Nebu could not start checkout.",
       );
       setBusyPackage(null);
     }
@@ -328,11 +328,11 @@ export default function WishShopPage() {
               type="button"
               className={styles.jirachiImageButton}
               onClick={triggerTwinkle}
-              aria-label="Make Aaru twinkle the stars"
+              aria-label="Make Nebu twinkle the stars"
             >
               <img
                 src="/ancient-pulls/celestial-cat.png"
-                alt="Aaru"
+                alt="Nebu"
                 draggable={false}
                 className={styles.jirachiImage}
               />
@@ -363,7 +363,7 @@ export default function WishShopPage() {
         {loading ? (
           <div className={styles.loadingCard}>
             <div className={styles.loadingStar}>✦</div>
-            <p>Aaru is preparing the wish bundles...</p>
+            <p>Nebu is preparing the wish bundles...</p>
           </div>
         ) : (
           <div className={styles.mainGrid}>

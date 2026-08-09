@@ -122,7 +122,7 @@ export default function AncientCatPullScene({
           draggable={false}
         />
         <p>The star was catnip.</p>
-        <span>Aaru knew all along.</span>
+        <span>Nebu knew all along.</span>
       </div>
     </div>
   );

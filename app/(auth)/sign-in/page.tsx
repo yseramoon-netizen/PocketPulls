@@ -168,7 +168,7 @@ function PlayerSignInContent() {
       if (signInError || !data.session) {
         const details = getAuthErrorDetails(
           signInError,
-          "Aaru could not sign you in.",
+          "Nebu could not sign you in.",
         );
 
         if (
@@ -205,7 +205,7 @@ function PlayerSignInContent() {
     } catch (failure: unknown) {
       console.error("Player sign-in error:", failure);
       setError(
-        getAuthErrorMessage(failure, "Aaru could not sign you in."),
+        getAuthErrorMessage(failure, "Nebu could not sign you in."),
       );
       setSigningIn(false);
     }
@@ -250,12 +250,12 @@ function PlayerSignInContent() {
           <div className="absolute h-[26rem] w-[26rem] rounded-full border border-yellow-100/15 animate-spin [animation-duration:18s]" />
           <div className="absolute h-[20rem] w-[31rem] rounded-[50%] border border-cyan-100/10 animate-spin [animation-duration:24s] [animation-direction:reverse]" />
           <div className="absolute h-64 w-64 rounded-full bg-yellow-200/12 blur-[70px]" />
-          <img src="/ancient-pulls/celestial-cat.png" alt="Aaru" draggable={false} className="relative z-10 w-64 object-contain animate-[bounce_4.5s_ease-in-out_infinite] drop-shadow-[0_30px_42px_rgba(0,0,0,0.5)]" />
+          <img src="/ancient-pulls/celestial-cat.png" alt="Nebu" draggable={false} className="relative z-10 w-64 object-contain animate-[bounce_4.5s_ease-in-out_infinite] drop-shadow-[0_30px_42px_rgba(0,0,0,0.5)]" />
         </div>
 
         <div className="p-6 sm:p-9 lg:p-12">
           <p className="text-xs font-black uppercase tracking-[0.22em] text-yellow-100/45">
-            Ancient Pulls · Aaru
+            Ancient Pulls · Nebu
           </p>
           <h1 className="mt-3 text-4xl font-black tracking-tight sm:text-5xl">
             Return to your wishes
@@ -339,7 +339,7 @@ function PlayerSignInContent() {
               disabled={signingIn}
               className="flex min-h-14 w-full items-center justify-center rounded-2xl bg-gradient-to-r from-yellow-200 via-cyan-100 to-violet-200 px-5 text-sm font-black text-[#111329] shadow-[0_18px_50px_rgba(103,232,249,0.12)] transition hover:brightness-105 disabled:opacity-50"
             >
-              {signingIn ? "Aaru is opening the way..." : "Sign in to Ancient Pulls"}
+              {signingIn ? "Nebu is opening the way..." : "Sign in to Ancient Pulls"}
             </button>
           </form>
 

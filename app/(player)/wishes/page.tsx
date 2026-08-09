@@ -426,7 +426,7 @@ export default function WishesPage() {
       setErrorMessage(
         getErrorMessage(
           error,
-          "Aaru could not load your trainer dashboard.",
+          "Nebu could not load your trainer dashboard.",
         ),
       );
     } finally {
@@ -459,7 +459,7 @@ export default function WishesPage() {
       const row = Array.isArray(data) ? data[0] : data;
 
       if (!row || typeof row !== "object") {
-        throw new Error("Aaru completed the wish, but the card reveal was missing.");
+        throw new Error("Nebu completed the wish, but the card reveal was missing.");
       }
 
       const result = row as Record<string, unknown>;
@@ -485,7 +485,7 @@ export default function WishesPage() {
     } catch (error: unknown) {
       console.error("Make wish error:", error);
       setErrorMessage(
-        getErrorMessage(error, "Aaru could not complete that wish."),
+        getErrorMessage(error, "Nebu could not complete that wish."),
       );
     } finally {
       setMakingWish(false);
@@ -532,7 +532,7 @@ export default function WishesPage() {
       <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <p className="text-xs font-black uppercase tracking-[0.22em] text-yellow-100/45">
-            Aaru's Wish Sanctuary
+            Nebu's Wish Sanctuary
           </p>
 
           <h1 className="mt-3 text-4xl font-black tracking-tight text-white sm:text-5xl">
@@ -734,7 +734,7 @@ function WishChamber({
           </p>
 
           <h2 className="mt-3 text-3xl font-black tracking-tight text-white">
-            {hasWishes ? "Aaru is ready." : "Your next wish is waiting."}
+            {hasWishes ? "Nebu is ready." : "Your next wish is waiting."}
           </h2>
 
           <p className="mt-4 max-w-xl text-sm font-semibold leading-7 text-white/45">
@@ -753,7 +753,7 @@ function WishChamber({
                 disabled={makingWish}
                 className="min-h-13 flex-1 rounded-xl bg-gradient-to-r from-yellow-200 via-cyan-100 to-violet-200 px-5 text-sm font-black text-[#111329] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-55"
               >
-                {makingWish ? "Aaru is choosing..." : "Make 1 Wish ✦"}
+                {makingWish ? "Nebu is choosing..." : "Make 1 Wish ✦"}
               </button>
             ) : (
               <Link
@@ -846,7 +846,7 @@ function WishRevealModal({
             </div>
 
             <p className="mt-6 text-sm font-semibold leading-7 text-white/45">
-              Aaru moved this physical card from the Ancient Pulls stock pool into your collection. You have {formatWholeNumber(reveal.wishBalance)} wish{reveal.wishBalance === 1 ? "" : "es"} left.
+              Nebu moved this physical card from the Ancient Pulls stock pool into your collection. You have {formatWholeNumber(reveal.wishBalance)} wish{reveal.wishBalance === 1 ? "" : "es"} left.
             </p>
 
             <div className="mt-6 flex flex-col gap-3 sm:flex-row">

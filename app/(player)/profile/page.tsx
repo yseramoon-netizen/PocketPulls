@@ -593,7 +593,7 @@ export default function ProfilePage() {
                       }))
                     }
                     maxLength={40}
-                    placeholder="Aaru"
+                    placeholder="Nebu"
                     className="profile-input"
                   />
                 </ProfileField>

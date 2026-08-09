@@ -53,7 +53,7 @@
     url("/ancient-pulls/celestial-cat.png") center 49% / clamp(18rem, 38vw, 34rem) auto no-repeat;
   opacity: 0.1;
   mix-blend-mode: soft-light;
-  filter: saturate(1.08) contrast(1.1);
+  filter: var(--nebu-ghost-filter, saturate(1.08) contrast(1.1));
   image-rendering: pixelated;
 }
 

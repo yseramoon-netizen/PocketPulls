@@ -3,6 +3,58 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --nebu-image-filter:
+    drop-shadow(0 8px 16px rgba(0, 0, 0, 0.34))
+    drop-shadow(0 0 9px rgba(242, 182, 56, 0.16));
+  --nebu-ghost-filter: saturate(1.08) contrast(1.1);
+}
+
+html[data-nebu-skin="nile"] {
+  --nebu-image-filter:
+    hue-rotate(300deg) saturate(1.28) brightness(1.08)
+    drop-shadow(0 8px 16px rgba(0, 0, 0, 0.34))
+    drop-shadow(0 0 11px rgba(73, 224, 211, 0.22));
+  --nebu-ghost-filter: hue-rotate(300deg) saturate(1.28) contrast(1.08);
+}
+
+html[data-nebu-skin="lotus"] {
+  --nebu-image-filter:
+    hue-rotate(88deg) saturate(1.32) brightness(1.06)
+    drop-shadow(0 8px 16px rgba(0, 0, 0, 0.34))
+    drop-shadow(0 0 11px rgba(232, 121, 249, 0.22));
+  --nebu-ghost-filter: hue-rotate(88deg) saturate(1.32) contrast(1.08);
+}
+
+html[data-nebu-skin="scarab"] {
+  --nebu-image-filter:
+    hue-rotate(232deg) saturate(1.35) brightness(1.05)
+    drop-shadow(0 8px 16px rgba(0, 0, 0, 0.34))
+    drop-shadow(0 0 11px rgba(52, 211, 153, 0.24));
+  --nebu-ghost-filter: hue-rotate(232deg) saturate(1.35) contrast(1.08);
+}
+
+html[data-nebu-skin="sunstone"] {
+  --nebu-image-filter:
+    sepia(0.62) saturate(1.65) hue-rotate(338deg) brightness(1.08)
+    drop-shadow(0 8px 16px rgba(0, 0, 0, 0.34))
+    drop-shadow(0 0 12px rgba(251, 146, 60, 0.24));
+  --nebu-ghost-filter: sepia(0.62) saturate(1.65) hue-rotate(338deg) contrast(1.08);
+}
+
+html[data-nebu-skin="royal"] {
+  --nebu-image-filter:
+    hue-rotate(48deg) saturate(1.42) brightness(1.06)
+    drop-shadow(0 8px 16px rgba(0, 0, 0, 0.34))
+    drop-shadow(0 0 12px rgba(167, 139, 250, 0.24));
+  --nebu-ghost-filter: hue-rotate(48deg) saturate(1.42) contrast(1.08);
+}
+
+html[data-nebu-skin="pearl"] {
+  --nebu-image-filter:
+    grayscale(0.82) saturate(0.7) brightness(1.2) contrast(0.96)
+    drop-shadow(0 8px 16px rgba(0, 0, 0, 0.34))
+    drop-shadow(0 0 13px rgba(207, 250, 254, 0.3));
+  --nebu-ghost-filter: grayscale(0.82) saturate(0.7) brightness(1.15) contrast(1.04);
 }
 
 html {
@@ -47,6 +99,7 @@ textarea {
 
 img[src="/ancient-pulls/celestial-cat.png"] {
   image-rendering: pixelated;
+  filter: var(--nebu-image-filter);
 }
 
 /* iOS automatically zooms pages when a focused form control is below 16px. */

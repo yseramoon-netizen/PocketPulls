@@ -16,6 +16,7 @@ import {
   PlayerSecondaryButton,
   PlayerStatCard,
 } from "@/components/player/PlayerUI";
+import NebuWardrobe from "@/components/player/NebuWardrobe";
 import { supabase } from "@/lib/supabase";
 import {
   formatDate,
@@ -425,6 +426,8 @@ export default function AchievementsPage() {
           accent="pink"
         />
       </div>
+
+      <NebuWardrobe achievements={achievements} loading={loading} />
 
       <PlayerPanel className="mt-6 p-4 sm:p-5">
         <div className="flex flex-wrap gap-2">

@@ -497,7 +497,7 @@ export default function PlayerNav({
 
     // A full navigation clears the old player layout and any pending auth
     // listeners. The timeout guarantees that a slow Supabase response cannot
-    // leave the player trapped on the Aaru loading screen.
+    // leave the player trapped on the Nebu loading screen.
     const redirectTimer =
       window.setTimeout(() => {
         window.location.replace(

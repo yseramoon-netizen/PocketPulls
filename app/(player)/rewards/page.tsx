@@ -159,7 +159,7 @@ export default function RewardsPage() {
       setErrorMessage(
         getErrorMessage(
           error,
-          "Aaru's daily gift could not be loaded.",
+          "Nebu's daily gift could not be loaded.",
         ),
       );
     } finally {
@@ -262,7 +262,7 @@ export default function RewardsPage() {
       setErrorMessage(
         getErrorMessage(
           error,
-          "Aaru could not complete today's gift.",
+          "Nebu could not complete today's gift.",
         ),
       );
     } finally {
@@ -294,7 +294,7 @@ export default function RewardsPage() {
     <section className="mx-auto w-full max-w-[1400px] px-4 py-8 sm:px-6 lg:px-8">
       <PlayerPageHeader
         eyebrow="A gift beneath the stars"
-        title="Aaru's Daily Gift"
+        title="Nebu's Daily Gift"
         description="Return once each day to keep your streak alive. The seventh night awards five wishes before the cycle begins again."
         actions={
           <PlayerSecondaryButton
@@ -357,7 +357,7 @@ export default function RewardsPage() {
 
             <img
               src="/ancient-pulls/celestial-cat.png"
-              alt="Aaru"
+              alt="Nebu"
               draggable={false}
               className="relative z-10 h-52 w-52 object-contain drop-shadow-[0_24px_30px_rgba(0,0,0,0.5)]"
             />
@@ -393,7 +393,7 @@ export default function RewardsPage() {
 
             <h2 className="mt-3 text-3xl font-black text-white sm:text-4xl">
               {loading
-                ? "Aaru is checking the sky..."
+                ? "Nebu is checking the sky..."
                 : status.claimedToday
                   ? "Today's gift is yours."
                   : `${status.rewardToday} wish${

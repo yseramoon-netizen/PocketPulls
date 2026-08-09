@@ -10,6 +10,11 @@ import PlayerNav from "@/components/player/PlayerNav";
 import PurchaseConsentGate from "@/components/player/PurchaseConsentGate";
 import UnownText from "@/components/player/UnownText";
 import UnknownPullsBackdrop from "@/components/player/UnknownPullsBackdrop";
+import {
+  applyNebuSkin,
+  DEFAULT_NEBU_SKIN,
+  readNebuSkinFromMetadata,
+} from "@/lib/player/nebu";
 import { supabase } from "@/lib/supabase";
 
 type PlayerLayoutProps = {
@@ -309,6 +314,12 @@ export default function PlayerLayout({ children }: PlayerLayoutProps) {
         return;
       }
 
+      applyNebuSkin(
+        readNebuSkinFromMetadata(session.user.user_metadata?.nebu_skin) ??
+          DEFAULT_NEBU_SKIN,
+        { announce: false },
+      );
+
       await loadPlayer(
         session,
         background,
@@ -344,7 +355,7 @@ export default function PlayerLayout({ children }: PlayerLayoutProps) {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
       // Only an explicit Supabase SIGNED_OUT event is allowed to eject the
-      // player from the Aaru shell. Earlier code also redirected whenever
+      // player from the Nebu shell. Earlier code also redirected whenever
       // any auth event temporarily carried a null session, which could turn a
       // token refresh/network hiccup on mobile into an apparent logout.
       if (event === "SIGNED_OUT") {
@@ -365,6 +376,12 @@ export default function PlayerLayout({ children }: PlayerLayoutProps) {
           event === "TOKEN_REFRESHED" ||
           event === "USER_UPDATED")
       ) {
+        applyNebuSkin(
+          readNebuSkinFromMetadata(session.user.user_metadata?.nebu_skin) ??
+            DEFAULT_NEBU_SKIN,
+          { announce: false },
+        );
+
         window.setTimeout(() => {
           if (mountedRef.current) {
             void loadPlayer(session, true);

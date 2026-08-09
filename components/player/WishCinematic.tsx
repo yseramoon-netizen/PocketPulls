@@ -636,12 +636,12 @@ export default function WishCinematic({
 
           <img
             src="/ancient-pulls/celestial-cat.png"
-            alt="Aaru, the Ancient Pulls celestial cat"
+            alt="Nebu, the Ancient Pulls celestial cat"
             draggable={false}
             className={styles.preparingAaru}
           />
 
-          <p>Aaru is reading the constellation...</p>
+          <p>Nebu is reading the constellation...</p>
         </div>
       ) : (
         <div

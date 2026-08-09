@@ -211,7 +211,7 @@ function AdminSignInContent() {
               Unlock the Forest Vault
             </h1>
             <p className="mx-auto mt-4 max-w-md text-sm font-semibold leading-7 text-emerald-50/55">
-              Admin and Aaru player sessions are isolated, so signing into one no longer replaces the other.
+              Admin and Nebu player sessions are isolated, so signing into one no longer replaces the other.
             </p>
           </div>
 
@@ -268,7 +268,7 @@ function AdminSignInContent() {
 
           <div className="mt-6 text-center">
             <Link href="/sign-in" className="text-xs font-black text-emerald-100/45 hover:text-white">
-              Go to Aaru player sign-in instead
+              Go to Nebu player sign-in instead
             </Link>
           </div>
         </div>

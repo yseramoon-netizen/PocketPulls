@@ -974,7 +974,7 @@ function getMilestoneMessage(count: number): string {
   }
 
   if (count >= 500) {
-    return "Even Aaru can no longer count every light.";
+    return "Even Nebu can no longer count every light.";
   }
 
   if (count >= 250) {
@@ -1462,7 +1462,7 @@ export default function ConstellationPage() {
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
             <p className="text-[0.62rem] font-black uppercase tracking-[0.2em] text-cyan-100/38">
-              Aaru&apos;s memory
+              Nebu&apos;s memory
             </p>
             <div className="mt-2 overflow-hidden">
               <UnownText
@@ -1681,7 +1681,7 @@ export default function ConstellationPage() {
                   The sky is waiting for you.
                 </h2>
                 <p className="mt-3 max-w-md text-sm font-semibold leading-7 text-white/40">
-                  Return to the Wish Chamber and let Aaru place your first permanent star here.
+                  Return to the Wish Chamber and let Nebu place your first permanent star here.
                 </p>
               </div>
             ) : null}

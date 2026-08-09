@@ -11,7 +11,7 @@ export default function PageHeader({
     <div className="text-center mb-10">
       <img
         src="/ancient-pulls/celestial-cat.png"
-        alt="Aaru"
+        alt="Nebu"
         className="w-28 h-28 mx-auto mb-4"
       />
 
