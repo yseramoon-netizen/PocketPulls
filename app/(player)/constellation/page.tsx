@@ -1020,6 +1020,7 @@ export default function ConstellationPage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [infoPanelOpen, setInfoPanelOpen] = useState(true);
   const [mobileSky, setMobileSky] = useState(false);
   const [rotation, setRotation] = useState({ x: -7, y: 0 });
   const [zoom, setZoom] = useState(1);
@@ -1460,6 +1461,7 @@ export default function ConstellationPage() {
       <div className="pointer-events-none absolute -right-[18vw] bottom-[8%] h-[26rem] w-[62vw] rotate-[9deg] rounded-[50%] bg-[linear-gradient(90deg,transparent,rgba(244,114,182,0.035),rgba(103,232,249,0.045),transparent)] blur-[40px] constellationAurora constellationAuroraLate" />
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_42%,rgba(0,0,0,0.24)_78%,rgba(0,0,0,0.58)_100%)]" />
 
+      {infoPanelOpen ? (
       <div className="absolute left-3 top-3 z-40 max-w-[min(92vw,34rem)] rounded-[1.6rem] border border-violet-200/12 bg-[#080a25]/72 p-4 shadow-[0_20px_70px_rgba(0,0,0,0.3)] backdrop-blur-2xl sm:left-5 sm:top-5 sm:p-5">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
@@ -1498,14 +1500,26 @@ export default function ConstellationPage() {
             )}
           </div>
 
-          <button
-            type="button"
-            onClick={() => void loadConstellation(true)}
-            disabled={refreshing}
-            className="min-h-10 flex-none rounded-xl border border-white/10 bg-white/[0.05] px-3 text-[0.7rem] font-black uppercase tracking-[0.12em] text-white/55 transition hover:bg-white/10 hover:text-white disabled:cursor-wait disabled:opacity-50"
-          >
-            {refreshing ? "Reading..." : "Refresh"}
-          </button>
+          <div className="flex flex-none items-center gap-2">
+            <button
+              type="button"
+              onClick={() => void loadConstellation(true)}
+              disabled={refreshing}
+              className="min-h-10 rounded-xl border border-white/10 bg-white/[0.05] px-3 text-[0.7rem] font-black uppercase tracking-[0.12em] text-white/55 transition hover:bg-white/10 hover:text-white disabled:cursor-wait disabled:opacity-50"
+            >
+              {refreshing ? "Reading..." : "Refresh"}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setInfoPanelOpen(false)}
+              aria-label="Hide constellation information"
+              title="Hide information"
+              className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/12 bg-white/[0.06] text-lg font-black text-white/70 transition hover:border-cyan-100/25 hover:bg-cyan-100/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-100"
+            >
+              ×
+            </button>
+          </div>
         </div>
 
         <div className="mt-4 grid grid-cols-3 gap-2">
@@ -1514,6 +1528,17 @@ export default function ConstellationPage() {
           <SkyStat label="Brightest" value={rarestStar?.name || "Waiting"} />
         </div>
       </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setInfoPanelOpen(true)}
+          aria-label="Show constellation information"
+          className="absolute left-3 top-3 z-40 flex min-h-11 items-center gap-2 rounded-full border border-cyan-100/18 bg-[#080a25]/88 px-4 text-[0.68rem] font-black uppercase tracking-[0.13em] text-cyan-50/82 shadow-[0_15px_50px_rgba(0,0,0,0.35)] backdrop-blur-xl transition hover:border-cyan-100/35 hover:bg-[#10143a] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-100 sm:left-5 sm:top-5"
+        >
+          <span aria-hidden="true" className="text-base text-yellow-100">✦</span>
+          Show info
+        </button>
+      )}
 
       {errorMessage ? (
         <div className="absolute left-1/2 top-4 z-50 w-[min(92vw,36rem)] -translate-x-1/2 rounded-2xl border border-red-200/15 bg-red-950/85 p-4 text-sm font-semibold text-red-100 shadow-2xl backdrop-blur-xl">
