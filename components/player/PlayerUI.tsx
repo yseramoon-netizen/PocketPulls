@@ -5,6 +5,7 @@ import type {
   ReactNode,
 } from "react";
 
+import NebuPortrait from "@/components/player/NebuPortrait";
 import UnownText from "@/components/player/UnownText";
 import { getPlayerRarityTheme } from "@/lib/player/rarity";
 
@@ -231,11 +232,10 @@ export function PlayerEmptyState({
         <div className="absolute inset-3 rounded-full bg-cyan-200/10 blur-2xl" />
         <div className="absolute inset-5 animate-pulse rounded-full bg-yellow-100/[0.06] blur-xl" />
 
-        <img
-          src="/ancient-pulls/celestial-cat.png"
+        <NebuPortrait
           alt=""
           draggable={false}
-          className="relative z-10 block h-20 w-20 object-contain opacity-90 drop-shadow-[0_14px_22px_rgba(0,0,0,0.4)]"
+          className="relative z-10 block h-20 w-20 object-contain opacity-100"
         />
       </div>
 

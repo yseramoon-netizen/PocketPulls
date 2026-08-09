@@ -198,7 +198,12 @@ export function applyNebuSkin(
   }
 
   const { persist = true, announce = true } = options;
+  const portrait = getNebuHeatAssets(key).portrait;
   document.documentElement.dataset.nebuSkin = key;
+  document.documentElement.style.setProperty(
+    "--nebu-portrait-image",
+    `url("${portrait}")`,
+  );
 
   if (persist) {
     try {

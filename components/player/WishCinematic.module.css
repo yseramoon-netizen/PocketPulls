@@ -591,7 +591,7 @@
   z-index: 0;
   background:
     radial-gradient(circle, rgba(103, 232, 249, 0.05), rgba(3, 4, 20, 0.91) 62%),
-    url("/ancient-pulls/celestial-cat.png")
+    var(--nebu-portrait-image, url("/ancient-pulls/celestial-cat.png"))
       center 48% / clamp(18rem, 42vw, 34rem) auto no-repeat;
   opacity: 0.2;
   mix-blend-mode: screen;

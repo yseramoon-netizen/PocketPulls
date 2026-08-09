@@ -3,9 +3,11 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --nebu-portrait-image: url("/ancient-pulls/celestial-cat.png");
   --nebu-image-filter:
     drop-shadow(0 8px 16px rgba(0, 0, 0, 0.34))
     drop-shadow(0 0 9px rgba(242, 182, 56, 0.16));
+  --nebu-portrait-filter: var(--nebu-image-filter);
   --nebu-ghost-filter: saturate(1.08) contrast(1.1);
   --nebu-scene-filter: var(--nebu-image-filter);
   --nebu-performance-accent: #f2b638;
@@ -80,7 +82,11 @@ html[data-nebu-skin="sherry"] {
   --nebu-scene-filter:
     drop-shadow(0 8px 16px rgba(0, 0, 0, 0.42))
     drop-shadow(0 0 13px rgba(22, 101, 52, 0.24));
-  --nebu-ghost-filter: brightness(0.52) contrast(1.42) saturate(1.22) hue-rotate(58deg);
+  --nebu-portrait-filter:
+    saturate(1.04) contrast(1.06)
+    drop-shadow(0 8px 16px rgba(0, 0, 0, 0.46))
+    drop-shadow(0 0 13px rgba(22, 166, 90, 0.24));
+  --nebu-ghost-filter: saturate(1.04) contrast(1.06);
   --nebu-performance-accent: #22a65a;
   --nebu-performance-soft: rgba(22, 166, 90, 0.3);
 }
@@ -93,6 +99,10 @@ html[data-nebu-skin="bubbles"] {
   --nebu-scene-filter:
     drop-shadow(0 8px 16px rgba(0, 0, 0, 0.3))
     drop-shadow(0 0 14px rgba(132, 160, 62, 0.24));
+  --nebu-portrait-filter:
+    saturate(1.03) contrast(1.03)
+    drop-shadow(0 8px 16px rgba(0, 0, 0, 0.34))
+    drop-shadow(0 0 14px rgba(145, 173, 71, 0.22));
   --nebu-ghost-filter: saturate(1.04) contrast(1.04);
   --nebu-performance-accent: #91ad47;
   --nebu-performance-soft: rgba(145, 173, 71, 0.3);
@@ -141,6 +151,11 @@ textarea {
 img[src="/ancient-pulls/celestial-cat.png"] {
   image-rendering: pixelated;
   filter: var(--nebu-image-filter);
+}
+
+.nebu-portrait-themed {
+  image-rendering: pixelated;
+  filter: var(--nebu-portrait-filter, var(--nebu-image-filter));
 }
 
 /* iOS automatically zooms pages when a focused form control is below 16px. */

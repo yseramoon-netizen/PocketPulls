@@ -15,9 +15,6 @@ import { supabase } from "@/lib/supabase";
 type TrainerHqData = {
   trainerName: string;
   wishBalance: number;
-  dailyRewardAvailable: boolean;
-  dailyRewardToday: number;
-  dailyStreak: number;
   totalCards: number;
   uniqueCards: number;
   availableCards: number;
@@ -53,7 +50,6 @@ type TrainerHqData = {
 
 const REFRESH_EVENTS = [
   "pocketpulls:wish-balance",
-  "pocketpulls:reward-claimed",
   "pocketpulls:achievement-reward-claimed",
   "pocketpulls:profile-updated",
   "pocketpulls:friendship-updated",
@@ -91,9 +87,6 @@ function parseHqData(value: unknown): TrainerHqData | null {
   return {
     trainerName: text(row.trainer_name, "Trainer"),
     wishBalance: whole(row.wish_balance),
-    dailyRewardAvailable: row.daily_reward_available === true,
-    dailyRewardToday: whole(row.daily_reward_today),
-    dailyStreak: whole(row.daily_streak),
     totalCards: whole(row.total_cards),
     uniqueCards: whole(row.unique_cards),
     availableCards: whole(row.available_cards),
@@ -356,7 +349,7 @@ export default function TrainerHqPage() {
               alt=""
               draggable={false}
               data-pocketpulls-ambient="heavy"
-              className="pointer-events-none absolute -bottom-7 right-2 hidden w-52 object-contain opacity-65 drop-shadow-[0_24px_34px_rgba(0,0,0,0.5)] lg:block"
+              className="pointer-events-none absolute -bottom-7 right-2 hidden w-52 object-contain opacity-100 lg:block"
             />
           </div>
         </article>
@@ -551,13 +544,11 @@ function RecentPull({ data }: { data: TrainerHqData }) {
 function ActivityPanel({ data }: { data: TrainerHqData }) {
   const items = [
     {
-      href: "/rewards",
-      glyph: "◇",
-      title: data.dailyRewardAvailable ? "Daily Gift ready" : "Daily Gift claimed",
-      detail: data.dailyRewardAvailable
-        ? `${data.dailyRewardToday} wish${data.dailyRewardToday === 1 ? "" : "es"} waiting`
-        : `${data.dailyStreak}-day current streak`,
-      ready: data.dailyRewardAvailable,
+      href: "/wishes/shop",
+      glyph: "✦",
+      title: "Nebu’s Vault of Stars",
+      detail: "Monthly pass and wish recharges",
+      ready: false,
     },
     {
       href: "/friends",

@@ -23,10 +23,13 @@ type NebuPortraitProps = Omit<
 >;
 
 export default function NebuPortrait(props: NebuPortraitProps) {
+  const { className = "", alt = "", ...imageProps } = props;
   const [skin, setSkin] = useState<NebuSkinKey>(DEFAULT_NEBU_SKIN);
 
   useEffect(() => {
-    setSkin(readNebuSkin());
+    const initialFrame = window.requestAnimationFrame(() => {
+      setSkin(readNebuSkin());
+    });
 
     const handleSkinChange = (event: Event) => {
       const key = (event as CustomEvent<{ key?: unknown }>).detail?.key;
@@ -49,6 +52,7 @@ export default function NebuPortrait(props: NebuPortraitProps) {
     window.addEventListener("storage", handleStorage);
 
     return () => {
+      window.cancelAnimationFrame(initialFrame);
       window.removeEventListener(NEBU_SKIN_CHANGE_EVENT, handleSkinChange);
       window.removeEventListener("storage", handleStorage);
     };
@@ -56,5 +60,12 @@ export default function NebuPortrait(props: NebuPortraitProps) {
 
   const source = useMemo(() => getNebuHeatAssets(skin).portrait, [skin]);
 
-  return <img {...props} src={source} />;
+  return (
+    <img
+      {...imageProps}
+      src={source}
+      alt={alt}
+      className={`nebu-portrait-themed ${className}`.trim()}
+    />
+  );
 }
