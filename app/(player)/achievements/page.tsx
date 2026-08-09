@@ -211,7 +211,11 @@ export default function AchievementsPage() {
   }, []);
 
   useEffect(() => {
-    void loadAchievements();
+    const frame = window.requestAnimationFrame(() => {
+      void loadAchievements();
+    });
+
+    return () => window.cancelAnimationFrame(frame);
   }, [loadAchievements]);
 
   const claimReward = useCallback(
@@ -427,7 +431,9 @@ export default function AchievementsPage() {
         />
       </div>
 
-      <NebuWardrobe achievements={achievements} loading={loading} />
+      <div id="nebu-wardrobe" className="scroll-mt-24">
+        <NebuWardrobe achievements={achievements} loading={loading} />
+      </div>
 
       <PlayerPanel className="mt-6 p-4 sm:p-5">
         <div className="flex flex-wrap gap-2">

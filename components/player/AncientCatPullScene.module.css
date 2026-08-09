@@ -12,6 +12,21 @@
   isolation: isolate;
 }
 
+.scene::before {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  background:
+    radial-gradient(
+      ellipse at 50% 78%,
+      color-mix(in srgb, var(--stage-accent) 18%, transparent),
+      rgba(5, 4, 20, 0.36) 42%,
+      transparent 72%
+    );
+  content: "";
+  opacity: 0.9;
+}
+
 .primaryScene,
 .constellation,
 .templeSilhouette,
@@ -176,9 +191,9 @@
 .actor {
   position: absolute;
   z-index: 12;
-  bottom: 4%;
+  bottom: 6%;
   left: 50%;
-  width: min(39vw, 290px);
+  width: min(46vw, 330px);
   opacity: 0;
   transform-origin: 50% 82%;
   will-change: transform, opacity;
@@ -237,6 +252,12 @@
   right: 1rem;
   left: 1rem;
   margin: 0;
+  margin-inline: auto;
+  width: fit-content;
+  max-width: min(88vw, 36rem);
+  border: 1px solid color-mix(in srgb, var(--stage-accent) 30%, transparent);
+  border-radius: 999px;
+  padding: 0.55rem 1rem;
   color: color-mix(in srgb, var(--stage-accent) 78%, white);
   font-size: clamp(0.62rem, 1.8vw, 0.76rem);
   font-weight: 900;
@@ -244,6 +265,8 @@
   text-align: center;
   text-shadow: 0 0 18px var(--stage-accent-soft);
   text-transform: uppercase;
+  background: rgba(5, 4, 20, 0.66);
+  box-shadow: 0 0 28px var(--stage-accent-soft);
   opacity: 0;
   animation: labelAppears var(--stage-duration) ease-out both;
 }
@@ -1405,7 +1428,7 @@ html[data-nebu-skin="pearl"] .signatureParticles span {
 @media (max-width: 640px) {
   .actor {
     bottom: 10%;
-    width: min(57vw, 285px);
+    width: min(68vw, 320px);
   }
 
   .scene[data-scene="specialIllustrationRare"] .actorStart,
@@ -1454,17 +1477,5 @@ html[data-nebu-skin="pearl"] .signatureParticles span {
 
   .performanceLabel {
     top: max(4.25rem, env(safe-area-inset-top));
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .scene * {
-    animation-duration: 1ms !important;
-    animation-delay: 0ms !important;
-  }
-
-  .actorReaction {
-    opacity: 1;
-    transform: translate3d(-50%, 0, 0) scale(0.95);
   }
 }

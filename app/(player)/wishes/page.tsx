@@ -436,7 +436,11 @@ export default function WishesPage() {
   }, []);
 
   useEffect(() => {
-    void loadDashboard(false);
+    const frame = window.requestAnimationFrame(() => {
+      void loadDashboard(false);
+    });
+
+    return () => window.cancelAnimationFrame(frame);
   }, [loadDashboard]);
 
   const makeWish = useCallback(async () => {
@@ -490,7 +494,7 @@ export default function WishesPage() {
     } finally {
       setMakingWish(false);
     }
-  }, [dashboard.wishBalance, loadDashboard, makingWish]);
+  }, [dashboard.wishBalance, makingWish]);
 
   const shippingProgress = useMemo(() => {
     return Math.min(
@@ -532,7 +536,7 @@ export default function WishesPage() {
       <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <p className="text-xs font-black uppercase tracking-[0.22em] text-yellow-100/45">
-            Nebu's Wish Sanctuary
+            Nebu&apos;s Wish Sanctuary
           </p>
 
           <h1 className="mt-3 text-4xl font-black tracking-tight text-white sm:text-5xl">
@@ -1076,6 +1080,11 @@ function QuickLinks() {
       href: "/profile",
       title: "Profile",
       detail: "Choose your favourite card",
+    },
+    {
+      href: "/achievements#nebu-wardrobe",
+      title: "Customise Nebu",
+      detail: "Change his colours and rarity performances",
     },
   ];
 

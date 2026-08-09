@@ -116,10 +116,10 @@ export default function WishPreviewPage() {
         </h1>
 
         <p className="mt-4 max-w-3xl text-sm font-semibold leading-7 text-white/45 sm:text-base">
-          The full sequence lasts roughly 17 seconds for
-          ordinary pulls and over 21 seconds for the highest
-          tiers. Test every rarity before connecting it to the
-          real wish transaction.
+          Nebu performs first, then the falling star carries the
+          card into its reveal. Common ceremonies take about four
+          seconds, while Crown Rare builds to roughly ten. Test
+          every rarity here before a real wish.
         </p>
 
         <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

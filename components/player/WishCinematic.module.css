@@ -191,13 +191,13 @@
 
 .catScene {
   position: absolute;
-  z-index: 16;
+  z-index: 35;
   inset: 0;
 }
 
 .fallingStar {
   position: absolute;
-  z-index: 30;
+  z-index: 28;
   top: 50%;
   left: 50%;
   width: 76px;

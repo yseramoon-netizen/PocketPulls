@@ -687,6 +687,12 @@ export default function WishCinematic({
     return null;
   }
 
+  const starDurationMs = Math.min(
+    1050,
+    Math.max(650, Math.round(theme.impactAtMs * 0.18)),
+  );
+  const starStartMs = theme.impactAtMs - starDurationMs;
+
   const rootStyle = {
     "--wish-primary": theme.primary,
     "--wish-secondary": theme.secondary,
@@ -696,11 +702,8 @@ export default function WishCinematic({
     "--flash-strength": String(theme.flashStrength),
     "--tier": String(theme.tier),
     "--scene-duration": `${theme.impactAtMs}ms`,
-    "--star-start": `${Math.min(900, Math.round(theme.impactAtMs * 0.2))}ms`,
-    "--star-duration": `${Math.max(
-      1100,
-      theme.impactAtMs - Math.min(900, Math.round(theme.impactAtMs * 0.2)),
-    )}ms`,
+    "--star-start": `${starStartMs}ms`,
+    "--star-duration": `${starDurationMs}ms`,
     "--impact-at": `${theme.impactAtMs}ms`,
     "--card-at": `${theme.cardAtMs}ms`,
     "--info-at": `${theme.infoAtMs}ms`,
