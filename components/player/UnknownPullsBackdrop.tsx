@@ -1,6 +1,7 @@
 "use client";
 
-import type { CSSProperties } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
+import { usePathname } from "next/navigation";
 
 import {
   AMBIENT_RUNE_SEQUENCE,
@@ -48,6 +49,48 @@ const TRAVELLERS: CelestialTraveller[] = [
 ];
 
 export default function UnknownPullsBackdrop() {
+  const pathname = usePathname();
+  const [cinematicOpen, setCinematicOpen] = useState(false);
+  const [pageVisible, setPageVisible] = useState(true);
+
+  useEffect(() => {
+    const handleCinematicVisibility = (event: Event) => {
+      setCinematicOpen(
+        Boolean(
+          (event as CustomEvent<{ open?: unknown }>).detail?.open,
+        ),
+      );
+    };
+
+    const handleVisibility = () => {
+      setPageVisible(document.visibilityState !== "hidden");
+    };
+
+    window.addEventListener(
+      "pocketpulls:wish-cinematic-visibility",
+      handleCinematicVisibility,
+    );
+    document.addEventListener("visibilitychange", handleVisibility);
+    handleVisibility();
+
+    return () => {
+      window.removeEventListener(
+        "pocketpulls:wish-cinematic-visibility",
+        handleCinematicVisibility,
+      );
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
+  }, []);
+
+  if (
+    pathname === "/constellation" ||
+    pathname === "/wishes/preview" ||
+    cinematicOpen ||
+    !pageVisible
+  ) {
+    return null;
+  }
+
   return (
     <div aria-hidden="true" className={styles.backdrop}>
       <div className={styles.deepSpace} />
@@ -57,7 +100,7 @@ export default function UnknownPullsBackdrop() {
       <div className={styles.holoDust} data-pocketpulls-ambient="heavy" />
 
       <div className={styles.celestialField} data-pocketpulls-ambient="heavy">
-        {TRAVELLERS.map((traveller, index) => {
+        {TRAVELLERS.slice(0, 5).map((traveller, index) => {
           const rune =
             AMBIENT_RUNE_SEQUENCE[
               index % AMBIENT_RUNE_SEQUENCE.length

@@ -714,6 +714,10 @@
     left: 67%;
     width: min(32vw, 150px);
   }
+
+  .embers span:nth-child(n + 11) {
+    display: none;
+  }
 }
 
 @media (max-height: 610px) and (orientation: landscape) {

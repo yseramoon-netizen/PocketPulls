@@ -580,6 +580,10 @@ function projectSpatialPoint(
   point: SpatialPoint,
   rotation: { x: number; y: number },
 ): ProjectedPoint {
+  return createSpatialProjector(rotation)(point);
+}
+
+function createSpatialProjector(rotation: { x: number; y: number }) {
   const radiansX = (rotation.x * Math.PI) / 180;
   const radiansY = (rotation.y * Math.PI) / 180;
   const sinX = Math.sin(radiansX);
@@ -587,24 +591,26 @@ function projectSpatialPoint(
   const sinY = Math.sin(radiansY);
   const cosY = Math.cos(radiansY);
 
-  const worldX = point.x - 50;
-  const worldY = point.y - 50;
-  const rotatedX = worldX * cosY + point.z * sinY;
-  const yawDepth = -worldX * sinY + point.z * cosY;
-  const rotatedY = worldY * cosX - yawDepth * sinX;
-  const depth = worldY * sinX + yawDepth * cosX;
-  const cameraDistance = 178;
-  const scale = Math.max(
-    0.48,
-    Math.min(1.88, cameraDistance / Math.max(68, cameraDistance - depth)),
-  );
+  return (point: SpatialPoint): ProjectedPoint => {
+    const worldX = point.x - 50;
+    const worldY = point.y - 50;
+    const rotatedX = worldX * cosY + point.z * sinY;
+    const yawDepth = -worldX * sinY + point.z * cosY;
+    const rotatedY = worldY * cosX - yawDepth * sinX;
+    const depth = worldY * sinX + yawDepth * cosX;
+    const cameraDistance = 178;
+    const scale = Math.max(
+      0.48,
+      Math.min(1.88, cameraDistance / Math.max(68, cameraDistance - depth)),
+    );
 
-  return {
-    x: 50 + rotatedX * scale,
-    y: 50 + rotatedY * scale,
-    depth,
-    scale,
-    atmosphere: Math.max(0.18, Math.min(1, (depth + 126) / 184)),
+    return {
+      x: 50 + rotatedX * scale,
+      y: 50 + rotatedY * scale,
+      depth,
+      scale,
+      atmosphere: Math.max(0.18, Math.min(1, (depth + 126) / 184)),
+    };
   };
 }
 
@@ -969,46 +975,6 @@ function formatDate(value: string | null): string {
   }).format(date);
 }
 
-function getMilestoneMessage(count: number): string {
-  if (count >= 1000) {
-    return "Your sky has become a galaxy.";
-  }
-
-  if (count >= 500) {
-    return "Even Nebu can no longer count every light.";
-  }
-
-  if (count >= 250) {
-    return "A great constellation watches over your collection.";
-  }
-
-  if (count >= 100) {
-    return "One hundred wishes now burn in the night.";
-  }
-
-  if (count >= 50) {
-    return "Your constellation can be seen from far away.";
-  }
-
-  if (count >= 25) {
-    return "The shape of your journey is beginning to appear.";
-  }
-
-  if (count >= 10) {
-    return "A true constellation has formed.";
-  }
-
-  if (count >= 2) {
-    return "Your stars are beginning to find one another.";
-  }
-
-  if (count === 1) {
-    return "Every constellation begins with a single wish.";
-  }
-
-  return "Make your first wish and place a star in the sky.";
-}
-
 export default function ConstellationPage() {
   const router = useRouter();
   const preferences = usePlayerPreferences();
@@ -1029,9 +995,28 @@ export default function ConstellationPage() {
   const [draggingSky, setDraggingSky] = useState(false);
   const skyViewportRef = useRef<HTMLElement | null>(null);
   const skyPlaneRef = useRef<HTMLDivElement | null>(null);
+  const skyCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const starButtonRefs = useRef(new Map<string, HTMLButtonElement>());
+  const friendButtonRefs = useRef(new Map<string, HTMLButtonElement>());
   const viewFrameRef = useRef<number | null>(null);
+  const wheelCommitTimerRef = useRef<number | null>(null);
   const travelAnimationRef = useRef<Animation | null>(null);
   const cameraOffsetRef = useRef({ x: 0, y: 0 });
+  const sceneDataRef = useRef<{
+    stars: ConstellationStar[];
+    friendStars: FriendStar[];
+    zodiacSign: ZodiacSign | null;
+    constellationComplete: boolean;
+    volumeStarCount: number;
+    mobileSky: boolean;
+  }>({
+    stars: [],
+    friendStars: [],
+    zodiacSign: null,
+    constellationComplete: false,
+    volumeStarCount: VOLUME_STARS.length,
+    mobileSky: false,
+  });
   const viewRef = useRef({
     rotation: { x: -7, y: 0 },
     zoom: 1,
@@ -1052,6 +1037,158 @@ export default function ConstellationPage() {
 
   const clampZoom = useCallback((value: number) => {
     return Math.max(0.52, Math.min(2.4, value));
+  }, []);
+
+  const renderSkyView = useCallback(() => {
+    const plane = skyPlaneRef.current;
+    const canvas = skyCanvasRef.current;
+
+    if (!plane || !canvas) {
+      return;
+    }
+
+    const width = plane.clientWidth;
+    const height = plane.clientHeight;
+
+    if (width <= 0 || height <= 0) {
+      return;
+    }
+
+    const { rotation: activeRotation, zoom: activeZoom } = viewRef.current;
+    const offset = cameraOffsetRef.current;
+    const scene = sceneDataRef.current;
+    const project = createSpatialProjector(activeRotation);
+    const dpr = Math.min(
+      window.devicePixelRatio || 1,
+      scene.mobileSky ? 1.25 : 1.5,
+    );
+    const pixelWidth = Math.max(1, Math.round(width * dpr));
+    const pixelHeight = Math.max(1, Math.round(height * dpr));
+
+    if (canvas.width !== pixelWidth || canvas.height !== pixelHeight) {
+      canvas.width = pixelWidth;
+      canvas.height = pixelHeight;
+    }
+
+    plane.style.transform = `translate3d(${offset.x}%, ${offset.y}%, 0) scale(${activeZoom})`;
+
+    const context = canvas.getContext("2d", { alpha: true });
+
+    if (!context) {
+      return;
+    }
+
+    context.setTransform(dpr, 0, 0, dpr, 0, 0);
+    context.clearRect(0, 0, width, height);
+
+    const toCanvasPoint = (point: ProjectedPoint) => ({
+      x: (point.x / 100) * width,
+      y: (point.y / 100) * height,
+    });
+
+    for (const star of VOLUME_STARS.slice(0, scene.volumeStarCount)) {
+      const projected = project(star);
+      const point = toCanvasPoint(projected);
+      const radius = Math.max(0.45, star.size * projected.scale * 0.56);
+
+      context.globalAlpha = star.brightness * projected.atmosphere;
+      context.fillStyle = star.colour;
+      context.shadowColor = projected.depth > 18 ? star.colour : "transparent";
+      context.shadowBlur = projected.depth > 18 ? radius * 4 : 0;
+      context.beginPath();
+      context.arc(point.x, point.y, radius, 0, Math.PI * 2);
+      context.fill();
+    }
+
+    context.shadowBlur = 0;
+    context.globalAlpha = 1;
+
+    const projectedStars = scene.stars.map((star) => ({
+      star,
+      projected: project(star),
+    }));
+
+    const drawLine = (
+      from: ProjectedPoint,
+      to: ProjectedPoint,
+      colour: string,
+      widthValue: number,
+      dash: number[] = [],
+    ) => {
+      const start = toCanvasPoint(from);
+      const end = toCanvasPoint(to);
+      context.strokeStyle = colour;
+      context.lineWidth = widthValue;
+      context.lineCap = "round";
+      context.setLineDash(dash);
+      context.beginPath();
+      context.moveTo(start.x, start.y);
+      context.lineTo(end.x, end.y);
+      context.stroke();
+    };
+
+    if (scene.zodiacSign && projectedStars.length > 0) {
+      const zodiacPoints = ZODIAC_SHAPES[scene.zodiacSign].points.map(
+        (_, index) => project(getZodiacSpatialPoint(scene.zodiacSign!, index)),
+      );
+
+      for (const [fromIndex, toIndex] of ZODIAC_SHAPES[scene.zodiacSign].segments) {
+        const from = zodiacPoints[fromIndex];
+        const to = zodiacPoints[toIndex];
+        const depthScale = (from.scale + to.scale) / 2;
+
+        if (scene.constellationComplete) {
+          drawLine(from, to, "rgba(103,232,249,0.2)", 5.2 * depthScale);
+          drawLine(from, to, "rgba(254,249,195,0.86)", 1.35 * depthScale);
+        } else {
+          drawLine(from, to, "rgba(196,181,253,0.42)", 1.05 * depthScale, [5, 6]);
+        }
+      }
+    } else {
+      for (let index = 1; index < projectedStars.length; index += 1) {
+        const previous = projectedStars[index - 1].projected;
+        const current = projectedStars[index].projected;
+        const depthScale = (previous.scale + current.scale) / 2;
+        drawLine(previous, current, "rgba(196,181,253,0.38)", 0.9 * depthScale, [4, 6]);
+      }
+    }
+
+    context.setLineDash([]);
+
+    for (const { star, projected } of projectedStars) {
+      const element = starButtonRefs.current.get(star.id);
+
+      if (!element) {
+        continue;
+      }
+
+      const point = toCanvasPoint(projected);
+      element.style.visibility = "visible";
+      element.style.zIndex = String(Math.round(240 + projected.depth));
+      element.style.transform = `translate3d(${point.x}px, ${point.y}px, 0) translate(-50%, -50%) scale(${projected.scale})`;
+      element.style.setProperty(
+        "--star-opacity",
+        String(Math.min(1, 0.62 + projected.atmosphere * 0.38)),
+      );
+    }
+
+    for (const friend of scene.friendStars) {
+      const element = friendButtonRefs.current.get(friend.userId);
+
+      if (!element) {
+        continue;
+      }
+
+      const projected = project(friend);
+      const point = toCanvasPoint(projected);
+      element.style.visibility = "visible";
+      element.style.zIndex = String(Math.round(520 + projected.depth));
+      element.style.transform = `translate3d(${point.x}px, ${point.y}px, 0) translate(-50%, -50%) scale(${projected.scale})`;
+      element.style.setProperty(
+        "--star-opacity",
+        String(Math.min(1, 0.74 + projected.atmosphere * 0.26)),
+      );
+    }
   }, []);
 
   const queueSkyView = useCallback((next: {
@@ -1079,16 +1216,10 @@ export default function ConstellationPage() {
         () => {
           viewFrameRef.current =
             null;
-
-          setRotation(
-            viewRef.current.rotation,
-          );
-          setZoom(
-            viewRef.current.zoom,
-          );
+          renderSkyView();
         },
       );
-  }, []);
+  }, [renderSkyView]);
 
   const resetSkyView = useCallback(() => {
     travelAnimationRef.current?.cancel();
@@ -1253,6 +1384,10 @@ export default function ConstellationPage() {
         );
       }
 
+      if (wheelCommitTimerRef.current !== null) {
+        window.clearTimeout(wheelCommitTimerRef.current);
+      }
+
       travelAnimationRef.current?.cancel();
     };
   }, []);
@@ -1351,6 +1486,8 @@ export default function ConstellationPage() {
       gesture.startRotation = viewRef.current.rotation;
       gesture.pinchZoom = viewRef.current.zoom;
       setDraggingSky(false);
+      setRotation({ ...viewRef.current.rotation });
+      setZoom(viewRef.current.zoom);
     }
   }, []);
 
@@ -1363,6 +1500,16 @@ export default function ConstellationPage() {
           multiplier,
       ),
     });
+
+    if (wheelCommitTimerRef.current !== null) {
+      window.clearTimeout(wheelCommitTimerRef.current);
+    }
+
+    wheelCommitTimerRef.current = window.setTimeout(() => {
+      wheelCommitTimerRef.current = null;
+      setRotation({ ...viewRef.current.rotation });
+      setZoom(viewRef.current.zoom);
+    }, 140);
   }, [clampZoom, queueSkyView]);
 
   const loadConstellation = useCallback(async (manual = false) => {
@@ -1475,7 +1622,11 @@ export default function ConstellationPage() {
   }, []);
 
   useEffect(() => {
-    void loadConstellation(false);
+    const frame = window.requestAnimationFrame(() => {
+      void loadConstellation(false);
+    });
+
+    return () => window.cancelAnimationFrame(frame);
   }, [loadConstellation]);
 
   const totalValue = useMemo(
@@ -1508,64 +1659,63 @@ export default function ConstellationPage() {
   const constellationComplete =
     Boolean(zodiacSign) && zodiacAnchorRequirement > 0 && zodiacAnchorsFilled >= zodiacAnchorRequirement;
 
-  const projectedVolumeStars = useMemo(
-    () =>
-      VOLUME_STARS.slice(
-        0,
-        preferences.dataSaver
-          ? 28
-          : preferences.lowVisualEffects
-            ? 48
-            : mobileSky
-              ? 64
-              : VOLUME_STARS.length,
-      ).map((star) => ({
-        star,
-        projected: projectSpatialPoint(star, rotation),
-      })).sort((first, second) => first.projected.depth - second.projected.depth),
-    [mobileSky, preferences.dataSaver, preferences.lowVisualEffects, rotation],
-  );
+  const volumeStarCount = preferences.dataSaver
+    ? 28
+    : preferences.lowVisualEffects
+      ? 48
+      : mobileSky
+        ? 64
+        : VOLUME_STARS.length;
 
-  const projectedStars = useMemo(
-    () =>
-      stars.map((star) => ({
-        star,
-        projected: projectSpatialPoint(star, rotation),
-      })),
-    [rotation, stars],
-  );
+  useEffect(() => {
+    sceneDataRef.current = {
+      stars,
+      friendStars,
+      zodiacSign,
+      constellationComplete,
+      volumeStarCount,
+      mobileSky,
+    };
+  }, [
+    constellationComplete,
+    friendStars,
+    mobileSky,
+    stars,
+    volumeStarCount,
+    zodiacSign,
+  ]);
 
-  const depthSortedStars = useMemo(
-    () =>
-      [...projectedStars].sort(
-        (first, second) => first.projected.depth - second.projected.depth,
-      ),
-    [projectedStars],
-  );
+  useEffect(() => {
+    if (loading || !skyPlaneRef.current) {
+      return;
+    }
 
-  const projectedFriendStars = useMemo(
-    () =>
-      friendStars
-        .map((friend) => ({
-          friend,
-          projected: projectSpatialPoint(friend, rotation),
-        }))
-        .sort((first, second) => first.projected.depth - second.projected.depth),
-    [friendStars, rotation],
-  );
+    let frame = window.requestAnimationFrame(renderSkyView);
+    const plane = skyPlaneRef.current;
+    const observer = new ResizeObserver(() => {
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(renderSkyView);
+    });
 
-  const projectedZodiacPoints = useMemo(
-    () =>
-      zodiacSign
-        ? ZODIAC_SHAPES[zodiacSign].points.map((_, index) =>
-            projectSpatialPoint(
-              getZodiacSpatialPoint(zodiacSign, index),
-              rotation,
-            ),
-          )
-        : [],
-    [rotation, zodiacSign],
-  );
+    observer.observe(plane);
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      observer.disconnect();
+    };
+  }, [
+    constellationComplete,
+    friendStars,
+    loading,
+    mobileSky,
+    preferences.dataSaver,
+    preferences.lowVisualEffects,
+    renderSkyView,
+    rotation,
+    stars,
+    zodiacSign,
+    zoom,
+  ]);
 
   return (
     <section className="relative min-h-[calc(100dvh-4.5rem)] w-full overflow-hidden bg-[#040515] text-white">
@@ -1718,113 +1868,11 @@ export default function ConstellationPage() {
               <span className="shootingStar shootingStarThree" />
             </div>
 
-            <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-visible">
-              {projectedVolumeStars.map(({ star, projected }) => (
-                <span
-                  key={star.id}
-                  className="constellationVolumeStar absolute rounded-full"
-                  style={{
-                    left: `${projected.x}%`,
-                    top: `${projected.y}%`,
-                    width: `${star.size * projected.scale}px`,
-                    height: `${star.size * projected.scale}px`,
-                    background: star.colour,
-                    boxShadow:
-                      projected.depth > 18
-                        ? `0 0 ${4 + star.size * projected.scale * 4}px ${star.colour}`
-                        : `0 0 ${1 + star.size * projected.scale * 1.4}px ${star.colour}`,
-                    transform: "translate(-50%, -50%)",
-                    zIndex: Math.round(80 + projected.depth),
-                    ["--volume-opacity" as string]: `${star.brightness * projected.atmosphere}`,
-                    ["--volume-delay" as string]: `${star.delay}s`,
-                    transition: draggingSky
-                      ? "none"
-                      : "left 160ms ease-out, top 160ms ease-out, width 160ms ease-out, height 160ms ease-out",
-                  }}
-                />
-              ))}
-            </div>
-
-            {stars.length > 0 ? (
-              <svg
-                viewBox="0 0 100 100"
-                preserveAspectRatio="none"
-                aria-hidden="true"
-                className="pointer-events-none absolute inset-0 h-full w-full"
-              >
-                {zodiacSign
-                  ? constellationComplete
-                    ? ZODIAC_SHAPES[zodiacSign].segments.flatMap(
-                      ([fromIndex, toIndex], index) => {
-                          const from = projectedZodiacPoints[fromIndex];
-                          const to = projectedZodiacPoints[toIndex];
-                          const depthScale = (from.scale + to.scale) / 2;
-
-                          return [
-                            <line
-                              key={`zodiac-glow-${zodiacSign}-${index}`}
-                              className="constellationCompletedGlow"
-                              x1={from.x}
-                              y1={from.y}
-                              x2={to.x}
-                              y2={to.y}
-                              stroke="rgba(103,232,249,0.26)"
-                              strokeWidth={1.05 * depthScale}
-                              strokeLinecap="round"
-                            />,
-                            <line
-                              key={`zodiac-core-${zodiacSign}-${index}`}
-                              className="constellationCompletedCore"
-                              x1={from.x}
-                              y1={from.y}
-                              x2={to.x}
-                              y2={to.y}
-                              stroke="rgba(254,249,195,0.92)"
-                              strokeWidth={0.32 * depthScale}
-                              strokeLinecap="round"
-                            />,
-                          ];
-                        },
-                      )
-                    : ZODIAC_SHAPES[zodiacSign].segments.map(
-                      ([fromIndex, toIndex], index) => {
-                          const from = projectedZodiacPoints[fromIndex];
-                          const to = projectedZodiacPoints[toIndex];
-                          const depthScale = (from.scale + to.scale) / 2;
-
-                          return (
-                            <line
-                              key={`zodiac-guide-${zodiacSign}-${index}`}
-                              x1={from.x}
-                              y1={from.y}
-                              x2={to.x}
-                              y2={to.y}
-                              stroke="rgba(196,181,253,0.42)"
-                              strokeWidth={0.24 * depthScale}
-                              strokeLinecap="round"
-                              strokeDasharray="1.1 1.35"
-                            />
-                          );
-                        },
-                      )
-                  : projectedStars.slice(1).map(({ star, projected }, index) => {
-                      const previous = projectedStars[index];
-
-                      return (
-                        <line
-                          key={`${previous.star.id}-${star.id}`}
-                          x1={previous.projected.x}
-                          y1={previous.projected.y}
-                          x2={projected.x}
-                          y2={projected.y}
-                          stroke="rgba(196,181,253,0.4)"
-                          strokeWidth={0.13 * ((previous.projected.scale + projected.scale) / 2)}
-                          strokeDasharray="0.65 1.05"
-                        />
-                      );
-                    })}
-              </svg>
-            ) : null}
+            <canvas
+              ref={skyCanvasRef}
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0 h-full w-full"
+            />
 
             {stars.length === 0 ? (
               <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center px-6 text-center">
@@ -1838,18 +1886,21 @@ export default function ConstellationPage() {
               </div>
             ) : null}
 
-            {depthSortedStars.map(({ star, projected }) => {
+            {stars.map((star) => {
               const active = selectedStar?.id === star.id;
               const destination = travellingStarId === star.id;
               const hitSize = Math.max(24, star.size + 14);
               const anniversaryYears = getAnniversaryYears(star.grantedAt);
-              const starOpacity = Math.min(
-                1,
-                0.62 + projected.atmosphere * 0.38,
-              );
 
               return (
                 <button
+                  ref={(element) => {
+                    if (element) {
+                      starButtonRefs.current.set(star.id, element);
+                    } else {
+                      starButtonRefs.current.delete(star.id);
+                    }
+                  }}
                   key={star.id}
                   type="button"
                   onClick={() => travelToStar(star)}
@@ -1863,18 +1914,12 @@ export default function ConstellationPage() {
                       : "z-20 hover:scale-125",
                   ].join(" ")}
                   style={{
-                    left: `${projected.x}%`,
-                    top: `${projected.y}%`,
+                    left: 0,
+                    top: 0,
                     width: `${hitSize}px`,
                     height: `${hitSize}px`,
-                    zIndex: Math.round(240 + projected.depth),
-                    transform: `translate(-50%, -50%) scale(${projected.scale})`,
-                    filter: `brightness(${0.82 + projected.atmosphere * 0.3})`,
+                    visibility: "hidden",
                     animation: `constellationStarIn 650ms ${star.delay}ms ease-out both`,
-                    ["--star-opacity" as string]: `${starOpacity}`,
-                    transition: draggingSky
-                      ? "none"
-                      : "left 160ms ease-out, top 160ms ease-out, transform 160ms ease-out, filter 160ms ease-out",
                   }}
                 >
                   <span
@@ -1915,23 +1960,25 @@ export default function ConstellationPage() {
               );
             })}
 
-            {projectedFriendStars.map(({ friend, projected }) => (
+            {friendStars.map((friend) => (
               <button
+                ref={(element) => {
+                  if (element) {
+                    friendButtonRefs.current.set(friend.userId, element);
+                  } else {
+                    friendButtonRefs.current.delete(friend.userId);
+                  }
+                }}
                 key={`friend-${friend.userId}`}
                 type="button"
                 onClick={() => router.push(`/friends/${encodeURIComponent(friend.userId)}`)}
                 aria-label={`Open ${friend.displayName}'s trainer profile`}
                 className="group absolute z-40 flex h-10 w-10 items-center justify-center rounded-full border border-cyan-100/28 bg-[#090b27]/90 shadow-[0_0_28px_rgba(103,232,249,0.38)] transition duration-200 hover:scale-125 hover:border-yellow-100/45 hover:shadow-[0_0_36px_rgba(250,204,21,0.42)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-100"
                 style={{
-                  left: `${projected.x}%`,
-                  top: `${projected.y}%`,
-                  zIndex: Math.round(520 + projected.depth),
-                  transform: `translate(-50%, -50%) scale(${projected.scale})`,
+                  left: 0,
+                  top: 0,
+                  visibility: "hidden",
                   animation: `friendStarIn 700ms ${friend.delay}ms ease-out both`,
-                  ["--star-opacity" as string]: `${Math.min(1, 0.74 + projected.atmosphere * 0.26)}`,
-                  transition: draggingSky
-                    ? "none"
-                    : "left 160ms ease-out, top 160ms ease-out, transform 160ms ease-out",
                 }}
               >
                 <span className="pointer-events-none absolute -inset-2 rounded-full bg-cyan-200/10 blur-md" />
@@ -2139,15 +2186,8 @@ export default function ConstellationPage() {
           isolation: isolate;
         }
 
-        .constellationVolumeStar {
-          opacity: var(--volume-opacity, 0.5);
-          animation: constellationVolumeTwinkle 7s ease-in-out
-            var(--volume-delay, 0s) infinite;
-          will-change: left, top, width, height, opacity;
-        }
-
         .spatialStarButton {
-          will-change: left, top, transform, filter;
+          contain: layout paint style;
         }
 
         .constellationStarLight {
@@ -2297,21 +2337,6 @@ export default function ConstellationPage() {
           }
         }
 
-        @keyframes constellationVolumeTwinkle {
-          0%, 100% {
-            opacity: var(--volume-opacity, 0.5);
-            filter: brightness(0.62);
-          }
-          47% {
-            opacity: var(--volume-opacity, 0.5);
-            filter: brightness(1.18);
-          }
-          54% {
-            opacity: var(--volume-opacity, 0.5);
-            filter: brightness(0.78);
-          }
-        }
-
         @keyframes constellationLineGlow {
           0%, 100% {
             opacity: 0.56;
@@ -2392,16 +2417,6 @@ export default function ConstellationPage() {
         }
 
         @media (max-width: 767px) {
-          .constellationVolumeStar {
-            animation: none;
-            filter: none;
-            will-change: auto;
-          }
-
-          .spatialStarButton {
-            will-change: transform;
-          }
-
           .constellationNebulaLate,
           .shootingStarTwo,
           .shootingStarThree {
@@ -2419,7 +2434,6 @@ export default function ConstellationPage() {
 
         @media (prefers-reduced-motion: reduce) {
           .constellationStarLight,
-          .constellationVolumeStar,
           .constellationCompletedGlow,
           .constellationCompletedCore,
           .constellationNebula,

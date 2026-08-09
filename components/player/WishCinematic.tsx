@@ -79,8 +79,8 @@ const RARITY_HOLD_MS = [
   4000,
 ] as const;
 const BASE_SCENE_SPRITES = [
-  "/ancient-pulls/scene/pyramid-right-v1.png",
-  "/ancient-pulls/scene/distant-mountains-village-v1.png",
+  "/ancient-pulls/scene/pyramid-right-v1.webp",
+  "/ancient-pulls/scene/distant-mountains-village-v1.webp",
 ] as const;
 
 function getRarityRevealOffset(tier: number): number {
@@ -387,6 +387,24 @@ export default function WishCinematic({
   useEffect(() => {
     onFinishedRef.current = onFinished;
   }, [onFinished]);
+
+  useEffect(() => {
+    window.dispatchEvent(
+      new CustomEvent("pocketpulls:wish-cinematic-visibility", {
+        detail: { open },
+      }),
+    );
+
+    return () => {
+      if (open) {
+        window.dispatchEvent(
+          new CustomEvent("pocketpulls:wish-cinematic-visibility", {
+            detail: { open: false },
+          }),
+        );
+      }
+    };
+  }, [open]);
 
   useEffect(() => {
     const syncSkin = () => {

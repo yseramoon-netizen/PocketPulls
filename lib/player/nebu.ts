@@ -135,8 +135,8 @@ export const NEBU_SKINS: readonly NebuSkin[] = [
 
 const DEFAULT_NEBU_HEAT_ASSETS: NebuHeatAssets = {
   portrait: "/ancient-pulls/celestial-cat.png",
-  walkSheet: "/ancient-pulls/scene/nebu-pyramid-exit-v1.png",
-  reactionSheet: "/ancient-pulls/scene/nebu-heat-reactions-v1.png",
+  walkSheet: "/ancient-pulls/scene/nebu-pyramid-exit-v1.webp",
+  reactionSheet: "/ancient-pulls/scene/nebu-heat-reactions-v1.webp",
 };
 
 const NEBU_SKIN_KEYS = new Set<NebuSkinKey>(

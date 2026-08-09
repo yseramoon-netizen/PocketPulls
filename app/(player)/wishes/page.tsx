@@ -1,11 +1,17 @@
 "use client";
 
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import NebuPortrait from "@/components/player/NebuPortrait";
-import WishCinematic, { type WishRevealCard } from "@/components/player/WishCinematic";
+import { type WishRevealCard } from "@/components/player/WishCinematic";
 import { supabase } from "@/lib/supabase";
+
+const WishCinematic = dynamic(
+  () => import("@/components/player/WishCinematic"),
+  { ssr: false },
+);
 
 type WalletRow = {
   wish_balance: number | null;
@@ -827,106 +833,6 @@ function WishChamber({
         </div>
       </div>
     </article>
-  );
-}
-
-function WishRevealModal({
-  reveal,
-  onClose,
-  onWishAgain,
-  canWishAgain,
-  busy,
-}: {
-  reveal: WishReveal;
-  onClose: () => void;
-  onWishAgain: () => void;
-  canWishAgain: boolean;
-  busy: boolean;
-}) {
-  return (
-    <div className="fixed inset-0 z-[160] flex items-center justify-center bg-[#020318]/82 p-4 backdrop-blur-xl">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(250,225,120,0.12),transparent_28%),radial-gradient(circle_at_45%_45%,rgba(117,220,255,0.10),transparent_34%)]" />
-
-      <article className="relative w-full max-w-2xl overflow-hidden rounded-[2.4rem] border border-yellow-100/20 bg-[#080a25]/95 p-6 shadow-[0_35px_140px_rgba(0,0,0,0.7)] sm:p-9">
-        <div className="pointer-events-none absolute -left-20 -top-20 h-64 w-64 rounded-full bg-violet-300/10 blur-[90px]" />
-        <div className="pointer-events-none absolute -bottom-24 -right-12 h-72 w-72 rounded-full bg-yellow-200/10 blur-[100px]" />
-
-        <button
-          type="button"
-          onClick={onClose}
-          className="absolute right-5 top-5 z-20 flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/[0.05] text-lg font-black text-white/55 transition hover:bg-white/10 hover:text-white"
-          aria-label="Close wish reveal"
-        >
-          ×
-        </button>
-
-        <div className="relative grid gap-7 md:grid-cols-[0.82fr_1.18fr] md:items-center">
-          <div className="relative mx-auto flex aspect-[4/5] w-full max-w-[18rem] items-center justify-center overflow-hidden rounded-[1.8rem] border border-white/10 bg-black/20 p-5">
-            <div className="absolute inset-7 animate-pulse rounded-full bg-yellow-200/10 blur-3xl" />
-            {reveal.imageUrl ? (
-              <img
-                src={reveal.imageUrl}
-                alt={reveal.cardName}
-                className="relative z-10 h-full w-full object-contain drop-shadow-[0_24px_30px_rgba(0,0,0,0.5)]"
-              />
-            ) : (
-              <span className="relative z-10 text-8xl text-yellow-100/20">✦</span>
-            )}
-          </div>
-
-          <div className="relative">
-            <p className="text-xs font-black uppercase tracking-[0.22em] text-yellow-100/50">
-              Wish granted
-            </p>
-            <h2 className="mt-3 text-3xl font-black tracking-tight text-white sm:text-4xl">
-              {reveal.cardName}
-            </h2>
-            <p className="mt-2 text-sm font-bold text-violet-100/45">
-              {reveal.setName} · {reveal.cardNumber}
-            </p>
-
-            <div className="mt-5 flex flex-wrap gap-2">
-              <span className="rounded-full border border-violet-100/15 bg-violet-300/[0.07] px-3 py-1.5 text-xs font-black text-violet-50/80">
-                {reveal.rarity}
-              </span>
-              <span className="rounded-full border border-yellow-100/15 bg-yellow-200/[0.07] px-3 py-1.5 text-xs font-black text-yellow-50/85">
-                {formatMarketValue(reveal.marketValue)}
-              </span>
-            </div>
-
-            <p className="mt-6 text-sm font-semibold leading-7 text-white/45">
-              Nebu moved this physical card from the Ancient Pulls stock pool into your collection. You have {formatWholeNumber(reveal.wishBalance)} wish{reveal.wishBalance === 1 ? "" : "es"} left.
-            </p>
-
-            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-              {canWishAgain ? (
-                <button
-                  type="button"
-                  onClick={onWishAgain}
-                  disabled={busy}
-                  className="min-h-12 flex-1 rounded-xl bg-gradient-to-r from-yellow-200 via-cyan-100 to-violet-200 px-5 text-sm font-black text-[#111329] transition hover:brightness-105 disabled:opacity-50"
-                >
-                  Wish again ✦
-                </button>
-              ) : (
-                <Link
-                  href="/wishes/shop"
-                  className="flex min-h-12 flex-1 items-center justify-center rounded-xl bg-gradient-to-r from-yellow-200 via-cyan-100 to-violet-200 px-5 text-sm font-black text-[#111329]"
-                >
-                  Visit Wish Shop
-                </Link>
-              )}
-              <Link
-                href="/collection"
-                className="flex min-h-12 flex-1 items-center justify-center rounded-xl border border-white/10 bg-white/[0.05] px-5 text-sm font-black text-white/70 transition hover:bg-white/10 hover:text-white"
-              >
-                View collection
-              </Link>
-            </div>
-          </div>
-        </div>
-      </article>
-    </div>
   );
 }
 

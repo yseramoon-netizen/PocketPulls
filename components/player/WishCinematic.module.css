@@ -958,4 +958,9 @@
     padding: 0 1.2rem;
     font-size: 0.8rem;
   }
+
+  .impactRays span:nth-child(n + 13),
+  .particles span:nth-child(n + 17) {
+    display: none;
+  }
 }

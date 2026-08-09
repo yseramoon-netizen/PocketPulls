@@ -29,8 +29,8 @@ type Grade = {
   glow: string;
 };
 
-const DEFAULT_WALK_SHEET = "/ancient-pulls/scene/nebu-pyramid-exit-v1.png";
-const DEFAULT_REACTION_SHEET = "/ancient-pulls/scene/nebu-heat-reactions-v1.png";
+const DEFAULT_WALK_SHEET = "/ancient-pulls/scene/nebu-pyramid-exit-v1.webp";
+const DEFAULT_REACTION_SHEET = "/ancient-pulls/scene/nebu-heat-reactions-v1.webp";
 
 const GRADES: readonly Grade[] = [
   {
@@ -251,7 +251,7 @@ export default function AncientCatPullScene({
         </div>
 
         <img
-          src="/ancient-pulls/scene/distant-mountains-village-v1.png"
+          src="/ancient-pulls/scene/distant-mountains-village-v1.webp"
           alt=""
           draggable={false}
           className={styles.horizon}
@@ -271,7 +271,7 @@ export default function AncientCatPullScene({
 
         <div className={styles.pyramidWrap}>
           <img
-            src="/ancient-pulls/scene/pyramid-right-v1.png"
+            src="/ancient-pulls/scene/pyramid-right-v1.webp"
             alt=""
             draggable={false}
             className={styles.pyramid}
