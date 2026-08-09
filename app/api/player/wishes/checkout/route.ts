@@ -9,6 +9,10 @@ import {
   playerErrorResponse,
 } from "@/lib/player/wish-store-server";
 import { PURCHASE_CONSENT_VERSION } from "@/lib/player/purchase-consent";
+import {
+  areOrdersOpen,
+  ORDERS_NOT_READY_MESSAGE,
+} from "@/lib/player/orders";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -17,9 +21,6 @@ export const revalidate = 0;
 type CheckoutBody = {
   packageId?: unknown;
 };
-
-const ORDERS_NOT_READY_MESSAGE =
-  "Orders are not ready to be placed yet, if you want more pulls speak to one of the Founders";
 
 type LooseDatabase = {
   from(table: string): any;
@@ -163,7 +164,7 @@ export async function POST(request: Request) {
 
     const stripeSecret = process.env.STRIPE_SECRET_KEY?.trim();
 
-    if (!stripeSecret) {
+    if (!areOrdersOpen() || !stripeSecret) {
       return Response.json(
         {
           ok: false,

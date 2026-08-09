@@ -19,6 +19,7 @@ import {
   PlayerStatCard,
   RarityPill,
 } from "@/components/player/PlayerUI";
+import { formatMarketValue } from "@/lib/player/format";
 import { supabase } from "@/lib/supabase";
 
 type TradeInboxRow = {
@@ -1182,7 +1183,7 @@ export default function TradePage() {
     );
 
   return (
-    <main className="mx-auto w-full max-w-[1760px] px-4 pb-24 pt-6 sm:px-6 lg:px-8">
+    <section className="mx-auto w-full max-w-[1760px] px-4 pb-24 pt-6 sm:px-6 lg:px-8">
       <PlayerPageHeader
         eyebrow="Protected card exchange"
         title="Trade Cards"
@@ -1824,7 +1825,7 @@ export default function TradePage() {
           ) : null}
         </div>
       </section>
-    </main>
+    </section>
   );
 }
 
@@ -2055,7 +2056,7 @@ function OfferColumn({
                         </div>
 
                         <p className="mt-3 font-black text-cyan-100">
-                          {formatMoney(
+                          {formatMarketValue(
                             toNumber(
                               item.market_value,
                             ) *
@@ -2172,7 +2173,7 @@ function InventoryCardTile({
           </p>
 
           <p className="mt-3 text-sm font-black text-cyan-100">
-            {formatMoney(
+            {formatMarketValue(
               toNumber(
                 card.market_value,
               ),

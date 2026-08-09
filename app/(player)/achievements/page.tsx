@@ -17,6 +17,7 @@ import {
   PlayerStatCard,
 } from "@/components/player/PlayerUI";
 import NebuWardrobe from "@/components/player/NebuWardrobe";
+import { modernisePlayerCopy } from "@/lib/player/display";
 import { supabase } from "@/lib/supabase";
 import {
   formatDate,
@@ -75,7 +76,7 @@ function parseRows(value: unknown): Achievement[] {
 
   return (value as AchievementRow[]).map((row) => ({
     key: row.achievement_key || "",
-    title: row.title || "Unknown badge",
+    title: modernisePlayerCopy(row.title || "Unknown badge"),
     description: row.description || "",
     category: row.category || "Journey",
     icon: row.icon || "★",
@@ -404,28 +405,28 @@ export default function AchievementsPage() {
       <div className="mt-7 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <PlayerStatCard
           label="Unlocked"
-          value={formatWholeNumber(unlocked)}
+          value={loading ? "—" : formatWholeNumber(unlocked)}
           detail={`${achievements.length} badges available`}
           accent="yellow"
         />
 
         <PlayerStatCard
           label="Completion"
-          value={`${Math.round(completion)}%`}
+          value={loading ? "—" : `${Math.round(completion)}%`}
           detail="Across every badge"
           accent="violet"
         />
 
         <PlayerStatCard
           label="Free wishes ready"
-          value={formatWholeNumber(unclaimedWishes)}
+          value={loading ? "—" : formatWholeNumber(unclaimedWishes)}
           detail={`${claimable.length} rewards waiting`}
           accent="cyan"
         />
 
         <PlayerStatCard
           label="Nearly there"
-          value={formatWholeNumber(nearlyThere)}
+          value={loading ? "—" : formatWholeNumber(nearlyThere)}
           detail="Badges above 70% progress"
           accent="pink"
         />

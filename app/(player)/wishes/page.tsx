@@ -138,6 +138,10 @@ function formatMoney(value: number): string {
   }).format(Math.max(0, value));
 }
 
+function formatMarketValue(value: number): string {
+  return value > 0 ? formatMoney(value) : "Price pending";
+}
+
 function formatWholeNumber(value: number): string {
   return new Intl.NumberFormat("en-GB").format(Math.max(0, Math.floor(value)));
 }
@@ -544,7 +548,7 @@ export default function WishesPage() {
           </h1>
 
           <p className="mt-4 max-w-2xl text-sm font-semibold leading-7 text-white/45 sm:text-base">
-            Open real Pokemon cards, grow your Ancient Pulls collection and recharge wishes whenever you want to keep the constellation moving.
+            Reveal genuine trading cards, grow your Ancient Pulls collection and recharge wishes whenever you want to keep the constellation moving.
           </p>
         </div>
 
@@ -845,7 +849,7 @@ function WishRevealModal({
                 {reveal.rarity}
               </span>
               <span className="rounded-full border border-yellow-100/15 bg-yellow-200/[0.07] px-3 py-1.5 text-xs font-black text-yellow-50/85">
-                {formatMoney(reveal.marketValue)} value
+                {formatMarketValue(reveal.marketValue)}
               </span>
             </div>
 
@@ -1030,7 +1034,7 @@ function RecentWishCard({
         )}
 
         <span className="absolute right-3 top-3 rounded-full border border-white/10 bg-[#07091f]/85 px-2.5 py-1 text-[0.58rem] font-black text-white/70 backdrop-blur-lg">
-          {formatMoney(wish.valueAtWish)}
+          {formatMarketValue(wish.valueAtWish)}
         </span>
       </div>
 

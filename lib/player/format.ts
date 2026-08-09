@@ -43,6 +43,16 @@ export function formatMoney(value: number): string {
   }).format(Math.max(0, value));
 }
 
+export function formatMarketValue(
+  value: number | null | undefined,
+): string {
+  if (value == null || !Number.isFinite(value) || value <= 0) {
+    return "Price pending";
+  }
+
+  return formatMoney(value);
+}
+
 export function formatWholeNumber(value: number): string {
   return new Intl.NumberFormat("en-GB").format(
     Math.max(0, Math.floor(value)),

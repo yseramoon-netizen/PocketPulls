@@ -1131,6 +1131,7 @@ function AddressEditor({
           <button
             type="button"
             onClick={onClose}
+            aria-label="Close address editor"
             className="grid h-10 w-10 place-items-center rounded-xl border border-white/10 bg-white/[0.05] text-white"
           >
             X

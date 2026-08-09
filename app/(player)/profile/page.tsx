@@ -23,6 +23,7 @@ import { formatTrainerCode } from "@/lib/player/binder";
 import { supabase } from "@/lib/supabase";
 import {
   formatDate,
+  formatMarketValue,
   formatMoney,
   formatWholeNumber,
   getErrorMessage,
@@ -349,6 +350,19 @@ export default function ProfilePage() {
       setErrorMessage(null);
 
       try {
+        const username = form.username.trim().toLowerCase();
+        const displayName = form.displayName.trim();
+
+        if (!/^[a-z0-9_]{3,24}$/.test(username)) {
+          throw new Error(
+            "Username must be 3-24 lowercase letters, numbers or underscores.",
+          );
+        }
+
+        if (displayName.length < 1 || displayName.length > 60) {
+          throw new Error("Display name must be between 1 and 60 characters.");
+        }
+
         const activeUser =
           await getVerifiedPlayerUser();
 
@@ -366,8 +380,8 @@ export default function ProfilePage() {
         const { error } = await supabase.rpc(
           "update_player_profile",
           {
-            p_username: form.username,
-            p_display_name: form.displayName,
+            p_username: username,
+            p_display_name: displayName,
             p_avatar_url: form.avatarUrl,
             p_bio: form.bio,
             p_favourite_pokemon:
@@ -457,14 +471,14 @@ export default function ProfilePage() {
       <div className="mt-7 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
         <PlayerStatCard
           label="Wish balance"
-          value={formatWholeNumber(profile.wishBalance)}
+          value={loading ? "—" : formatWholeNumber(profile.wishBalance)}
           detail="Ready to spend"
           accent="yellow"
         />
 
         <PlayerStatCard
           label="Lifetime wishes"
-          value={formatWholeNumber(
+          value={loading ? "—" : formatWholeNumber(
             profile.lifetimeWishes,
           )}
           detail="Completed wishes"
@@ -473,21 +487,21 @@ export default function ProfilePage() {
 
         <PlayerStatCard
           label="Physical cards"
-          value={formatWholeNumber(profile.totalCards)}
+          value={loading ? "—" : formatWholeNumber(profile.totalCards)}
           detail="Cards currently owned"
           accent="cyan"
         />
 
         <PlayerStatCard
           label="Unique cards"
-          value={formatWholeNumber(profile.uniqueCards)}
+          value={loading ? "—" : formatWholeNumber(profile.uniqueCards)}
           detail="Different discoveries"
           accent="pink"
         />
 
         <PlayerStatCard
           label="Collection value"
-          value={formatMoney(profile.collectionValue)}
+          value={loading ? "—" : formatMoney(profile.collectionValue)}
           detail="Current raw-card value"
           accent="green"
         />
@@ -519,7 +533,7 @@ export default function ProfilePage() {
                 <div>
                   <h2 className="text-2xl font-black text-white">
                     {form.displayName ||
-                      "Pokemon Trainer"}
+                      "Star Trainer"}
                   </h2>
 
                   <p className="mt-1 text-sm font-bold text-violet-100/38">
@@ -582,7 +596,7 @@ export default function ProfilePage() {
                   />
                 </ProfileField>
 
-                <ProfileField label="Favourite Pokemon">
+                <ProfileField label="Favourite card or character">
                   <input
                     value={form.favouritePokemon}
                     onChange={(event) =>
@@ -593,7 +607,7 @@ export default function ProfilePage() {
                       }))
                     }
                     maxLength={40}
-                    placeholder="Nebu"
+                    placeholder="Nebu or a favourite card"
                     className="profile-input"
                   />
                 </ProfileField>
@@ -758,9 +772,7 @@ export default function ProfilePage() {
                   </p>
 
                   <p className="mt-3 text-sm font-black text-yellow-50">
-                    {formatMoney(
-                      profile.signatureMarketValue,
-                    )}
+                    {formatMarketValue(profile.signatureMarketValue)}
                   </p>
                 </div>
               </>

@@ -685,7 +685,7 @@ export default function FriendsPage() {
   ];
 
   return (
-    <main className="mx-auto w-full max-w-[1760px] px-4 pb-24 pt-6 sm:px-6 lg:px-8">
+    <section className="mx-auto w-full max-w-[1760px] px-4 pb-24 pt-6 sm:px-6 lg:px-8">
       <PlayerPageHeader
         eyebrow="Trainer connections"
         title="Friends"
@@ -704,7 +704,7 @@ export default function FriendsPage() {
       <section className="mt-6 grid gap-4 md:grid-cols-4">
         <PlayerStatCard
           label="Friends"
-          value={String(
+          value={loading ? "—" : String(
             counts.friends,
           )}
           detail="Accepted trainers"
@@ -713,7 +713,7 @@ export default function FriendsPage() {
 
         <PlayerStatCard
           label="Incoming"
-          value={String(
+          value={loading ? "—" : String(
             counts.incoming,
           )}
           detail="Waiting for you"
@@ -722,7 +722,7 @@ export default function FriendsPage() {
 
         <PlayerStatCard
           label="Sent"
-          value={String(
+          value={loading ? "—" : String(
             counts.sent,
           )}
           detail="Awaiting reply"
@@ -731,7 +731,7 @@ export default function FriendsPage() {
 
         <PlayerStatCard
           label="Online"
-          value={String(
+          value={loading ? "—" : String(
             friends.filter(
               (row) =>
                 row.relationship_status ===
@@ -1000,7 +1000,7 @@ export default function FriendsPage() {
           </div>
         </PlayerPanel>
       </section>
-    </main>
+    </section>
   );
 }
 

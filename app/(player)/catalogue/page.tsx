@@ -11,6 +11,7 @@ import {
 } from "react";
 
 import UnownText from "@/components/player/UnownText";
+import { formatMarketValue } from "@/lib/player/format";
 import { supabase } from "@/lib/supabase";
 
 type CatalogueRpcRow = {
@@ -350,15 +351,6 @@ function getRarityTheme(
   }
 
   return RARITY_THEMES.common;
-}
-
-function formatMoney(value: number): string {
-  return new Intl.NumberFormat("en-GB", {
-    style: "currency",
-    currency: "GBP",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(Math.max(0, value));
 }
 
 function formatWholeNumber(value: number): string {
@@ -800,6 +792,7 @@ export default function CataloguePage() {
     <section className="mx-auto w-full max-w-[1600px] px-4 py-8 sm:px-6 lg:px-8">
       <CatalogueHero
         overview={overview}
+        loading={loading}
         refreshing={refreshing}
         onRefresh={() => {
           void refreshAll();
@@ -923,15 +916,18 @@ export default function CataloguePage() {
 
 function CatalogueHero({
   overview,
+  loading,
   refreshing,
   onRefresh,
 }: {
   overview: CatalogueOverview;
+  loading: boolean;
   refreshing: boolean;
   onRefresh: () => void;
 }) {
   return (
     <header className="relative overflow-hidden rounded-[2rem] border border-violet-200/15 bg-[#090b27]/82 shadow-[inset_0_0_0_1px_rgba(103,232,249,0.035)] p-6 shadow-[0_30px_100px_rgba(0,0,0,0.28)] backdrop-blur-xl sm:p-8">
+      <h1 className="sr-only">Card Catalogue</h1>
       <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-cyan-300/[0.08] blur-[100px]" />
       <div className="pointer-events-none absolute -bottom-28 left-[16%] h-72 w-72 rounded-full bg-violet-400/[0.09] blur-[100px]" />
 
@@ -971,28 +967,28 @@ function CatalogueHero({
       <div className="relative mt-7 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <OverviewCard
           label="Known cards"
-          value={formatWholeNumber(overview.totalCards)}
+          value={loading ? "—" : formatWholeNumber(overview.totalCards)}
           detail="Unique catalogue entries"
           accent="violet"
         />
 
         <OverviewCard
           label="Available species"
-          value={formatWholeNumber(overview.inStockCards)}
+          value={loading ? "—" : formatWholeNumber(overview.inStockCards)}
           detail="Different cards in stock"
           accent="cyan"
         />
 
         <OverviewCard
           label="Physical cards"
-          value={formatWholeNumber(overview.physicalUnits)}
+          value={loading ? "—" : formatWholeNumber(overview.physicalUnits)}
           detail="Total wish-pool inventory"
           accent="yellow"
         />
 
         <OverviewCard
           label="Your favourites"
-          value={formatWholeNumber(overview.favouriteCount)}
+          value={loading ? "—" : formatWholeNumber(overview.favouriteCount)}
           detail="Saved to your trainer account"
           accent="pink"
         />
@@ -1387,7 +1383,7 @@ function CatalogueCardTile({
               </p>
 
               <p className="mt-1 text-sm font-black text-white/85">
-                {formatMoney(card.marketValue)}
+                {formatMarketValue(card.marketValue)}
               </p>
             </div>
 
@@ -1705,7 +1701,7 @@ function CardDetailModal({
             <div className="mt-7 grid gap-3 sm:grid-cols-2">
               <DetailValue
                 label="Market value"
-                value={formatMoney(card.marketValue)}
+                value={formatMarketValue(card.marketValue)}
                 detail="Reference raw-card value"
               />
 

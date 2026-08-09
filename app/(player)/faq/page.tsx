@@ -9,7 +9,7 @@ const FAQS = [
   ["Does adding more cards change the odds?", "Adding cards inside a rarity does not change that rarity tier's configured chance. It changes which individual cards can be selected within that tier."],
   ["Can I pull duplicates?", "Yes. Duplicate card results are possible and are tracked in your Collection."],
   ["What does the star colour mean?", "It reveals the rarity of the result already allocated by the server. It is not a second roll."],
-  ["Why does Mew sometimes appear?", "The special reveal is used for higher-rarity outcomes. It does not alter the server result."],
+  ["Why does Nebu's performance change?", "Nebu performs a different ceremony for each rarity tier. The animation celebrates the result; it does not alter the server result."],
   ["Where do my cards go?", "They are recorded in your Collection. Cards remain associated with your account until they are traded or processed through shipping."],
   ["What happens when I request shipping?", "Cards already physically held can move straight into fulfilment. Any outstanding sourced-on-demand cards are flagged for sourcing before the shipment is prepared."],
   ["Can I trade cards?", "Where trading is available, eligible cards can be transferred through the in-app trade flow."],

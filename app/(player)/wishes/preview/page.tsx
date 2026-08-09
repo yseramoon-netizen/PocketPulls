@@ -10,7 +10,7 @@ import WishCinematic, {
 const DEMO_CARDS: WishRevealCard[] = [
   {
     id: "common-preview",
-    name: "Pikachu",
+    name: "Dune Spark",
     rarity: "Common",
     setName: "Ancient Pulls Preview",
     cardNumber: "001",
@@ -18,7 +18,7 @@ const DEMO_CARDS: WishRevealCard[] = [
   },
   {
     id: "uncommon-preview",
-    name: "Ivysaur",
+    name: "Papyrus Mouse",
     rarity: "Uncommon",
     setName: "Ancient Pulls Preview",
     cardNumber: "002",
@@ -26,7 +26,7 @@ const DEMO_CARDS: WishRevealCard[] = [
   },
   {
     id: "rare-preview",
-    name: "Gengar",
+    name: "Moon Moth",
     rarity: "Rare Holo",
     setName: "Ancient Pulls Preview",
     cardNumber: "003",
@@ -34,7 +34,7 @@ const DEMO_CARDS: WishRevealCard[] = [
   },
   {
     id: "double-preview",
-    name: "Mew ex",
+    name: "Temple Bird",
     rarity: "Double Rare",
     setName: "Ancient Pulls Preview",
     cardNumber: "004",
@@ -42,7 +42,7 @@ const DEMO_CARDS: WishRevealCard[] = [
   },
   {
     id: "ultra-preview",
-    name: "Charizard ex",
+    name: "Sunbeam Relic",
     rarity: "Ultra Rare",
     setName: "Ancient Pulls Preview",
     cardNumber: "005",
@@ -50,7 +50,7 @@ const DEMO_CARDS: WishRevealCard[] = [
   },
   {
     id: "illustration-preview",
-    name: "Eevee",
+    name: "Living Mural",
     rarity: "Illustration Rare",
     setName: "Ancient Pulls Preview",
     cardNumber: "006",
@@ -58,7 +58,7 @@ const DEMO_CARDS: WishRevealCard[] = [
   },
   {
     id: "special-preview",
-    name: "Greninja ex",
+    name: "Catnip Star",
     rarity: "Special Illustration Rare",
     setName: "Ancient Pulls Preview",
     cardNumber: "007",
@@ -66,7 +66,7 @@ const DEMO_CARDS: WishRevealCard[] = [
   },
   {
     id: "hyper-preview",
-    name: "Golden Arceus",
+    name: "Solar Crown",
     rarity: "Hyper Rare",
     setName: "Ancient Pulls Preview",
     cardNumber: "008",
@@ -74,7 +74,7 @@ const DEMO_CARDS: WishRevealCard[] = [
   },
   {
     id: "crown-preview",
-    name: "Wishmaker Jirachi",
+    name: "Crown of the Constellation",
     rarity: "Crown Rare",
     setName: "Ancient Pulls Preview",
     cardNumber: "009",
@@ -117,8 +117,8 @@ export default function WishPreviewPage() {
 
         <p className="mt-4 max-w-3xl text-sm font-semibold leading-7 text-white/45 sm:text-base">
           Nebu performs first, then the falling star carries the
-          card into its reveal. Common ceremonies take about four
-          seconds, while Crown Rare builds to roughly ten. Test
+          card into its reveal. Common ceremonies take about five
+          seconds, while Crown Rare builds to roughly eleven. Test
           every rarity here before a real wish. The current pacing is
           deliberately relaxed so every Nebu pose has time to read.
         </p>

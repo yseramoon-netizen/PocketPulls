@@ -9,7 +9,7 @@ import {
   RarityPill,
 } from "@/components/player/PlayerUI";
 import {
-  formatMoney,
+  formatMarketValue,
   formatWholeNumber,
 } from "@/lib/player/format";
 
@@ -128,7 +128,7 @@ export default function PlayerCardModal({
           <div className="mt-7 grid gap-3 sm:grid-cols-2">
             <ModalValue
               label="Market value"
-              value={formatMoney(card.marketValue)}
+              value={formatMarketValue(card.marketValue)}
             />
 
             <ModalValue

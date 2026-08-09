@@ -22,6 +22,7 @@ import {
 import { supabase } from "@/lib/supabase";
 import {
   formatDateTime,
+  formatMarketValue,
   formatMoney,
   formatWholeNumber,
   getErrorMessage,
@@ -442,14 +443,12 @@ function WishMemoryCard({
         <div className="mt-4 grid grid-cols-2 gap-2 border-t border-white/[0.06] pt-3">
           <MemoryValue
             label="Then"
-            value={formatMoney(memory.valueAtWish)}
+            value={formatMarketValue(memory.valueAtWish)}
           />
 
           <MemoryValue
             label="Now"
-            value={formatMoney(
-              memory.currentMarketValue,
-            )}
+            value={formatMarketValue(memory.currentMarketValue)}
             detail={
               change === 0
                 ? "No change"

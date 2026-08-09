@@ -313,7 +313,7 @@ export default function RewardsPage() {
       <div className="mt-7 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <PlayerStatCard
           label="Current streak"
-          value={`${formatWholeNumber(
+          value={loading ? "—" : `${formatWholeNumber(
             status.currentStreak,
           )} days`}
           detail="Consecutive daily claims"
@@ -322,7 +322,7 @@ export default function RewardsPage() {
 
         <PlayerStatCard
           label="Longest streak"
-          value={`${formatWholeNumber(
+          value={loading ? "—" : `${formatWholeNumber(
             status.longestStreak,
           )} days`}
           detail="Your personal record"
@@ -331,14 +331,14 @@ export default function RewardsPage() {
 
         <PlayerStatCard
           label="Gifts opened"
-          value={formatWholeNumber(status.totalClaims)}
+          value={loading ? "—" : formatWholeNumber(status.totalClaims)}
           detail="Lifetime daily claims"
           accent="cyan"
         />
 
         <PlayerStatCard
           label="Wishes received"
-          value={formatWholeNumber(
+          value={loading ? "—" : formatWholeNumber(
             status.totalWishesAwarded,
           )}
           detail="Awarded by daily gifts"

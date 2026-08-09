@@ -372,7 +372,7 @@ export default function CreateAccountPage() {
               value={displayName}
               onChange={(event) => setDisplayName(event.target.value.slice(0, 60))}
               autoComplete="name"
-              placeholder="Pokemon Trainer"
+              placeholder="Star Trainer"
               disabled={submitting}
               className={AUTH_INPUT_CLASS}
             />

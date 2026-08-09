@@ -311,6 +311,10 @@ export function getWishRarityTheme(
 }
 
 function formatMoney(value: number | null | undefined): string {
+  if (value == null || !Number.isFinite(Number(value)) || Number(value) <= 0) {
+    return "Price pending";
+  }
+
   return new Intl.NumberFormat("en-GB", {
     style: "currency",
     currency: "GBP",

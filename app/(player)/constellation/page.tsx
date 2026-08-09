@@ -4,6 +4,7 @@ import { type PointerEvent as ReactPointerEvent, type WheelEvent as ReactWheelEv
 import { useRouter } from "next/navigation";
 
 import UnownText from "@/components/player/UnownText";
+import { formatMarketValue } from "@/lib/player/format";
 import usePlayerPreferences from "@/components/player/usePlayerPreferences";
 import { supabase } from "@/lib/supabase";
 
@@ -1208,8 +1209,8 @@ export default function ConstellationPage() {
 
       queueSkyView({
         rotation: {
-          x: Math.max(-58, Math.min(58, gesture.startRotation.x - deltaY * 0.16)),
-          y: gesture.startRotation.y + deltaX * 0.19,
+          x: Math.max(-48, Math.min(48, gesture.startRotation.x - deltaY * 0.16)),
+          y: Math.max(-68, Math.min(68, gesture.startRotation.y + deltaX * 0.19)),
         },
       });
     }
@@ -1452,6 +1453,7 @@ export default function ConstellationPage() {
 
   return (
     <section className="relative min-h-[calc(100dvh-4.5rem)] w-full overflow-hidden bg-[#040515] text-white">
+      <h1 className="sr-only">Your Constellation</h1>
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_45%,rgba(103,232,249,0.075),transparent_32%),radial-gradient(circle_at_20%_18%,rgba(196,181,253,0.08),transparent_26%),radial-gradient(circle_at_82%_17%,rgba(249,168,212,0.06),transparent_24%),linear-gradient(180deg,rgba(3,4,18,0.96),rgba(6,7,27,0.985))]" />
       <div className="pointer-events-none absolute inset-0 opacity-65 [background-image:radial-gradient(circle_at_7%_14%,white_0_1px,transparent_1.5px),radial-gradient(circle_at_14%_43%,white_0_1px,transparent_1.5px),radial-gradient(circle_at_26%_21%,white_0_1px,transparent_1.5px),radial-gradient(circle_at_34%_68%,white_0_1px,transparent_1.5px),radial-gradient(circle_at_42%_11%,white_0_1px,transparent_1.5px),radial-gradient(circle_at_53%_31%,white_0_1px,transparent_1.5px),radial-gradient(circle_at_61%_76%,white_0_1px,transparent_1.5px),radial-gradient(circle_at_69%_13%,white_0_1px,transparent_1.5px),radial-gradient(circle_at_79%_42%,white_0_1px,transparent_1.5px),radial-gradient(circle_at_88%_19%,white_0_1px,transparent_1.5px),radial-gradient(circle_at_94%_72%,white_0_1px,transparent_1.5px)]" />
       <div className="pointer-events-none absolute -left-[12vw] top-[16%] h-[28rem] w-[68vw] rotate-[-12deg] rounded-[50%] bg-[linear-gradient(90deg,transparent,rgba(34,211,238,0.035),rgba(139,92,246,0.055),transparent)] blur-[34px] constellationAurora" />
@@ -1813,7 +1815,7 @@ export default function ConstellationPage() {
         )}
       </article>
 
-      {!loading ? (
+      {!loading && !selectedStar ? (
         <div className="pointer-events-none absolute bottom-[calc(1rem+env(safe-area-inset-bottom))] left-1/2 z-50 flex max-w-[94vw] -translate-x-1/2 items-center gap-2 md:bottom-4">
           <span className="rounded-full border border-white/10 bg-[#050619]/82 px-3 py-2 text-[0.56rem] font-black uppercase tracking-[0.12em] text-white/44 shadow-xl backdrop-blur-xl">
             {mobileSky ? "Drag to rotate · Pinch to zoom" : "Drag to rotate · Wheel to zoom"}
@@ -1872,7 +1874,7 @@ export default function ConstellationPage() {
 
             <div className="min-w-0 space-y-2">
               <MemoryRow label="Wish granted" value={formatDate(selectedStar.grantedAt)} />
-              <MemoryRow label="Value" value={formatMoney(selectedStar.marketValue)} />
+              <MemoryRow label="Value" value={formatMarketValue(selectedStar.marketValue)} />
               <MemoryRow
                 label="Star"
                 value={`#${stars.findIndex((star) => star.id === selectedStar.id) + 1}`}

@@ -9,6 +9,7 @@ import {
   getVerifiedUser,
   playerErrorResponse,
 } from "@/lib/player/wish-store-server";
+import { areOrdersOpen } from "@/lib/player/orders";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -58,6 +59,7 @@ export async function GET(request: Request) {
     return Response.json(
       {
         ok: true,
+        ordersOpen: areOrdersOpen() && Boolean(process.env.STRIPE_SECRET_KEY?.trim()),
         firstRechargeAvailable,
         firstRechargeDiscountPercent: FIRST_RECHARGE_DISCOUNT_PERCENT,
         packages: WISH_PACKAGES.map((item) => ({

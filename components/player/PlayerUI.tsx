@@ -21,6 +21,7 @@ export function PlayerPageHeader({
 }) {
   return (
     <header className="relative overflow-hidden rounded-[2rem] border border-violet-200/15 bg-[#090b27]/76 p-5 shadow-[0_24px_90px_rgba(0,0,0,0.24)] backdrop-blur-xl sm:p-7">
+      <h1 className="sr-only">{title}</h1>
       <div className="pointer-events-none absolute inset-x-8 top-0 h-[2px] bg-gradient-to-r from-violet-300/20 via-cyan-200/55 to-yellow-200/25" />
       <div className="pointer-events-none absolute -right-20 -top-20 h-52 w-52 rounded-full bg-cyan-300/[0.1] blur-[80px]" />
       <div className="pointer-events-none absolute -bottom-24 left-12 h-52 w-52 rounded-full bg-violet-400/[0.11] blur-[80px]" />

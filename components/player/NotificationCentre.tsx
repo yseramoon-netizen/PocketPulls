@@ -11,6 +11,10 @@ import {
 import { createPortal } from "react-dom";
 
 import { supabase } from "@/lib/supabase";
+import {
+  modernisePlayerCopy,
+  normaliseDisplayGlyph,
+} from "@/lib/player/display";
 
 type NotificationRow = {
   notification_key: string;
@@ -58,16 +62,13 @@ function asNotificationRows(value: unknown): NotificationRow[] {
       {
         notification_key: row.notification_key,
         kind: typeof row.kind === "string" ? row.kind : "update",
-        title: row.title,
-        body: row.body,
+        title: modernisePlayerCopy(row.title),
+        body: modernisePlayerCopy(row.body),
         href:
           typeof row.href === "string" && row.href.startsWith("/")
             ? row.href
             : null,
-        glyph:
-          typeof row.glyph === "string" && row.glyph.trim()
-            ? row.glyph
-            : "✦",
+        glyph: normaliseDisplayGlyph(row.glyph),
         created_at:
           typeof row.created_at === "string"
             ? row.created_at

@@ -147,18 +147,6 @@ img[src="/ancient-pulls/celestial-cat.png"] {
   }
 }
 
-@keyframes shine {
-
-0%{
-transform:translateX(-120%);
-}
-
-100%{
-transform:translateX(120%);
-}
-
-}
-
 
 @keyframes float {
 

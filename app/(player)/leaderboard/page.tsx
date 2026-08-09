@@ -62,7 +62,7 @@ function parseRows(value: unknown): LeaderboardPlayer[] {
     userId: row.user_id || "",
     username: row.username?.trim() || "trainer",
     displayName:
-      row.display_name?.trim() || "Pokemon Trainer",
+      row.display_name?.trim() || "Star Trainer",
     avatarUrl: row.avatar_url?.trim() || null,
     totalCards: toWholeNumber(row.total_cards),
     uniqueCards: toWholeNumber(row.unique_cards),

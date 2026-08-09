@@ -9,6 +9,7 @@ import {
 } from "react";
 
 import { supabase } from "@/lib/supabase";
+import { ORDERS_NOT_READY_MESSAGE } from "@/lib/player/orders";
 
 import styles from "./shop.module.css";
 
@@ -25,6 +26,7 @@ type StorePackage = {
 
 type StoreResponse = {
   ok: true;
+  ordersOpen: boolean;
   firstRechargeAvailable: boolean;
   firstRechargeDiscountPercent: number;
   packages: StorePackage[];
@@ -233,6 +235,11 @@ export default function WishShopPage() {
     : 0;
 
   const startCheckout = useCallback(async (packageId: string) => {
+    if (!store?.ordersOpen) {
+      setErrorMessage(ORDERS_NOT_READY_MESSAGE);
+      return;
+    }
+
     setBusyPackage(packageId);
     setErrorMessage("");
     setSuccessMessage("");
@@ -253,7 +260,7 @@ export default function WishShopPage() {
       );
       setBusyPackage(null);
     }
-  }, []);
+  }, [store?.ordersOpen]);
 
   return (
     <section className={styles.page}>
@@ -280,7 +287,9 @@ export default function WishShopPage() {
             ← Back to Wishes
           </Link>
 
-          <span className={styles.securePill}>Secure checkout</span>
+          <span className={styles.securePill}>
+            {store?.ordersOpen ? "Secure checkout" : "Orders opening later"}
+          </span>
         </div>
 
         <header className={styles.hero}>
@@ -288,10 +297,12 @@ export default function WishShopPage() {
             <p className={styles.eyebrow}>Wish recharge</p>
             <h1>Recharge wishes</h1>
             <p className={styles.heroBody}>
-              Pick your wish bundle and head straight to checkout.
+              {store?.ordersOpen
+                ? "Pick your wish bundle and head straight to checkout."
+                : "Explore the wish bundles while Nebu prepares the shop for launch."}
             </p>
 
-            {store?.firstRechargeAvailable ? (
+            {store?.ordersOpen && store.firstRechargeAvailable ? (
               <div className={styles.promoCard}>
                 <span className={styles.promoBadge}>FIRST RECHARGE</span>
                 <div>
@@ -357,7 +368,12 @@ export default function WishShopPage() {
           </div>
         </header>
 
-        {errorMessage ? <div className={styles.errorBanner}>{errorMessage}</div> : null}
+        {!loading && store && !store.ordersOpen ? (
+          <div className={styles.errorBanner}>{ORDERS_NOT_READY_MESSAGE}</div>
+        ) : null}
+        {errorMessage && errorMessage !== ORDERS_NOT_READY_MESSAGE ? (
+          <div className={styles.errorBanner}>{errorMessage}</div>
+        ) : null}
         {successMessage ? <div className={styles.successBanner}>{successMessage}</div> : null}
 
         {loading ? (
@@ -377,7 +393,7 @@ export default function WishShopPage() {
 
               <div className={styles.packagesGrid}>
                 {(store?.packages ?? []).map((pkg) => {
-                  const effectivePrice = store?.firstRechargeAvailable
+                  const effectivePrice = store?.ordersOpen && store.firstRechargeAvailable
                     ? pkg.firstRechargeAmountPence
                     : pkg.amountPence;
 
@@ -439,7 +455,13 @@ export default function WishShopPage() {
                   </div>
                   <div className={styles.summaryRow}>
                     <span>First recharge</span>
-                    <strong>{store?.firstRechargeAvailable ? "20% off" : "Used"}</strong>
+                    <strong>
+                      {!store?.ordersOpen
+                        ? "Available at launch"
+                        : store.firstRechargeAvailable
+                          ? "20% off"
+                          : "Used"}
+                    </strong>
                   </div>
                   <div className={`${styles.summaryRow} ${styles.summaryTotal}`}>
                     <span>Total</span>
@@ -451,18 +473,24 @@ export default function WishShopPage() {
               <button
                 type="button"
                 className={styles.checkoutButton}
-                disabled={!selectedPackage || busyPackage !== null}
+                disabled={!selectedPackage || busyPackage !== null || !store?.ordersOpen}
                 onClick={() => {
                   if (selectedPackage) {
                     void startCheckout(selectedPackage.id);
                   }
                 }}
               >
-                {busyPackage === selectedPackage?.id ? "Opening checkout..." : "Continue to checkout"}
+                {!store?.ordersOpen
+                  ? "Orders are not open yet"
+                  : busyPackage === selectedPackage?.id
+                    ? "Opening checkout..."
+                    : "Continue to checkout"}
               </button>
 
               <p className={styles.summaryNote}>
-                Wishes are credited after payment succeeds.
+                {store?.ordersOpen
+                  ? "Wishes are credited after payment succeeds."
+                  : "No payment can be placed until the Founders open orders."}
               </p>
             </aside>
           </div>

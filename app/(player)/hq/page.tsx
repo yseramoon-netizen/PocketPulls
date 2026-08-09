@@ -4,6 +4,11 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import UnownText from "@/components/player/UnownText";
+import {
+  modernisePlayerCopy,
+  normaliseDisplayGlyph,
+} from "@/lib/player/display";
+import { formatMarketValue } from "@/lib/player/format";
 import { supabase } from "@/lib/supabase";
 
 type TrainerHqData = {
@@ -115,16 +120,16 @@ function parseHqData(value: unknown): TrainerHqData | null {
     recentCardValue: number(row.recent_card_value),
     recentWishAt: nullableText(row.recent_wish_at),
     recommendedActionId: text(row.recommended_action_id, "wish"),
-    recommendedActionTitle: text(
+    recommendedActionTitle: modernisePlayerCopy(text(
       row.recommended_action_title,
       "Make another wish",
-    ),
-    recommendedActionBody: text(
+    )),
+    recommendedActionBody: modernisePlayerCopy(text(
       row.recommended_action_body,
       "Add another card to your constellation.",
-    ),
+    )),
     recommendedActionHref: text(row.recommended_action_href, "/wishes"),
-    recommendedActionGlyph: text(row.recommended_action_glyph, "✦"),
+    recommendedActionGlyph: normaliseDisplayGlyph(row.recommended_action_glyph),
   };
 }
 
@@ -283,6 +288,7 @@ export default function TrainerHqPage() {
     <section className="relative mx-auto w-full max-w-[1600px] px-4 py-8 sm:px-6 lg:px-8 lg:py-12">
       <header className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
         <div>
+          <h1 className="sr-only">Trainer HQ</h1>
           <p className="text-xs font-black uppercase tracking-[0.22em] text-cyan-100/45">
             The centre of your archive
           </p>
@@ -520,7 +526,7 @@ function RecentPull({ data }: { data: TrainerHqData }) {
               {data.recentCardSet} · {data.recentCardNumber}
             </p>
             <p className="mt-4 text-lg font-black text-yellow-50">
-              {formatMoney(data.recentCardValue)}
+              {formatMarketValue(data.recentCardValue)}
             </p>
             <p className="mt-auto pt-4 text-xs font-bold text-white/25">
               Revealed {formatDate(data.recentWishAt)}

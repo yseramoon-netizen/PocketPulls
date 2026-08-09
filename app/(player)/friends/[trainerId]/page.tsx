@@ -16,6 +16,7 @@ import {
 } from "@/components/player/PlayerUI";
 import {
   formatDate,
+  formatMarketValue,
   formatMoney,
   formatWholeNumber,
   getErrorMessage,
@@ -231,7 +232,7 @@ export default function FriendProfilePage() {
   );
 
   return (
-    <main className="mx-auto w-full max-w-[1660px] px-4 pb-24 pt-7 sm:px-6 lg:px-8">
+    <section className="mx-auto w-full max-w-[1660px] px-4 pb-24 pt-7 sm:px-6 lg:px-8">
       <div className="mb-5 flex items-center justify-between gap-3">
         <Link
           href="/friends"
@@ -320,7 +321,7 @@ export default function FriendProfilePage() {
               </div>
 
               <div className="mt-6 grid gap-3 sm:grid-cols-3">
-                <ProfileDetail label="Favourite Pokémon" value={profile.favouritePokemon || "Not set"} />
+                <ProfileDetail label="Favourite card or character" value={profile.favouritePokemon || "Not set"} />
                 <ProfileDetail label="Location" value={profile.locationLabel || "Not shared"} />
                 <ProfileDetail label="Joined" value={formatDate(profile.joinedAt)} />
               </div>
@@ -347,7 +348,7 @@ export default function FriendProfilePage() {
                       {profile.signatureCardNumber ? ` · #${profile.signatureCardNumber}` : ""}
                     </p>
                     <p className="mt-3 text-sm font-black text-yellow-50">
-                      {formatMoney(profile.signatureMarketValue)}
+                      {formatMarketValue(profile.signatureMarketValue)}
                     </p>
                   </div>
                 </>
@@ -415,7 +416,7 @@ export default function FriendProfilePage() {
           showShippingLink={false}
         />
       ) : null}
-    </main>
+    </section>
   );
 }
 

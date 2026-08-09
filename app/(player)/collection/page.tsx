@@ -338,8 +338,8 @@ export default function CollectionPage() {
     void (async () => {
       try {
         await syncBinderPositions();
-        await Promise.all([loadOverview(), loadBinderSettings(), loadWishAnniversaries()]);
         if (active) setPrepared(true);
+        await Promise.all([loadOverview(), loadBinderSettings(), loadWishAnniversaries()]);
       } catch (error: unknown) {
         if (!active) return;
         setErrorMessage(getErrorMessage(error, "Your binder could not be prepared."));
@@ -550,9 +550,9 @@ export default function CollectionPage() {
         </div>
 
         <div className={styles.headerStats}>
-          <div><span>Cards</span><strong>{formatWholeNumber(overview.totalCards)}</strong></div>
-          <div><span>Unique</span><strong>{formatWholeNumber(overview.uniqueCards)}</strong></div>
-          <div><span>Value</span><strong>{formatMoney(overview.collectionValue)}</strong></div>
+          <div><span>Cards</span><strong>{loading ? "—" : formatWholeNumber(overview.totalCards)}</strong></div>
+          <div><span>Unique</span><strong>{loading ? "—" : formatWholeNumber(overview.uniqueCards)}</strong></div>
+          <div><span>Value</span><strong>{loading ? "—" : formatMoney(overview.collectionValue)}</strong></div>
         </div>
       </header>
 
@@ -606,7 +606,11 @@ export default function CollectionPage() {
             {option.label}
           </button>
         ))}
-        <span className={styles.entryCount}>{formatWholeNumber(totalCount)} entries</span>
+        <span className={styles.entryCount}>
+          {loading || filtering
+            ? "Reading…"
+            : `${formatWholeNumber(totalCount)} ${totalCount === 1 ? "entry" : "entries"}`}
+        </span>
         {hasFilters ? (
           <button type="button" onClick={clearFilters} className={styles.clearButton}>
             Clear

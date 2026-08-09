@@ -222,7 +222,7 @@ export default function FirstWishJourney({
         id: "profile",
         number: 1,
         title: "Personalise your profile",
-        description: "Choose the Pokémon that represents you.",
+        description: "Choose the card or character that represents you.",
         href: "/profile",
         action: "Open profile",
         complete: journey.profile_complete,
