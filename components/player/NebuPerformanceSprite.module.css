@@ -24,7 +24,7 @@
   object-fit: fill;
   pointer-events: none;
   user-select: none;
-  filter: var(--nebu-image-filter);
+  filter: var(--nebu-scene-filter, var(--nebu-image-filter));
   image-rendering: pixelated;
   transform:
     translate3d(

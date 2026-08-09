@@ -36,6 +36,8 @@ type AchievementUnlock = {
 type NebuWardrobeProps = {
   achievements: AchievementUnlock[];
   loading: boolean;
+  exclusiveSkins: NebuSkinKey[];
+  exclusiveSkinsLoading: boolean;
 };
 
 type WardrobeTab = "colours" | "performances";
@@ -55,6 +57,10 @@ const SCENE_PREVIEW_POSES: Record<NebuSceneKey, NebuPose> = {
 };
 
 function skinUnlockCopy(skin: NebuSkin, unlocked: boolean, loading: boolean) {
+  if (skin.exclusiveOwner) {
+    return `${skin.label} admin exclusive · this account only`;
+  }
+
   if (!skin.achievementKey) {
     return "Original colours · always available";
   }
@@ -89,6 +95,8 @@ function performanceUnlockCopy(
 export default function NebuWardrobe({
   achievements,
   loading,
+  exclusiveSkins,
+  exclusiveSkinsLoading,
 }: NebuWardrobeProps) {
   const [tab, setTab] = useState<WardrobeTab>("colours");
   const [selected, setSelected] = useState<NebuSkinKey>("midnight");
@@ -107,6 +115,20 @@ export default function NebuWardrobe({
           .map((achievement) => achievement.key),
       ),
     [achievements],
+  );
+
+  const exclusiveSkinKeys = useMemo(
+    () => new Set(exclusiveSkins),
+    [exclusiveSkins],
+  );
+
+  const visibleSkins = useMemo(
+    () =>
+      NEBU_SKINS.filter(
+        (skin) =>
+          !skin.exclusiveOwner || exclusiveSkinKeys.has(skin.key),
+      ),
+    [exclusiveSkinKeys],
   );
 
   useEffect(() => {
@@ -147,13 +169,33 @@ export default function NebuWardrobe({
     };
   }, []);
 
+  useEffect(() => {
+    if (exclusiveSkinsLoading) {
+      return;
+    }
+
+    const currentSkin = getNebuSkin(selected);
+
+    if (
+      currentSkin.exclusiveOwner &&
+      !exclusiveSkinKeys.has(currentSkin.key)
+    ) {
+      setSelected("midnight");
+      applyNebuSkin("midnight");
+    }
+  }, [exclusiveSkinKeys, exclusiveSkinsLoading, selected]);
+
   const selectSkin = async (skin: NebuSkin) => {
     const unlocked =
-      !skin.achievementKey || unlockedKeys.has(skin.achievementKey);
+      skin.exclusiveOwner
+        ? exclusiveSkinKeys.has(skin.key)
+        : !skin.achievementKey || unlockedKeys.has(skin.achievementKey);
 
     if (!unlocked || saving) {
       setMessage(
-        skin.achievementTitle
+        skin.exclusiveOwner
+          ? `${skin.label} belongs only to the ${skin.label} administrator account.`
+          : skin.achievementTitle
           ? `Complete “${skin.achievementTitle}” to unlock ${skin.label}.`
           : null,
       );
@@ -282,11 +324,20 @@ export default function NebuWardrobe({
               <p className="text-[0.65rem] font-black uppercase tracking-[0.2em] text-yellow-100/80">
                 Equipped coat
               </p>
-              <NebuSprite
-                pose="sacred"
-                label={`Nebu wearing the ${selectedSkin.label} colours`}
-                className="mx-auto mt-2 w-48 sm:w-52"
-              />
+              {selectedSkin.heatAssets ? (
+                <img
+                  src={selectedSkin.heatAssets.portrait}
+                  alt={`Nebu wearing the ${selectedSkin.label} colours`}
+                  draggable={false}
+                  className="mx-auto mt-2 aspect-square w-48 object-contain [image-rendering:pixelated] sm:w-52"
+                />
+              ) : (
+                <NebuSprite
+                  pose="sacred"
+                  label={`Nebu wearing the ${selectedSkin.label} colours`}
+                  className="mx-auto mt-2 w-48 sm:w-52"
+                />
+              )}
               <p className="mt-1 text-xl font-black text-white">
                 {selectedSkin.label}
               </p>
@@ -296,9 +347,11 @@ export default function NebuWardrobe({
             </div>
 
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              {NEBU_SKINS.map((skin) => {
+              {visibleSkins.map((skin) => {
                 const unlocked =
-                  !skin.achievementKey || unlockedKeys.has(skin.achievementKey);
+                  skin.exclusiveOwner
+                    ? exclusiveSkinKeys.has(skin.key)
+                    : !skin.achievementKey || unlockedKeys.has(skin.achievementKey);
                 const active = selected === skin.key;
 
                 return (
@@ -317,17 +370,34 @@ export default function NebuWardrobe({
                     }`}
                   >
                     <span className="flex items-center gap-3">
-                      <span
-                        className="h-10 w-10 flex-none rounded-full border-2 border-white/25 shadow-[0_0_18px_rgba(255,255,255,0.08)]"
-                        style={{ background: skin.swatch }}
-                        aria-hidden="true"
-                      />
+                      {skin.heatAssets ? (
+                        <span className="flex h-10 w-10 flex-none items-center justify-center overflow-hidden rounded-full border-2 border-white/25 bg-black/25 shadow-[0_0_18px_rgba(255,255,255,0.08)]">
+                          <img
+                            src={skin.heatAssets.portrait}
+                            alt=""
+                            draggable={false}
+                            className="h-12 w-12 max-w-none object-contain [image-rendering:pixelated]"
+                          />
+                        </span>
+                      ) : (
+                        <span
+                          className="h-10 w-10 flex-none rounded-full border-2 border-white/25 shadow-[0_0_18px_rgba(255,255,255,0.08)]"
+                          style={{ background: skin.swatch }}
+                          aria-hidden="true"
+                        />
+                      )}
                       <span className="min-w-0">
                         <span className="block truncate text-sm font-black text-white">
                           {skin.label}
                         </span>
                         <span className="mt-1 block text-[0.58rem] font-black uppercase tracking-[0.08em] text-white/60">
-                          {active ? "Equipped" : skinUnlockCopy(skin, unlocked, loading)}
+                          {active
+                            ? "Equipped"
+                            : skinUnlockCopy(
+                                skin,
+                                unlocked,
+                                loading || exclusiveSkinsLoading,
+                              )}
                         </span>
                       </span>
                     </span>

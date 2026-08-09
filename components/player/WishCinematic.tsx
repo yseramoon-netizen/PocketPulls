@@ -18,6 +18,14 @@ import usePlayerPreferences from "./usePlayerPreferences";
 import { publishPlayerPreferences } from "@/lib/player/preferences";
 import { supabase } from "@/lib/supabase";
 import AncientCatPullScene from "./AncientCatPullScene";
+import {
+  DEFAULT_NEBU_SKIN,
+  getNebuHeatAssets,
+  isNebuSkinKey,
+  NEBU_SKIN_CHANGE_EVENT,
+  readNebuSkin,
+  type NebuSkinKey,
+} from "@/lib/player/nebu";
 import styles from "./WishCinematic.module.css";
 
 export type WishRevealCard = {
@@ -70,11 +78,9 @@ const RARITY_HOLD_MS = [
   4000,
   4000,
 ] as const;
-const SCENE_SPRITES = [
+const BASE_SCENE_SPRITES = [
   "/ancient-pulls/scene/pyramid-right-v1.png",
   "/ancient-pulls/scene/distant-mountains-village-v1.png",
-  "/ancient-pulls/scene/nebu-pyramid-exit-v1.png",
-  "/ancient-pulls/scene/nebu-heat-reactions-v1.png",
 ] as const;
 
 function getRarityRevealOffset(tier: number): number {
@@ -316,6 +322,13 @@ export default function WishCinematic({
   const [skipped, setSkipped] = useState(false);
   const [runNumber, setRunNumber] = useState(0);
   const [muted, setMuted] = useState(false);
+  const [nebuSkin, setNebuSkin] =
+    useState<NebuSkinKey>(DEFAULT_NEBU_SKIN);
+
+  const nebuHeatAssets = useMemo(
+    () => getNebuHeatAssets(nebuSkin),
+    [nebuSkin],
+  );
 
   const revealFromPreferences =
     respectPreferences &&
@@ -374,6 +387,27 @@ export default function WishCinematic({
   useEffect(() => {
     onFinishedRef.current = onFinished;
   }, [onFinished]);
+
+  useEffect(() => {
+    const syncSkin = () => {
+      setNebuSkin(readNebuSkin());
+    };
+
+    const handleSkinChange = (event: Event) => {
+      const key = (event as CustomEvent<{ key?: unknown }>).detail?.key;
+
+      if (isNebuSkinKey(key)) {
+        setNebuSkin(key);
+      }
+    };
+
+    syncSkin();
+    window.addEventListener(NEBU_SKIN_CHANGE_EVENT, handleSkinChange);
+
+    return () => {
+      window.removeEventListener(NEBU_SKIN_CHANGE_EVENT, handleSkinChange);
+    };
+  }, []);
 
   useEffect(() => {
     try {
@@ -481,7 +515,13 @@ export default function WishCinematic({
       }, sequenceTiming.durationMs);
     };
 
-    const preloadSources = [...SCENE_SPRITES, card.imageUrl].filter(
+    const preloadSources = [
+      ...BASE_SCENE_SPRITES,
+      nebuHeatAssets.walkSheet,
+      nebuHeatAssets.reactionSheet,
+      nebuHeatAssets.portrait,
+      card.imageUrl,
+    ].filter(
       (source): source is string => Boolean(source),
     );
     let remainingImages = preloadSources.length;
@@ -521,6 +561,9 @@ export default function WishCinematic({
     stopAudio,
     revealFromPreferences,
     sequenceTiming.durationMs,
+    nebuHeatAssets.walkSheet,
+    nebuHeatAssets.reactionSheet,
+    nebuHeatAssets.portrait,
   ]);
 
   useEffect(() => {
@@ -695,7 +738,7 @@ export default function WishCinematic({
           <div className={styles.preparingGlow} />
 
           <img
-            src="/ancient-pulls/celestial-cat.png"
+            src={nebuHeatAssets.portrait}
             alt="Nebu, the Ancient Pulls celestial cat"
             draggable={false}
             className={styles.preparingNebu}
@@ -718,6 +761,8 @@ export default function WishCinematic({
               escalationStartMs={ESCALATION_START_MS}
               stepDurationsMs={RARITY_HOLD_MS}
               cardRevealAtMs={sequenceTiming.cardAtMs}
+              walkSheet={nebuHeatAssets.walkSheet}
+              reactionSheet={nebuHeatAssets.reactionSheet}
               blackHole={isBlackHole}
               lowEffects={
                 preferences.lowVisualEffects || preferences.dataSaver

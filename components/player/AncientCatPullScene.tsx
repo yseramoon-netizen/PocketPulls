@@ -15,6 +15,8 @@ type AncientCatPullSceneProps = {
   escalationStartMs: number;
   stepDurationsMs: readonly number[];
   cardRevealAtMs: number;
+  walkSheet?: string;
+  reactionSheet?: string;
   blackHole?: boolean;
   lowEffects?: boolean;
 };
@@ -27,8 +29,8 @@ type Grade = {
   glow: string;
 };
 
-const WALK_SHEET = "/ancient-pulls/scene/nebu-pyramid-exit-v1.png";
-const REACTION_SHEET = "/ancient-pulls/scene/nebu-heat-reactions-v1.png";
+const DEFAULT_WALK_SHEET = "/ancient-pulls/scene/nebu-pyramid-exit-v1.png";
+const DEFAULT_REACTION_SHEET = "/ancient-pulls/scene/nebu-heat-reactions-v1.png";
 
 const GRADES: readonly Grade[] = [
   {
@@ -131,6 +133,8 @@ export default function AncientCatPullScene({
   escalationStartMs,
   stepDurationsMs,
   cardRevealAtMs,
+  walkSheet = DEFAULT_WALK_SHEET,
+  reactionSheet = DEFAULT_REACTION_SHEET,
   blackHole = false,
   lowEffects = false,
 }: AncientCatPullSceneProps) {
@@ -258,7 +262,7 @@ export default function AncientCatPullScene({
 
         <div className={styles.walkStage}>
           <NebuPerformanceSprite
-            sheet={WALK_SHEET}
+            sheet={walkSheet}
             durationMs={walkDurationMs}
             delayMs={180}
             className={styles.walkSprite}
@@ -280,7 +284,7 @@ export default function AncientCatPullScene({
           key={`${activeTier}-${reactionBeat}-${blackHole ? "void" : "sun"}`}
         >
           <NebuPerformanceSprite
-            sheet={REACTION_SHEET}
+            sheet={reactionSheet}
             durationMs={1000}
             staticFrame={reactionFrame}
             className={styles.reactionSprite}
