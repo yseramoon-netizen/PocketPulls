@@ -119,7 +119,8 @@ export default function WishPreviewPage() {
           Nebu performs first, then the falling star carries the
           card into its reveal. Common ceremonies take about four
           seconds, while Crown Rare builds to roughly ten. Test
-          every rarity here before a real wish.
+          every rarity here before a real wish. The current pacing is
+          deliberately relaxed so every Nebu pose has time to read.
         </p>
 
         <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

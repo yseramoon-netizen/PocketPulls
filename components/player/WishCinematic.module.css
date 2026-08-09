@@ -182,7 +182,7 @@
   transform: translateZ(0);
   backface-visibility: hidden;
   animation:
-    sequenceShake 760ms var(--impact-at)
+    sequenceShake 900ms var(--impact-at)
     cubic-bezier(0.36, 0.07, 0.19, 0.97)
     both;
   animation-play-state: running;
@@ -317,7 +317,7 @@
     transparent 54%
   );
   opacity: 0;
-  animation: impactFlash 760ms var(--impact-at) ease-out both;
+  animation: impactFlash 920ms var(--impact-at) ease-out both;
 }
 
 .impactRing,
@@ -333,7 +333,7 @@
   box-shadow: 0 0 34px var(--wish-glow);
   opacity: 0;
   transform: translate(-50%, -50%) scale(0.18);
-  animation: impactRing 820ms var(--impact-at) ease-out both;
+  animation: impactRing 1s var(--impact-at) ease-out both;
 }
 
 .impactRingSecond {
@@ -375,7 +375,7 @@
     translateX(12px)
     scaleX(0.1);
   transform-origin: left center;
-  animation: rayBurst 650ms
+  animation: rayBurst 780ms
     calc(var(--impact-at) + var(--ray-delay))
     ease-out both;
 }
@@ -407,7 +407,7 @@
     rotate(var(--particle-angle))
     translateX(0)
     scale(1);
-  animation: particleBurst 820ms
+  animation: particleBurst 1s
     calc(var(--impact-at) + 30ms + var(--particle-delay))
     ease-out both;
 }
@@ -426,7 +426,7 @@
     scale(0.7)
     rotateY(90deg);
   transform-style: preserve-3d;
-  animation: cardReveal 1.45s var(--card-at)
+  animation: cardReveal 1.8s var(--card-at)
     cubic-bezier(0.16, 0.9, 0.24, 1) both;
   backface-visibility: hidden;
   will-change: transform, opacity;
@@ -543,7 +543,7 @@
   opacity: 0;
   text-align: center;
   transform: translate3d(0, 24px, 0);
-  animation: infoAppears 520ms var(--info-at) ease-out both;
+  animation: infoAppears 650ms var(--info-at) ease-out both;
 }
 
 .rarity {

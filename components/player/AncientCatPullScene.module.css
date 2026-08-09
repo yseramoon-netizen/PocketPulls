@@ -1067,7 +1067,7 @@ html[data-nebu-skin="pearl"] .signatureParticles span {
 
 .scene[data-epilogue="true"] .epilogue {
   visibility: visible;
-  animation: epilogueArrives 2.35s ease-in-out both;
+  animation: epilogueArrives 2.9s ease-in-out both;
 }
 
 .epilogueGlow {
@@ -1089,7 +1089,7 @@ html[data-nebu-skin="pearl"] .signatureParticles span {
   left: 50%;
   width: min(64vw, 390px);
   transform: translate(-50%, -50%);
-  animation: epilogueNebuMoves 2.2s ease-in-out both;
+  animation: epilogueNebuMoves 2.75s ease-in-out both;
 }
 
 .epilogueObject {
@@ -1101,7 +1101,7 @@ html[data-nebu-skin="pearl"] .signatureParticles span {
   font-size: 3.6rem;
   text-shadow: 0 0 24px var(--stage-accent-soft);
   transform: translateX(-50%);
-  animation: epilogueObjectFalls 2.1s ease-in-out both;
+  animation: epilogueObjectFalls 2.6s ease-in-out both;
 }
 
 .epilogue p,
