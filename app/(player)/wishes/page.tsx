@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import NebuPortrait from "@/components/player/NebuPortrait";
 import WishCinematic, { type WishRevealCard } from "@/components/player/WishCinematic";
 import { supabase } from "@/lib/supabase";
 
@@ -447,6 +448,47 @@ export default function WishesPage() {
     return () => window.cancelAnimationFrame(frame);
   }, [loadDashboard]);
 
+  const replayLatestWish = useCallback(() => {
+    const latest = dashboard.recentWishes[0];
+
+    if (!latest) {
+      setErrorMessage(
+        "Make your first wish before replaying a pull cinematic.",
+      );
+      return;
+    }
+
+    setErrorMessage(null);
+    setForceFullSequence(true);
+    setWishReveal({
+      wishId: latest.id,
+      cardId: latest.cardId,
+      cardName: latest.cardName,
+      setName: latest.setName,
+      cardNumber: latest.cardNumber,
+      rarity: latest.rarity,
+      imageUrl: latest.imageUrl,
+      marketValue: latest.valueAtWish,
+      wishBalance: dashboard.wishBalance,
+    });
+  }, [dashboard.recentWishes, dashboard.wishBalance]);
+
+  useEffect(() => {
+    const handleReplayLatestWish = () => replayLatestWish();
+
+    window.addEventListener(
+      "pocketpulls:replay-latest-wish",
+      handleReplayLatestWish,
+    );
+
+    return () => {
+      window.removeEventListener(
+        "pocketpulls:replay-latest-wish",
+        handleReplayLatestWish,
+      );
+    };
+  }, [replayLatestWish]);
+
   const makeWish = useCallback(async () => {
     if (makingWish || dashboard.wishBalance < 1) {
       return;
@@ -723,8 +765,7 @@ function WishChamber({
 
           <div className="absolute h-40 w-40 animate-spin rounded-full border border-transparent border-r-cyan-100/30 border-t-yellow-100/70 [animation-duration:8s]" />
 
-          <img
-            src="/ancient-pulls/celestial-cat.png"
+          <NebuPortrait
             alt=""
             draggable={false}
             onError={(event) => {

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import NebuPortrait from "@/components/player/NebuPortrait";
 import UnownText from "@/components/player/UnownText";
 import {
   modernisePlayerCopy,
@@ -351,8 +352,7 @@ export default function TrainerHqPage() {
               </span>
             </div>
 
-            <img
-              src="/ancient-pulls/celestial-cat.png"
+            <NebuPortrait
               alt=""
               draggable={false}
               data-pocketpulls-ambient="heavy"
