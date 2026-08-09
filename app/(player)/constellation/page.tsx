@@ -1024,9 +1024,14 @@ export default function ConstellationPage() {
   const [mobileSky, setMobileSky] = useState(false);
   const [rotation, setRotation] = useState({ x: -7, y: 0 });
   const [zoom, setZoom] = useState(1);
+  const [cameraOffset, setCameraOffset] = useState({ x: 0, y: 0 });
+  const [travellingStarId, setTravellingStarId] = useState<string | null>(null);
   const [draggingSky, setDraggingSky] = useState(false);
   const skyViewportRef = useRef<HTMLElement | null>(null);
+  const skyPlaneRef = useRef<HTMLDivElement | null>(null);
   const viewFrameRef = useRef<number | null>(null);
+  const travelAnimationRef = useRef<Animation | null>(null);
+  const cameraOffsetRef = useRef({ x: 0, y: 0 });
   const viewRef = useRef({
     rotation: { x: -7, y: 0 },
     zoom: 1,
@@ -1086,22 +1091,127 @@ export default function ConstellationPage() {
   }, []);
 
   const resetSkyView = useCallback(() => {
+    travelAnimationRef.current?.cancel();
+    travelAnimationRef.current = null;
+
     const nextRotation = { x: mobileSky ? -4 : -7, y: 0 };
     const nextZoom = mobileSky ? 0.72 : 1;
+    const nextOffset = { x: 0, y: 0 };
     viewRef.current = {
       rotation: nextRotation,
       zoom: nextZoom,
     };
+    cameraOffsetRef.current = nextOffset;
     setRotation(nextRotation);
     setZoom(nextZoom);
+    setCameraOffset(nextOffset);
+    setTravellingStarId(null);
     gestureRef.current.startRotation = nextRotation;
     gestureRef.current.pinchZoom = nextZoom;
   }, [mobileSky]);
+
+  const travelToStar = useCallback((star: ConstellationStar) => {
+    travelAnimationRef.current?.cancel();
+    travelAnimationRef.current = null;
+
+    const activeRotation = viewRef.current.rotation;
+    const projected = projectSpatialPoint(star, activeRotation);
+    const startZoom = viewRef.current.zoom;
+    const startOffset = cameraOffsetRef.current;
+    const targetZoom = clampZoom(mobileSky ? 1.38 : 1.72);
+    const targetOffset = {
+      x: (50 - projected.x) * targetZoom,
+      y: (50 - projected.y) * targetZoom,
+    };
+
+    setSelectedStar(null);
+    setInfoPanelOpen(false);
+
+    if (preferences.reducedMotion || preferences.lowVisualEffects) {
+      viewRef.current.zoom = targetZoom;
+      cameraOffsetRef.current = targetOffset;
+      setZoom(targetZoom);
+      setCameraOffset(targetOffset);
+      setTravellingStarId(null);
+      setSelectedStar(star);
+      return;
+    }
+
+    const pullBackZoom = clampZoom(
+      Math.min(startZoom * 0.76, mobileSky ? 0.62 : 0.78),
+    );
+    const pullBackOffset = {
+      x: startOffset.x * 0.58,
+      y: startOffset.y * 0.58,
+    };
+    const pullBackDuration = 420;
+    const flightDuration = 1900;
+    const totalDuration = pullBackDuration + flightDuration;
+    const plane = skyPlaneRef.current;
+
+    if (!plane) {
+      viewRef.current.zoom = targetZoom;
+      cameraOffsetRef.current = targetOffset;
+      setZoom(targetZoom);
+      setCameraOffset(targetOffset);
+      setSelectedStar(star);
+      return;
+    }
+
+    const transform = (offset: { x: number; y: number }, scale: number) =>
+      `translate3d(${offset.x}%, ${offset.y}%, 0) scale(${scale})`;
+
+    setTravellingStarId(star.id);
+
+    const animation = plane.animate(
+      [
+        {
+          transform: transform(startOffset, startZoom),
+          offset: 0,
+          easing: "cubic-bezier(0.22, 0.72, 0.28, 1)",
+        },
+        {
+          transform: transform(pullBackOffset, pullBackZoom),
+          offset: pullBackDuration / totalDuration,
+          easing: "cubic-bezier(0.18, 0.76, 0.18, 1)",
+        },
+        {
+          transform: transform(targetOffset, targetZoom),
+          offset: 1,
+        },
+      ],
+      {
+        duration: totalDuration,
+        fill: "forwards",
+      },
+    );
+
+    travelAnimationRef.current = animation;
+
+    animation.onfinish = () => {
+      viewRef.current.zoom = targetZoom;
+      cameraOffsetRef.current = targetOffset;
+      setZoom(targetZoom);
+      setCameraOffset(targetOffset);
+      setTravellingStarId(null);
+      setSelectedStar(star);
+
+      window.requestAnimationFrame(() => {
+        if (travelAnimationRef.current === animation) {
+          animation.cancel();
+          travelAnimationRef.current = null;
+        }
+      });
+    };
+  }, [clampZoom, mobileSky, preferences.lowVisualEffects, preferences.reducedMotion]);
 
   useEffect(() => {
     const media = window.matchMedia("(max-width: 767px)");
 
     const sync = () => {
+      travelAnimationRef.current?.cancel();
+      travelAnimationRef.current = null;
+
       const mobile = media.matches;
       const nextRotation = {
         x: mobile ? -4 : -7,
@@ -1114,9 +1224,12 @@ export default function ConstellationPage() {
         rotation: nextRotation,
         zoom: nextZoom,
       };
+      cameraOffsetRef.current = { x: 0, y: 0 };
       setMobileSky(mobile);
       setZoom(nextZoom);
       setRotation(nextRotation);
+      setCameraOffset({ x: 0, y: 0 });
+      setTravellingStarId(null);
       gestureRef.current.startRotation = nextRotation;
       gestureRef.current.pinchZoom = nextZoom;
     };
@@ -1139,6 +1252,8 @@ export default function ConstellationPage() {
           viewFrameRef.current,
         );
       }
+
+      travelAnimationRef.current?.cancel();
     };
   }, []);
 
@@ -1455,6 +1570,13 @@ export default function ConstellationPage() {
   return (
     <section className="relative min-h-[calc(100dvh-4.5rem)] w-full overflow-hidden bg-[#040515] text-white">
       <h1 className="sr-only">Your Constellation</h1>
+      <p className="sr-only" aria-live="polite">
+        {travellingStarId
+          ? `Travelling to ${stars.find((star) => star.id === travellingStarId)?.name || "the selected star"}.`
+          : selectedStar
+            ? `Arrived at ${selectedStar.name}.`
+            : ""}
+      </p>
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_45%,rgba(103,232,249,0.075),transparent_32%),radial-gradient(circle_at_20%_18%,rgba(196,181,253,0.08),transparent_26%),radial-gradient(circle_at_82%_17%,rgba(249,168,212,0.06),transparent_24%),linear-gradient(180deg,rgba(3,4,18,0.96),rgba(6,7,27,0.985))]" />
       <div className="pointer-events-none absolute inset-0 opacity-65 [background-image:radial-gradient(circle_at_7%_14%,white_0_1px,transparent_1.5px),radial-gradient(circle_at_14%_43%,white_0_1px,transparent_1.5px),radial-gradient(circle_at_26%_21%,white_0_1px,transparent_1.5px),radial-gradient(circle_at_34%_68%,white_0_1px,transparent_1.5px),radial-gradient(circle_at_42%_11%,white_0_1px,transparent_1.5px),radial-gradient(circle_at_53%_31%,white_0_1px,transparent_1.5px),radial-gradient(circle_at_61%_76%,white_0_1px,transparent_1.5px),radial-gradient(circle_at_69%_13%,white_0_1px,transparent_1.5px),radial-gradient(circle_at_79%_42%,white_0_1px,transparent_1.5px),radial-gradient(circle_at_88%_19%,white_0_1px,transparent_1.5px),radial-gradient(circle_at_94%_72%,white_0_1px,transparent_1.5px)]" />
       <div className="pointer-events-none absolute -left-[12vw] top-[16%] h-[28rem] w-[68vw] rotate-[-12deg] rounded-[50%] bg-[linear-gradient(90deg,transparent,rgba(34,211,238,0.035),rgba(139,92,246,0.055),transparent)] blur-[34px] constellationAurora" />
@@ -1576,11 +1698,14 @@ export default function ConstellationPage() {
             }}
           >
             <div
+              ref={skyPlaneRef}
               className="relative h-full w-full constellation3dPlane constellationSpatialVolume"
               style={{
-                transform: `scale(${zoom})`,
+                transform: `translate3d(${cameraOffset.x}%, ${cameraOffset.y}%, 0) scale(${zoom})`,
                 transformOrigin: "50% 50%",
-                transition: draggingSky ? "none" : "transform 160ms ease-out",
+                transition: draggingSky || travellingStarId
+                  ? "none"
+                  : "transform 160ms ease-out",
               }}
             >
             <div aria-hidden="true" data-pocketpulls-ambient="heavy" className="pointer-events-none absolute inset-0 overflow-hidden" style={{ transformStyle: "preserve-3d" }}>
@@ -1715,6 +1840,7 @@ export default function ConstellationPage() {
 
             {depthSortedStars.map(({ star, projected }) => {
               const active = selectedStar?.id === star.id;
+              const destination = travellingStarId === star.id;
               const hitSize = Math.max(24, star.size + 14);
               const anniversaryYears = getAnniversaryYears(star.grantedAt);
               const starOpacity = Math.min(
@@ -1726,12 +1852,15 @@ export default function ConstellationPage() {
                 <button
                   key={star.id}
                   type="button"
-                  onClick={() => setSelectedStar(star)}
+                  onClick={() => travelToStar(star)}
+                  disabled={travellingStarId !== null}
                   aria-label={`${star.name}, ${star.rarity}`}
                   title={anniversaryYears > 0 ? anniversaryMessage(anniversaryYears) : undefined}
                   className={[
                     "spatialStarButton absolute rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white",
-                    active ? "z-30 scale-[1.12]" : "z-20 hover:scale-125",
+                    active || destination
+                      ? "z-30 scale-[1.18]"
+                      : "z-20 hover:scale-125",
                   ].join(" ")}
                   style={{
                     left: `${projected.x}%`,
@@ -1758,7 +1887,7 @@ export default function ConstellationPage() {
                       width: `${star.size}px`,
                       height: `${star.size}px`,
                       background: star.colour,
-                      boxShadow: active
+                      boxShadow: active || destination
                         ? `0 0 ${star.size * 3.1}px ${star.size * 0.85}px ${star.glow}`
                         : star.zodiacAnchor
                           ? `0 0 ${star.size * 2.6}px ${star.size * 0.68}px ${star.glow}`
@@ -1838,9 +1967,16 @@ export default function ConstellationPage() {
             </div>
           </div>
         )}
+
+        {travellingStarId ? (
+          <div
+            aria-hidden="true"
+            className="constellationTravelTunnel pointer-events-none absolute inset-0 z-[35]"
+          />
+        ) : null}
       </article>
 
-      {!loading && !selectedStar ? (
+      {!loading && !selectedStar && !travellingStarId ? (
         <div className="pointer-events-none absolute bottom-[calc(1rem+env(safe-area-inset-bottom))] left-1/2 z-50 flex max-w-[94vw] -translate-x-1/2 items-center gap-2 md:bottom-4">
           <span className="rounded-full border border-white/10 bg-[#050619]/82 px-3 py-2 text-[0.56rem] font-black uppercase tracking-[0.12em] text-white/44 shadow-xl backdrop-blur-xl">
             {mobileSky ? "Drag to rotate · Pinch to zoom" : "Drag to rotate · Wheel to zoom"}
@@ -1956,6 +2092,46 @@ export default function ConstellationPage() {
           100% {
             opacity: var(--star-opacity, 1);
             filter: brightness(1);
+          }
+        }
+
+        .constellationTravelTunnel {
+          background:
+            radial-gradient(circle at center, transparent 0 12%, rgba(103,232,249,0.055) 28%, transparent 62%),
+            repeating-conic-gradient(
+              from 0deg at 50% 50%,
+              rgba(255,255,255,0.22) 0deg,
+              rgba(103,232,249,0.08) 0.18deg,
+              transparent 0.65deg,
+              transparent 11deg
+            );
+          mask-image: radial-gradient(circle at center, transparent 0 14%, #000 31%, transparent 74%);
+          -webkit-mask-image: radial-gradient(circle at center, transparent 0 14%, #000 31%, transparent 74%);
+          animation: constellationTravelTunnel 2320ms ease-in-out both;
+          mix-blend-mode: screen;
+          transform-origin: center;
+        }
+
+        @keyframes constellationTravelTunnel {
+          0% {
+            opacity: 0;
+            transform: scale(0.82) rotate(-0.4deg);
+            filter: blur(1.2px);
+          }
+          18% {
+            opacity: 0.12;
+            transform: scale(0.74) rotate(0deg);
+            filter: blur(0.7px);
+          }
+          68% {
+            opacity: 0.42;
+            transform: scale(1.2) rotate(0.5deg);
+            filter: blur(0.25px);
+          }
+          100% {
+            opacity: 0;
+            transform: scale(1.82) rotate(0.8deg);
+            filter: blur(1px);
           }
         }
 
@@ -2250,6 +2426,7 @@ export default function ConstellationPage() {
           .constellationOrbitRing,
           .constellationAnchorStar::after,
           .constellationAurora,
+          .constellationTravelTunnel,
           .shootingStar {
             animation: none !important;
           }
