@@ -59,13 +59,30 @@ type RarityTheme = {
 
 const IMAGE_PRELOAD_TIMEOUT_MS = 3500;
 const ESCALATION_START_MS = 2600;
-const RARITY_STEP_MS = 720;
+const RARITY_HOLD_MS = [
+  2000,
+  2000,
+  3000,
+  4000,
+  4000,
+  4000,
+  4000,
+  4000,
+  4000,
+] as const;
 const SCENE_SPRITES = [
   "/ancient-pulls/scene/pyramid-right-v1.png",
   "/ancient-pulls/scene/distant-mountains-village-v1.png",
   "/ancient-pulls/scene/nebu-pyramid-exit-v1.png",
   "/ancient-pulls/scene/nebu-heat-reactions-v1.png",
 ] as const;
+
+function getRarityRevealOffset(tier: number): number {
+  return RARITY_HOLD_MS.slice(0, Math.max(1, tier)).reduce(
+    (total, duration) => total + duration,
+    0,
+  );
+}
 
 const THEMES: Record<string, RarityTheme> = {
   common: {
@@ -324,11 +341,12 @@ export default function WishCinematic({
       };
     }
 
-    const impactAtMs =
-      ESCALATION_START_MS +
-      (theme.tier - 1) * RARITY_STEP_MS +
-      Math.round(RARITY_STEP_MS * 0.78);
-    const cardAtMs = impactAtMs + 700;
+    const cardAtMs =
+      ESCALATION_START_MS + getRarityRevealOffset(theme.tier);
+    const impactAtMs = Math.max(
+      ESCALATION_START_MS,
+      cardAtMs - 520,
+    );
     const infoAtMs = cardAtMs + 720;
 
     return {
@@ -698,7 +716,7 @@ export default function WishCinematic({
             <AncientCatPullScene
               tier={theme.tier}
               escalationStartMs={ESCALATION_START_MS}
-              stepDurationMs={RARITY_STEP_MS}
+              stepDurationsMs={RARITY_HOLD_MS}
               cardRevealAtMs={sequenceTiming.cardAtMs}
               blackHole={isBlackHole}
               lowEffects={

@@ -13,7 +13,7 @@ import styles from "./AncientCatPullScene.module.css";
 type AncientCatPullSceneProps = {
   tier: number;
   escalationStartMs: number;
-  stepDurationMs: number;
+  stepDurationsMs: readonly number[];
   cardRevealAtMs: number;
   blackHole?: boolean;
   lowEffects?: boolean;
@@ -129,7 +129,7 @@ function clampTier(tier: number): number {
 export default function AncientCatPullScene({
   tier,
   escalationStartMs,
-  stepDurationMs,
+  stepDurationsMs,
   cardRevealAtMs,
   blackHole = false,
   lowEffects = false,
@@ -151,8 +151,15 @@ export default function AncientCatPullScene({
 
     if (!blackHole) {
       for (let nextTier = 1; nextTier <= finalTier; nextTier += 1) {
-        const stepStartsAt =
-          escalationStartMs + (nextTier - 1) * stepDurationMs;
+        const stepStartsAt = escalationStartMs + stepDurationsMs
+          .slice(0, nextTier - 1)
+          .reduce((total, duration) => total + duration, 0);
+        const phaseDuration =
+          stepDurationsMs[nextTier - 1] ?? 4000;
+        const reactionBeatAt = Math.min(
+          900,
+          Math.max(520, Math.round(phaseDuration * 0.42)),
+        );
 
         timers.push(
           window.setTimeout(() => {
@@ -164,7 +171,7 @@ export default function AncientCatPullScene({
         timers.push(
           window.setTimeout(() => {
             setReactionBeat(1);
-          }, stepStartsAt + Math.round(stepDurationMs * 0.48)),
+          }, stepStartsAt + reactionBeatAt),
         );
       }
     }
@@ -174,7 +181,7 @@ export default function AncientCatPullScene({
         window.clearTimeout(timer);
       }
     };
-  }, [blackHole, escalationStartMs, finalTier, stepDurationMs]);
+  }, [blackHole, escalationStartMs, finalTier, stepDurationsMs]);
 
   const grade = GRADES[activeTier - 1];
   const reactionFrame = blackHole
@@ -187,7 +194,6 @@ export default function AncientCatPullScene({
     "--active-accent": grade.accent,
     "--active-glow": grade.glow,
     "--escalation-start": `${escalationStartMs}ms`,
-    "--step-duration": `${stepDurationMs}ms`,
     "--scene-clear-at": `${cardRevealAtMs}ms`,
     "--walk-duration": `${walkDurationMs}ms`,
     "--heat-level": String(heatLevel),
