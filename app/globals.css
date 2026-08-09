@@ -87,15 +87,15 @@ html[data-nebu-skin="sherry"] {
 
 html[data-nebu-skin="bubbles"] {
   --nebu-image-filter:
-    grayscale(0.78) brightness(1.42) contrast(0.82)
+    saturate(1.04) contrast(1.04)
     drop-shadow(0 8px 16px rgba(0, 0, 0, 0.3))
-    drop-shadow(0 0 14px rgba(56, 189, 248, 0.32));
+    drop-shadow(0 0 14px rgba(132, 160, 62, 0.28));
   --nebu-scene-filter:
     drop-shadow(0 8px 16px rgba(0, 0, 0, 0.3))
-    drop-shadow(0 0 14px rgba(56, 189, 248, 0.26));
-  --nebu-ghost-filter: grayscale(0.72) brightness(1.34) contrast(0.86);
-  --nebu-performance-accent: #38bdf8;
-  --nebu-performance-soft: rgba(56, 189, 248, 0.32);
+    drop-shadow(0 0 14px rgba(132, 160, 62, 0.24));
+  --nebu-ghost-filter: saturate(1.04) contrast(1.04);
+  --nebu-performance-accent: #91ad47;
+  --nebu-performance-soft: rgba(145, 173, 71, 0.3);
 }
 
 html {

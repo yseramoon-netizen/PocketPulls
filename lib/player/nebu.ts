@@ -120,8 +120,8 @@ export const NEBU_SKINS: readonly NebuSkin[] = [
   {
     key: "bubbles",
     label: "Bubbles",
-    palette: "Pearl-white coat · bright blue eyes",
-    swatch: "linear-gradient(135deg, #f8fbff 0 58%, #21b7ff 58% 78%, #e8b338 78%)",
+    palette: "Calico coat · olive-green eyes",
+    swatch: "linear-gradient(135deg, #fffaf0 0 34%, #221b17 34% 58%, #c87924 58% 80%, #779b38 80%)",
     achievementKey: null,
     achievementTitle: null,
     exclusiveOwner: "bubbles",
