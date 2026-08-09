@@ -150,6 +150,7 @@ export default function WishShopPage() {
   const [successMessage, setSuccessMessage] = useState("");
   const [selectedPackageId, setSelectedPackageId] = useState("constellation");
   const [starBursts, setStarBursts] = useState(0);
+  const [vaultNoticeOpen, setVaultNoticeOpen] = useState(false);
 
   const triggerTwinkle = useCallback(() => {
     setStarBursts((current) => current + 1);
@@ -339,14 +340,9 @@ export default function WishShopPage() {
               type="button"
               className={styles.jirachiImageButton}
               onClick={triggerTwinkle}
-              aria-label="Make Nebu twinkle the stars"
+              aria-label="Make the golden star twinkle"
             >
-              <img
-                src="/ancient-pulls/celestial-cat.png"
-                alt="Nebu"
-                draggable={false}
-                className={styles.jirachiImage}
-              />
+              <span className={styles.heroStar} aria-hidden="true">★</span>
             </button>
 
             <div className={styles.burstLayer} aria-hidden="true">
@@ -375,6 +371,60 @@ export default function WishShopPage() {
           <div className={styles.errorBanner}>{errorMessage}</div>
         ) : null}
         {successMessage ? <div className={styles.successBanner}>{successMessage}</div> : null}
+
+        <section className={styles.vaultCard} aria-labelledby="vault-pass-title">
+          <div className={styles.vaultStars} aria-hidden="true">
+            <span>✦</span>
+            <span>·</span>
+            <span>✧</span>
+            <span>·</span>
+            <span>✦</span>
+          </div>
+
+          <div className={styles.vaultEmblem} aria-hidden="true">
+            <span className={styles.vaultMoon}>☾</span>
+            <span className={styles.vaultCat}>♢</span>
+          </div>
+
+          <div className={styles.vaultCopy}>
+            <p className={styles.vaultEyebrow}>Monthly constellation pass</p>
+            <h2 id="vault-pass-title">Nebu’s Vault of Stars</h2>
+            <p className={styles.vaultBody}>
+              A monthly home for extra wishes, Nebu rewards and surprises from
+              across the constellation.
+            </p>
+
+            <ul className={styles.vaultBenefits}>
+              <li><span aria-hidden="true">✦</span> A fresh drop of stars every month</li>
+              <li><span aria-hidden="true">✦</span> Vault-exclusive Nebu rewards</li>
+              <li><span aria-hidden="true">✦</span> Constellation member surprises</li>
+            </ul>
+          </div>
+
+          <div className={styles.vaultPurchase}>
+            <p className={styles.vaultPrice}>
+              <strong>£12.99</strong>
+              <span>per month</span>
+            </p>
+            <button
+              type="button"
+              className={styles.vaultButton}
+              onClick={() => setVaultNoticeOpen(true)}
+              aria-describedby={vaultNoticeOpen ? "vault-order-notice" : undefined}
+            >
+              Join Nebu’s Vault
+            </button>
+            <p className={styles.vaultFinePrint}>
+              Full membership details will be confirmed before checkout opens.
+            </p>
+          </div>
+
+          {vaultNoticeOpen ? (
+            <p id="vault-order-notice" className={styles.vaultNotice} role="status">
+              {ORDERS_NOT_READY_MESSAGE}
+            </p>
+          ) : null}
+        </section>
 
         {loading ? (
           <div className={styles.loadingCard}>

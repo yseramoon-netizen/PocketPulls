@@ -80,15 +80,10 @@ const MORE_ITEMS: NavItem[] = [
     glyph: "◷",
   },
   {
-    href: "/rewards",
-    label: "Daily Gift",
-    glyph: "◇",
-    reward: true,
-  },
-  {
     href: "/achievements",
     label: "Badges",
     glyph: "✪",
+    reward: true,
   },
   {
     href: "/leaderboard",
@@ -139,7 +134,7 @@ const DRAWER_GROUPS: NavGroup[] = [
     items: [
       PRIMARY_ITEMS[4],
       PRIMARY_ITEMS[5],
-      MORE_ITEMS[4],
+      MORE_ITEMS[3],
     ],
   },
   {
@@ -148,15 +143,14 @@ const DRAWER_GROUPS: NavGroup[] = [
       MORE_ITEMS[0],
       MORE_ITEMS[1],
       MORE_ITEMS[2],
-      MORE_ITEMS[3],
     ],
   },
   {
     label: "Account",
     items: [
+      MORE_ITEMS[4],
       MORE_ITEMS[5],
       MORE_ITEMS[6],
-      MORE_ITEMS[7],
       PROFILE_ITEM,
     ],
   },
@@ -405,32 +399,11 @@ export default function PlayerNav({
     let active = true;
 
     async function checkReward() {
-      const [dailyResult, achievementResult] =
-        await Promise.all([
-          supabase.rpc("get_daily_reward_status"),
-          supabase.rpc("get_player_achievements"),
-        ]);
+      const achievementResult =
+        await supabase.rpc("get_player_achievements");
 
       if (!active) {
         return;
-      }
-
-      let dailyReady = false;
-
-      if (!dailyResult.error) {
-        const row = Array.isArray(dailyResult.data)
-          ? dailyResult.data[0]
-          : dailyResult.data;
-
-        if (
-          typeof row === "object" &&
-          row !== null &&
-          "claimed_today" in row
-        ) {
-          dailyReady =
-            (row as { claimed_today?: unknown })
-              .claimed_today !== true;
-        }
       }
 
       let badgeReady = false;
@@ -455,7 +428,7 @@ export default function PlayerNav({
         });
       }
 
-      setRewardReady(dailyReady || badgeReady);
+      setRewardReady(badgeReady);
     }
 
     void checkReward();
@@ -466,10 +439,6 @@ export default function PlayerNav({
       };
 
     window.addEventListener(
-      "pocketpulls:reward-claimed",
-      handleRewardClaimed,
-    );
-    window.addEventListener(
       "pocketpulls:achievement-reward-claimed",
       handleRewardClaimed,
     );
@@ -477,10 +446,6 @@ export default function PlayerNav({
     return () => {
       active = false;
 
-      window.removeEventListener(
-        "pocketpulls:reward-claimed",
-        handleRewardClaimed,
-      );
       window.removeEventListener(
         "pocketpulls:achievement-reward-claimed",
         handleRewardClaimed,
@@ -673,19 +638,24 @@ export default function PlayerNav({
                 "
               />
 
-              <img
-                src="/ancient-pulls/celestial-cat.png"
-                alt=""
-                draggable={false}
+              <span
+                aria-hidden="true"
                 className="
                   relative
                   z-10
+                  flex
                   h-10
                   w-10
-                  object-contain
-                  drop-shadow-[0_8px_10px_rgba(0,0,0,0.4)]
+                  items-center
+                  justify-center
+                  text-[2.15rem]
+                  leading-none
+                  text-yellow-200
+                  drop-shadow-[0_0_10px_rgba(250,204,21,0.72)]
                 "
-              />
+              >
+                ★
+              </span>
             </div>
 
             <div className="hidden min-w-0 sm:block">
