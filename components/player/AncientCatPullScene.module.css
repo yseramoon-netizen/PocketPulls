@@ -216,6 +216,7 @@
 }
 
 .walkStage {
+  z-index: 12;
   left: 25%;
   animation:
     nebuWalksOut var(--walk-duration) 180ms cubic-bezier(0.24, 0.74, 0.26, 1) both,
@@ -681,13 +682,13 @@
 
   .pyramidWrap {
     bottom: -3%;
-    left: -20%;
-    width: min(115vw, 560px);
+    left: -72%;
+    width: min(155vw, 620px);
   }
 
   .walkStage {
     bottom: 8%;
-    left: 44%;
+    left: 18%;
     width: min(62vw, 280px);
   }
 
