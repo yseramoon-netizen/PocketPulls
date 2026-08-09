@@ -648,6 +648,13 @@ export default function TradePage() {
     const timer =
       window.setInterval(
         () => {
+          if (
+            document.visibilityState !==
+            "visible"
+          ) {
+            return;
+          }
+
           void loadTrade(
             activeTradeId,
             true,
@@ -658,8 +665,8 @@ export default function TradePage() {
           );
         },
         summary?.status === "countdown"
-          ? 700
-          : 1800,
+          ? 1500
+          : 5000,
       );
 
     return () => {
@@ -719,6 +726,13 @@ export default function TradePage() {
   ]);
 
   useEffect(() => {
+    if (
+      summary?.status !==
+      "countdown"
+    ) {
+      return;
+    }
+
     const timer =
       window.setInterval(
         () => {
@@ -726,7 +740,7 @@ export default function TradePage() {
             Date.now(),
           );
         },
-        200,
+        250,
       );
 
     return () => {
@@ -734,7 +748,7 @@ export default function TradePage() {
         timer,
       );
     };
-  }, []);
+  }, [summary?.status]);
 
   async function createTrade(
     friendUserId: string,

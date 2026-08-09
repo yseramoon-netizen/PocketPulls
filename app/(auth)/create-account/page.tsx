@@ -22,6 +22,14 @@ import {
   getSafeNextPath,
 } from "@/lib/auth/navigation";
 import {
+  clearPendingRegistration,
+  type PendingRegistration,
+  readPendingRegistration,
+  rememberPendingRegistration,
+  resendSignupConfirmation,
+  secondsUntilVerificationResend,
+} from "@/lib/auth/pending-registration";
+import {
   PURCHASE_CONSENT_SUMMARY,
   PURCHASE_CONSENT_VERSION,
 } from "@/lib/player/purchase-consent";
@@ -50,6 +58,10 @@ export default function CreateAccountPage() {
     useState<UsernameState>("idle");
   const [checking, setChecking] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [pendingRegistration, setPendingRegistration] =
+    useState<PendingRegistration | null>(null);
+  const [resending, setResending] = useState(false);
+  const [resendMessage, setResendMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const nextPath = useMemo(
@@ -67,11 +79,13 @@ export default function CreateAccountPage() {
       if (!active) return;
 
       if (data.session) {
+        clearPendingRegistration();
         router.replace(nextPath);
         router.refresh();
         return;
       }
 
+      setPendingRegistration(readPendingRegistration());
       setChecking(false);
     });
 
@@ -85,12 +99,7 @@ export default function CreateAccountPage() {
       window.clearTimeout(usernameTimerRef.current);
     }
 
-    if (username.length < 3) {
-      setUsernameState(username ? "invalid" : "idle");
-      return;
-    }
-
-    setUsernameState("checking");
+    if (username.length < 3) return;
 
     usernameTimerRef.current = window.setTimeout(() => {
       void supabase
@@ -114,6 +123,52 @@ export default function CreateAccountPage() {
       }
     };
   }, [username]);
+
+  function updateUsername(value: string) {
+    const nextUsername = normaliseUsername(value);
+    setUsername(nextUsername);
+    setUsernameState(
+      nextUsername.length >= 3
+        ? "checking"
+        : nextUsername
+          ? "invalid"
+          : "idle",
+    );
+  }
+
+  async function resendRememberedConfirmation(
+    registration = pendingRegistration,
+  ) {
+    if (!registration || resending) return;
+
+    const cooldown = secondsUntilVerificationResend(registration);
+    if (cooldown > 0) {
+      setResendMessage(`You can send another email in ${cooldown}s.`);
+      return;
+    }
+
+    setResending(true);
+    setResendMessage(null);
+    setErrorMessage(null);
+
+    try {
+      const refreshed = await resendSignupConfirmation(
+        registration.email,
+        registration.nextPath,
+      );
+      setPendingRegistration(refreshed);
+      setResendMessage("A new verification email has been sent.");
+    } catch (error: unknown) {
+      setErrorMessage(
+        getAuthErrorMessage(
+          error,
+          "The verification email could not be resent.",
+        ),
+      );
+    } finally {
+      setResending(false);
+    }
+  }
 
   async function handleSubmit(
     event: React.FormEvent<HTMLFormElement>,
@@ -145,6 +200,13 @@ export default function CreateAccountPage() {
 
     if (!cleanEmail) {
       setErrorMessage("Enter your email address.");
+      return;
+    }
+
+    const remembered = readPendingRegistration();
+    if (remembered?.email === cleanEmail) {
+      setPendingRegistration(remembered);
+      await resendRememberedConfirmation(remembered);
       return;
     }
 
@@ -194,12 +256,20 @@ export default function CreateAccountPage() {
 
         if (registrationError) throw registrationError;
 
+        clearPendingRegistration();
+
         router.replace(
           `/welcome?next=${encodeURIComponent(nextPath)}`,
         );
         router.refresh();
         return;
       }
+
+      rememberPendingRegistration({
+        email: cleanEmail,
+        nextPath,
+        lastSentAt: Date.now(),
+      });
 
       router.replace(
         `/check-email?email=${encodeURIComponent(
@@ -250,6 +320,51 @@ export default function CreateAccountPage() {
         </div>
       }
     >
+      {pendingRegistration ? (
+        <div className="mb-6 rounded-2xl border border-cyan-100/20 bg-cyan-300/[0.08] p-5">
+          <p className="text-xs font-black uppercase tracking-[0.14em] text-cyan-100/70">
+            Email confirmation still pending
+          </p>
+          <p className="mt-2 break-all text-base font-black text-white">
+            {pendingRegistration.email}
+          </p>
+          <p className="mt-2 text-sm font-semibold leading-6 text-white/60">
+            This browser remembers that account. You do not need to create it
+            again—send a fresh verification link instead.
+          </p>
+
+          {resendMessage ? (
+            <div className="mt-4">
+              <AuthMessage tone="success">{resendMessage}</AuthMessage>
+            </div>
+          ) : null}
+
+          <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+            <button
+              type="button"
+              onClick={() => void resendRememberedConfirmation()}
+              disabled={resending}
+              className="inline-flex min-h-11 flex-1 items-center justify-center rounded-xl bg-cyan-100 px-4 text-sm font-black text-[#101427] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {resending ? "Sending verification..." : "Resend verification email"}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                clearPendingRegistration();
+                setPendingRegistration(null);
+                setResendMessage(null);
+                setEmail("");
+              }}
+              disabled={resending}
+              className="inline-flex min-h-11 items-center justify-center rounded-xl border border-white/15 bg-white/[0.05] px-4 text-sm font-black text-white/70 hover:bg-white/10 hover:text-white"
+            >
+              Create a different account
+            </button>
+          </div>
+        </div>
+      ) : null}
+
       <form onSubmit={handleSubmit} className="space-y-5">
         <div className="grid gap-5 sm:grid-cols-2">
           <AuthField label="Display name">
@@ -266,11 +381,7 @@ export default function CreateAccountPage() {
           <AuthField label="Username" hint={usernameHint}>
             <input
               value={username}
-              onChange={(event) =>
-                setUsername(
-                  normaliseUsername(event.target.value),
-                )
-              }
+              onChange={(event) => updateUsername(event.target.value)}
               autoComplete="username"
               placeholder="ancient_trainer"
               disabled={submitting}

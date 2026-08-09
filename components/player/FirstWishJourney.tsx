@@ -425,7 +425,7 @@ export default function FirstWishJourney({
       {journey.intro_seen && currentStep ? (
         <aside
           aria-label="First-wish journey"
-          className="fixed bottom-[calc(5.4rem+env(safe-area-inset-bottom))] left-3 z-[72] w-[calc(100vw-1.5rem)] max-w-sm md:bottom-5 md:left-5"
+          className="fixed bottom-[calc(0.75rem+env(safe-area-inset-bottom))] left-3 z-[72] w-[calc(100vw-1.5rem)] max-w-sm md:bottom-5 md:left-5"
         >
           {collapsed ? (
             <button

@@ -10,6 +10,18 @@ import {
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { supabase } from "@/lib/supabase";
+import {
+  getAuthErrorDetails,
+  getAuthErrorMessage,
+} from "@/lib/auth/helpers";
+import {
+  clearPendingRegistration,
+  type PendingRegistration,
+  readPendingRegistration,
+  rememberPendingRegistration,
+  resendSignupConfirmation,
+  secondsUntilVerificationResend,
+} from "@/lib/auth/pending-registration";
 
 function safeNextPath(value: string | null): string {
   if (
@@ -23,21 +35,6 @@ function safeNextPath(value: string | null): string {
   }
 
   return value;
-}
-
-function getErrorMessage(error: unknown): string {
-  if (error instanceof Error && error.message.trim()) {
-    return error.message.trim();
-  }
-
-  if (typeof error === "object" && error !== null && "message" in error) {
-    const message = (error as { message?: unknown }).message;
-    if (typeof message === "string" && message.trim()) {
-      return message.trim();
-    }
-  }
-
-  return "Jirachi could not sign you in.";
 }
 
 async function hasPlayerProfile(userId: string): Promise<boolean> {
@@ -64,6 +61,10 @@ function PlayerSignInContent() {
   const [showPassword, setShowPassword] = useState(false);
   const [checking, setChecking] = useState(true);
   const [signingIn, setSigningIn] = useState(false);
+  const [pendingRegistration, setPendingRegistration] =
+    useState<PendingRegistration | null>(null);
+  const [resending, setResending] = useState(false);
+  const [resendMessage, setResendMessage] = useState("");
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -74,7 +75,10 @@ function PlayerSignInContent() {
         const { data, error: sessionError } = await supabase.auth.getSession();
 
         if (sessionError || !data.session) {
-          if (active) setChecking(false);
+          if (active) {
+            setPendingRegistration(readPendingRegistration());
+            setChecking(false);
+          }
           return;
         }
 
@@ -82,6 +86,7 @@ function PlayerSignInContent() {
 
         if (playerExists) {
           if (active) {
+            clearPendingRegistration();
             router.replace(nextPath);
             router.refresh();
           }
@@ -109,6 +114,38 @@ function PlayerSignInContent() {
     };
   }, [nextPath, router]);
 
+  async function handleResendVerification() {
+    if (!pendingRegistration || resending) return;
+
+    const cooldown = secondsUntilVerificationResend(pendingRegistration);
+    if (cooldown > 0) {
+      setResendMessage(`You can send another email in ${cooldown}s.`);
+      return;
+    }
+
+    setResending(true);
+    setResendMessage("");
+    setError("");
+
+    try {
+      const refreshed = await resendSignupConfirmation(
+        pendingRegistration.email,
+        pendingRegistration.nextPath,
+      );
+      setPendingRegistration(refreshed);
+      setResendMessage("A new verification email has been sent.");
+    } catch (failure: unknown) {
+      setError(
+        getAuthErrorMessage(
+          failure,
+          "The verification email could not be resent.",
+        ),
+      );
+    } finally {
+      setResending(false);
+    }
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (signingIn) return;
@@ -129,6 +166,27 @@ function PlayerSignInContent() {
       });
 
       if (signInError || !data.session) {
+        const details = getAuthErrorDetails(
+          signInError,
+          "Jirachi could not sign you in.",
+        );
+
+        if (
+          details.code === "email_not_confirmed" ||
+          details.message.toLowerCase().includes("confirm your email")
+        ) {
+          const remembered = readPendingRegistration();
+          const pending = rememberPendingRegistration({
+            email: cleanEmail,
+            nextPath,
+            lastSentAt:
+              remembered?.email === cleanEmail
+                ? remembered.lastSentAt
+                : 0,
+          });
+          setPendingRegistration(pending);
+        }
+
         throw signInError || new Error("No trainer session was returned.");
       }
 
@@ -141,11 +199,14 @@ function PlayerSignInContent() {
         );
       }
 
+      clearPendingRegistration();
       router.replace(nextPath);
       router.refresh();
     } catch (failure: unknown) {
       console.error("Player sign-in error:", failure);
-      setError(getErrorMessage(failure));
+      setError(
+        getAuthErrorMessage(failure, "Jirachi could not sign you in."),
+      );
       setSigningIn(false);
     }
   }
@@ -202,6 +263,34 @@ function PlayerSignInContent() {
           <p className="mt-4 max-w-xl text-sm font-semibold leading-7 text-white/45">
             Player and Shaymin admin sessions are now separate. Signing into this page will never send you into the admin forest.
           </p>
+
+          {pendingRegistration ? (
+            <div className="mt-6 rounded-2xl border border-cyan-100/20 bg-cyan-300/[0.08] p-5">
+              <p className="text-xs font-black uppercase tracking-[0.14em] text-cyan-100/70">
+                Email confirmation still pending
+              </p>
+              <p className="mt-2 break-all text-sm font-black text-white">
+                {pendingRegistration.email}
+              </p>
+              <p className="mt-2 text-xs font-semibold leading-5 text-white/60">
+                This browser remembers the unfinished account. Send a fresh
+                verification link to finish creating it.
+              </p>
+              <button
+                type="button"
+                onClick={() => void handleResendVerification()}
+                disabled={resending}
+                className="mt-4 flex min-h-11 w-full items-center justify-center rounded-xl bg-cyan-100 px-4 text-sm font-black text-[#101427] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {resending ? "Sending verification..." : "Resend verification email"}
+              </button>
+              {resendMessage ? (
+                <p className="mt-3 text-xs font-bold text-cyan-50">
+                  {resendMessage}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
 
           {error ? (
             <div className="mt-6 rounded-2xl border border-red-200/20 bg-red-400/[0.08] px-5 py-4 text-sm font-bold leading-6 text-red-100">

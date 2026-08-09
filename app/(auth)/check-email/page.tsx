@@ -1,59 +1,88 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 
+import AuthLoading from "@/components/auth/AuthLoading";
 import AuthMessage from "@/components/auth/AuthMessage";
 import AuthShell from "@/components/auth/AuthShell";
 import { getAuthErrorMessage } from "@/lib/auth/helpers";
-import { buildAuthCallbackUrl, normaliseNextPath } from "@/lib/auth/navigation";
-import { supabase } from "@/lib/supabase";
+import { normaliseNextPath } from "@/lib/auth/navigation";
+import {
+  type PendingRegistration,
+  readPendingRegistration,
+  rememberPendingRegistration,
+  resendSignupConfirmation,
+  secondsUntilVerificationResend,
+} from "@/lib/auth/pending-registration";
 
-export default function CheckEmailPage() {
-  const [cooldown, setCooldown] = useState(45);
+function CheckEmailContent() {
+  const searchParams = useSearchParams();
+  const queryEmail = searchParams.get("email")?.trim().toLowerCase() || "";
+  const queryNext = searchParams.get("next");
+
+  const [pending, setPending] = useState<PendingRegistration | null>(null);
+  const [restoring, setRestoring] = useState(true);
+  const [now, setNow] = useState(() => Date.now());
   const [resending, setResending] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const params = useMemo(() => {
-    if (typeof window === "undefined") {
-      return { email: "", next: "/hq" };
-    }
+  const email = queryEmail || pending?.email || "";
+  const nextPath = normaliseNextPath(queryNext || pending?.nextPath);
+  const cooldown = secondsUntilVerificationResend(pending, now);
 
-    const search = new URLSearchParams(window.location.search);
-    return {
-      email: search.get("email") || "",
-      next: normaliseNextPath(search.get("next")),
+  useEffect(() => {
+    let active = true;
+
+    void Promise.resolve().then(() => {
+      if (!active) return;
+
+      const remembered = readPendingRegistration();
+      const restored = queryEmail
+        ? remembered?.email === queryEmail
+          ? remembered
+          : rememberPendingRegistration({
+              email: queryEmail,
+              nextPath: normaliseNextPath(queryNext),
+              lastSentAt: 0,
+            })
+        : remembered;
+
+      setPending(restored);
+      setNow(Date.now());
+      setRestoring(false);
+    });
+
+    return () => {
+      active = false;
     };
-  }, []);
+  }, [queryEmail, queryNext]);
 
   useEffect(() => {
     if (cooldown <= 0) return;
     const timer = window.setInterval(() => {
-      setCooldown((current) => Math.max(0, current - 1));
+      setNow(Date.now());
     }, 1000);
     return () => window.clearInterval(timer);
   }, [cooldown]);
 
   async function resend() {
-    if (!params.email || cooldown > 0 || resending) return;
+    if (!email || cooldown > 0 || resending || restoring) return;
 
     setResending(true);
     setMessage(null);
     setErrorMessage(null);
 
     try {
-      const { error } = await supabase.auth.resend({
-        type: "signup",
-        email: params.email,
-        options: {
-          emailRedirectTo: buildAuthCallbackUrl(params.next),
-        },
-      });
-
-      if (error) throw error;
+      const refreshed = await resendSignupConfirmation(
+        email,
+        nextPath,
+      );
+      setPending(refreshed);
+      setNow(Date.now());
       setMessage("A new confirmation email has been sent.");
-      setCooldown(60);
     } catch (error: unknown) {
       setErrorMessage(
         getAuthErrorMessage(
@@ -87,7 +116,7 @@ export default function CheckEmailPage() {
             Confirmation sent to
           </p>
           <p className="mt-2 break-all text-lg font-black text-white">
-            {params.email || "your email address"}
+            {email || "your email address"}
           </p>
           <p className="mt-3 text-sm font-semibold leading-6 text-white/38">
             Open the message from Unknown Pulls and press the confirmation link. The link returns you here and completes your profile automatically.
@@ -100,16 +129,26 @@ export default function CheckEmailPage() {
         <button
           type="button"
           onClick={() => void resend()}
-          disabled={!params.email || cooldown > 0 || resending}
+          disabled={!email || cooldown > 0 || resending || restoring}
           className="flex min-h-12 w-full items-center justify-center rounded-xl border border-violet-100/15 bg-violet-300/[0.08] px-5 text-sm font-black text-violet-50 transition hover:bg-violet-300/12 disabled:cursor-not-allowed disabled:opacity-45"
         >
           {resending
             ? "Sending again..."
+            : restoring
+              ? "Preparing resend..."
             : cooldown > 0
               ? `Resend available in ${cooldown}s`
               : "Resend confirmation email"}
         </button>
       </div>
     </AuthShell>
+  );
+}
+
+export default function CheckEmailPage() {
+  return (
+    <Suspense fallback={<AuthLoading title="Preparing email confirmation" />}>
+      <CheckEmailContent />
+    </Suspense>
   );
 }

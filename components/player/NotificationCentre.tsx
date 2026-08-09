@@ -183,7 +183,9 @@ export default function NotificationCentre() {
     void loadNotifications();
 
     const refresh = () => {
-      void loadNotifications(true);
+      if (document.visibilityState === "visible") {
+        void loadNotifications(true);
+      }
     };
 
     const handleVisibility = () => {
@@ -192,7 +194,7 @@ export default function NotificationCentre() {
       }
     };
 
-    const interval = window.setInterval(refresh, 40000);
+    const interval = window.setInterval(refresh, 60000);
 
     window.addEventListener("focus", refresh);
     document.addEventListener("visibilitychange", handleVisibility);

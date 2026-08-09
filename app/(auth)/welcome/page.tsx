@@ -8,6 +8,7 @@ import AuthMessage from "@/components/auth/AuthMessage";
 import AuthShell from "@/components/auth/AuthShell";
 import { getAuthErrorMessage } from "@/lib/auth/helpers";
 import { getSafeNextPath } from "@/lib/auth/navigation";
+import { clearPendingRegistration } from "@/lib/auth/pending-registration";
 import { supabase } from "@/lib/supabase";
 
 export default function WelcomePage() {
@@ -41,6 +42,8 @@ export default function WelcomePage() {
           await supabase.rpc("complete_player_registration");
 
         if (registrationError) throw registrationError;
+
+        clearPendingRegistration();
 
         const row = Array.isArray(registration)
           ? registration[0]
@@ -101,15 +104,32 @@ export default function WelcomePage() {
       storyTitle="Your symbol has joined the constellation"
     >
       <div className="space-y-5">
+        {!errorMessage ? (
+          <div className="flex items-center gap-3 rounded-2xl border border-emerald-200/20 bg-emerald-300/[0.08] p-4">
+            <span
+              aria-hidden="true"
+              className="flex size-9 shrink-0 items-center justify-center rounded-full bg-emerald-200 text-lg font-black text-[#10241e]"
+            >
+              ✓
+            </span>
+            <div>
+              <p className="text-sm font-black text-emerald-50">
+                Email confirmed
+              </p>
+              <p className="mt-0.5 text-xs font-semibold leading-5 text-emerald-50/55">
+                Your account is verified and ready to use.
+              </p>
+            </div>
+          </div>
+        ) : null}
+
         {errorMessage ? (
           <AuthMessage tone="error">{errorMessage}</AuthMessage>
-        ) : (
+        ) : wishBalance >= 10 ? (
           <AuthMessage tone="success">
-            {wishBalance >= 10
-              ? `${wishBalance} tester wishes are ready on your account.`
-              : "Email confirmed. Your ownership records now remain connected to this account."}
+            {wishBalance} tester wishes are ready on your account.
           </AuthMessage>
-        )}
+        ) : null}
 
         <div className="grid gap-3 sm:grid-cols-3">
           <WelcomeCard

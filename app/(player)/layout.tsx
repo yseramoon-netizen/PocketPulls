@@ -471,7 +471,7 @@ export default function PlayerLayout({ children }: PlayerLayoutProps) {
         wishBalance={player.wishBalance}
       />
 
-      <main className="relative z-10 min-h-[calc(100dvh-5rem)] pb-[calc(5.75rem+env(safe-area-inset-bottom))] md:pb-0">
+      <main className="relative z-10 min-h-[calc(100dvh-5rem)] pb-[env(safe-area-inset-bottom)]">
         {children}
       </main>
 

@@ -6,6 +6,7 @@
   pointer-events: none;
   background: #02030d;
   isolation: isolate;
+  contain: strict;
 }
 
 .deepSpace,
@@ -397,8 +398,19 @@
   .cornerBottomRight { width: 34px; height: 34px; }
   .ancientMewGhost { background-size: clamp(16rem, 72vw, 24rem) auto; opacity: 0.075; }
   .traveller { --traveller-size: 16px; }
+  .traveller:nth-child(n + 13) { display: none; }
   .near { opacity: 0.55; }
   .trail { width: 6rem; opacity: 0.45; }
+  .halo,
+  .wakeSparkOne,
+  .wakeSparkTwo { display: none; }
+  .prismField { animation: none; filter: blur(48px); opacity: 0.25; }
+  .holoDust { animation-duration: 80s; opacity: 0.22; }
+  .nebulaCyan,
+  .nebulaViolet,
+  .nebulaScarlet,
+  .nebulaEmerald,
+  .nebulaGold { filter: blur(72px); }
   .rareLane { display: none; }
 }
 

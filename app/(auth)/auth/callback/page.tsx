@@ -22,6 +22,9 @@ import {
   normaliseNextPath,
 } from "@/lib/auth/navigation";
 import {
+  clearPendingRegistration,
+} from "@/lib/auth/pending-registration";
+import {
   supabase,
 } from "@/lib/supabase";
 
@@ -179,6 +182,8 @@ export default function AuthCallbackPage() {
         ) {
           throw registrationError;
         }
+
+        clearPendingRegistration();
 
         if (!active) {
           return;

@@ -1024,6 +1024,11 @@ export default function ConstellationPage() {
   const [zoom, setZoom] = useState(1);
   const [draggingSky, setDraggingSky] = useState(false);
   const skyViewportRef = useRef<HTMLElement | null>(null);
+  const viewFrameRef = useRef<number | null>(null);
+  const viewRef = useRef({
+    rotation: { x: -7, y: 0 },
+    zoom: 1,
+  });
   const gestureRef = useRef<{
     pointers: Map<number, { x: number; y: number }>;
     startRotation: { x: number; y: number };
@@ -1042,9 +1047,49 @@ export default function ConstellationPage() {
     return Math.max(0.52, Math.min(2.4, value));
   }, []);
 
+  const queueSkyView = useCallback((next: {
+    rotation?: { x: number; y: number };
+    zoom?: number;
+  }) => {
+    viewRef.current = {
+      rotation:
+        next.rotation ??
+        viewRef.current.rotation,
+      zoom:
+        next.zoom ??
+        viewRef.current.zoom,
+    };
+
+    if (
+      viewFrameRef.current !==
+      null
+    ) {
+      return;
+    }
+
+    viewFrameRef.current =
+      window.requestAnimationFrame(
+        () => {
+          viewFrameRef.current =
+            null;
+
+          setRotation(
+            viewRef.current.rotation,
+          );
+          setZoom(
+            viewRef.current.zoom,
+          );
+        },
+      );
+  }, []);
+
   const resetSkyView = useCallback(() => {
     const nextRotation = { x: mobileSky ? -4 : -7, y: 0 };
     const nextZoom = mobileSky ? 0.72 : 1;
+    viewRef.current = {
+      rotation: nextRotation,
+      zoom: nextZoom,
+    };
     setRotation(nextRotation);
     setZoom(nextZoom);
     gestureRef.current.startRotation = nextRotation;
@@ -1056,11 +1101,22 @@ export default function ConstellationPage() {
 
     const sync = () => {
       const mobile = media.matches;
+      const nextRotation = {
+        x: mobile ? -4 : -7,
+        y: 0,
+      };
+      const nextZoom =
+        mobile ? 0.72 : 1;
+
+      viewRef.current = {
+        rotation: nextRotation,
+        zoom: nextZoom,
+      };
       setMobileSky(mobile);
-      setZoom(mobile ? 0.72 : 1);
-      setRotation({ x: mobile ? -4 : -7, y: 0 });
-      gestureRef.current.startRotation = { x: mobile ? -4 : -7, y: 0 };
-      gestureRef.current.pinchZoom = mobile ? 0.72 : 1;
+      setZoom(nextZoom);
+      setRotation(nextRotation);
+      gestureRef.current.startRotation = nextRotation;
+      gestureRef.current.pinchZoom = nextZoom;
     };
 
     sync();
@@ -1068,6 +1124,19 @@ export default function ConstellationPage() {
 
     return () => {
       media.removeEventListener("change", sync);
+    };
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (
+        viewFrameRef.current !==
+        null
+      ) {
+        window.cancelAnimationFrame(
+          viewFrameRef.current,
+        );
+      }
     };
   }, []);
 
@@ -1089,9 +1158,9 @@ export default function ConstellationPage() {
 
     if (gesture.pointers.size === 1) {
       gesture.singleStart = { x: event.clientX, y: event.clientY };
-      gesture.startRotation = rotation;
+      gesture.startRotation = viewRef.current.rotation;
       gesture.pinchDistance = null;
-      gesture.pinchZoom = zoom;
+      gesture.pinchZoom = viewRef.current.zoom;
       setDraggingSky(true);
       return;
     }
@@ -1099,11 +1168,11 @@ export default function ConstellationPage() {
     if (gesture.pointers.size === 2) {
       const [first, second] = Array.from(gesture.pointers.values());
       gesture.pinchDistance = Math.hypot(second.x - first.x, second.y - first.y);
-      gesture.pinchZoom = zoom;
+      gesture.pinchZoom = viewRef.current.zoom;
       gesture.singleStart = null;
       setDraggingSky(true);
     }
-  }, [rotation, zoom]);
+  }, []);
 
   const handleSkyPointerMove = useCallback((event: ReactPointerEvent<HTMLElement>) => {
     const gesture = gestureRef.current;
@@ -1120,7 +1189,13 @@ export default function ConstellationPage() {
       const distance = Math.hypot(second.x - first.x, second.y - first.y);
 
       if (gesture.pinchDistance && gesture.pinchDistance > 0) {
-        setZoom(clampZoom(gesture.pinchZoom * (distance / gesture.pinchDistance)));
+        queueSkyView({
+          zoom: clampZoom(
+            gesture.pinchZoom *
+              (distance /
+                gesture.pinchDistance),
+          ),
+        });
       }
 
       return;
@@ -1131,12 +1206,14 @@ export default function ConstellationPage() {
       const deltaX = only.x - gesture.singleStart.x;
       const deltaY = only.y - gesture.singleStart.y;
 
-      setRotation({
-        x: Math.max(-58, Math.min(58, gesture.startRotation.x - deltaY * 0.16)),
-        y: gesture.startRotation.y + deltaX * 0.19,
+      queueSkyView({
+        rotation: {
+          x: Math.max(-58, Math.min(58, gesture.startRotation.x - deltaY * 0.16)),
+          y: gesture.startRotation.y + deltaX * 0.19,
+        },
       });
     }
-  }, [clampZoom]);
+  }, [clampZoom, queueSkyView]);
 
   const finishSkyPointer = useCallback((event: ReactPointerEvent<HTMLElement>) => {
     const gesture = gestureRef.current;
@@ -1145,26 +1222,31 @@ export default function ConstellationPage() {
     if (gesture.pointers.size === 1) {
       const remaining = Array.from(gesture.pointers.values())[0];
       gesture.singleStart = remaining;
-      gesture.startRotation = rotation;
+      gesture.startRotation = viewRef.current.rotation;
       gesture.pinchDistance = null;
-      gesture.pinchZoom = zoom;
+      gesture.pinchZoom = viewRef.current.zoom;
       return;
     }
 
     if (gesture.pointers.size === 0) {
       gesture.singleStart = null;
       gesture.pinchDistance = null;
-      gesture.startRotation = rotation;
-      gesture.pinchZoom = zoom;
+      gesture.startRotation = viewRef.current.rotation;
+      gesture.pinchZoom = viewRef.current.zoom;
       setDraggingSky(false);
     }
-  }, [rotation, zoom]);
+  }, []);
 
   const handleSkyWheel = useCallback((event: ReactWheelEvent<HTMLElement>) => {
     event.preventDefault();
     const multiplier = Math.exp(-event.deltaY * 0.00135);
-    setZoom((current) => clampZoom(current * multiplier));
-  }, [clampZoom]);
+    queueSkyView({
+      zoom: clampZoom(
+        viewRef.current.zoom *
+          multiplier,
+      ),
+    });
+  }, [clampZoom, queueSkyView]);
 
   const loadConstellation = useCallback(async (manual = false) => {
     if (manual) {
@@ -1314,15 +1396,17 @@ export default function ConstellationPage() {
       VOLUME_STARS.slice(
         0,
         preferences.dataSaver
-          ? 32
+          ? 28
           : preferences.lowVisualEffects
-            ? 58
-            : VOLUME_STARS.length,
+            ? 48
+            : mobileSky
+              ? 64
+              : VOLUME_STARS.length,
       ).map((star) => ({
         star,
         projected: projectSpatialPoint(star, rotation),
       })).sort((first, second) => first.projected.depth - second.projected.depth),
-    [preferences.dataSaver, preferences.lowVisualEffects, rotation],
+    [mobileSky, preferences.dataSaver, preferences.lowVisualEffects, rotation],
   );
 
   const projectedStars = useMemo(
@@ -1730,7 +1814,7 @@ export default function ConstellationPage() {
       </article>
 
       {!loading ? (
-        <div className="pointer-events-none absolute bottom-[5.6rem] left-1/2 z-50 flex max-w-[94vw] -translate-x-1/2 items-center gap-2 md:bottom-4">
+        <div className="pointer-events-none absolute bottom-[calc(1rem+env(safe-area-inset-bottom))] left-1/2 z-50 flex max-w-[94vw] -translate-x-1/2 items-center gap-2 md:bottom-4">
           <span className="rounded-full border border-white/10 bg-[#050619]/82 px-3 py-2 text-[0.56rem] font-black uppercase tracking-[0.12em] text-white/44 shadow-xl backdrop-blur-xl">
             {mobileSky ? "Drag to rotate · Pinch to zoom" : "Drag to rotate · Wheel to zoom"}
           </span>
@@ -1748,7 +1832,7 @@ export default function ConstellationPage() {
       ) : null}
 
       {selectedStar ? (
-        <aside className="fixed bottom-[5.8rem] right-3 z-[60] max-h-[72dvh] w-[min(92vw,22rem)] overflow-y-auto rounded-[1.7rem] border border-violet-200/16 bg-[#090b27]/94 p-4 shadow-[0_30px_100px_rgba(0,0,0,0.55)] backdrop-blur-2xl md:bottom-4 md:right-4">
+        <aside className="fixed bottom-[calc(1rem+env(safe-area-inset-bottom))] right-3 z-[60] max-h-[72dvh] w-[min(92vw,22rem)] overflow-y-auto rounded-[1.7rem] border border-violet-200/16 bg-[#090b27]/94 p-4 shadow-[0_30px_100px_rgba(0,0,0,0.55)] backdrop-blur-2xl md:bottom-4 md:right-4">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <p
@@ -2101,6 +2185,32 @@ export default function ConstellationPage() {
           to {
             translate: 3% 2%;
             opacity: 0.82;
+          }
+        }
+
+        @media (max-width: 767px) {
+          .constellationVolumeStar {
+            animation: none;
+            filter: none;
+            will-change: auto;
+          }
+
+          .spatialStarButton {
+            will-change: transform;
+          }
+
+          .constellationNebulaLate,
+          .shootingStarTwo,
+          .shootingStarThree {
+            display: none;
+          }
+
+          .constellationOrbitRing {
+            animation-duration: 48s;
+          }
+
+          .constellationAurora {
+            animation-duration: 34s;
           }
         }
 

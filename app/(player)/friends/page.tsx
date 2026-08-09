@@ -414,11 +414,16 @@ export default function FriendsPage() {
     const timer =
       window.setInterval(
         () => {
-          void loadFriends(
-            true,
-          );
+          if (
+            document.visibilityState ===
+            "visible"
+          ) {
+            void loadFriends(
+              true,
+            );
+          }
         },
-        20000,
+        30000,
       );
 
     return () => {
