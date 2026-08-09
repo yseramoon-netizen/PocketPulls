@@ -17,6 +17,7 @@ import {
 import usePlayerPreferences from "./usePlayerPreferences";
 import { publishPlayerPreferences } from "@/lib/player/preferences";
 import { supabase } from "@/lib/supabase";
+import AncientCatPullScene from "./AncientCatPullScene";
 import styles from "./WishCinematic.module.css";
 
 export type WishRevealCard = {
@@ -276,6 +277,7 @@ export default function WishCinematic({
 }: WishCinematicProps) {
   const preloadTimerRef = useRef<number | null>(null);
   const completionTimerRef = useRef<number | null>(null);
+  const epilogueTimerRef = useRef<number | null>(null);
   const finishedRef = useRef(false);
   const onFinishedRef = useRef(onFinished);
   const audioSessionRef = useRef<WishAudioSession | null>(null);
@@ -285,6 +287,7 @@ export default function WishCinematic({
   const [ready, setReady] = useState(false);
   const [complete, setComplete] = useState(false);
   const [skipped, setSkipped] = useState(false);
+  const [epilogue, setEpilogue] = useState(false);
   const [runNumber, setRunNumber] = useState(0);
   const [muted, setMuted] = useState(false);
 
@@ -301,22 +304,6 @@ export default function WishCinematic({
     () => getWishRarityTheme(card?.rarity),
     [card?.rarity],
   );
-
-  const rareSpirit = theme.tier >= 4;
-
-  const spirit = rareSpirit
-    ? {
-        src: "/mew.png",
-        alt: "Ancient Mew",
-        preparing: "An ancient presence is answering...",
-        granting: "Mew is awakening your rare wish...",
-      }
-    : {
-        src: "/jirachi.png",
-        alt: "Jirachi",
-        preparing: "Preparing your wish...",
-        granting: "Jirachi is granting your wish...",
-      };
 
   const cardKey = useMemo(() => {
     if (!card) {
@@ -341,6 +328,8 @@ export default function WishCinematic({
         "pocketpulls-wish-muted",
       );
 
+      // This one-time client preference hydration deliberately follows mount.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setMuted(stored === "true");
     } catch {
       // Local storage is optional.
@@ -362,6 +351,11 @@ export default function WishCinematic({
       window.clearTimeout(completionTimerRef.current);
       completionTimerRef.current = null;
     }
+
+    if (epilogueTimerRef.current !== null) {
+      window.clearTimeout(epilogueTimerRef.current);
+      epilogueTimerRef.current = null;
+    }
   }, []);
 
   const reportFinished = useCallback(() => {
@@ -382,14 +376,31 @@ export default function WishCinematic({
     reportFinished();
   }, [clearTimers, reportFinished, stopAudio]);
 
+  const handleContinue = useCallback(() => {
+    if (theme.tier < 6 || skipped || epilogue) {
+      onClose();
+      return;
+    }
+
+    stopAudio();
+    setEpilogue(true);
+    epilogueTimerRef.current = window.setTimeout(
+      onClose,
+      2350,
+    );
+  }, [epilogue, onClose, skipped, stopAudio, theme.tier]);
+
   useEffect(() => {
     if (!open || !card) {
       clearTimers();
       stopAudio();
       finishedRef.current = false;
+      // The prop-driven cinematic state machine resets when the dialog closes.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setReady(false);
       setComplete(false);
       setSkipped(false);
+      setEpilogue(false);
       markedSeenRef.current = false;
       return;
     }
@@ -403,6 +414,7 @@ export default function WishCinematic({
     setReady(false);
     setComplete(false);
     setSkipped(false);
+    setEpilogue(false);
 
     if (revealFromPreferences) {
       setReady(true);
@@ -589,7 +601,9 @@ export default function WishCinematic({
 
   return (
     <div
-      className={styles.overlay}
+      className={`${styles.overlay} ${
+        epilogue ? styles.epilogueActive : ""
+      }`}
       style={rootStyle}
       role="dialog"
       aria-modal="true"
@@ -621,13 +635,13 @@ export default function WishCinematic({
           <div className={styles.preparingGlow} />
 
           <img
-            src={spirit.src}
-            alt={spirit.alt}
+            src="/ancient-pulls/celestial-cat.png"
+            alt="Aaru, the Ancient Pulls celestial cat"
             draggable={false}
-            className={rareSpirit ? styles.preparingMew : ""}
+            className={styles.preparingAaru}
           />
 
-          <p>{spirit.preparing}</p>
+          <p>Aaru is reading the constellation...</p>
         </div>
       ) : (
         <div
@@ -636,19 +650,11 @@ export default function WishCinematic({
             skipped ? styles.sequenceSkipped : ""
           }`}
         >
-          <div className={styles.jirachiScene}>
-            <div className={styles.jirachiAura} />
-
-            <img
-              src={spirit.src}
-              alt={spirit.alt}
-              draggable={false}
-              className={`${styles.jirachi} ${
-                rareSpirit ? styles.mew : ""
-              }`}
+          <div className={styles.catScene}>
+            <AncientCatPullScene
+              tier={theme.tier}
+              epilogue={epilogue}
             />
-
-            <p>{spirit.granting}</p>
           </div>
 
           <div className={styles.fallingStar}>
@@ -800,7 +806,7 @@ export default function WishCinematic({
 
               <button
                 type="button"
-                onClick={onClose}
+                onClick={handleContinue}
                 disabled={!complete || busy}
                 className={styles.keepButton}
               >

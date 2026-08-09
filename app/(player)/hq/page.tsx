@@ -346,7 +346,7 @@ export default function TrainerHqPage() {
             </div>
 
             <img
-              src="/jirachi.png"
+              src="/ancient-pulls/celestial-cat.png"
               alt=""
               draggable={false}
               data-pocketpulls-ambient="heavy"

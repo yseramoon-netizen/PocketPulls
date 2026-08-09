@@ -93,7 +93,7 @@ export default function LoginPage() {
 
       if (!data.user) {
         throw new Error(
-          "PocketPulls could not verify your account.",
+          "Ancient Pulls could not verify your account.",
         );
       }
 
@@ -172,7 +172,7 @@ export default function LoginPage() {
               text-emerald-100
             "
           >
-            Awakening PocketPulls...
+            Awakening Ancient Pulls...
           </p>
         </div>
       </main>
@@ -341,7 +341,7 @@ export default function LoginPage() {
                   "
                 />
 
-                PocketPulls Operations
+                Ancient Pulls Operations
               </div>
 
               <h1
@@ -373,7 +373,7 @@ export default function LoginPage() {
               >
                 Manage the Pokémon card database,
                 physical inventory, customer pulls and
-                PocketPulls operations from one secure
+                Ancient Pulls operations from one secure
                 workspace.
               </p>
             </div>
@@ -643,8 +643,8 @@ export default function LoginPage() {
                   "
                 >
                   <img
-                    src="/shaymin.png"
-                    alt="PocketPulls"
+                    src="/ancient-pulls/celestial-cat.png"
+                    alt="Ancient Pulls"
                     className="
                       h-24
                       w-24
@@ -674,7 +674,7 @@ export default function LoginPage() {
                     lg:hidden
                   "
                 >
-                  PocketPulls Operations
+                  Ancient Pulls Operations
                 </div>
 
                 <h2
@@ -696,7 +696,7 @@ export default function LoginPage() {
                     text-white/45
                   "
                 >
-                  Sign in to access the PocketPulls admin
+                  Sign in to access the Ancient Pulls admin
                   workspace.
                 </p>
               </div>
@@ -964,7 +964,7 @@ export default function LoginPage() {
                     </>
                   ) : (
                     <>
-                      Sign in to PocketPulls
+                      Sign in to Ancient Pulls
                       <span aria-hidden="true">
                         →
                       </span>
@@ -1037,7 +1037,7 @@ export default function LoginPage() {
                   text-white/25
                 "
               >
-                PocketPulls internal operations system
+                Ancient Pulls internal operations system
               </p>
             </div>
           </div>

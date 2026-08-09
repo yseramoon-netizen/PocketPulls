@@ -2599,7 +2599,7 @@ export default function CardScanner({
       <div className="flex flex-col gap-4 border-b border-white/10 p-6 sm:flex-row sm:items-center sm:justify-between md:p-8">
         <div>
           <p className="text-sm font-black uppercase tracking-[0.2em] text-cyan-200/55">Camera intake</p>
-          <h2 className="mt-2 text-3xl font-black tracking-tight text-white">Unown Pulls Card Scanner</h2>
+          <h2 className="mt-2 text-3xl font-black tracking-tight text-white">Ancient Pulls Card Scanner</h2>
           <p className="mt-2 max-w-3xl text-sm font-medium leading-6 text-white/45">
             Hands-free mode detects a card, waits for it to stop moving, scans it and rearms only after the card leaves the frame.
           </p>

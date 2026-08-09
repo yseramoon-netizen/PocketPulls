@@ -575,7 +575,7 @@ function AchievementCard({
                     : ""
                 }`
               : `Unlocked ${formatDate(achievement.unlockedAt)}`
-            : "Keep building your Unown Pulls journey."}
+            : "Keep building your Ancient Pulls journey."}
         </p>
       )}
     </PlayerPanel>

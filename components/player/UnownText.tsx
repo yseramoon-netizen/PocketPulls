@@ -2,6 +2,7 @@
 
 import type { CSSProperties } from "react";
 
+import { getPixelRuneShadow } from "./pixelRunes";
 import styles from "./UnownText.module.css";
 
 type UnownTone =
@@ -20,25 +21,6 @@ type UnownTextProps = {
   showTranslation?: boolean;
   translation?: string;
 };
-
-const FILE_NAMES: Record<string, string> = {
-  "?": "question",
-  "!": "exclamation",
-};
-
-function getGlyphPath(character: string): string | null {
-  const upper = character.toUpperCase();
-
-  if (/^[A-Z]$/.test(upper)) {
-    return `/unknown-pulls/unown/${upper.toLowerCase()}.png`;
-  }
-
-  if (upper === "?" || upper === "!") {
-    return `/unknown-pulls/unown/${FILE_NAMES[upper]}.png`;
-  }
-
-  return null;
-}
 
 export default function UnownText({
   text,
@@ -100,33 +82,18 @@ export default function UnownText({
             );
           }
 
-          if (character === "'" || character === "’") {
-            return null;
-          }
-
-          const glyphPath = getGlyphPath(character);
-
-          if (!glyphPath) {
-            return (
-              <span
-                key={`${character}-${index}`}
-                className={styles.fallback}
-              >
-                {character}
-              </span>
-            );
-          }
-
           return (
             <span
               key={`${character}-${index}`}
               className={styles.glyph}
-              style={
-                {
-                  "--glyph-mask": `url("${glyphPath}")`,
-                } as CSSProperties
-              }
-            />
+            >
+              <span
+                className={styles.pixelInk}
+                style={{
+                  boxShadow: getPixelRuneShadow(character),
+                }}
+              />
+            </span>
           );
         })}
       </span>

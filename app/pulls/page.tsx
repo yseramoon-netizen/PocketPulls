@@ -42,7 +42,7 @@ export default function PullsPage() {
     setCard({
       name: "Shaymin EX",
       rarity: "Secret Rare",
-      image_url: "/shaymin.png",
+      image_url: "/ancient-pulls/celestial-cat.png",
       market_value: 84.5,
     });
     setOpening(false);
@@ -52,7 +52,7 @@ export default function PullsPage() {
     <main className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(16,185,129,0.16),_transparent_35%),linear-gradient(135deg,_#f8fff9,_#ffffff,_#f5f3ff)] px-6 py-10 text-emerald-950">
       <div className="mx-auto flex max-w-6xl flex-col gap-6">
         <header className="rounded-[2.5rem] border border-emerald-200 bg-white/80 p-8 shadow-sm backdrop-blur">
-          <p className="text-sm font-semibold uppercase tracking-[0.3em] text-emerald-600">PocketPulls</p>
+          <p className="text-sm font-semibold uppercase tracking-[0.3em] text-emerald-600">Ancient Pulls</p>
           <h1 className="mt-2 text-4xl font-black">Pull experience</h1>
           <p className="mt-3 max-w-2xl text-sm text-emerald-700">
             A polished pack opening flow with animated reveal, stats, and recent pull history.

@@ -111,7 +111,7 @@ async function authenticateAdmin(
     allowedEmails.length === 0
   ) {
     throw new RouteError(
-      "The PocketPulls admin allowlist has not been configured.",
+      "The Ancient Pulls admin allowlist has not been configured.",
       500,
     );
   }

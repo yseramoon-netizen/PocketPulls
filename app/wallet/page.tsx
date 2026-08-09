@@ -289,7 +289,7 @@ shadow-[0_0_80px_rgba(52,211,153,.5)]
 
 <img
 
-src="/shaymin.png"
+src="/ancient-pulls/celestial-cat.png"
 
 className="
 w-28
@@ -311,7 +311,7 @@ text-5xl
 font-black
 ">
 
-PocketPulls Treasury
+Ancient Pulls Treasury
 
 </h1>
 

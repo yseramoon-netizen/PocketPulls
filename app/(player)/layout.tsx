@@ -344,7 +344,7 @@ export default function PlayerLayout({ children }: PlayerLayoutProps) {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
       // Only an explicit Supabase SIGNED_OUT event is allowed to eject the
-      // player from the Jirachi shell. Earlier code also redirected whenever
+      // player from the Aaru shell. Earlier code also redirected whenever
       // any auth event temporarily carried a null session, which could turn a
       // token refresh/network hiccup on mobile into an apparent logout.
       if (event === "SIGNED_OUT") {
@@ -626,7 +626,7 @@ function PlayerLoadingScreen() {
           <div className="absolute inset-0 animate-spin rounded-full border border-transparent border-r-cyan-100/40 border-t-yellow-100/70 [animation-duration:2.5s]" />
 
           <img
-            src="/jirachi.png"
+            src="/ancient-pulls/celestial-cat.png"
             alt=""
             draggable={false}
             onError={(event) => {
@@ -644,7 +644,7 @@ function PlayerLoadingScreen() {
 
         <div className="mt-4">
           <UnownText
-            text="Unown Pulls"
+            text="Ancient Pulls"
             size="2rem"
             tone="holo"
             centred
@@ -712,7 +712,7 @@ function PlayerBannedScreen({
             <div className="absolute inset-2 rounded-full bg-red-300/15 blur-2xl" />
 
             <img
-              src="/jirachi.png"
+              src="/ancient-pulls/celestial-cat.png"
               alt=""
               draggable={false}
               className="relative h-20 w-20 object-contain grayscale-[0.35] drop-shadow-[0_12px_16px_rgba(0,0,0,0.45)]"
@@ -729,7 +729,7 @@ function PlayerBannedScreen({
 
           <p className="mt-5 text-sm font-semibold leading-7 text-white/55">
             {reason ||
-              "This account has been suspended by an Unown Pulls administrator."}
+              "This account has been suspended by an Ancient Pulls administrator."}
           </p>
 
           {formattedDate ? (

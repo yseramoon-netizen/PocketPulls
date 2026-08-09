@@ -432,7 +432,7 @@ export default function WishStarfall({
         <div className="relative flex h-[min(88dvh,760px)] w-full max-w-5xl items-center justify-center overflow-hidden rounded-[2rem] border border-white/10 bg-black/10">
           <div className="absolute left-1/2 top-7 -translate-x-1/2 text-center">
             <p className="text-[0.62rem] font-black uppercase tracking-[0.26em] text-white/35">
-              Jirachi has heard your wish
+              Aaru has heard your wish
             </p>
 
             <p

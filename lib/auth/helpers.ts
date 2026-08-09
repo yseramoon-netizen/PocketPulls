@@ -184,7 +184,7 @@ function translateAuthMessage(
     lower === "{}" ||
     lower === "[object object]"
   ) {
-    return "Supabase rejected registration without a readable reason. Run the Unknown Pulls registration repair migration, then check Authentication > Logs if the problem remains.";
+    return "Supabase rejected registration without a readable reason. Run the Ancient Pulls registration repair migration, then check Authentication > Logs if the problem remains.";
   }
 
   if (

@@ -5,24 +5,20 @@ import type {
 export default function manifest():
   MetadataRoute.Manifest {
   return {
-    name: "Unown Pulls",
-    short_name: "Unown Pulls",
+    name: "Ancient Pulls",
+    short_name: "Ancient Pulls",
     description:
-      "Open wishes, collect real Pokemon cards and explore the Unown Pulls constellation.",
+      "Open wishes, collect real Pokemon cards and explore the Ancient Pulls constellation.",
     start_url: "/wishes",
     display: "standalone",
     background_color: "#05071d",
     theme_color: "#0b0c2c",
     icons: [
       {
-        src: "/unknown-pulls-icon.png",
-        sizes: "512x512",
+        src: "/ancient-pulls/celestial-cat.png",
+        sizes: "1254x1254",
         type: "image/png",
-      },
-      {
-        src: "/unknown-pulls-apple-icon.png",
-        sizes: "180x180",
-        type: "image/png",
+        purpose: "maskable",
       },
     ],
   };

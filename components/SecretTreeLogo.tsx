@@ -213,7 +213,7 @@ function createFallbackMood(): MoodResponse {
         "The forest is quiet, but Shaymin is still here.",
 
       detail:
-        "Live PocketPulls information will return when the connection recovers.",
+        "Live Ancient Pulls information will return when the connection recovers.",
     };
   } else if (hour < 8) {
     mood = {
@@ -226,7 +226,7 @@ function createFallbackMood(): MoodResponse {
         "The forest is waking up.",
 
       detail:
-        "Shaymin is waiting for the live PocketPulls connection.",
+        "Shaymin is waiting for the live Ancient Pulls connection.",
     };
   } else {
     mood = {
@@ -236,10 +236,10 @@ function createFallbackMood(): MoodResponse {
         "The forest is peaceful",
 
       message:
-        "Shaymin is watching over PocketPulls.",
+        "Shaymin is watching over Ancient Pulls.",
 
       detail:
-        "Live PocketPulls information will return when the connection recovers.",
+        "Live Ancient Pulls information will return when the connection recovers.",
     };
   }
 
@@ -360,7 +360,7 @@ function getMoodReason(
 
     case "celebration":
       return (
-        "PocketPulls recently reached a new legacy tree milestone."
+        "Ancient Pulls recently reached a new legacy tree milestone."
       );
 
     case "together":
@@ -421,7 +421,7 @@ function getMoodReason(
 
     case "proud":
       return (
-        "PocketPulls has reached a new inventory value record."
+        "Ancient Pulls has reached a new inventory value record."
       );
 
     default:
@@ -1365,14 +1365,14 @@ export default function SecretTreeLogo() {
 
     if (
       image.src.endsWith(
-        "/shaymin.png",
+        "/ancient-pulls/celestial-cat.png",
       )
     ) {
       return;
     }
 
     image.src =
-      "/shaymin.png";
+      "/ancient-pulls/celestial-cat.png";
   }
 
   function clearMoodLog() {

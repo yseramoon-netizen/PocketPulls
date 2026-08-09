@@ -10,8 +10,8 @@ export default function PageHeader({
   return (
     <div className="text-center mb-10">
       <img
-        src="/shaymin.png"
-        alt="Shaymin"
+        src="/ancient-pulls/celestial-cat.png"
+        alt="Aaru"
         className="w-28 h-28 mx-auto mb-4"
       />
 

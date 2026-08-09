@@ -168,7 +168,7 @@ function PlayerSignInContent() {
       if (signInError || !data.session) {
         const details = getAuthErrorDetails(
           signInError,
-          "Jirachi could not sign you in.",
+          "Aaru could not sign you in.",
         );
 
         if (
@@ -195,7 +195,7 @@ function PlayerSignInContent() {
       if (!playerExists) {
         await supabase.auth.signOut({ scope: "local" });
         throw new Error(
-          "That account is not a Jirachi player account. Use the Shaymin admin sign-in if this is an administrator account.",
+          "That account is not an Ancient Pulls player account. Use the admin sign-in if this is an administrator account.",
         );
       }
 
@@ -205,7 +205,7 @@ function PlayerSignInContent() {
     } catch (failure: unknown) {
       console.error("Player sign-in error:", failure);
       setError(
-        getAuthErrorMessage(failure, "Jirachi could not sign you in."),
+        getAuthErrorMessage(failure, "Aaru could not sign you in."),
       );
       setSigningIn(false);
     }
@@ -218,7 +218,7 @@ function PlayerSignInContent() {
         <div className="relative z-10 flex flex-col items-center">
           <div className="relative flex h-28 w-28 items-center justify-center">
             <div className="absolute inset-1 animate-spin rounded-full border border-transparent border-r-cyan-100/45 border-t-yellow-100/80 [animation-duration:2.6s]" />
-            <img src="/jirachi.png" alt="" draggable={false} className="relative h-20 w-20 object-contain animate-[bounce_3.5s_ease-in-out_infinite]" />
+            <img src="/ancient-pulls/celestial-cat.png" alt="" draggable={false} className="relative h-20 w-20 object-contain animate-[bounce_3.5s_ease-in-out_infinite]" />
           </div>
           <p className="mt-5 text-sm font-black text-yellow-50/70">Checking your constellation...</p>
         </div>
@@ -250,18 +250,18 @@ function PlayerSignInContent() {
           <div className="absolute h-[26rem] w-[26rem] rounded-full border border-yellow-100/15 animate-spin [animation-duration:18s]" />
           <div className="absolute h-[20rem] w-[31rem] rounded-[50%] border border-cyan-100/10 animate-spin [animation-duration:24s] [animation-direction:reverse]" />
           <div className="absolute h-64 w-64 rounded-full bg-yellow-200/12 blur-[70px]" />
-          <img src="/jirachi.png" alt="Jirachi" draggable={false} className="relative z-10 w-64 object-contain animate-[bounce_4.5s_ease-in-out_infinite] drop-shadow-[0_30px_42px_rgba(0,0,0,0.5)]" />
+          <img src="/ancient-pulls/celestial-cat.png" alt="Aaru" draggable={false} className="relative z-10 w-64 object-contain animate-[bounce_4.5s_ease-in-out_infinite] drop-shadow-[0_30px_42px_rgba(0,0,0,0.5)]" />
         </div>
 
         <div className="p-6 sm:p-9 lg:p-12">
           <p className="text-xs font-black uppercase tracking-[0.22em] text-yellow-100/45">
-            Unown Pulls · Jirachi
+            Ancient Pulls · Aaru
           </p>
           <h1 className="mt-3 text-4xl font-black tracking-tight sm:text-5xl">
             Return to your wishes
           </h1>
           <p className="mt-4 max-w-xl text-sm font-semibold leading-7 text-white/45">
-            Player and Shaymin admin sessions are now separate. Signing into this page will never send you into the admin forest.
+            Player and admin sessions are separate. Signing in here always returns you to the Ancient Pulls constellation.
           </p>
 
           {pendingRegistration ? (
@@ -339,7 +339,7 @@ function PlayerSignInContent() {
               disabled={signingIn}
               className="flex min-h-14 w-full items-center justify-center rounded-2xl bg-gradient-to-r from-yellow-200 via-cyan-100 to-violet-200 px-5 text-sm font-black text-[#111329] shadow-[0_18px_50px_rgba(103,232,249,0.12)] transition hover:brightness-105 disabled:opacity-50"
             >
-              {signingIn ? "Jirachi is opening the way..." : "Sign in to Unown Pulls"}
+              {signingIn ? "Aaru is opening the way..." : "Sign in to Ancient Pulls"}
             </button>
           </form>
 
@@ -348,7 +348,7 @@ function PlayerSignInContent() {
               Create a trainer account
             </Link>
             <Link href="/admin/sign-in" className="text-emerald-100/40 hover:text-white">
-              Shaymin admin sign-in
+              Ancient Pulls admin sign-in
             </Link>
           </div>
         </div>

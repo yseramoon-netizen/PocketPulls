@@ -938,7 +938,7 @@ function CatalogueHero({
       <div className="relative flex flex-col gap-7 xl:flex-row xl:items-end xl:justify-between">
         <div>
           <p className="text-xs font-black uppercase tracking-[0.22em] text-cyan-100/40">
-            The Unknown Pulls archive
+            The Ancient Pulls archive
           </p>
 
           <div className="mt-4 max-w-full overflow-hidden">
@@ -950,7 +950,7 @@ function CatalogueHero({
           </div>
 
           <p className="mt-4 max-w-3xl text-sm font-semibold leading-7 text-white/45 sm:text-base">
-            Explore every card recorded by Unknown Pulls. Values are
+            Explore every card recorded by Ancient Pulls. Values are
             shown for reference, while live stock tells you which
             physical cards can currently answer a wish.
           </p>
@@ -1561,7 +1561,7 @@ function CatalogueEmptyState({
         <div className="absolute inset-3 animate-pulse rounded-full bg-cyan-200/10 blur-2xl" />
 
         <img
-          src="/jirachi.png"
+          src="/ancient-pulls/celestial-cat.png"
           alt=""
           draggable={false}
           className="relative h-24 w-24 object-contain opacity-75 drop-shadow-[0_14px_22px_rgba(0,0,0,0.4)]"
@@ -1577,7 +1577,7 @@ function CatalogueEmptyState({
       <p className="mt-3 max-w-md text-sm font-semibold leading-7 text-white/38">
         {hasActiveFilters
           ? "Try another name, set, rarity or stock filter."
-          : "Cards will appear here as soon as they are added to the Unknown Pulls database."}
+          : "Cards will appear here as soon as they are added to the Ancient Pulls database."}
       </p>
 
       {hasActiveFilters ? (
@@ -1729,7 +1729,7 @@ function CardDetailModal({
 
               <p className="mt-3 text-sm font-semibold leading-7 text-white/48">
                 {card.stockQuantity > 0
-                  ? `${card.name} is currently capable of appearing in a real Unknown Pulls wish. Every awarded card removes one physical copy from live stock.`
+                  ? `${card.name} is currently capable of appearing in a real Ancient Pulls wish. Every awarded card removes one physical copy from live stock.`
                   : `${card.name} remains visible in the archive, but it cannot currently appear in a wish until new physical stock is added.`}
               </p>
             </div>

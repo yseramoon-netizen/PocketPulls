@@ -206,7 +206,7 @@ export default function HistoryPage() {
   return (
     <section className="mx-auto w-full max-w-[1600px] px-4 py-8 sm:px-6 lg:px-8">
       <PlayerPageHeader
-        eyebrow="Jirachi remembers"
+        eyebrow="Aaru remembers"
         title="Wish History"
         description="Every pull has a timestamp, a value and a place in your story. Search your past wishes or return to the night sky that remembers them visually."
         actions={
@@ -332,7 +332,7 @@ export default function HistoryPage() {
           description={
             hasFilters
               ? "Try another card name, set, rarity or ordering."
-              : "The moment Jirachi grants your first card, it will be recorded here forever."
+              : "The moment Aaru grants your first card, it will be recorded here forever."
           }
           action={
             <Link

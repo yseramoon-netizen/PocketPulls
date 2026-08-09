@@ -659,7 +659,7 @@ export async function POST(
                 displayName,
               username,
               brand:
-                "Unknown Pulls",
+                "Ancient Pulls",
             },
           }),
         },

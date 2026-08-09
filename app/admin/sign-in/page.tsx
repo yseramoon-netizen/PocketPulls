@@ -65,7 +65,7 @@ async function verifyAdminToken(accessToken: string) {
 
   if (!response.ok || !payload?.admin?.userId || !payload.admin.email) {
     throw new Error(
-      payload?.error?.message || "This account does not have Shaymin administrator access.",
+      payload?.error?.message || "This account does not have Ancient Pulls administrator access.",
     );
   }
 
@@ -205,13 +205,13 @@ function AdminSignInContent() {
 
           <div className="mt-6 text-center">
             <p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-100/45">
-              Shaymin administration
+              Ancient Pulls administration
             </p>
             <h1 className="mt-3 text-4xl font-black tracking-tight text-white">
               Unlock the Forest Vault
             </h1>
             <p className="mx-auto mt-4 max-w-md text-sm font-semibold leading-7 text-emerald-50/55">
-              Admin and Jirachi player sessions are now isolated, so signing into one no longer replaces the other.
+              Admin and Aaru player sessions are isolated, so signing into one no longer replaces the other.
             </p>
           </div>
 
@@ -262,13 +262,13 @@ function AdminSignInContent() {
               disabled={signingIn}
               className="flex min-h-14 w-full items-center justify-center rounded-2xl bg-gradient-to-r from-emerald-200 via-lime-100 to-cyan-100 px-5 text-sm font-black text-[#082117] shadow-[0_18px_45px_rgba(52,211,153,0.18)] transition hover:brightness-105 disabled:opacity-50"
             >
-              {signingIn ? "Opening the vault..." : "Enter Shaymin admin"}
+              {signingIn ? "Opening the vault..." : "Enter admin vault"}
             </button>
           </form>
 
           <div className="mt-6 text-center">
             <Link href="/sign-in" className="text-xs font-black text-emerald-100/45 hover:text-white">
-              Go to Jirachi player sign-in instead
+              Go to Aaru player sign-in instead
             </Link>
           </div>
         </div>

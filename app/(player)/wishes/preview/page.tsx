@@ -12,7 +12,7 @@ const DEMO_CARDS: WishRevealCard[] = [
     id: "common-preview",
     name: "Pikachu",
     rarity: "Common",
-    setName: "PocketPulls Preview",
+    setName: "Ancient Pulls Preview",
     cardNumber: "001",
     marketValue: 0.12,
   },
@@ -20,7 +20,7 @@ const DEMO_CARDS: WishRevealCard[] = [
     id: "uncommon-preview",
     name: "Ivysaur",
     rarity: "Uncommon",
-    setName: "PocketPulls Preview",
+    setName: "Ancient Pulls Preview",
     cardNumber: "002",
     marketValue: 0.28,
   },
@@ -28,7 +28,7 @@ const DEMO_CARDS: WishRevealCard[] = [
     id: "rare-preview",
     name: "Gengar",
     rarity: "Rare Holo",
-    setName: "PocketPulls Preview",
+    setName: "Ancient Pulls Preview",
     cardNumber: "003",
     marketValue: 1.45,
   },
@@ -36,7 +36,7 @@ const DEMO_CARDS: WishRevealCard[] = [
     id: "double-preview",
     name: "Mew ex",
     rarity: "Double Rare",
-    setName: "PocketPulls Preview",
+    setName: "Ancient Pulls Preview",
     cardNumber: "004",
     marketValue: 3.8,
   },
@@ -44,7 +44,7 @@ const DEMO_CARDS: WishRevealCard[] = [
     id: "ultra-preview",
     name: "Charizard ex",
     rarity: "Ultra Rare",
-    setName: "PocketPulls Preview",
+    setName: "Ancient Pulls Preview",
     cardNumber: "005",
     marketValue: 18.4,
   },
@@ -52,7 +52,7 @@ const DEMO_CARDS: WishRevealCard[] = [
     id: "illustration-preview",
     name: "Eevee",
     rarity: "Illustration Rare",
-    setName: "PocketPulls Preview",
+    setName: "Ancient Pulls Preview",
     cardNumber: "006",
     marketValue: 11.25,
   },
@@ -60,7 +60,7 @@ const DEMO_CARDS: WishRevealCard[] = [
     id: "special-preview",
     name: "Greninja ex",
     rarity: "Special Illustration Rare",
-    setName: "PocketPulls Preview",
+    setName: "Ancient Pulls Preview",
     cardNumber: "007",
     marketValue: 79.5,
   },
@@ -68,7 +68,7 @@ const DEMO_CARDS: WishRevealCard[] = [
     id: "hyper-preview",
     name: "Golden Arceus",
     rarity: "Hyper Rare",
-    setName: "PocketPulls Preview",
+    setName: "Ancient Pulls Preview",
     cardNumber: "008",
     marketValue: 125,
   },
@@ -76,7 +76,7 @@ const DEMO_CARDS: WishRevealCard[] = [
     id: "crown-preview",
     name: "Wishmaker Jirachi",
     rarity: "Crown Rare",
-    setName: "PocketPulls Preview",
+    setName: "Ancient Pulls Preview",
     cardNumber: "009",
     marketValue: 500,
   },
@@ -112,7 +112,7 @@ export default function WishPreviewPage() {
         </p>
 
         <h1 className="mt-3 text-3xl font-black tracking-tight text-white sm:text-5xl">
-          PocketPulls Wish Ceremony
+          Ancient Pulls Wish Ceremony
         </h1>
 
         <p className="mt-4 max-w-3xl text-sm font-semibold leading-7 text-white/45 sm:text-base">
@@ -185,7 +185,7 @@ export default function WishPreviewPage() {
         respectPreferences={false}
         onFinished={() => {
           console.log(
-            "PocketPulls wish ceremony completed.",
+            "Ancient Pulls wish ceremony completed.",
           );
         }}
         onClose={() => setOpen(false)}

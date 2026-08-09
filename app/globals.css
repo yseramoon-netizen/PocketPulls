@@ -45,6 +45,10 @@ textarea {
   touch-action: manipulation;
 }
 
+img[src="/ancient-pulls/celestial-cat.png"] {
+  image-rendering: pixelated;
+}
+
 /* iOS automatically zooms pages when a focused form control is below 16px. */
 @media (max-width: 767px) {
   input,

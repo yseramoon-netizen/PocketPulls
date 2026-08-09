@@ -424,7 +424,7 @@ function chooseMood(input: {
         `${input.recentMilestone.label} has been reached.`,
 
       detail:
-        `PocketPulls passed ${formatCurrency(
+        `Ancient Pulls passed ${formatCurrency(
           toNumber(
             input.recentMilestone
               .milestone_value,
@@ -671,7 +671,7 @@ function chooseMood(input: {
       "The forest is peaceful",
 
     message:
-      `The PocketPulls vault is worth ${formatCurrency(
+      `The Ancient Pulls vault is worth ${formatCurrency(
         input.currentValue,
       )}.`,
 

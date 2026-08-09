@@ -237,7 +237,7 @@ export default function CreateAccountPage() {
           data: {
             display_name: cleanName,
             username: cleanUsername,
-            brand: "Unown Pulls",
+            brand: "Ancient Pulls",
             purchase_consent_version: PURCHASE_CONSENT_VERSION,
             age_18_confirmed: true,
             random_physical_card_ack: true,
@@ -280,7 +280,7 @@ export default function CreateAccountPage() {
       setErrorMessage(
         getAuthErrorMessage(
           error,
-          "Unknown Pulls could not create your account.",
+          "Ancient Pulls could not create your account.",
         ),
       );
       setSubmitting(false);

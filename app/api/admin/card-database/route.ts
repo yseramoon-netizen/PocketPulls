@@ -553,7 +553,7 @@ function gitBlobSha(value: Buffer): string {
 function githubHeaders(): Record<string, string> {
   const headers: Record<string, string> = {
     Accept: "application/vnd.github+json",
-    "User-Agent": "PocketPulls-Card-Database",
+    "User-Agent": "AncientPulls-Card-Database",
     "X-GitHub-Api-Version": "2022-11-28",
   };
 
@@ -734,7 +734,7 @@ async function downloadSourceFile(
     {
       headers: {
         Accept: "application/json,text/plain,*/*",
-        "User-Agent": "PocketPulls-Card-Database",
+        "User-Agent": "AncientPulls-Card-Database",
       },
     },
   );

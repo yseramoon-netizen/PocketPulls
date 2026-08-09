@@ -17,10 +17,10 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Unown Pulls",
+  title: "Ancient Pulls",
   description: "Make wishes, build your binder and explore your constellation.",
    icons: {
-    icon: "/shaymin.png",
+    icon: "/ancient-pulls/celestial-cat.png",
   },
 };
 

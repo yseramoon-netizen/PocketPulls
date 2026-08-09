@@ -23,10 +23,10 @@ export default function RootTemplate({
     const applyTitle = () => {
       if (
         document.title !==
-        "Unown Pulls"
+        "Ancient Pulls"
       ) {
         document.title =
-          "Unown Pulls";
+          "Ancient Pulls";
       }
     };
 

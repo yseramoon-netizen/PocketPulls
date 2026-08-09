@@ -12,7 +12,7 @@ export default function AuthShell({
   description,
   children,
   footer,
-  storyTitle = "Unknown Pulls",
+  storyTitle = "Ancient Pulls",
   storyDescription =
     "Real Pokemon cards wait within a living constellation of wishes, memories and ancient symbols.",
 }: {
@@ -39,7 +39,7 @@ export default function AuthShell({
               <div className="relative grid h-20 w-20 place-items-center">
                 <div className="absolute inset-3 rounded-full bg-cyan-200/12 blur-2xl" />
                 <img
-                  src="/mew.png"
+                  src="/ancient-pulls/celestial-cat.png"
                   alt=""
                   draggable={false}
                   className="relative h-16 w-16 object-contain opacity-90 drop-shadow-[0_12px_18px_rgba(0,0,0,0.5)]"
@@ -48,8 +48,8 @@ export default function AuthShell({
 
               <div>
                 <UnownText
-                  text="UNKNOWN PULLS"
-                  translation="Unknown Pulls"
+                  text="ANCIENT PULLS"
+                  translation="Ancient Pulls"
                   size="1.15rem"
                   tone="holo"
                   wrap={false}

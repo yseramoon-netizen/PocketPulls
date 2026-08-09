@@ -280,7 +280,7 @@ async function authenticateAdmin(
 
   if (!configured) {
     console.error(
-      "No PocketPulls founder allowlist is configured.",
+      "No Ancient Pulls founder allowlist is configured.",
     );
 
     throw new RouteError(

@@ -70,7 +70,7 @@ export async function POST(request: Request) {
   const { data, error } = await client.rpc("make_player_wish");
 
   if (error) {
-    const message = error.message?.trim() || "Jirachi could not complete that wish.";
+    const message = error.message?.trim() || "Aaru could not complete that wish.";
     const lower = message.toLowerCase();
     const status =
       lower.includes("signed in") ||
@@ -86,7 +86,7 @@ export async function POST(request: Request) {
 
   if (!row || typeof row !== "object") {
     return jsonError(
-      "The wish completed, but Jirachi did not receive a reveal payload.",
+      "The wish completed, but Aaru did not receive a reveal payload.",
       500,
       "wish_reveal_missing",
     );

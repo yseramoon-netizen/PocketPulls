@@ -164,7 +164,7 @@ export default function CheckEmailClient({
           )}
 
           <p className="mt-3 text-sm font-semibold leading-6 text-white/60">
-            Open the message from Unknown Pulls and press the confirmation link.
+            Open the message from Ancient Pulls and press the confirmation link.
             The link returns here and completes your profile automatically.
           </p>
         </div>

@@ -1135,7 +1135,7 @@ export default function CardDatabasePage() {
 
               <SourceCard
                 title="PkmnCards"
-                description="Kept as a manual visual reference only. Its own About page states that its database is unavailable for download and it provides no API, so PocketPulls does not scrape or mirror it."
+                description="Kept as a manual visual reference only. Its own About page states that its database is unavailable for download and it provides no API, so Ancient Pulls does not scrape or mirror it."
                 href={pkmnCardsReference}
                 action="Open manual reference"
                 status="No automated import"

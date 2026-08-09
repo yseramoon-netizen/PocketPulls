@@ -14,9 +14,9 @@ export default function AuthLoading({
         <div className="relative mx-auto grid h-24 w-24 place-items-center">
           <div className="absolute inset-2 animate-spin rounded-full border border-transparent border-r-cyan-100/30 border-t-yellow-100/60 [animation-duration:2.8s]" />
           <img
-            src="/unknown-pulls/unown/o.png"
+            src="/ancient-pulls/celestial-cat.png"
             alt=""
-            className="h-12 w-12 animate-pulse object-contain opacity-80"
+            className="h-16 w-16 animate-pulse object-contain opacity-90"
           />
         </div>
 

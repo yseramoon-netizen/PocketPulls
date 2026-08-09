@@ -359,7 +359,7 @@ export default function FirstWishJourney({
                 <div className="absolute inset-2 animate-pulse rounded-full bg-yellow-200/14 blur-2xl" />
                 <div className="absolute inset-0 rounded-full border border-dashed border-cyan-100/25" />
                 <img
-                  src="/jirachi.png"
+                  src="/ancient-pulls/celestial-cat.png"
                   alt=""
                   draggable={false}
                   className="relative h-20 w-20 object-contain drop-shadow-[0_14px_20px_rgba(0,0,0,0.5)]"

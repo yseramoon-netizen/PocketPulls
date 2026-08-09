@@ -1236,7 +1236,7 @@ export default function ShayminCarePage() {
                   {data.summary.dailySecret}
                 </p>
                 <p className="relative mt-4 text-xs font-semibold leading-6 text-white/31">
-                  It changes each day using your shared care and Unown Pulls growth. It stays deliberately small, private and only yours.
+                  It changes each day using your shared care and Ancient Pulls growth. It stays deliberately small, private and only yours.
                 </p>
                 <div className="relative mt-5 grid grid-cols-2 gap-2">
                   <div className="rounded-[1.2rem] border border-white/10 bg-black/15 p-3">

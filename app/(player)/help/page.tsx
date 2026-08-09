@@ -37,7 +37,7 @@ const CARDS = [
     href: "/terms",
     glyph: "▤",
     title: "Terms",
-    body: "The full terms for using Unown Pulls and purchasing wishes.",
+    body: "The full terms for using Ancient Pulls and purchasing wishes.",
   },
 ] as const;
 

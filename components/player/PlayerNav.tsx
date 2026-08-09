@@ -264,7 +264,7 @@ export default function PlayerNav({
             ),
         ) || {
           href: pathname,
-          label: "Unown Pulls",
+          label: "Ancient Pulls",
           glyph: "✦",
         },
       [pathname],
@@ -497,7 +497,7 @@ export default function PlayerNav({
 
     // A full navigation clears the old player layout and any pending auth
     // listeners. The timeout guarantees that a slow Supabase response cannot
-    // leave the player trapped on the Jirachi loading screen.
+    // leave the player trapped on the Aaru loading screen.
     const redirectTimer =
       window.setTimeout(() => {
         window.location.replace(
@@ -629,7 +629,7 @@ export default function PlayerNav({
           <Link
             href="/hq"
             onClick={closeMore}
-            title="Unown Pulls"
+            title="Ancient Pulls"
             className="
               flex
               min-w-0
@@ -674,7 +674,7 @@ export default function PlayerNav({
               />
 
               <img
-                src="/jirachi.png"
+                src="/ancient-pulls/celestial-cat.png"
                 alt=""
                 draggable={false}
                 className="
@@ -690,7 +690,7 @@ export default function PlayerNav({
 
             <div className="hidden min-w-0 sm:block">
               <UnownText
-                text="Unown Pulls"
+                text="Ancient Pulls"
                 size="1rem"
                 tone="holo"
                 wrap={false}
@@ -724,7 +724,7 @@ export default function PlayerNav({
                 text-violet-100/35
               "
             >
-              Unown Pulls
+              Ancient Pulls
             </p>
 
             <p

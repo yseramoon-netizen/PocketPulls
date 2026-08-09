@@ -225,7 +225,7 @@ export default function AdminHomePage() {
             <h1 className="mt-3 text-4xl font-black tracking-tight text-white sm:text-6xl">
               {data
                 ? greeting(data.viewerEmail)
-                : "Unown Pulls administration"}
+                : "Ancient Pulls administration"}
             </h1>
             <p className="mt-4 max-w-3xl text-sm font-semibold leading-7 text-emerald-50/42 sm:text-base">
               A concise view of stock, players, fulfilment and the work completed today.

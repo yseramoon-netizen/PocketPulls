@@ -88,7 +88,7 @@ async function createStripeCheckout(input: {
   body.set("line_items[0][price_data][currency]", "gbp");
   body.set(
     "line_items[0][price_data][product_data][name]",
-    `${input.wishes} Unown Pulls Wish${input.wishes === 1 ? "" : "es"}`,
+    `${input.wishes} Ancient Pulls Wish${input.wishes === 1 ? "" : "es"}`,
   );
   body.set(
     "line_items[0][price_data][product_data][description]",
