@@ -12,6 +12,7 @@ import {
 } from "react";
 
 import NotificationCentre from "@/components/player/NotificationCentre";
+import NebuPortrait from "@/components/player/NebuPortrait";
 import PlayerPreferencesPanel from "@/components/player/PlayerPreferences";
 import UnownText from "@/components/player/UnownText";
 import { supabase } from "@/lib/supabase";
@@ -274,14 +275,22 @@ export default function PlayerNav({
     );
 
   useEffect(() => {
-    setDisplayedWishBalance(
-      wishBalance,
-    );
+    const frame = window.requestAnimationFrame(() => {
+      setDisplayedWishBalance(
+        wishBalance,
+      );
+    });
+
+    return () => window.cancelAnimationFrame(frame);
   }, [wishBalance]);
 
   useEffect(() => {
-    setDrawerOpen(false);
-    closeMore();
+    const frame = window.requestAnimationFrame(() => {
+      setDrawerOpen(false);
+      closeMore();
+    });
+
+    return () => window.cancelAnimationFrame(frame);
   }, [pathname]);
 
   useEffect(() => {
@@ -638,24 +647,20 @@ export default function PlayerNav({
                 "
               />
 
-              <span
-                aria-hidden="true"
+              <NebuPortrait
+                alt=""
+                draggable={false}
                 className="
                   relative
                   z-10
-                  flex
-                  h-10
-                  w-10
-                  items-center
-                  justify-center
-                  text-[2.15rem]
-                  leading-none
-                  text-yellow-200
-                  drop-shadow-[0_0_10px_rgba(250,204,21,0.72)]
+                  h-12
+                  w-12
+                  max-w-none
+                  object-contain
+                  drop-shadow-[0_0_10px_rgba(103,232,249,0.28)]
+                  [image-rendering:pixelated]
                 "
-              >
-                ★
-              </span>
+              />
             </div>
 
             <div className="hidden min-w-0 sm:block">

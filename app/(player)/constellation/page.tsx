@@ -737,6 +737,7 @@ export default function ConstellationPage() {
   const travelAnimationRef = useRef<Animation | null>(null);
   const cameraOffsetRef = useRef({ x: 0, y: 0 });
   const earthViewRef = useRef(true);
+  const resetAfterCardRef = useRef(false);
   const sceneDataRef = useRef<{
     stars: ConstellationStar[];
     friendStars: FriendStar[];
@@ -1048,19 +1049,6 @@ export default function ConstellationPage() {
       context.arc(point.x, point.y, active ? radius * 1.22 : radius, 0, Math.PI * 2);
       context.fill();
 
-      if (star.zodiacAnchor || active || rank >= 6) {
-        const ray = radius * (active ? 2.25 : 1.65);
-        context.globalAlpha = active ? 0.95 : 0.58;
-        context.strokeStyle = star.colour;
-        context.lineWidth = active ? 1.2 : 0.75;
-        context.beginPath();
-        context.moveTo(point.x - ray, point.y);
-        context.lineTo(point.x + ray, point.y);
-        context.moveTo(point.x, point.y - ray);
-        context.lineTo(point.x, point.y + ray);
-        context.stroke();
-      }
-
       if (star.anniversaryYears > 0) {
         context.globalAlpha = 0.92;
         context.fillStyle = "#fef3c7";
@@ -1151,6 +1139,7 @@ export default function ConstellationPage() {
   }, [renderSkyView]);
 
   const recenterEarthView = useCallback(() => {
+    resetAfterCardRef.current = false;
     travelAnimationRef.current?.cancel();
     travelAnimationRef.current = null;
 
@@ -1285,6 +1274,7 @@ export default function ConstellationPage() {
       setZoom(targetZoom);
       setCameraOffset(targetOffset);
       setTravellingStarId(null);
+      resetAfterCardRef.current = mobileSky;
       setSelectedStar(star);
       return;
     }
@@ -1304,6 +1294,7 @@ export default function ConstellationPage() {
       cameraOffsetRef.current = targetOffset;
       setZoom(targetZoom);
       setCameraOffset(targetOffset);
+      resetAfterCardRef.current = mobileSky;
       setSelectedStar(star);
       return;
     }
@@ -1344,6 +1335,7 @@ export default function ConstellationPage() {
       setZoom(targetZoom);
       setCameraOffset(targetOffset);
       setTravellingStarId(null);
+      resetAfterCardRef.current = mobileSky;
       setSelectedStar(star);
 
       window.requestAnimationFrame(() => {
@@ -1380,6 +1372,7 @@ export default function ConstellationPage() {
         zoom: nextZoom,
       };
       cameraOffsetRef.current = { x: 0, y: 0 };
+      resetAfterCardRef.current = false;
       setMobileSky(mobile);
       setInfoPanelOpen(!mobile);
       setZoom(nextZoom);
@@ -1476,6 +1469,14 @@ export default function ConstellationPage() {
     gesture.pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
 
     if (gesture.pointers.size >= 2) {
+      if (mobileSky && resetAfterCardRef.current) {
+        resetAfterCardRef.current = false;
+        gesture.pointers.clear();
+        setDraggingSky(false);
+        recenterEarthView();
+        return;
+      }
+
       gesture.moved = true;
       const [first, second] = Array.from(gesture.pointers.values());
       const distance = Math.hypot(second.x - first.x, second.y - first.y);
@@ -1502,6 +1503,15 @@ export default function ConstellationPage() {
         return;
       }
 
+      if (mobileSky && resetAfterCardRef.current) {
+        resetAfterCardRef.current = false;
+        gesture.moved = true;
+        gesture.pointers.clear();
+        setDraggingSky(false);
+        recenterEarthView();
+        return;
+      }
+
       gesture.moved = true;
 
       if (earthViewRef.current) {
@@ -1518,7 +1528,7 @@ export default function ConstellationPage() {
         },
       });
     }
-  }, [clampZoom, queueSkyView]);
+  }, [clampZoom, mobileSky, queueSkyView, recenterEarthView]);
 
   const finishSkyPointer = useCallback((event: ReactPointerEvent<HTMLElement>) => {
     const gesture = gestureRef.current;
@@ -2066,9 +2076,7 @@ export default function ConstellationPage() {
                 }}
               >
                 <span className="pointer-events-none absolute -inset-2 rounded-full bg-cyan-200/10 blur-md" />
-                <span className="pointer-events-none absolute text-[2.25rem] leading-none text-cyan-100/80 drop-shadow-[0_0_12px_rgba(103,232,249,0.75)]">
-                  ✦
-                </span>
+                <span className="pointer-events-none absolute h-7 w-7 rounded-full border border-cyan-50/45 bg-cyan-100/18 shadow-[0_0_18px_rgba(103,232,249,0.72)]" />
                 {friend.avatarUrl ? (
                   <img
                     src={friend.avatarUrl}
@@ -2091,7 +2099,7 @@ export default function ConstellationPage() {
               {friendStars.length > 0 ? (
                 <>
                   <span className="h-1 w-1 rounded-full bg-white/20" />
-                  <span className="text-cyan-100/36">Large stars are friends</span>
+                  <span className="text-cyan-100/36">Glowing circles are friends</span>
                 </>
               ) : null}
             </div>
@@ -2163,7 +2171,10 @@ export default function ConstellationPage() {
             </div>
             <button
               type="button"
-              onClick={() => setSelectedStar(null)}
+              onClick={() => {
+                setSelectedStar(null);
+                resetAfterCardRef.current = mobileSky;
+              }}
               aria-label="Close memory"
               className="flex h-9 w-9 flex-none items-center justify-center rounded-xl border border-white/10 bg-white/[0.05] text-lg font-black text-white/55 transition hover:bg-white/10 hover:text-white"
             >
@@ -2181,7 +2192,7 @@ export default function ConstellationPage() {
                 />
               ) : (
                 <div className="flex h-full w-full items-center justify-center text-5xl" style={{ color: selectedStar.colour }}>
-                  *
+                  ●
                 </div>
               )}
             </div>

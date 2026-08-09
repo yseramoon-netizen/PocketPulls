@@ -1035,7 +1035,7 @@ function QuickLinks() {
     {
       href: "/achievements#nebu-wardrobe",
       title: "Customise Nebu",
-      detail: "Change his colours and rarity performances",
+      detail: "Change his colours with coats unlocked by badges",
     },
   ];
 
