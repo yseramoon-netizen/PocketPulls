@@ -7,6 +7,8 @@
     drop-shadow(0 8px 16px rgba(0, 0, 0, 0.34))
     drop-shadow(0 0 9px rgba(242, 182, 56, 0.16));
   --nebu-ghost-filter: saturate(1.08) contrast(1.1);
+  --nebu-performance-accent: #f2b638;
+  --nebu-performance-soft: rgba(242, 182, 56, 0.28);
 }
 
 html[data-nebu-skin="nile"] {
@@ -15,6 +17,8 @@ html[data-nebu-skin="nile"] {
     drop-shadow(0 8px 16px rgba(0, 0, 0, 0.34))
     drop-shadow(0 0 11px rgba(73, 224, 211, 0.22));
   --nebu-ghost-filter: hue-rotate(300deg) saturate(1.28) contrast(1.08);
+  --nebu-performance-accent: #49e0d3;
+  --nebu-performance-soft: rgba(73, 224, 211, 0.3);
 }
 
 html[data-nebu-skin="lotus"] {
@@ -23,6 +27,8 @@ html[data-nebu-skin="lotus"] {
     drop-shadow(0 8px 16px rgba(0, 0, 0, 0.34))
     drop-shadow(0 0 11px rgba(232, 121, 249, 0.22));
   --nebu-ghost-filter: hue-rotate(88deg) saturate(1.32) contrast(1.08);
+  --nebu-performance-accent: #e879f9;
+  --nebu-performance-soft: rgba(232, 121, 249, 0.3);
 }
 
 html[data-nebu-skin="scarab"] {
@@ -31,6 +37,8 @@ html[data-nebu-skin="scarab"] {
     drop-shadow(0 8px 16px rgba(0, 0, 0, 0.34))
     drop-shadow(0 0 11px rgba(52, 211, 153, 0.24));
   --nebu-ghost-filter: hue-rotate(232deg) saturate(1.35) contrast(1.08);
+  --nebu-performance-accent: #34d399;
+  --nebu-performance-soft: rgba(52, 211, 153, 0.3);
 }
 
 html[data-nebu-skin="sunstone"] {
@@ -39,6 +47,8 @@ html[data-nebu-skin="sunstone"] {
     drop-shadow(0 8px 16px rgba(0, 0, 0, 0.34))
     drop-shadow(0 0 12px rgba(251, 146, 60, 0.24));
   --nebu-ghost-filter: sepia(0.62) saturate(1.65) hue-rotate(338deg) contrast(1.08);
+  --nebu-performance-accent: #fb923c;
+  --nebu-performance-soft: rgba(251, 146, 60, 0.3);
 }
 
 html[data-nebu-skin="royal"] {
@@ -47,6 +57,8 @@ html[data-nebu-skin="royal"] {
     drop-shadow(0 8px 16px rgba(0, 0, 0, 0.34))
     drop-shadow(0 0 12px rgba(167, 139, 250, 0.24));
   --nebu-ghost-filter: hue-rotate(48deg) saturate(1.42) contrast(1.08);
+  --nebu-performance-accent: #a78bfa;
+  --nebu-performance-soft: rgba(167, 139, 250, 0.3);
 }
 
 html[data-nebu-skin="pearl"] {
@@ -55,6 +67,8 @@ html[data-nebu-skin="pearl"] {
     drop-shadow(0 8px 16px rgba(0, 0, 0, 0.34))
     drop-shadow(0 0 13px rgba(207, 250, 254, 0.3));
   --nebu-ghost-filter: grayscale(0.82) saturate(0.7) brightness(1.15) contrast(1.04);
+  --nebu-performance-accent: #cffafe;
+  --nebu-performance-soft: rgba(207, 250, 254, 0.32);
 }
 
 html {

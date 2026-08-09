@@ -1,18 +1,35 @@
 .scene {
+  --stage-duration: var(--scene-duration, 4.5s);
+  --stage-accent: var(--nebu-performance-accent, var(--wish-primary));
+  --stage-accent-soft: var(--nebu-performance-soft, var(--wish-glow));
+
   position: absolute;
   z-index: 18;
   inset: 0;
   overflow: hidden;
   pointer-events: none;
-  perspective: 900px;
+  perspective: 1000px;
+  isolation: isolate;
+}
+
+.primaryScene,
+.constellation,
+.templeSilhouette,
+.signatureParticles {
+  position: absolute;
+  inset: 0;
+}
+
+.primaryScene {
+  z-index: 8;
 }
 
 .constellation {
-  position: absolute;
-  inset: 2% 5% 37%;
+  z-index: 2;
+  inset: 2% 5% 35%;
   opacity: 0;
-  filter: drop-shadow(0 0 10px var(--wish-glow));
-  animation: constellationArrives 4.65s ease-out both;
+  filter: drop-shadow(0 0 9px var(--wish-glow));
+  animation: constellationArrives var(--stage-duration) ease-out both;
 }
 
 .constellationStar {
@@ -21,46 +38,97 @@
   left: var(--star-left);
   width: 5px;
   height: 5px;
-  border: 1px solid rgba(255, 255, 255, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.82);
   border-radius: 999px;
-  background: var(--wish-primary);
+  background: var(--stage-accent);
   box-shadow:
-    0 0 7px 2px var(--wish-glow),
-    0 0 18px var(--wish-secondary);
-  animation: starSpeak 780ms var(--star-delay) ease-out both;
+    0 0 7px 2px var(--stage-accent-soft),
+    0 0 16px var(--wish-secondary);
+  animation: starSpeak 720ms var(--star-delay) ease-out both;
 }
 
 .line {
   position: absolute;
   height: 1px;
-  background: linear-gradient(90deg, transparent, var(--wish-primary), transparent);
-  box-shadow: 0 0 7px var(--wish-glow);
-  opacity: 0.5;
+  background: linear-gradient(90deg, transparent, var(--stage-accent), transparent);
+  box-shadow: 0 0 7px var(--stage-accent-soft);
+  opacity: 0.48;
   transform-origin: left center;
 }
 
-.lineOne { top: 29%; left: 13%; width: 29%; transform: rotate(8deg); }
-.lineTwo { top: 34%; left: 39%; width: 26%; transform: rotate(-14deg); }
-.lineThree { top: 30%; left: 62%; width: 27%; transform: rotate(7deg); }
-.lineFour { top: 43%; left: 20%; width: 34%; transform: rotate(-22deg); }
-.lineFive { top: 47%; left: 68%; width: 26%; transform: rotate(17deg); }
+.lineOne { top: 29%; left: 10%; width: 31%; transform: rotate(7deg); }
+.lineTwo { top: 34%; left: 38%; width: 27%; transform: rotate(-14deg); }
+.lineThree { top: 30%; left: 62%; width: 29%; transform: rotate(8deg); }
+.lineFour { top: 49%; left: 15%; width: 39%; transform: rotate(-18deg); }
+.lineFive { top: 50%; left: 58%; width: 35%; transform: rotate(15deg); }
 
 .moonDisc {
   position: absolute;
-  top: 16%;
+  z-index: 1;
+  top: 14%;
   left: 50%;
-  width: min(42vw, 310px);
+  width: min(44vw, 330px);
   aspect-ratio: 1;
-  border: 1px solid rgba(244, 202, 114, 0.22);
+  border: 1px solid color-mix(in srgb, var(--stage-accent) 35%, transparent);
   border-radius: 999px;
   background:
-    radial-gradient(circle at 46% 43%, rgba(255, 249, 213, 0.23), transparent 5%),
-    radial-gradient(circle at 67% 62%, rgba(103, 232, 249, 0.13), transparent 4%),
-    radial-gradient(circle, rgba(244, 202, 114, 0.16), rgba(103, 232, 249, 0.035) 58%, transparent 71%);
-  box-shadow: inset 0 0 45px rgba(244, 202, 114, 0.08);
+    radial-gradient(circle at 42% 36%, rgba(255, 255, 255, 0.18), transparent 5%),
+    radial-gradient(circle at 66% 61%, var(--stage-accent-soft), transparent 5%),
+    radial-gradient(circle, color-mix(in srgb, var(--stage-accent) 22%, transparent), transparent 70%);
+  box-shadow: inset 0 0 45px color-mix(in srgb, var(--stage-accent) 12%, transparent);
   opacity: 0;
-  transform: translateX(-50%) scale(0.75);
-  animation: moonArrives 3.9s ease-out both;
+  transform: translateX(-50%) scale(0.74);
+  animation: moonArrives var(--stage-duration) ease-out both;
+}
+
+.templeSilhouette {
+  z-index: 3;
+  opacity: 0;
+  animation: templeArrives var(--stage-duration) ease-out both;
+}
+
+.templeSilhouette::before,
+.templeSilhouette::after,
+.templeSilhouette span {
+  position: absolute;
+  bottom: 8%;
+  border: 1px solid rgba(244, 202, 114, 0.1);
+  background: linear-gradient(180deg, rgba(58, 34, 78, 0.36), rgba(7, 5, 24, 0.93));
+  box-shadow: inset 0 0 22px rgba(244, 202, 114, 0.03);
+  content: "";
+}
+
+.templeSilhouette::before {
+  left: 5%;
+  width: 12%;
+  height: 44%;
+  clip-path: polygon(18% 0, 82% 0, 100% 100%, 0 100%);
+}
+
+.templeSilhouette::after {
+  right: 5%;
+  width: 12%;
+  height: 44%;
+  clip-path: polygon(18% 0, 82% 0, 100% 100%, 0 100%);
+}
+
+.templeSilhouette span:nth-child(1) {
+  left: 19%;
+  width: 7%;
+  height: 31%;
+}
+
+.templeSilhouette span:nth-child(2) {
+  right: 19%;
+  width: 7%;
+  height: 31%;
+}
+
+.templeSilhouette span:nth-child(3) {
+  right: 27%;
+  left: 27%;
+  height: 36%;
+  clip-path: polygon(50% 0, 100% 24%, 91% 100%, 9% 100%, 0 24%);
 }
 
 .desertHorizon,
@@ -73,466 +141,1330 @@
 }
 
 .desertHorizon {
-  bottom: 11%;
-  height: 24%;
-  background: linear-gradient(180deg, rgba(206, 139, 50, 0.11), rgba(38, 20, 55, 0.42));
+  z-index: 4;
+  bottom: 8%;
+  height: 25%;
+  background: linear-gradient(180deg, rgba(206, 139, 50, 0.12), rgba(38, 20, 55, 0.56));
   opacity: 0;
-  transform: rotate(-2deg) translateY(40%);
-  animation: dunesArrive 1.2s 180ms ease-out both;
+  transform: rotate(-2deg) translateY(35%);
+  animation: dunesArrive 1.15s 100ms ease-out both;
 }
 
 .duneNear {
-  bottom: -13%;
-  height: 30%;
+  z-index: 5;
+  bottom: -15%;
+  height: 31%;
   background:
-    linear-gradient(180deg, rgba(231, 171, 70, 0.15), rgba(17, 11, 35, 0.94)),
+    linear-gradient(180deg, rgba(231, 171, 70, 0.16), rgba(17, 11, 35, 0.97)),
     repeating-linear-gradient(102deg, transparent 0 13px, rgba(255, 223, 155, 0.018) 13px 14px);
   box-shadow: 0 -1px 22px rgba(244, 202, 114, 0.08);
 }
 
-.catWrap {
-  position: absolute;
-  z-index: 8;
-  bottom: 9%;
-  left: 50%;
-  width: min(46vw, 330px);
+.scene[data-scene="common"] .templeSilhouette,
+.scene[data-scene="uncommon"] .templeSilhouette,
+.scene[data-scene="rare"] .templeSilhouette {
   opacity: 0;
-  transform: translate3d(-50%, 34px, 80px) scale(0.72);
-  transform-origin: 50% 80%;
-  animation: catEnters 4.85s cubic-bezier(0.16, 0.84, 0.25, 1) both;
+  animation: none;
 }
 
-.cat {
-  position: relative;
-  z-index: 2;
-  display: block;
-  width: 100%;
-  height: auto;
-  object-fit: contain;
-  filter:
-    drop-shadow(0 22px 30px rgba(0, 0, 0, 0.72))
-    drop-shadow(0 0 15px rgba(244, 202, 114, 0.18));
-  image-rendering: pixelated;
+.scene[data-scene="specialIllustrationRare"] .moonDisc,
+.scene[data-scene="hyperRare"] .moonDisc,
+.scene[data-scene="crownRare"] .moonDisc {
+  width: min(66vw, 490px);
 }
 
-.catHalo {
+.actor {
   position: absolute;
-  z-index: 1;
-  inset: 8% 2% 5%;
-  border-radius: 999px;
-  background: radial-gradient(circle, var(--wish-glow), transparent 68%);
-  filter: blur(26px);
-  opacity: 0.2;
-  animation: haloBreath 1.15s ease-in-out infinite alternate;
+  z-index: 12;
+  bottom: 4%;
+  left: 50%;
+  width: min(39vw, 290px);
+  opacity: 0;
+  transform-origin: 50% 82%;
+  will-change: transform, opacity;
 }
 
-.pawFlash {
+.actorStart,
+.actorAction,
+.actorReaction {
+  animation-duration: var(--stage-duration);
+  animation-timing-function: linear;
+  animation-fill-mode: both;
+}
+
+.actorStart { animation-name: actorStarts; }
+.actorAction { animation-name: actorActs; }
+.actorReaction { animation-name: actorReacts; }
+
+.scene[data-scene="rare"] .actorStart,
+.scene[data-scene="hyperRare"] .actorStart {
+  animation-name: actorRuns;
+}
+
+.scene[data-scene="doubleRare"] .actorAction,
+.scene[data-scene="illustrationRare"] .actorAction,
+.scene[data-scene="specialIllustrationRare"] .actorReaction,
+.scene[data-scene="hyperRare"] .actorAction,
+.scene[data-scene="crownRare"] .actorAction {
+  animation-name: actorLeaps;
+}
+
+.scene[data-scene="ultraRare"] .actorAction,
+.scene[data-scene="specialIllustrationRare"] .actorAction,
+.scene[data-scene="crownRare"] .actorStart {
+  animation-name: actorInvokes;
+}
+
+.scene[data-scene="specialIllustrationRare"] .actorStart {
+  width: min(46vw, 340px);
+  animation-name: actorWatchesStar;
+}
+
+.scene[data-scene="crownRare"] .actorReaction {
+  width: min(45vw, 330px);
+  animation-name: actorCrowned;
+}
+
+.scene[data-scene="hyperRare"] .actorReaction,
+.scene[data-scene="ultraRare"] .actorReaction {
+  animation-name: actorRoyalReaction;
+}
+
+.performanceLabel {
+  position: absolute;
+  z-index: 30;
+  top: max(4.75rem, env(safe-area-inset-top));
+  right: 1rem;
+  left: 1rem;
+  margin: 0;
+  color: color-mix(in srgb, var(--stage-accent) 78%, white);
+  font-size: clamp(0.62rem, 1.8vw, 0.76rem);
+  font-weight: 900;
+  letter-spacing: 0.2em;
+  text-align: center;
+  text-shadow: 0 0 18px var(--stage-accent-soft);
+  text-transform: uppercase;
+  opacity: 0;
+  animation: labelAppears var(--stage-duration) ease-out both;
+}
+
+/* Common: litter bowl, sand sneeze and box of destiny. */
+.commonProp {
+  position: absolute;
+  z-index: 9;
+  right: 16%;
+  bottom: 12%;
+  width: min(23vw, 160px);
+  height: min(11vw, 76px);
+  border: 3px solid rgba(246, 192, 77, 0.78);
+  border-radius: 50%;
+  background: linear-gradient(180deg, #3d1d46, #120b24);
+  box-shadow:
+    inset 0 10px 18px rgba(0, 0, 0, 0.45),
+    0 0 22px rgba(244, 202, 114, 0.16);
+  opacity: 0;
+  transform: scale(0.72);
+  animation: commonPropAppears var(--stage-duration) ease-out both;
+}
+
+.commonPropRim,
+.commonPropSand {
+  position: absolute;
+  border-radius: 50%;
+}
+
+.commonPropRim {
+  inset: -3px;
+  border: 2px solid rgba(255, 226, 145, 0.38);
+}
+
+.commonPropSand {
+  inset: 24% 11% 12%;
+  background: radial-gradient(circle at 35% 30%, #ffe09a, #b56b31 72%);
+}
+
+.commonCard {
   position: absolute;
   z-index: 3;
-  right: 17%;
-  bottom: 21%;
-  color: var(--wish-primary);
-  font-size: 2.1rem;
-  opacity: 0;
-  text-shadow: 0 0 18px var(--wish-glow);
-}
-
-.sandBowl,
-.scarab,
-.goldenThread,
-.feather,
-.falconShadow,
-.eyeReflection {
-  display: none;
-  position: absolute;
-  z-index: 10;
-}
-
-.scene[data-scene="sand"] .catWrap {
-  left: 42%;
-  width: min(42vw, 300px);
-  animation-name: catDigs;
-}
-
-.sandBowl {
-  right: 23%;
-  bottom: 13%;
-  width: 112px;
-  height: 45px;
-  border: 2px solid rgba(244, 202, 114, 0.65);
-  border-top: 0;
-  border-radius: 15% 15% 50% 50%;
-  background: linear-gradient(180deg, rgba(214, 151, 59, 0.28), rgba(69, 35, 57, 0.84));
-  box-shadow: 0 0 28px rgba(244, 202, 114, 0.13);
-  opacity: 0;
-}
-
-.scene[data-scene="sand"] .sandBowl {
-  display: block;
-  animation: propArrives 600ms 850ms ease-out both;
-}
-
-.sandOne,
-.sandTwo {
-  position: absolute;
-  top: -5px;
-  width: 9px;
-  height: 9px;
-  border-radius: 999px;
-  background: #e3ad55;
-  opacity: 0;
-}
-
-.sandOne { left: 29%; animation: sandKick 800ms 1.9s ease-out both; }
-.sandTwo { left: 52%; animation: sandKick 800ms 2.35s ease-out both; }
-
-.papyrusCard {
-  position: absolute;
+  bottom: 30%;
   left: 50%;
-  bottom: 8px;
   display: grid;
   width: 42px;
   height: 58px;
   place-items: center;
-  border: 1px solid rgba(99, 60, 18, 0.78);
-  border-radius: 4px;
-  color: #4f2e18;
-  background: linear-gradient(135deg, #ffe2a0, #bd7730);
-  box-shadow: 0 0 20px var(--wish-glow);
+  border: 2px solid #ffe187;
+  border-radius: 5px;
+  color: #ffe187;
+  background: #162451;
+  box-shadow: 0 0 17px var(--stage-accent-soft);
   opacity: 0;
-  transform: translate(-50%, 38px) rotate(-4deg);
-  animation: papyrusRises 1s 3.55s ease-out both;
+  transform: translate(-50%, 35px) rotate(-6deg) scale(0.4);
+  animation: commonCardPops var(--stage-duration) cubic-bezier(0.16, 0.84, 0.25, 1) both;
 }
 
-.scarab {
-  top: 29%;
+.scene[data-performance="sand_sneeze"] .commonProp {
+  border: 0;
+  background: radial-gradient(ellipse, #b96c35, #482445 70%, transparent 72%);
+  box-shadow: none;
+}
+
+.scene[data-performance="sand_sneeze"] .commonPropRim {
+  display: none;
+}
+
+.scene[data-performance="box_destiny"] .commonProp {
+  height: min(18vw, 126px);
+  border-radius: 8px;
+  background:
+    linear-gradient(90deg, transparent 44%, rgba(255, 225, 135, 0.4) 45% 55%, transparent 56%),
+    linear-gradient(180deg, #4c2755, #160b2a);
+  transform: rotate(4deg) scale(0.72);
+}
+
+.scene[data-performance="box_destiny"] .commonPropSand {
+  display: none;
+}
+
+.dustPuff {
+  position: absolute;
+  z-index: 20;
+  right: 19%;
+  bottom: 16%;
+  width: 110px;
+  height: 80px;
+}
+
+.dustPuff span {
+  position: absolute;
+  bottom: 0;
   left: 50%;
-  align-items: center;
-  justify-content: center;
-  color: #ffd971;
-  filter: drop-shadow(0 0 10px rgba(103, 232, 249, 0.85));
+  width: 17px;
+  height: 17px;
+  border-radius: 999px;
+  background: #e8b35f;
+  box-shadow: 0 0 12px rgba(255, 215, 137, 0.32);
+  opacity: 0;
+  animation: dustPuff var(--stage-duration) ease-out both;
 }
 
-.scene[data-scene="scarab"] .scarab {
-  display: flex;
-  animation: scarabFlight 4.55s 220ms cubic-bezier(0.33, 0.03, 0.6, 0.99) both;
+.dustPuff span:nth-child(2) { margin-left: -24px; animation-delay: 40ms; }
+.dustPuff span:nth-child(3) { margin-left: 20px; animation-delay: 80ms; }
+.dustPuff span:nth-child(4) { margin-left: -4px; animation-delay: 120ms; }
+
+/* Uncommon: balloon or enchanted paper mouse. */
+.balloonProp {
+  position: absolute;
+  z-index: 15;
+  top: 20%;
+  right: 20%;
+  width: 78px;
+  height: 180px;
+  opacity: 0;
+  animation: balloonDrifts var(--stage-duration) ease-in-out both;
 }
 
-.scene[data-scene="scarab"] .catWrap {
-  animation-name: catSwats;
+.balloonOrb {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  display: grid;
+  width: 76px;
+  height: 76px;
+  place-items: center;
+  border: 3px solid #ffe8a3;
+  border-radius: 999px;
+  color: #fff1af;
+  background: radial-gradient(circle at 34% 27%, #fff0aa, #e69c25 42%, #8b3c32 100%);
+  box-shadow: 0 0 26px rgba(244, 202, 114, 0.3);
+  transform: translateX(-50%);
 }
 
-.scene[data-scene="scarab"] .pawFlash {
-  animation: pawFlash 500ms 3.35s ease-out both;
+.balloonString {
+  position: absolute;
+  top: 72px;
+  left: 50%;
+  width: 2px;
+  height: 106px;
+  background: linear-gradient(#f8dc90, transparent);
+  transform: translateX(-50%) rotate(7deg);
+  transform-origin: top;
 }
 
-.scarabBody { font-size: 1.75rem; }
-.scarabWingLeft,
-.scarabWingRight {
-  width: 19px;
-  height: 28px;
-  border: 1px solid rgba(103, 232, 249, 0.8);
-  border-radius: 85% 15% 70% 30%;
-  background: rgba(103, 232, 249, 0.12);
-  transform-origin: right bottom;
-  animation: wingBeat 160ms ease-in-out infinite alternate;
+.scene[data-performance="papyrus_mouse"] .balloonProp {
+  top: auto;
+  right: auto;
+  bottom: 13%;
+  left: 24%;
+  width: 92px;
+  height: 58px;
+  animation-name: paperMouseRuns;
 }
-.scarabWingRight { transform: scaleX(-1); transform-origin: left bottom; }
 
-.goldenThread {
+.scene[data-performance="papyrus_mouse"] .balloonOrb {
+  width: 78px;
+  height: 52px;
+  border-radius: 55% 46% 48% 52%;
+  color: #5e3157;
+  background: linear-gradient(135deg, #ffe8a3, #c47e3a);
+  clip-path: polygon(0 35%, 24% 0, 26% 25%, 100% 14%, 88% 100%, 22% 78%);
+}
+
+.scene[data-performance="papyrus_mouse"] .balloonString {
+  top: 30px;
+  left: 90%;
+  width: 45px;
+  height: 2px;
+}
+
+.popBurst {
+  position: absolute;
+  z-index: 18;
+  top: 29%;
+  right: 22%;
+  color: #fff2b5;
+  font-size: 4rem;
+  text-shadow: 0 0 28px var(--stage-accent-soft);
+  opacity: 0;
+  animation: popBurst var(--stage-duration) ease-out both;
+}
+
+/* Rare: golden yarn or moon moth. */
+.chaseOrb {
+  position: absolute;
+  z-index: 15;
   right: 12%;
   bottom: 16%;
-  width: 52%;
-  height: 90px;
+  width: 70px;
+  height: 70px;
+  opacity: 0;
+  animation: orbChase var(--stage-duration) cubic-bezier(0.45, 0, 0.55, 1) both;
 }
 
-.scene[data-scene="thread"] .goldenThread {
-  display: block;
-}
-
-.scene[data-scene="thread"] .catWrap {
-  left: 40%;
-  animation-name: catPounces;
-}
-
-.threadTrail {
+.yarnOrb,
+.mothCore {
   position: absolute;
-  right: 8%;
-  bottom: 13px;
-  width: 100%;
-  height: 45px;
-  border-bottom: 2px solid rgba(244, 202, 114, 0.55);
-  border-radius: 50%;
-  opacity: 0;
-  animation: threadDraws 2.6s 1.1s ease-out both;
-}
-
-.threadOrb {
-  position: absolute;
-  right: 3%;
-  bottom: 0;
-  display: grid;
-  width: 44px;
-  height: 44px;
-  place-items: center;
-  border: 2px solid rgba(255, 229, 144, 0.75);
-  border-radius: 999px;
-  color: #fff1ae;
-  background: radial-gradient(circle at 35% 30%, #fff4ba, #b96f24 68%, #372149);
-  box-shadow: 0 0 24px var(--wish-glow);
-  opacity: 0;
-  animation: orbRolls 3.25s 650ms cubic-bezier(0.32, 0.03, 0.5, 1) both;
-}
-
-.feather {
-  top: 17%;
-  left: 63%;
-  color: #fff5c7;
-  font-size: 3.8rem;
-  line-height: 1;
-  filter: drop-shadow(0 0 14px var(--wish-glow));
-  opacity: 0;
-}
-
-.falconShadow {
-  top: 15%;
-  left: 18%;
-  color: rgba(103, 232, 249, 0.44);
-  font-size: 6rem;
-  opacity: 0;
-}
-
-.scene[data-scene="feather"] .feather,
-.scene[data-scene="feather"] .falconShadow {
-  display: block;
-}
-
-.scene[data-scene="feather"] .feather {
-  animation: featherFalls 4.35s 250ms ease-in-out both;
-}
-
-.scene[data-scene="feather"] .falconShadow {
-  animation: falconPass 1.5s 2.35s ease-out both;
-}
-
-.scene[data-scene="feather"] .catWrap {
-  animation-name: catLeaps;
-}
-
-.scene[data-scene="celestial"] .catWrap {
-  bottom: 0;
-  width: min(62vw, 440px);
-  animation-name: celestialStare;
-}
-
-.scene[data-scene="celestial"] .moonDisc {
-  animation-name: eclipseArrives;
-}
-
-.eyeReflection {
-  top: 41%;
-  left: 54%;
-  color: #fff8ce;
-  font-size: clamp(2rem, 6vw, 4.6rem);
-  text-shadow:
-    0 0 10px #ffffff,
-    0 0 35px var(--wish-primary),
-    0 0 80px var(--wish-secondary);
-  opacity: 0;
-  transform: translate(-50%, -50%) scale(0.1);
-}
-
-.scene[data-scene="celestial"] .eyeReflection {
-  display: block;
-  animation: eyeStar 1.55s 3.15s ease-out both;
-}
-
-.epilogue {
-  position: absolute;
-  z-index: 40;
   inset: 0;
   display: grid;
   place-items: center;
-  opacity: 0;
-  visibility: hidden;
-  background: radial-gradient(circle, rgba(25, 49, 53, 0.72), rgba(3, 4, 20, 0.96) 68%);
+  border: 3px solid #fff0a8;
+  border-radius: 999px;
+  color: #fff8d2;
+  background:
+    repeating-linear-gradient(42deg, transparent 0 7px, rgba(102, 52, 75, 0.42) 7px 9px),
+    radial-gradient(circle at 36% 28%, #fff1a1, #e9a129 55%, #7d3243);
+  box-shadow: 0 0 24px rgba(244, 202, 114, 0.36);
 }
 
-.scene[data-epilogue="true"] > :not(.epilogue) {
-  opacity: 0 !important;
-  animation: none !important;
+.mothCore {
+  inset: 21px;
+  border: 0;
+  background: #fff1a8;
+}
+
+.mothWingLeft,
+.mothWingRight {
+  position: absolute;
+  top: 8px;
+  width: 35px;
+  height: 50px;
+  border: 2px solid #fce7aa;
+  background: linear-gradient(135deg, rgba(103, 232, 249, 0.76), rgba(168, 85, 247, 0.5));
+  box-shadow: 0 0 18px var(--stage-accent-soft);
+  animation: mothWing 180ms ease-in-out infinite alternate;
+}
+
+.mothWingLeft { right: 50%; border-radius: 90% 10% 70% 30%; transform-origin: right; }
+.mothWingRight { left: 50%; border-radius: 10% 90% 30% 70%; transform-origin: left; }
+
+.goldenThread {
+  position: absolute;
+  z-index: 10;
+  right: 13%;
+  bottom: 21%;
+  width: 64%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #ffd873, #5eead4);
+  box-shadow: 0 0 9px rgba(244, 202, 114, 0.34);
+  opacity: 0;
+  transform: scaleX(0);
+  transform-origin: right;
+  animation: threadDraws var(--stage-duration) ease-out both;
+}
+
+/* Double Rare: bird and ribbon or temple dominoes. */
+.templeBird {
+  position: absolute;
+  z-index: 16;
+  top: 18%;
+  left: 8%;
+  display: flex;
+  align-items: center;
+  color: #f7d56f;
+  opacity: 0;
+  animation: birdCrosses var(--stage-duration) ease-in-out both;
+}
+
+.birdBody {
+  display: grid;
+  width: 54px;
+  height: 30px;
+  place-items: center;
+  border-radius: 70% 35% 55% 45%;
+  background: linear-gradient(135deg, #62d9d1, #4a2875);
+  box-shadow: 0 0 18px var(--stage-accent-soft);
+}
+
+.birdWing {
+  width: 37px;
+  height: 28px;
+  margin-right: -16px;
+  border: 2px solid #f3d27d;
+  background: #283965;
+  clip-path: polygon(0 100%, 100% 0, 82% 100%);
+  animation: birdWing 160ms ease-in-out infinite alternate;
+}
+
+.birdRibbon {
+  width: 160px;
+  height: 2px;
+  background: linear-gradient(90deg, #ffe9a6, transparent);
+  transform: rotate(7deg);
+  transform-origin: left;
+}
+
+.dominoes {
+  position: absolute;
+  z-index: 15;
+  right: 13%;
+  bottom: 14%;
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.dominoes span {
+  width: 18px;
+  height: var(--domino-height);
+  border: 2px solid #f6d982;
+  border-radius: 4px;
+  background: linear-gradient(#253c6a, #15122e);
+  box-shadow: 0 0 10px rgba(244, 202, 114, 0.18);
+  opacity: 0;
+  transform-origin: bottom right;
+  animation: dominoFalls var(--stage-duration) var(--domino-delay) ease-out both;
+}
+
+/* Ultra Rare: mirrored vault or balance. */
+.mirrorVault {
+  position: absolute;
+  z-index: 10;
+  inset: 13% 9% 21%;
+}
+
+.mirrorOne,
+.mirrorTwo,
+.mirrorThree {
+  position: absolute;
+  width: 54px;
+  height: 92px;
+  border: 3px solid #f3d174;
+  border-radius: 50% 50% 8px 8px;
+  background: linear-gradient(135deg, rgba(103, 232, 249, 0.55), rgba(255, 255, 255, 0.06));
+  box-shadow: 0 0 20px rgba(103, 232, 249, 0.15);
+  opacity: 0;
+  animation: mirrorsAwaken var(--stage-duration) ease-out both;
+}
+
+.mirrorOne { bottom: 8%; left: 12%; transform: rotate(-15deg); }
+.mirrorTwo { top: 4%; left: 46%; transform: rotate(8deg); }
+.mirrorThree { right: 9%; bottom: 14%; transform: rotate(18deg); }
+
+.sunbeam {
+  position: absolute;
+  top: 18%;
+  left: 14%;
+  width: 72%;
+  height: 3px;
+  background: linear-gradient(90deg, #fff, #fbd66f, #67e8f9, transparent);
+  box-shadow: 0 0 16px #ffe490;
+  opacity: 0;
+  transform: rotate(14deg) scaleX(0);
+  transform-origin: left;
+  animation: sunbeamDraws var(--stage-duration) ease-out both;
+}
+
+.heartScale {
+  position: absolute;
+  z-index: 10;
+  top: 24%;
+  left: 50%;
+  width: min(62vw, 430px);
+  height: 190px;
+  opacity: 0;
+  transform: translateX(-50%);
+  animation: scaleAppears var(--stage-duration) ease-out both;
+}
+
+.scaleBeam {
+  position: absolute;
+  top: 55%;
+  left: 50%;
+  width: 75%;
+  height: 5px;
+  border-radius: 999px;
+  background: #e5b84b;
+  transform: translateX(-50%) rotate(-7deg);
+  animation: scaleTips var(--stage-duration) ease-in-out both;
+}
+
+.scaleLeft,
+.scaleRight {
+  position: absolute;
+  top: 51%;
+  display: grid;
+  width: 92px;
+  height: 55px;
+  place-items: center;
+  border-bottom: 4px solid #e5b84b;
+  border-radius: 0 0 50% 50%;
+  color: #fff0a4;
+  font-size: 2.2rem;
+}
+
+.scaleLeft { left: 3%; }
+.scaleRight { right: 3%; }
+
+.vaultDoor {
+  position: absolute;
+  z-index: 9;
+  top: 18%;
+  left: 50%;
+  display: grid;
+  width: min(30vw, 210px);
+  height: min(45vw, 300px);
+  place-items: center;
+  border: 4px solid #c8913f;
+  border-radius: 50% 50% 6px 6px;
+  color: #f6df90;
+  background: linear-gradient(135deg, #1c2447, #171027 60%, #40264e);
+  box-shadow: inset 0 0 30px rgba(244, 202, 114, 0.12), 0 0 28px rgba(244, 202, 114, 0.12);
+  opacity: 0;
+  transform: translateX(-50%) scaleX(0.12);
+  transform-origin: right;
+  animation: vaultOpens var(--stage-duration) ease-out both;
+}
+
+.vaultDoor span {
+  font-size: 3rem;
+  text-shadow: 0 0 20px var(--stage-accent-soft);
+}
+
+/* Illustration Rare: living mural and papyrus theatre. */
+.mural {
+  position: absolute;
+  z-index: 9;
+  top: 14%;
+  left: 50%;
+  width: min(76vw, 550px);
+  height: min(49vw, 350px);
+  overflow: hidden;
+  border: 5px solid #b16a34;
+  border-radius: 7px;
+  background:
+    linear-gradient(180deg, rgba(244, 188, 79, 0.2), transparent 32%),
+    repeating-linear-gradient(6deg, #b97943 0 3px, #8d4d38 3px 6px, #5b3150 6px 9px);
+  box-shadow: inset 0 0 80px rgba(48, 20, 49, 0.62), 0 0 36px rgba(244, 202, 114, 0.15);
+  opacity: 0;
+  transform: translateX(-50%) scale(0.82) rotateX(12deg);
+  animation: muralLives var(--stage-duration) ease-out both;
+}
+
+.muralSun {
+  position: absolute;
+  top: 12%;
+  right: 12%;
+  width: 58px;
+  height: 58px;
+  border-radius: 999px;
+  background: #e9b040;
+  box-shadow: 0 0 22px rgba(255, 216, 108, 0.32);
+}
+
+.muralRiver {
+  position: absolute;
+  right: -10%;
+  bottom: 9%;
+  left: -10%;
+  height: 28%;
+  border-radius: 50% 50% 0 0;
+  background: linear-gradient(180deg, #3ec7bd, #284f77);
+  opacity: 0.65;
+}
+
+.muralNebu {
+  position: absolute;
+  z-index: 2;
+  bottom: -9%;
+  left: 12%;
+  width: 52%;
+  filter: sepia(0.6) saturate(0.7) contrast(1.2) opacity(0.8);
+  animation: muralNebuMoves 1.7s ease-in-out infinite alternate;
+}
+
+.muralCurtainLeft,
+.muralCurtainRight {
+  display: none;
+  position: absolute;
+  z-index: 4;
+  top: 0;
+  bottom: 0;
+  width: 51%;
+  background: linear-gradient(90deg, #351537, #8e344b, #cf7540);
+}
+
+.muralCurtainLeft { left: 0; transform-origin: left; }
+.muralCurtainRight { right: 0; transform-origin: right; }
+
+.papyrusTheatre .muralCurtainLeft,
+.papyrusTheatre .muralCurtainRight {
+  display: block;
+  animation: curtainsOpen var(--stage-duration) ease-out both;
+}
+
+.inkTrail {
+  position: absolute;
+  z-index: 11;
+  right: 15%;
+  bottom: 16%;
+  left: 15%;
+  display: flex;
+  justify-content: space-between;
+  color: var(--stage-accent);
+}
+
+.inkTrail span {
+  opacity: 0;
+  text-shadow: 0 0 10px var(--stage-accent-soft);
+  animation: inkPrints var(--stage-duration) ease-out both;
+}
+
+.inkTrail span:nth-child(2n) { animation-delay: 90ms; }
+.inkTrail span:nth-child(3n) { animation-delay: 180ms; }
+
+/* SIR: reflected star and sky mirror. */
+.eyeReflection {
+  position: absolute;
+  z-index: 22;
+  top: 40%;
+  left: 50%;
+  display: grid;
+  width: min(30vw, 220px);
+  height: min(20vw, 145px);
+  place-items: center;
+  border: 4px solid #d39b40;
+  border-radius: 55% 55% 48% 48%;
+  color: #fff7cf;
+  background:
+    radial-gradient(circle at 50% 48%, #f5b83b 0 9%, transparent 10%),
+    radial-gradient(ellipse, #1a264f 0 42%, #060817 70%);
+  box-shadow: 0 0 50px var(--stage-accent-soft);
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.12);
+  animation: eyeOpens var(--stage-duration) cubic-bezier(0.16, 0.8, 0.25, 1) both;
+}
+
+.eyeReflection span {
+  font-size: 3.2rem;
+  text-shadow: 0 0 28px #ffe89c;
+  animation: eyeStarSpin 900ms ease-in-out infinite alternate;
+}
+
+.skyMirror {
+  position: absolute;
+  z-index: 10;
+  bottom: 12%;
+  left: 50%;
+  width: min(58vw, 410px);
+  height: min(14vw, 100px);
+  border: 2px solid rgba(103, 232, 249, 0.45);
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(103, 232, 249, 0.32), rgba(15, 20, 63, 0.7) 58%, transparent 72%);
+  box-shadow: 0 0 38px rgba(103, 232, 249, 0.2);
+  opacity: 0;
+  transform: translateX(-50%) scaleX(0.3);
+}
+
+.skyMirrorActive {
+  animation: skyMirrorAppears var(--stage-duration) ease-out both;
+}
+
+.skyMirror span {
+  position: absolute;
+  inset: -8px;
+  border: 2px solid rgba(244, 202, 114, 0.28);
+  border-radius: inherit;
+  animation: mirrorRipple 1.2s ease-out infinite;
+}
+
+/* Hyper Rare: solar boat or eclipse. */
+.solarBoat {
+  position: absolute;
+  z-index: 14;
+  top: 17%;
+  left: -32%;
+  width: min(54vw, 390px);
+  height: 150px;
+  opacity: 0;
+  animation: boatCrosses var(--stage-duration) cubic-bezier(0.35, 0, 0.65, 1) both;
+}
+
+.boatHull {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 58px;
+  border: 4px solid #f1c459;
+  border-radius: 15% 15% 70% 70%;
+  background: linear-gradient(180deg, #c87b34, #422449);
+  clip-path: polygon(0 0, 100% 0, 83% 100%, 17% 100%);
+  box-shadow: 0 0 26px rgba(244, 202, 114, 0.26);
+}
+
+.boatMast {
+  position: absolute;
+  bottom: 43px;
+  left: 50%;
+  width: 5px;
+  height: 95px;
+  background: #f1c459;
+}
+
+.solarDisc {
+  position: absolute;
+  top: -10px;
+  left: 50%;
+  display: grid;
+  width: 92px;
+  height: 92px;
+  place-items: center;
+  border-radius: 999px;
+  color: #fffbd8;
+  background: radial-gradient(circle, #fffbd2, #f6b62e 42%, #d05b34 75%);
+  box-shadow: 0 0 42px #f8c24f, 0 0 90px rgba(249, 115, 22, 0.34);
+  transform: translateX(-50%);
+  animation: sunPulses 760ms ease-in-out infinite alternate;
+}
+
+.eclipseBoat .solarDisc {
+  color: #76e4df;
+  background: radial-gradient(circle, #080819 0 46%, #6ee7e2 48% 56%, #9d67dd 62%, transparent 72%);
+  box-shadow: 0 0 48px rgba(103, 232, 249, 0.46);
+}
+
+.starBridge {
+  position: absolute;
+  z-index: 11;
+  top: 44%;
+  right: 8%;
+  left: 8%;
+  display: flex;
+  justify-content: space-between;
+  transform: rotate(-8deg);
+}
+
+.starBridge span {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--stage-accent);
+  box-shadow: 0 0 15px var(--stage-accent-soft);
+  opacity: 0;
+  animation: bridgeStar var(--stage-duration) ease-out both;
+}
+
+.starBridge span:nth-child(2n) { animation-delay: 110ms; }
+.starBridge span:nth-child(3n) { animation-delay: 220ms; }
+
+/* Crown Rare: the constellation and optional hall of doors. */
+.catConstellation {
+  position: absolute;
+  z-index: 13;
+  top: 8%;
+  left: 50%;
+  width: min(64vw, 470px);
+  height: min(58vw, 420px);
+  opacity: 0;
+  transform: translateX(-50%) scale(0.74);
+  filter: drop-shadow(0 0 16px var(--stage-accent-soft));
+  animation: catConstellationForms var(--stage-duration) ease-out both;
+}
+
+.constellationHead,
+.constellationBody,
+.constellationEarLeft,
+.constellationEarRight,
+.constellationTail {
+  position: absolute;
+  border: 3px solid color-mix(in srgb, var(--stage-accent) 82%, white);
+  box-shadow: inset 0 0 24px var(--stage-accent-soft), 0 0 19px var(--stage-accent-soft);
+}
+
+.constellationHead {
+  top: 8%;
+  left: 32%;
+  width: 38%;
+  height: 34%;
+  border-radius: 48% 48% 42% 42%;
+}
+
+.constellationEarLeft {
+  top: 0;
+  left: 29%;
+  width: 18%;
+  height: 22%;
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+}
+
+.constellationEarRight {
+  top: 0;
+  right: 26%;
+  width: 18%;
+  height: 22%;
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+}
+
+.constellationBody {
+  right: 24%;
+  bottom: 4%;
+  width: 48%;
+  height: 58%;
+  border-radius: 48% 52% 35% 35%;
+}
+
+.constellationTail {
+  right: 3%;
+  bottom: 8%;
+  width: 30%;
+  height: 53%;
+  border-bottom: 0;
+  border-left: 0;
+  border-radius: 0 100% 0 0;
+  transform: rotate(18deg);
+}
+
+.eightDoors {
+  position: absolute;
+  z-index: 9;
+  inset: 15% 4% 19%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  perspective: 800px;
+}
+
+.eightDoors span {
+  display: grid;
+  width: 9%;
+  height: var(--door-height);
+  place-items: center;
+  border: 2px solid #d5a947;
+  border-radius: 45% 45% 2px 2px;
+  color: #f9e19a;
+  background: linear-gradient(#25255a, #160d2b);
+  box-shadow: 0 0 18px rgba(244, 202, 114, 0.12);
+  opacity: 0;
+  transform: rotateY(75deg);
+  animation: doorOpens var(--stage-duration) var(--door-delay) ease-out both;
+}
+
+.screenCrack {
+  position: absolute;
+  z-index: 18;
+  top: 50%;
+  left: 50%;
+  color: #fffbe3;
+  font-size: clamp(5rem, 21vw, 12rem);
+  text-shadow: 0 0 35px #fff, 0 0 90px var(--stage-accent-soft);
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.08);
+  animation: screenBreaks var(--stage-duration) ease-out both;
+}
+
+/* Skin-specific particles make colour customisation part of the performance. */
+.signatureParticles {
+  z-index: 7;
+  overflow: hidden;
+}
+
+.signatureParticles span {
+  position: absolute;
+  top: var(--accent-top);
+  left: var(--accent-left);
+  width: var(--accent-size);
+  height: var(--accent-size);
+  border-radius: 999px;
+  background: var(--stage-accent);
+  box-shadow: 0 0 12px var(--stage-accent-soft);
+  opacity: 0;
+  animation: accentDrifts var(--stage-duration) var(--accent-delay) ease-in-out both;
+}
+
+html[data-nebu-skin="lotus"] .signatureParticles span {
+  border-radius: 80% 10% 80% 10%;
+  transform: rotate(45deg);
+}
+
+html[data-nebu-skin="scarab"] .signatureParticles span {
+  border-radius: 50% 50% 35% 35%;
+}
+
+html[data-nebu-skin="pearl"] .signatureParticles span {
+  clip-path: polygon(50% 0, 62% 36%, 100% 50%, 62% 64%, 50% 100%, 38% 64%, 0 50%, 38% 36%);
+}
+
+/* Epilogues for SIR, Hyper and Crown. */
+.epilogue {
+  position: absolute;
+  z-index: 80;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 3rem 1.25rem;
+  text-align: center;
+  opacity: 0;
+  visibility: hidden;
+}
+
+.scene[data-epilogue="true"] .primaryScene,
+.scene[data-epilogue="true"] .performanceLabel {
+  opacity: 0;
+  visibility: hidden;
 }
 
 .scene[data-epilogue="true"] .epilogue {
   visibility: visible;
-  animation: epilogueArrives 2.25s ease-in-out both;
+  animation: epilogueArrives 2.35s ease-in-out both;
 }
 
-.epilogue img {
+.epilogueGlow {
   position: absolute;
-  bottom: -5%;
+  top: 42%;
   left: 50%;
-  width: min(52vw, 350px);
+  width: min(82vw, 570px);
+  aspect-ratio: 1;
+  border-radius: 999px;
+  background: radial-gradient(circle, var(--stage-accent-soft), transparent 68%);
+  filter: blur(32px);
+  transform: translate(-50%, -50%);
+}
+
+.epilogueNebu {
+  position: absolute;
+  z-index: 2;
+  top: 44%;
+  left: 50%;
+  width: min(64vw, 390px);
+  transform: translate(-50%, -50%);
+  animation: epilogueNebuMoves 2.2s ease-in-out both;
+}
+
+.epilogueObject {
+  position: absolute;
+  z-index: 3;
+  top: 24%;
+  left: 50%;
+  color: #fff0a2;
+  font-size: 3.6rem;
+  text-shadow: 0 0 24px var(--stage-accent-soft);
   transform: translateX(-50%);
-  filter: drop-shadow(0 22px 35px rgba(0, 0, 0, 0.72));
-  image-rendering: pixelated;
-  animation: catnipNod 1.15s 500ms ease-in-out both;
+  animation: epilogueObjectFalls 2.1s ease-in-out both;
 }
 
 .epilogue p,
-.epilogue > span:last-child {
+.epilogue > span {
   position: absolute;
-  z-index: 3;
-  right: 0;
-  left: 0;
-  margin: 0 auto;
-  text-align: center;
+  z-index: 5;
+  right: 1rem;
+  left: 1rem;
+  margin: 0;
 }
 
 .epilogue p {
-  top: 12%;
-  color: #fff6d0;
-  font-family: Georgia, Cambria, "Times New Roman", serif;
-  font-size: clamp(1.7rem, 5vw, 3.15rem);
+  bottom: 14%;
+  color: #ffffff;
+  font-size: clamp(1.35rem, 5vw, 2.3rem);
   font-weight: 900;
-  text-shadow: 0 0 25px rgba(244, 202, 114, 0.38);
 }
 
-.epilogue > span:last-child {
-  top: calc(12% + clamp(2.7rem, 7vw, 4.4rem));
-  color: rgba(255, 255, 255, 0.66);
-  font-size: 0.72rem;
+.epilogue > span {
+  bottom: 9%;
+  color: color-mix(in srgb, var(--stage-accent) 65%, white);
+  font-size: 0.68rem;
   font-weight: 900;
-  letter-spacing: 0.16em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
 }
 
-.catnipStar {
-  position: absolute;
-  z-index: 4;
-  top: 39%;
-  left: 54%;
-  color: #fff5a8;
-  font-size: 4.5rem;
-  text-shadow: 0 0 35px #fde68a;
-  animation: catnipStarFalls 1.25s 260ms ease-in both;
+.scene[data-low-effects="true"] .signatureParticles,
+.scene[data-low-effects="true"] .constellation .constellationStar:nth-of-type(n + 8) {
+  display: none;
 }
 
-.catnipStem {
-  position: absolute;
-  z-index: 5;
-  top: 52%;
-  left: 53%;
-  width: 7px;
-  height: 78px;
-  border-radius: 999px;
-  background: #7bc27a;
-  opacity: 0;
-  transform: rotate(20deg);
-  animation: stemAppears 380ms 1.1s ease-out both;
-}
-
-.catnipStem span {
-  position: absolute;
-  width: 34px;
-  height: 18px;
-  border-radius: 100% 10% 100% 10%;
-  background: linear-gradient(135deg, #b5e583, #2f7d50);
-}
-.catnipStem span:nth-child(1) { top: 14px; left: -29px; transform: rotate(25deg); }
-.catnipStem span:nth-child(2) { top: 34px; left: 4px; transform: scaleX(-1) rotate(22deg); }
-.catnipStem span:nth-child(3) { top: 54px; left: -27px; transform: rotate(17deg); }
-
-@keyframes constellationArrives {
-  0% { opacity: 0; transform: translateZ(-170px) scale(0.72); }
-  18%, 78% { opacity: 0.78; }
-  100% { opacity: 0; transform: translateZ(90px) scale(1.12); }
-}
 @keyframes starSpeak {
   0% { opacity: 0; transform: scale(0); }
-  58% { opacity: 1; transform: scale(1.8); }
-  100% { opacity: 0.88; transform: scale(1); }
+  55% { opacity: 1; transform: scale(1.65); }
+  100% { opacity: 0.76; transform: scale(1); }
 }
+
+@keyframes constellationArrives {
+  0%, 12% { opacity: 0; transform: translateY(-8px) scale(0.97); }
+  28%, 88% { opacity: 0.7; transform: translateY(0) scale(1); }
+  100% { opacity: 0.12; transform: translateY(5px) scale(1.02); }
+}
+
 @keyframes moonArrives {
-  0% { opacity: 0; transform: translateX(-50%) scale(0.72); }
-  30%, 84% { opacity: 1; }
-  100% { opacity: 0; transform: translateX(-50%) scale(1.1); }
+  0%, 5% { opacity: 0; transform: translateX(-50%) scale(0.72); }
+  30%, 86% { opacity: 0.78; transform: translateX(-50%) scale(1); }
+  100% { opacity: 0.2; transform: translateX(-50%) scale(1.1); }
 }
-@keyframes eclipseArrives {
-  0% { opacity: 0; transform: translateX(-50%) scale(0.6); }
-  25%, 100% { opacity: 1; transform: translateX(-50%) scale(1.18); }
+
+@keyframes templeArrives {
+  0%, 16% { opacity: 0; transform: translateY(25px); }
+  35%, 88% { opacity: 0.86; transform: translateY(0); }
+  100% { opacity: 0.2; transform: translateY(8px); }
 }
+
 @keyframes dunesArrive {
+  from { opacity: 0; transform: rotate(-2deg) translateY(35%); }
   to { opacity: 1; transform: rotate(-2deg) translateY(0); }
 }
-@keyframes haloBreath {
-  to { opacity: 0.48; transform: scale(1.08); }
+
+@keyframes actorStarts {
+  0%, 4% { opacity: 0; transform: translate3d(-110%, 10px, 0) scale(0.78); }
+  12%, 31% { opacity: 1; transform: translate3d(-62%, 0, 0) scale(0.92); }
+  38%, 100% { opacity: 0; transform: translate3d(-42%, 2px, 0) scale(0.96); }
 }
-@keyframes catEnters {
-  0% { opacity: 0; transform: translate3d(-50%, 34px, 80px) scale(0.72); }
-  20%, 72% { opacity: 1; transform: translate3d(-50%, 0, 80px) scale(0.9); }
-  100% { opacity: 0; transform: translate3d(-50%, -15px, 100px) scale(0.94); }
+
+@keyframes actorRuns {
+  0%, 6% { opacity: 0; transform: translate3d(-140%, 15px, 0) scale(0.72) rotate(-4deg); }
+  15% { opacity: 1; }
+  42% { opacity: 1; transform: translate3d(12%, -5px, 0) scale(0.9) rotate(2deg); }
+  48%, 100% { opacity: 0; transform: translate3d(45%, -12px, 0) scale(0.86) rotate(5deg); }
 }
-@keyframes catDigs {
-  0% { opacity: 0; transform: translate3d(-50%, 34px, 80px) scale(0.72); }
-  18% { opacity: 1; transform: translate3d(-50%, 0, 80px) scale(0.9) rotate(0); }
-  38% { transform: translate3d(-48%, 5px, 80px) scale(0.9) rotate(3deg); }
-  48% { transform: translate3d(-52%, 1px, 80px) scale(0.9) rotate(-3deg); }
-  58% { transform: translate3d(-48%, 5px, 80px) scale(0.9) rotate(3deg); }
-  76% { opacity: 1; transform: translate3d(-50%, 0, 80px) scale(0.91); }
-  100% { opacity: 0; transform: translate3d(-50%, -12px, 90px) scale(0.94); }
+
+@keyframes actorActs {
+  0%, 27% { opacity: 0; transform: translate3d(-46%, 20px, 0) scale(0.78); }
+  34% { opacity: 1; transform: translate3d(-46%, 0, 0) scale(1); }
+  55% { opacity: 1; transform: translate3d(-46%, -4px, 0) scale(1.04) rotate(-2deg); }
+  64%, 100% { opacity: 0; transform: translate3d(-46%, -12px, 0) scale(0.88) rotate(3deg); }
 }
-@keyframes catSwats {
-  0% { opacity: 0; transform: translate3d(-50%, 30px, 80px) scale(0.7); }
-  17%, 58% { opacity: 1; transform: translate3d(-50%, 0, 80px) scale(0.9); }
-  68% { transform: translate3d(-43%, -7px, 95px) scale(0.94) rotate(5deg); }
-  76% { opacity: 1; transform: translate3d(-51%, 1px, 80px) scale(0.91) rotate(-2deg); }
-  100% { opacity: 0; transform: translate3d(-50%, -14px, 90px) scale(0.94); }
+
+@keyframes actorLeaps {
+  0%, 29% { opacity: 0; transform: translate3d(-85%, 32px, 0) scale(0.62) rotate(-8deg); }
+  35% { opacity: 1; }
+  54% { opacity: 1; transform: translate3d(-40%, -25vh, 0) scale(1.04) rotate(5deg); }
+  69% { opacity: 1; transform: translate3d(12%, -8vh, 0) scale(0.9) rotate(11deg); }
+  73%, 100% { opacity: 0; transform: translate3d(28%, 6vh, 0) scale(0.72) rotate(14deg); }
 }
-@keyframes catPounces {
-  0% { opacity: 0; transform: translate3d(-50%, 34px, 80px) scale(0.72); }
-  18%, 51% { opacity: 1; transform: translate3d(-50%, 0, 80px) scale(0.88); }
-  63% { transform: translate3d(-22%, -45px, 120px) scale(0.96) rotate(6deg); }
-  76% { opacity: 1; transform: translate3d(-8%, 4px, 90px) scale(0.93) rotate(-2deg); }
-  100% { opacity: 0; transform: translate3d(-2%, -8px, 90px) scale(0.95); }
+
+@keyframes actorInvokes {
+  0%, 25% { opacity: 0; transform: translate3d(-50%, 15px, 0) scale(0.78); }
+  34%, 67% { opacity: 1; transform: translate3d(-50%, 0, 0) scale(1); }
+  72%, 100% { opacity: 0; transform: translate3d(-50%, -10px, 0) scale(1.06); }
 }
-@keyframes catLeaps {
-  0% { opacity: 0; transform: translate3d(-50%, 34px, 80px) scale(0.7); }
-  18%, 50% { opacity: 1; transform: translate3d(-50%, 0, 80px) scale(0.88) rotate(-2deg); }
-  66% { transform: translate3d(-42%, -20px, 95px) scale(0.92) rotate(3deg); }
-  78% { opacity: 1; transform: translate3d(-68%, -150px, 145px) scale(1.02) rotate(-9deg); }
-  100% { opacity: 0; transform: translate3d(-70%, -180px, 160px) scale(1.06) rotate(-12deg); }
+
+@keyframes actorWatchesStar {
+  0%, 7% { opacity: 0; transform: translate3d(-50%, 24px, 0) scale(0.72); }
+  18%, 52% { opacity: 1; transform: translate3d(-50%, 0, 0) scale(0.98); }
+  67%, 100% { opacity: 0; transform: translate3d(-50%, -4px, 100px) scale(1.35); }
 }
-@keyframes celestialStare {
-  0% { opacity: 0; transform: translate3d(-50%, 38px, 30px) scale(0.62); }
-  20%, 58% { opacity: 1; transform: translate3d(-50%, 0, 50px) scale(0.82); }
-  78% { opacity: 1; transform: translate3d(-47%, 5%, 190px) scale(1.82); }
-  100% { opacity: 0; transform: translate3d(-45%, 12%, 280px) scale(2.45); }
+
+@keyframes actorReacts {
+  0%, 61% { opacity: 0; transform: translate3d(-50%, 18px, 0) scale(0.78); }
+  70%, 88% { opacity: 1; transform: translate3d(-50%, 0, 0) scale(0.96); }
+  100% { opacity: 0; transform: translate3d(-50%, -5px, 0) scale(1.02); }
 }
-@keyframes propArrives { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
-@keyframes sandKick { 0% { opacity: 0; transform: translate(0, 0) scale(0.4); } 20% { opacity: 1; } 100% { opacity: 0; transform: translate(25px, -45px) scale(0); } }
-@keyframes papyrusRises { 0% { opacity: 0; transform: translate(-50%, 38px) rotate(-4deg); } 45%, 100% { opacity: 1; transform: translate(-50%, -52px) rotate(3deg); } }
-@keyframes scarabFlight { 0% { opacity: 0; transform: translate(-46vw, -11vh) rotate(-18deg) scale(0.4); } 18% { opacity: 1; } 48% { transform: translate(21vw, 12vh) rotate(13deg) scale(1); } 72% { opacity: 1; transform: translate(-4vw, 29vh) rotate(-8deg) scale(1.18); } 100% { opacity: 0; transform: translate(-12vw, 45vh) rotate(22deg) scale(0.2); } }
-@keyframes wingBeat { to { transform: rotateY(75deg); } }
-@keyframes pawFlash { 0%, 25% { opacity: 0; transform: scale(0); } 45% { opacity: 1; transform: scale(1.8); } 100% { opacity: 0; transform: scale(0.5); } }
-@keyframes threadDraws { 0% { opacity: 0; transform: scaleX(0); transform-origin: right; } 30%, 100% { opacity: 1; transform: scaleX(1); transform-origin: right; } }
-@keyframes orbRolls { 0% { opacity: 0; transform: translateX(80px) rotate(0); } 14% { opacity: 1; } 67% { opacity: 1; transform: translateX(-37vw) rotate(-560deg); } 100% { opacity: 0; transform: translateX(-45vw) translateY(-85px) rotate(-720deg) scale(0.1); } }
-@keyframes featherFalls { 0% { opacity: 0; transform: translate3d(20vw, -12vh, 0) rotate(-20deg); } 15% { opacity: 1; } 72% { opacity: 1; transform: translate3d(-18vw, 40vh, 0) rotate(115deg); } 100% { opacity: 0; transform: translate3d(-28vw, 54vh, 0) rotate(170deg); } }
-@keyframes falconPass { 0% { opacity: 0; transform: translateX(-30vw) scale(0.5); } 20% { opacity: 0.8; } 100% { opacity: 0; transform: translateX(95vw) scale(1.2); } }
-@keyframes eyeStar { 0% { opacity: 0; transform: translate(-50%, -50%) scale(0.1) rotate(0); } 40% { opacity: 1; transform: translate(-50%, -50%) scale(1.2) rotate(95deg); } 100% { opacity: 0; transform: translate(-50%, -50%) scale(4.8) rotate(180deg); } }
-@keyframes epilogueArrives { 0% { opacity: 0; } 15%, 88% { opacity: 1; } 100% { opacity: 0; } }
-@keyframes catnipNod { 0% { transform: translateX(-50%) translateY(35px) scale(0.86) rotate(0); } 45% { transform: translateX(-50%) translateY(0) scale(0.93) rotate(-2deg); } 75%, 100% { transform: translateX(-50%) translateY(0) scale(0.93) rotate(2deg); } }
-@keyframes catnipStarFalls { 0% { opacity: 1; transform: translateY(-20vh) scale(1.4) rotate(0); } 72% { opacity: 1; transform: translateY(8vh) scale(0.65) rotate(170deg); } 100% { opacity: 0; transform: translateY(12vh) scale(0.1) rotate(220deg); } }
-@keyframes stemAppears { from { opacity: 0; transform: rotate(20deg) scaleY(0); transform-origin: bottom; } to { opacity: 1; transform: rotate(20deg) scaleY(1); transform-origin: bottom; } }
+
+@keyframes actorRoyalReaction {
+  0%, 62% { opacity: 0; transform: translate3d(-50%, 26px, 0) scale(0.68); }
+  70%, 91% { opacity: 1; transform: translate3d(-50%, -7px, 70px) scale(1.08); }
+  100% { opacity: 0; transform: translate3d(-50%, -14px, 90px) scale(1.16); }
+}
+
+@keyframes actorCrowned {
+  0%, 57% { opacity: 0; transform: translate3d(-50%, 38px, 0) scale(0.48); }
+  70%, 92% { opacity: 1; transform: translate3d(-50%, -10px, 120px) scale(1.2); }
+  100% { opacity: 0; transform: translate3d(-50%, -24px, 150px) scale(1.34); }
+}
+
+@keyframes labelAppears {
+  0%, 6% { opacity: 0; transform: translateY(-8px); }
+  18%, 76% { opacity: 0.76; transform: translateY(0); }
+  92%, 100% { opacity: 0; transform: translateY(-3px); }
+}
+
+@keyframes commonPropAppears {
+  0%, 13% { opacity: 0; transform: scale(0.7); }
+  24%, 86% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.12); }
+}
+
+@keyframes commonCardPops {
+  0%, 52% { opacity: 0; transform: translate(-50%, 35px) rotate(-6deg) scale(0.4); }
+  64% { opacity: 1; transform: translate(-50%, -82px) rotate(7deg) scale(1.12); }
+  82% { opacity: 1; transform: translate(-50%, -67px) rotate(0) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -92px) rotate(0) scale(0.72); }
+}
+
+@keyframes dustPuff {
+  0%, 49% { opacity: 0; transform: translate(0, 0) scale(0.2); }
+  58% { opacity: 0.9; transform: translate(-6px, -18px) scale(1.2); }
+  76% { opacity: 0; transform: translate(8px, -58px) scale(2.4); }
+  100% { opacity: 0; }
+}
+
+@keyframes balloonDrifts {
+  0%, 8% { opacity: 0; transform: translate3d(20px, -20px, 0) rotate(4deg); }
+  18%, 45% { opacity: 1; transform: translate3d(0, 0, 0) rotate(-4deg); }
+  53% { opacity: 1; transform: translate3d(-18vw, 5vh, 0) rotate(11deg) scale(0.84); }
+  59%, 100% { opacity: 0; transform: translate3d(-25vw, -4vh, 0) rotate(-18deg) scale(1.7); }
+}
+
+@keyframes paperMouseRuns {
+  0%, 9% { opacity: 0; transform: translate3d(45vw, 0, 0) scale(0.72); }
+  17%, 52% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+  61%, 100% { opacity: 0; transform: translate3d(-48vw, -8px, 0) rotate(-18deg) scale(0.3); }
+}
+
+@keyframes popBurst {
+  0%, 53% { opacity: 0; transform: scale(0.1) rotate(0); }
+  58% { opacity: 1; transform: scale(1.7) rotate(45deg); }
+  70%, 100% { opacity: 0; transform: scale(3.4) rotate(110deg); }
+}
+
+@keyframes orbChase {
+  0%, 7% { opacity: 0; transform: translate3d(25vw, 0, 0) rotate(0); }
+  15% { opacity: 1; }
+  48% { opacity: 1; transform: translate3d(-44vw, -5vh, 0) rotate(-540deg); }
+  63% { opacity: 1; transform: translate3d(-9vw, -24vh, 0) rotate(-680deg) scale(0.88); }
+  75%, 100% { opacity: 0; transform: translate3d(4vw, -30vh, 0) rotate(-760deg) scale(0.16); }
+}
+
+@keyframes mothWing { to { transform: rotateY(66deg); } }
+
+@keyframes threadDraws {
+  0%, 20% { opacity: 0; transform: scaleX(0); }
+  49%, 70% { opacity: 1; transform: scaleX(1); }
+  100% { opacity: 0; transform: scaleX(0.15); }
+}
+
+@keyframes birdCrosses {
+  0%, 9% { opacity: 0; transform: translateX(-25vw) translateY(0) scale(0.6); }
+  18% { opacity: 1; }
+  58% { opacity: 1; transform: translateX(70vw) translateY(15vh) scale(1.05); }
+  72%, 100% { opacity: 0; transform: translateX(92vw) translateY(28vh) scale(0.8); }
+}
+
+@keyframes birdWing { to { transform: rotateY(70deg); } }
+
+@keyframes dominoFalls {
+  0%, 31% { opacity: 0; transform: rotate(0); }
+  38% { opacity: 1; transform: rotate(0); }
+  63%, 85% { opacity: 1; transform: rotate(72deg); }
+  100% { opacity: 0; transform: rotate(80deg); }
+}
+
+@keyframes mirrorsAwaken {
+  0%, 18% { opacity: 0; filter: brightness(0.4); }
+  32%, 88% { opacity: 1; filter: brightness(1.25); }
+  100% { opacity: 0; filter: brightness(1.6); }
+}
+
+@keyframes sunbeamDraws {
+  0%, 34% { opacity: 0; transform: rotate(14deg) scaleX(0); }
+  53%, 81% { opacity: 1; transform: rotate(14deg) scaleX(1); }
+  100% { opacity: 0; transform: rotate(14deg) scaleX(1.18); }
+}
+
+@keyframes vaultOpens {
+  0%, 43% { opacity: 0; transform: translateX(-50%) scaleX(0.12); }
+  57%, 88% { opacity: 1; transform: translateX(-50%) scaleX(1); }
+  100% { opacity: 0; transform: translateX(-50%) scaleX(1.12); }
+}
+
+@keyframes scaleAppears {
+  0%, 16% { opacity: 0; transform: translateX(-50%) scale(0.76); }
+  32%, 88% { opacity: 1; transform: translateX(-50%) scale(1); }
+  100% { opacity: 0; transform: translateX(-50%) scale(1.08); }
+}
+
+@keyframes scaleTips {
+  0%, 37% { transform: translateX(-50%) rotate(-7deg); }
+  61%, 100% { transform: translateX(-50%) rotate(9deg); }
+}
+
+@keyframes muralLives {
+  0%, 12% { opacity: 0; transform: translateX(-50%) scale(0.82) rotateX(12deg); }
+  28%, 84% { opacity: 1; transform: translateX(-50%) scale(1) rotateX(0); }
+  100% { opacity: 0; transform: translateX(-50%) scale(1.08) rotateX(-4deg); }
+}
+
+@keyframes muralNebuMoves { to { transform: translateX(12px) translateY(-5px); } }
+
+@keyframes curtainsOpen {
+  0%, 31% { transform: scaleX(1); }
+  58%, 100% { transform: scaleX(0.08); }
+}
+
+@keyframes inkPrints {
+  0%, 36% { opacity: 0; transform: translateY(12px) scale(0.2) rotate(0); }
+  51%, 80% { opacity: 0.9; transform: translateY(0) scale(1) rotate(45deg); }
+  100% { opacity: 0; transform: translateY(-15px) scale(0.6) rotate(90deg); }
+}
+
+@keyframes eyeOpens {
+  0%, 39% { opacity: 0; transform: translate(-50%, -50%) scale(0.12); }
+  55%, 72% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  88% { opacity: 1; transform: translate(-50%, -50%) scale(4.6); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(8); }
+}
+
+@keyframes eyeStarSpin { to { transform: rotate(90deg) scale(1.35); } }
+
+@keyframes skyMirrorAppears {
+  0%, 19% { opacity: 0; transform: translateX(-50%) scaleX(0.3); }
+  37%, 82% { opacity: 1; transform: translateX(-50%) scaleX(1); }
+  100% { opacity: 0; transform: translateX(-50%) scaleX(1.4); }
+}
+
+@keyframes mirrorRipple {
+  from { opacity: 0.8; transform: scale(0.8); }
+  to { opacity: 0; transform: scale(1.6); }
+}
+
+@keyframes boatCrosses {
+  0%, 6% { opacity: 0; transform: translateX(0) translateY(-7px) scale(0.72); }
+  16% { opacity: 1; }
+  59% { opacity: 1; transform: translateX(85vw) translateY(4vh) scale(1); }
+  76%, 100% { opacity: 0; transform: translateX(120vw) translateY(10vh) scale(1.18); }
+}
+
+@keyframes sunPulses { to { transform: translateX(-50%) scale(1.13); } }
+
+@keyframes bridgeStar {
+  0%, 18% { opacity: 0; transform: scale(0); }
+  34%, 74% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(2.4); }
+}
+
+@keyframes catConstellationForms {
+  0%, 21% { opacity: 0; transform: translateX(-50%) scale(0.74); }
+  45%, 77% { opacity: 0.82; transform: translateX(-50%) scale(1); }
+  92% { opacity: 1; transform: translateX(-50%) scale(1.18); }
+  100% { opacity: 0; transform: translateX(-50%) scale(1.5); }
+}
+
+@keyframes doorOpens {
+  0%, 20% { opacity: 0; transform: rotateY(75deg); }
+  45%, 81% { opacity: 1; transform: rotateY(0); }
+  100% { opacity: 0; transform: rotateY(-25deg) scale(1.08); }
+}
+
+@keyframes screenBreaks {
+  0%, 56% { opacity: 0; transform: translate(-50%, -50%) scale(0.08) rotate(0); }
+  68% { opacity: 1; transform: translate(-50%, -50%) scale(1.1) rotate(45deg); }
+  88% { opacity: 0.8; transform: translate(-50%, -50%) scale(3.4) rotate(90deg); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(6) rotate(140deg); }
+}
+
+@keyframes accentDrifts {
+  0%, 18% { opacity: 0; transform: translate3d(0, 18px, 0) scale(0.2) rotate(0); }
+  42%, 78% { opacity: 0.75; transform: translate3d(8px, -12px, 0) scale(1) rotate(70deg); }
+  100% { opacity: 0; transform: translate3d(-10px, -58px, 0) scale(0.45) rotate(150deg); }
+}
+
+@keyframes epilogueArrives {
+  0% { opacity: 0; }
+  15%, 88% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+@keyframes epilogueNebuMoves {
+  0% { opacity: 0; transform: translate(-50%, -42%) scale(0.76) rotate(-3deg); }
+  24%, 75% { opacity: 1; transform: translate(-50%, -50%) scale(1) rotate(2deg); }
+  100% { opacity: 0; transform: translate(-50%, -54%) scale(1.08) rotate(-2deg); }
+}
+
+@keyframes epilogueObjectFalls {
+  0% { opacity: 0; transform: translate(-50%, -14vh) scale(1.5) rotate(0); }
+  30%, 68% { opacity: 1; transform: translate(-50%, 7vh) scale(0.85) rotate(130deg); }
+  100% { opacity: 0; transform: translate(-50%, 15vh) scale(0.2) rotate(240deg); }
+}
 
 @media (max-width: 640px) {
-  .catWrap { bottom: 13%; width: min(62vw, 290px); }
-  .scene[data-scene="celestial"] .catWrap { width: min(78vw, 370px); }
-  .sandBowl { right: 12%; bottom: 17%; transform: scale(0.82); }
-  .goldenThread { right: 4%; bottom: 19%; width: 66%; }
-  .epilogue img { width: min(72vw, 320px); }
+  .actor {
+    bottom: 10%;
+    width: min(57vw, 285px);
+  }
+
+  .scene[data-scene="specialIllustrationRare"] .actorStart,
+  .scene[data-scene="crownRare"] .actorReaction {
+    width: min(68vw, 340px);
+  }
+
+  .commonProp {
+    right: 8%;
+    bottom: 17%;
+    width: min(32vw, 150px);
+    height: min(17vw, 78px);
+  }
+
+  .dustPuff {
+    right: 9%;
+    bottom: 21%;
+  }
+
+  .balloonProp {
+    right: 8%;
+  }
+
+  .mural {
+    top: 20%;
+    width: 90vw;
+    height: 58vw;
+  }
+
+  .vaultDoor {
+    top: 23%;
+    width: 42vw;
+    height: 62vw;
+  }
+
+  .solarBoat {
+    top: 21%;
+    width: 68vw;
+  }
+
+  .catConstellation {
+    top: 17%;
+    width: 82vw;
+    height: 70vw;
+  }
+
+  .performanceLabel {
+    top: max(4.25rem, env(safe-area-inset-top));
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .scene * { animation-duration: 1ms !important; animation-delay: 0ms !important; }
+  .scene * {
+    animation-duration: 1ms !important;
+    animation-delay: 0ms !important;
+  }
+
+  .actorReaction {
+    opacity: 1;
+    transform: translate3d(-50%, 0, 0) scale(0.95);
+  }
 }

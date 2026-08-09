@@ -16,6 +16,14 @@ import {
 } from "./wishAudio";
 import usePlayerPreferences from "./usePlayerPreferences";
 import { publishPlayerPreferences } from "@/lib/player/preferences";
+import {
+  DEFAULT_NEBU_PERFORMANCES,
+  NEBU_PERFORMANCE_CHANGE_EVENT,
+  normaliseNebuPerformances,
+  readNebuPerformances,
+  type NebuPerformanceSelections,
+  type NebuSceneKey,
+} from "@/lib/player/nebuPerformances";
 import { supabase } from "@/lib/supabase";
 import AncientCatPullScene from "./AncientCatPullScene";
 import styles from "./WishCinematic.module.css";
@@ -47,6 +55,11 @@ type WishCinematicProps = {
 type RarityTheme = {
   label: string;
   tier: number;
+  scene: NebuSceneKey;
+  durationMs: number;
+  impactAtMs: number;
+  cardAtMs: number;
+  infoAtMs: number;
   primary: string;
   secondary: string;
   glow: string;
@@ -57,13 +70,17 @@ type RarityTheme = {
   rayCount: number;
 };
 
-const ANIMATION_DURATION_MS = 7000;
 const IMAGE_PRELOAD_TIMEOUT_MS = 1800;
 
 const THEMES: Record<string, RarityTheme> = {
   common: {
     label: "Common",
     tier: 1,
+    scene: "common",
+    durationMs: 4200,
+    impactAtMs: 2150,
+    cardAtMs: 2450,
+    infoAtMs: 3150,
     primary: "#e2e8f0",
     secondary: "#94a3b8",
     glow: "rgba(226,232,240,0.76)",
@@ -76,6 +93,11 @@ const THEMES: Record<string, RarityTheme> = {
   uncommon: {
     label: "Uncommon",
     tier: 2,
+    scene: "uncommon",
+    durationMs: 4500,
+    impactAtMs: 2400,
+    cardAtMs: 2700,
+    infoAtMs: 3400,
     primary: "#86efac",
     secondary: "#22c55e",
     glow: "rgba(134,239,172,0.8)",
@@ -88,6 +110,11 @@ const THEMES: Record<string, RarityTheme> = {
   rare: {
     label: "Rare",
     tier: 3,
+    scene: "rare",
+    durationMs: 5000,
+    impactAtMs: 2850,
+    cardAtMs: 3160,
+    infoAtMs: 3900,
     primary: "#7dd3fc",
     secondary: "#2563eb",
     glow: "rgba(125,211,252,0.84)",
@@ -100,6 +127,11 @@ const THEMES: Record<string, RarityTheme> = {
   doubleRare: {
     label: "Double Rare",
     tier: 4,
+    scene: "doubleRare",
+    durationMs: 5600,
+    impactAtMs: 3400,
+    cardAtMs: 3720,
+    infoAtMs: 4450,
     primary: "#c4b5fd",
     secondary: "#7c3aed",
     glow: "rgba(196,181,253,0.88)",
@@ -112,6 +144,11 @@ const THEMES: Record<string, RarityTheme> = {
   ultraRare: {
     label: "Ultra Rare",
     tier: 5,
+    scene: "ultraRare",
+    durationMs: 6500,
+    impactAtMs: 4200,
+    cardAtMs: 4540,
+    infoAtMs: 5350,
     primary: "#fde68a",
     secondary: "#f59e0b",
     glow: "rgba(253,230,138,0.92)",
@@ -124,6 +161,11 @@ const THEMES: Record<string, RarityTheme> = {
   illustrationRare: {
     label: "Illustration Rare",
     tier: 5,
+    scene: "illustrationRare",
+    durationMs: 6700,
+    impactAtMs: 4350,
+    cardAtMs: 4700,
+    infoAtMs: 5550,
     primary: "#f9a8d4",
     secondary: "#a855f7",
     glow: "rgba(249,168,212,0.92)",
@@ -136,6 +178,11 @@ const THEMES: Record<string, RarityTheme> = {
   specialIllustrationRare: {
     label: "Special Illustration Rare",
     tier: 6,
+    scene: "specialIllustrationRare",
+    durationMs: 7600,
+    impactAtMs: 5200,
+    cardAtMs: 5570,
+    infoAtMs: 6500,
     primary: "#67e8f9",
     secondary: "#f9a8d4",
     glow: "rgba(103,232,249,0.96)",
@@ -148,6 +195,11 @@ const THEMES: Record<string, RarityTheme> = {
   hyperRare: {
     label: "Hyper Rare",
     tier: 7,
+    scene: "hyperRare",
+    durationMs: 8500,
+    impactAtMs: 6000,
+    cardAtMs: 6380,
+    infoAtMs: 7450,
     primary: "#fef08a",
     secondary: "#f59e0b",
     glow: "rgba(250,204,21,0.98)",
@@ -160,6 +212,11 @@ const THEMES: Record<string, RarityTheme> = {
   crownRare: {
     label: "Crown Rare",
     tier: 8,
+    scene: "crownRare",
+    durationMs: 9500,
+    impactAtMs: 6900,
+    cardAtMs: 7300,
+    infoAtMs: 8400,
     primary: "#ffffff",
     secondary: "#fef08a",
     glow: "rgba(255,255,255,1)",
@@ -290,6 +347,10 @@ export default function WishCinematic({
   const [epilogue, setEpilogue] = useState(false);
   const [runNumber, setRunNumber] = useState(0);
   const [muted, setMuted] = useState(false);
+  const [performances, setPerformances] =
+    useState<NebuPerformanceSelections>({
+      ...DEFAULT_NEBU_PERFORMANCES,
+    });
 
   const revealFromPreferences =
     respectPreferences &&
@@ -304,6 +365,7 @@ export default function WishCinematic({
     () => getWishRarityTheme(card?.rarity),
     [card?.rarity],
   );
+  const performanceId = performances[theme.scene];
 
   const cardKey = useMemo(() => {
     if (!card) {
@@ -334,6 +396,33 @@ export default function WishCinematic({
     } catch {
       // Local storage is optional.
     }
+  }, []);
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => {
+      setPerformances(readNebuPerformances());
+    });
+
+    const handlePerformanceChange = (event: Event) => {
+      const detail = (
+        event as CustomEvent<NebuPerformanceSelections>
+      ).detail;
+
+      setPerformances(normaliseNebuPerformances(detail));
+    };
+
+    window.addEventListener(
+      NEBU_PERFORMANCE_CHANGE_EVENT,
+      handlePerformanceChange,
+    );
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener(
+        NEBU_PERFORMANCE_CHANGE_EVENT,
+        handlePerformanceChange,
+      );
+    };
   }, []);
 
   const stopAudio = useCallback(() => {
@@ -440,7 +529,7 @@ export default function WishCinematic({
       completionTimerRef.current = window.setTimeout(() => {
         setComplete(true);
         reportFinished();
-      }, ANIMATION_DURATION_MS);
+      }, theme.durationMs);
     };
 
     if (!card.imageUrl) {
@@ -465,11 +554,13 @@ export default function WishCinematic({
     };
   }, [
     open,
+    card,
     cardKey,
     clearTimers,
     reportFinished,
     stopAudio,
     revealFromPreferences,
+    theme.durationMs,
   ]);
 
   useEffect(() => {
@@ -490,6 +581,10 @@ export default function WishCinematic({
           theme.tier,
           muted,
           preferences.sfxVolume,
+          {
+            impactAtMs: theme.impactAtMs,
+            revealAtMs: theme.cardAtMs,
+          },
         );
       })
       .catch(() => {
@@ -506,6 +601,9 @@ export default function WishCinematic({
     runNumber,
     skipped,
     theme.tier,
+    theme.impactAtMs,
+    theme.cardAtMs,
+    muted,
     stopAudio,
     preferences.sfxVolume,
   ]);
@@ -597,6 +695,15 @@ export default function WishCinematic({
     "--shake-distance": `${theme.shakeDistance}px`,
     "--flash-strength": String(theme.flashStrength),
     "--tier": String(theme.tier),
+    "--scene-duration": `${theme.impactAtMs}ms`,
+    "--star-start": `${Math.min(900, Math.round(theme.impactAtMs * 0.2))}ms`,
+    "--star-duration": `${Math.max(
+      1100,
+      theme.impactAtMs - Math.min(900, Math.round(theme.impactAtMs * 0.2)),
+    )}ms`,
+    "--impact-at": `${theme.impactAtMs}ms`,
+    "--card-at": `${theme.cardAtMs}ms`,
+    "--info-at": `${theme.infoAtMs}ms`,
   } as CSSProperties;
 
   return (
@@ -638,7 +745,7 @@ export default function WishCinematic({
             src="/ancient-pulls/celestial-cat.png"
             alt="Nebu, the Ancient Pulls celestial cat"
             draggable={false}
-            className={styles.preparingAaru}
+            className={styles.preparingNebu}
           />
 
           <p>Nebu is reading the constellation...</p>
@@ -652,8 +759,12 @@ export default function WishCinematic({
         >
           <div className={styles.catScene}>
             <AncientCatPullScene
-              tier={theme.tier}
+              scene={theme.scene}
+              performanceId={performanceId}
               epilogue={epilogue}
+              lowEffects={
+                preferences.lowVisualEffects || preferences.dataSaver
+              }
             />
           </div>
 

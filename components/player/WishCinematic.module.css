@@ -6,6 +6,11 @@
   --shake-distance: 4px;
   --flash-strength: 0.84;
   --tier: 3;
+  --star-start: 850ms;
+  --star-duration: 2000ms;
+  --impact-at: 2850ms;
+  --card-at: 3160ms;
+  --info-at: 3900ms;
 
   position: fixed;
   inset: 0;
@@ -177,7 +182,7 @@
   transform: translateZ(0);
   backface-visibility: hidden;
   animation:
-    sequenceShake 760ms 4.54s
+    sequenceShake 760ms var(--impact-at)
     cubic-bezier(0.36, 0.07, 0.19, 0.97)
     both;
   animation-play-state: running;
@@ -198,7 +203,7 @@
   width: 76px;
   height: 76px;
   opacity: 0;
-  animation: starJourney 3.65s 1.05s
+  animation: starJourney var(--star-duration) var(--star-start)
     cubic-bezier(0.34, 0.05, 0.64, 1) both;
   transform: translate3d(-50%, -50%, 0);
   transform-origin: center;
@@ -227,7 +232,7 @@
     transparent
   );
   opacity: 0.92;
-  animation: whiteFades 3.65s 1.05s linear both;
+  animation: whiteFades var(--star-duration) var(--star-start) linear both;
 }
 
 .rarityTrail {
@@ -239,7 +244,7 @@
     transparent
   );
   opacity: 0;
-  animation: rarityAppears 3.65s 1.05s linear both;
+  animation: rarityAppears var(--star-duration) var(--star-start) linear both;
 }
 
 .starOuterGlow {
@@ -254,7 +259,7 @@
   filter: blur(18px);
   animation:
     gentlePulse 620ms ease-in-out infinite alternate,
-    glowChanges 3.65s 1.05s linear both;
+    glowChanges var(--star-duration) var(--star-start) linear both;
 }
 
 .whiteCore,
@@ -276,7 +281,7 @@
     0 0 25px 8px rgba(255, 255, 255, 0.62),
     0 0 70px 22px rgba(255, 255, 255, 0.28);
   opacity: 1;
-  animation: whiteFades 3.65s 1.05s linear both;
+  animation: whiteFades var(--star-duration) var(--star-start) linear both;
 }
 
 .rarityCore {
@@ -291,7 +296,7 @@
     0 0 28px 9px var(--wish-primary),
     0 0 88px 30px var(--wish-glow);
   opacity: 0;
-  animation: rarityAppears 3.65s 1.05s linear both;
+  animation: rarityAppears var(--star-duration) var(--star-start) linear both;
 }
 
 .impact {
@@ -312,7 +317,7 @@
     transparent 54%
   );
   opacity: 0;
-  animation: impactFlash 760ms 4.54s ease-out both;
+  animation: impactFlash 760ms var(--impact-at) ease-out both;
 }
 
 .impactRing,
@@ -328,15 +333,15 @@
   box-shadow: 0 0 34px var(--wish-glow);
   opacity: 0;
   transform: translate(-50%, -50%) scale(0.18);
-  animation: impactRing 820ms 4.56s ease-out both;
+  animation: impactRing 820ms var(--impact-at) ease-out both;
 }
 
 .impactRingSecond {
-  animation-delay: 4.64s;
+  animation-delay: calc(var(--impact-at) + 100ms);
 }
 
 .impactRingThird {
-  animation-delay: 4.72s;
+  animation-delay: calc(var(--impact-at) + 180ms);
 }
 
 .impactRays {
@@ -371,7 +376,7 @@
     scaleX(0.1);
   transform-origin: left center;
   animation: rayBurst 650ms
-    calc(4.55s + var(--ray-delay))
+    calc(var(--impact-at) + var(--ray-delay))
     ease-out both;
 }
 
@@ -403,7 +408,7 @@
     translateX(0)
     scale(1);
   animation: particleBurst 820ms
-    calc(4.57s + var(--particle-delay))
+    calc(var(--impact-at) + 30ms + var(--particle-delay))
     ease-out both;
 }
 
@@ -421,7 +426,7 @@
     scale(0.7)
     rotateY(90deg);
   transform-style: preserve-3d;
-  animation: cardReveal 1.45s 5.08s
+  animation: cardReveal 1.45s var(--card-at)
     cubic-bezier(0.16, 0.9, 0.24, 1) both;
   backface-visibility: hidden;
   will-change: transform, opacity;
@@ -505,7 +510,7 @@
     transparent 76%
   );
   background-size: 260% 100%;
-  animation: shine 2.4s 5.4s linear infinite;
+  animation: shine 2.4s calc(var(--card-at) + 320ms) linear infinite;
 }
 
 .premiumCardShine {
@@ -522,8 +527,8 @@
   mix-blend-mode: screen;
   opacity: 0;
   animation:
-    premiumShine 2.8s 5.25s linear infinite,
-    premiumShineIn 500ms 5.25s ease-out both;
+    premiumShine 2.8s calc(var(--card-at) + 170ms) linear infinite,
+    premiumShineIn 500ms calc(var(--card-at) + 170ms) ease-out both;
 }
 
 .cardInfo {
@@ -538,7 +543,7 @@
   opacity: 0;
   text-align: center;
   transform: translate3d(0, 24px, 0);
-  animation: infoAppears 520ms 6.18s ease-out both;
+  animation: infoAppears 520ms var(--info-at) ease-out both;
 }
 
 .rarity {
@@ -781,7 +786,7 @@
     inset 0 0 42px rgba(217, 154, 53, 0.035);
 }
 
-.preparingAaru {
+.preparingNebu {
   width: 116% !important;
   filter:
     drop-shadow(0 0 18px var(--wish-glow))

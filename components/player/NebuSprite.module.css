@@ -1,0 +1,33 @@
+.sprite {
+  display: block;
+  aspect-ratio: 1;
+  background-image: url("/ancient-pulls/nebu-performance-sheet.png");
+  background-repeat: no-repeat;
+  background-size: 400% 400%;
+  filter: var(--nebu-image-filter);
+  image-rendering: pixelated;
+  transform: translateZ(0);
+}
+
+.sprite[data-pose="idle"] { background-position: 0% 0%; }
+.sprite[data-pose="walk"] { background-position: 33.333% 0%; }
+.sprite[data-pose="run"] { background-position: 66.667% 0%; }
+.sprite[data-pose="wiggle"] { background-position: 100% 0%; }
+.sprite[data-pose="swipe"] { background-position: 0% 33.333%; }
+.sprite[data-pose="pounce"] { background-position: 33.333% 33.333%; }
+.sprite[data-pose="groom"] { background-position: 66.667% 33.333%; }
+.sprite[data-pose="puffed"] { background-position: 100% 33.333%; }
+.sprite[data-pose="back"] { background-position: 0% 66.667%; }
+.sprite[data-pose="smug"] { background-position: 33.333% 66.667%; }
+.sprite[data-pose="yarn"] { background-position: 66.667% 66.667%; }
+.sprite[data-pose="balloon"] { background-position: 100% 66.667%; }
+.sprite[data-pose="sacred"] { background-position: 0% 100%; }
+.sprite[data-pose="leap"] { background-position: 33.333% 100%; }
+.sprite[data-pose="crown"] { background-position: 66.667% 100%; }
+.sprite[data-pose="catnip"] { background-position: 100% 100%; }
+
+@media (prefers-reduced-motion: reduce) {
+  .sprite {
+    transform: none;
+  }
+}

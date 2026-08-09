@@ -15,6 +15,11 @@ import {
   DEFAULT_NEBU_SKIN,
   readNebuSkinFromMetadata,
 } from "@/lib/player/nebu";
+import {
+  applyNebuPerformances,
+  DEFAULT_NEBU_PERFORMANCES,
+  readNebuPerformancesFromMetadata,
+} from "@/lib/player/nebuPerformances";
 import { supabase } from "@/lib/supabase";
 
 type PlayerLayoutProps = {
@@ -319,6 +324,12 @@ export default function PlayerLayout({ children }: PlayerLayoutProps) {
           DEFAULT_NEBU_SKIN,
         { announce: false },
       );
+      applyNebuPerformances(
+        readNebuPerformancesFromMetadata(
+          session.user.user_metadata?.nebu_performances,
+        ) ?? { ...DEFAULT_NEBU_PERFORMANCES },
+        { announce: false },
+      );
 
       await loadPlayer(
         session,
@@ -349,7 +360,9 @@ export default function PlayerLayout({ children }: PlayerLayoutProps) {
   useEffect(() => {
     mountedRef.current = true;
 
-    void loadCurrentSession();
+    const sessionFrame = window.requestAnimationFrame(() => {
+      void loadCurrentSession();
+    });
 
     const {
       data: { subscription },
@@ -381,6 +394,12 @@ export default function PlayerLayout({ children }: PlayerLayoutProps) {
             DEFAULT_NEBU_SKIN,
           { announce: false },
         );
+        applyNebuPerformances(
+          readNebuPerformancesFromMetadata(
+            session.user.user_metadata?.nebu_performances,
+          ) ?? { ...DEFAULT_NEBU_PERFORMANCES },
+          { announce: false },
+        );
 
         window.setTimeout(() => {
           if (mountedRef.current) {
@@ -401,6 +420,7 @@ export default function PlayerLayout({ children }: PlayerLayoutProps) {
 
     return () => {
       mountedRef.current = false;
+      window.cancelAnimationFrame(sessionFrame);
       subscription.unsubscribe();
 
       window.removeEventListener(

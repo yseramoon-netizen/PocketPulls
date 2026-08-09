@@ -6,6 +6,11 @@ export type WishAudioSession = {
   stop: () => void;
 };
 
+export type WishAudioTimeline = {
+  impactAtMs: number;
+  revealAtMs: number;
+};
+
 type BrowserWindow = Window &
   typeof globalThis & {
     webkitAudioContext?: typeof AudioContext;
@@ -50,6 +55,10 @@ export function startWishAudio(
   tier: number,
   muted: boolean,
   volume = 72,
+  timeline: WishAudioTimeline = {
+    impactAtMs: 4550,
+    revealAtMs: 5120,
+  },
 ): WishAudioSession | null {
   const context = getAudioContext();
 
@@ -76,12 +85,48 @@ export function startWishAudio(
 
   const sources: AudioScheduledSourceNode[] = [];
   let stopped = false;
+  const impactAtSeconds = Math.max(1.75, timeline.impactAtMs / 1000);
+  const revealAtSeconds = Math.max(
+    impactAtSeconds + 0.18,
+    timeline.revealAtMs / 1000,
+  );
+  const flightStartsAt = 0.62;
+  const flightDuration = Math.max(
+    0.8,
+    impactAtSeconds - flightStartsAt - 0.06,
+  );
+  const awakeningAt = Math.max(0.95, impactAtSeconds - 1.28);
 
   scheduleCharge(context, master, sources, startedAt, safeTier);
-  scheduleFlight(context, master, sources, startedAt + 1.02, safeTier);
-  scheduleAwakening(context, master, sources, startedAt + 3.18, safeTier);
-  scheduleImpact(context, master, sources, startedAt + 4.55, safeTier);
-  scheduleReveal(context, master, sources, startedAt + 5.12, safeTier);
+  scheduleFlight(
+    context,
+    master,
+    sources,
+    startedAt + flightStartsAt,
+    safeTier,
+    flightDuration,
+  );
+  scheduleAwakening(
+    context,
+    master,
+    sources,
+    startedAt + awakeningAt,
+    safeTier,
+  );
+  scheduleImpact(
+    context,
+    master,
+    sources,
+    startedAt + impactAtSeconds,
+    safeTier,
+  );
+  scheduleReveal(
+    context,
+    master,
+    sources,
+    startedAt + revealAtSeconds,
+    safeTier,
+  );
 
   return {
     setMuted(nextMuted: boolean) {
@@ -224,9 +269,8 @@ function scheduleFlight(
   sources: AudioScheduledSourceNode[],
   start: number,
   tier: number,
+  duration: number,
 ) {
-  const duration = 3.58;
-
   playAir(
     context,
     destination,
