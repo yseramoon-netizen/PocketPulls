@@ -1,5 +1,8 @@
 .root {
   --unown-size: 2.75rem;
+  --rune-gold: #f5b83b;
+  --rune-light: #ffe187;
+  --rune-cyan: #31d8d1;
 
   display: inline-flex;
   max-width: 100%;
@@ -29,17 +32,11 @@
   width: calc(var(--unown-size) * 0.68);
   height: var(--unown-size);
   flex: 0 0 auto;
-  overflow: hidden;
-  border: max(1px, calc(var(--unown-size) * 0.025)) solid currentColor;
-  color: currentColor;
-  background:
-    linear-gradient(135deg, rgba(255, 232, 155, 0.1) 0 16%, transparent 16% 84%, rgba(73, 220, 211, 0.08) 84%),
-    #08091f;
-  box-shadow:
-    inset calc(var(--unown-size) * 0.055) calc(var(--unown-size) * 0.055) 0 rgba(255, 255, 255, 0.055),
-    inset calc(var(--unown-size) * -0.055) calc(var(--unown-size) * -0.055) 0 rgba(0, 0, 0, 0.55),
-    calc(var(--unown-size) * 0.05) calc(var(--unown-size) * 0.05) 0 rgba(1, 2, 12, 0.78);
-  clip-path: polygon(12% 0, 88% 0, 100% 12%, 100% 88%, 88% 100%, 12% 100%, 0 88%, 0 12%);
+  overflow: visible;
+  color: var(--rune-light);
+  filter:
+    drop-shadow(calc(var(--unown-size) * 0.045) calc(var(--unown-size) * 0.045) 0 #563716)
+    drop-shadow(0 0 calc(var(--unown-size) * 0.08) rgba(245, 184, 59, 0.32));
   image-rendering: pixelated;
 }
 
@@ -48,13 +45,27 @@
   position: absolute;
   width: calc(var(--unown-size) * 0.075);
   height: calc(var(--unown-size) * 0.075);
-  background: currentColor;
+  background: var(--rune-gold);
   content: "";
-  opacity: 0.38;
+  opacity: 0.9;
 }
 
-.glyph::before { top: 5%; left: 7%; }
-.glyph::after { right: 7%; bottom: 5%; }
+.glyph::before {
+  top: 8%;
+  left: 5%;
+  box-shadow:
+    calc(var(--unown-size) * 0.075) calc(var(--unown-size) * -0.075) 0 rgba(255, 225, 135, 0.72),
+    calc(var(--unown-size) * 0.15) 0 0 rgba(245, 184, 59, 0.5);
+}
+
+.glyph::after {
+  right: 2%;
+  bottom: 9%;
+  width: calc(var(--unown-size) * 0.055);
+  height: calc(var(--unown-size) * 0.055);
+  background: var(--rune-cyan);
+  box-shadow: calc(var(--unown-size) * -0.065) calc(var(--unown-size) * -0.065) 0 rgba(49, 216, 209, 0.45);
+}
 
 .pixelInk {
   position: absolute;
@@ -62,7 +73,7 @@
   left: 8%;
   width: 0.105em;
   height: 0.105em;
-  color: inherit;
+  color: var(--rune-light);
   font-size: var(--unown-size);
   image-rendering: pixelated;
 }
@@ -94,22 +105,26 @@
   white-space: nowrap;
 }
 
-.ancient { color: #f2c66d; }
+.ancient,
+.holo,
+.moon { color: var(--rune-light); }
 .ancient .translation { color: rgba(247, 216, 145, 0.76); }
 
-.holo { color: #79efe4; }
 .holo .glyph {
-  background:
-    linear-gradient(135deg, rgba(246, 190, 72, 0.15) 0 18%, transparent 18% 82%, rgba(121, 239, 228, 0.13) 82%),
-    #0b1631;
+  filter:
+    drop-shadow(calc(var(--unown-size) * 0.045) calc(var(--unown-size) * 0.045) 0 #563716)
+    drop-shadow(0 0 calc(var(--unown-size) * 0.12) rgba(49, 216, 209, 0.38));
 }
 .holo .translation { color: rgba(176, 247, 239, 0.82); }
 
-.moon { color: #d9d8ff; }
-.moon .glyph { background: linear-gradient(135deg, #111c3c 0 50%, #261843 50%); }
+.moon .glyph {
+  filter:
+    drop-shadow(calc(var(--unown-size) * 0.045) calc(var(--unown-size) * 0.045) 0 #3c2a23)
+    drop-shadow(0 0 calc(var(--unown-size) * 0.11) rgba(255, 225, 135, 0.35));
+}
 .moon .translation { color: rgba(226, 231, 255, 0.78); }
 
-.muted { color: rgba(232, 184, 90, 0.64); }
+.muted { color: rgba(245, 184, 59, 0.64); }
 .muted .glyph { opacity: 0.68; }
 .muted .translation { color: rgba(238, 206, 143, 0.58); }
 

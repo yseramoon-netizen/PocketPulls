@@ -739,11 +739,11 @@
   height: 36px;
   background-color: rgba(5, 6, 25, 0.84);
   background-image:
-    linear-gradient(#f2c66d 0 0),
-    linear-gradient(#f2c66d 0 0),
-    linear-gradient(#79efe4 0 0),
-    linear-gradient(#79efe4 0 0),
-    linear-gradient(#c4b5fd 0 0);
+    linear-gradient(#f5b83b 0 0),
+    linear-gradient(#ffe187 0 0),
+    linear-gradient(#31d8d1 0 0),
+    linear-gradient(#31d8d1 0 0),
+    linear-gradient(#f5b83b 0 0);
   background-position:
     4px 6px,
     12px 14px,
@@ -757,7 +757,7 @@
     52px 4px,
     52px 7px,
     52px 12px;
-  border-block: 2px solid rgba(242, 198, 109, 0.22);
+  border-block: 2px solid rgba(245, 184, 59, 0.26);
   clip-path: none;
   image-rendering: pixelated;
   opacity: 0.32;

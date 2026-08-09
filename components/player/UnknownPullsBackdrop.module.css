@@ -150,21 +150,31 @@
   width: 100%;
   height: 100%;
   place-items: center;
-  border: 2px solid rgba(244, 202, 114, 0.28);
-  border-radius: 0;
-  color: #ffe5a0;
-  background: linear-gradient(135deg, #132448 0 50%, #281843 50%);
-  box-shadow: 3px 3px 0 rgba(1, 2, 12, 0.7);
-  clip-path: polygon(18% 0, 82% 0, 100% 18%, 100% 82%, 82% 100%, 18% 100%, 0 82%, 0 18%);
+  border: 0;
+  color: #ffe187;
+  background: transparent;
+  box-shadow: none;
+  clip-path: none;
   opacity: 0.88;
   filter:
     sepia(0.3)
     saturate(1.15)
     brightness(1.12)
-    drop-shadow(0 0 5px rgba(103, 232, 249, 0.34))
-    drop-shadow(0 0 10px rgba(196, 181, 253, 0.2));
+    drop-shadow(2px 2px 0 rgba(86, 55, 22, 0.86))
+    drop-shadow(0 0 6px rgba(245, 184, 59, 0.42));
   animation: glyphTumble 8.5s ease-in-out infinite;
   image-rendering: pixelated;
+}
+
+.travellerGlyph::after {
+  position: absolute;
+  right: 4%;
+  bottom: 7%;
+  width: 3px;
+  height: 3px;
+  background: #31d8d1;
+  box-shadow: -4px -4px 0 rgba(49, 216, 209, 0.42);
+  content: "";
 }
 
 .travellerRuneInk {
@@ -243,9 +253,9 @@
     sepia(0.12)
     saturate(1.45)
     brightness(1.3)
-    drop-shadow(0 0 5px rgba(254, 240, 138, 0.8))
-    drop-shadow(0 0 13px rgba(249, 168, 212, 0.55))
-    drop-shadow(0 0 21px rgba(103, 232, 249, 0.36));
+    drop-shadow(3px 3px 0 rgba(86, 55, 22, 0.9))
+    drop-shadow(0 0 9px rgba(255, 225, 135, 0.8))
+    drop-shadow(0 0 18px rgba(49, 216, 209, 0.42));
 }
 
 .rare .trail {
@@ -288,11 +298,11 @@
   height: 36px;
   background-color: rgba(6, 8, 29, 0.82);
   background-image:
-    linear-gradient(#f2c66d 0 0),
-    linear-gradient(#f2c66d 0 0),
-    linear-gradient(#79efe4 0 0),
-    linear-gradient(#79efe4 0 0),
-    linear-gradient(#c4b5fd 0 0);
+    linear-gradient(#f5b83b 0 0),
+    linear-gradient(#ffe187 0 0),
+    linear-gradient(#31d8d1 0 0),
+    linear-gradient(#31d8d1 0 0),
+    linear-gradient(#f5b83b 0 0);
   background-position:
     4px 6px,
     12px 14px,
@@ -306,7 +316,7 @@
     52px 4px,
     52px 7px,
     52px 12px;
-  border-block: 2px solid rgba(242, 198, 109, 0.24);
+  border-block: 2px solid rgba(245, 184, 59, 0.28);
   clip-path: none;
   image-rendering: pixelated;
   opacity: 0.2;
