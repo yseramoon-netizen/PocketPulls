@@ -23,6 +23,7 @@ import {
   toNumber,
   toWholeNumber,
 } from "@/lib/player/format";
+import styles from "./Leaderboard.module.css";
 
 type LeaderboardRow = {
   rank_position: number | string | null;
@@ -120,7 +121,9 @@ export default function LeaderboardPage() {
     return () => window.cancelAnimationFrame(frame);
   }, [loadLeaderboard]);
 
-  const podium = players.slice(0, 3);
+  const pharaoh = players[0] ?? null;
+  const royalCourt = players.slice(1, 3);
+  const nearestChallenger = players[1] ?? null;
   const currentPlayer = players.find(
     (player) => player.isCurrentUser,
   );
@@ -215,15 +218,29 @@ export default function LeaderboardPage() {
         />
       ) : (
         <>
-          <div className="mt-6 grid items-end gap-4 lg:grid-cols-3">
-            {podium.map((player, index) => (
+          {pharaoh ? (
+            <PharaohThrone
+              player={pharaoh}
+              scoreLead={Math.max(
+                0,
+                pharaoh.score -
+                  (nearestChallenger?.score ?? 0),
+              )}
+              hasChallenger={nearestChallenger !== null}
+            />
+          ) : null}
+
+          {royalCourt.length > 0 ? (
+            <div className="mx-auto mt-4 grid w-full max-w-5xl items-stretch gap-4 sm:grid-cols-2">
+              {royalCourt.map((player) => (
               <PodiumCard
                 key={player.userId}
                 player={player}
-                placement={index + 1}
+                placement={player.rank}
               />
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : null}
 
           <PlayerPanel className="mt-6 overflow-hidden">
             <div className="flex flex-col gap-2 border-b border-white/10 p-5 sm:flex-row sm:items-end sm:justify-between sm:p-6">
@@ -285,6 +302,156 @@ export default function LeaderboardPage() {
   );
 }
 
+function PharaohThrone({
+  player,
+  scoreLead,
+  hasChallenger,
+}: {
+  player: LeaderboardPlayer;
+  scoreLead: number;
+  hasChallenger: boolean;
+}) {
+  return (
+    <article
+      className={`${styles.throne} mt-8`}
+      aria-label={`${player.displayName}, current Pharaoh and number one ranked trainer`}
+    >
+      <div className={styles.rays} aria-hidden="true" />
+      <div className={styles.horizon} aria-hidden="true" />
+      <div className={styles.dust} aria-hidden="true">
+        <i />
+        <i />
+        <i />
+        <i />
+        <i />
+      </div>
+
+      <div className={styles.royalRail} aria-hidden="true">
+        <span>◆</span>
+        <span>☥</span>
+        <span>✦</span>
+        <span>☥</span>
+        <span>◆</span>
+      </div>
+
+      <div className={styles.throneContent}>
+        <div className={styles.crownColumn}>
+          <div className={styles.sunCrown} aria-hidden="true">
+            <svg viewBox="0 0 160 92" role="presentation">
+              <defs>
+                <linearGradient id="pharaoh-gold" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0" stopColor="#fff4b0" />
+                  <stop offset="0.42" stopColor="#f2c85b" />
+                  <stop offset="1" stopColor="#9d6417" />
+                </linearGradient>
+              </defs>
+              <circle cx="80" cy="26" r="20" fill="url(#pharaoh-gold)" />
+              <path d="M80 48c-22 0-38 11-44 33h88c-6-22-22-33-44-33Z" fill="none" stroke="url(#pharaoh-gold)" strokeWidth="5" />
+              <path d="M36 79 18 54l25 8M124 79l18-25-25 8" fill="none" stroke="url(#pharaoh-gold)" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M62 51 49 24l25 18M98 51l13-27-25 18" fill="none" stroke="url(#pharaoh-gold)" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </div>
+
+          <div className={styles.cartouche}>
+            <div className={styles.avatarHalo} aria-hidden="true" />
+            <div className={styles.avatarFrame}>
+              {player.avatarUrl ? (
+                <img
+                  src={player.avatarUrl}
+                  alt={`${player.displayName}'s avatar`}
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <span>
+                  {player.displayName.charAt(0).toUpperCase()}
+                </span>
+              )}
+            </div>
+            <span className={styles.cartoucheStar} aria-hidden="true">
+              ✦
+            </span>
+          </div>
+
+          <div className={styles.seal}>
+            <span aria-hidden="true">☥</span>
+            The Pharaoh
+            <span aria-hidden="true">☥</span>
+          </div>
+        </div>
+
+        <div className={styles.reignColumn}>
+          <p className={styles.eyebrow}>The throne beneath the stars</p>
+          <h2 className={styles.pharaohName}>{player.displayName}</h2>
+          <p className={styles.username}>@{player.username}</p>
+
+          <p className={styles.proclamation}>
+            Crowned above every trainer. Each wish, discovery and card
+            has built a dynasty no challenger has yet surpassed.
+          </p>
+
+          <div className={styles.royalStats}>
+            <RoyalStat
+              label="Dynasty score"
+              value={formatWholeNumber(player.score)}
+              featured
+            />
+            <RoyalStat
+              label="Wishes commanded"
+              value={formatWholeNumber(player.lifetimeWishes)}
+            />
+            <RoyalStat
+              label="Royal treasury"
+              value={formatMoney(player.collectionValue)}
+            />
+            <RoyalStat
+              label="Relics held"
+              value={formatWholeNumber(player.totalCards)}
+            />
+          </div>
+
+          <div className={styles.reignRecord}>
+            <span className={styles.recordIcon} aria-hidden="true">✦</span>
+            <span>
+              {hasChallenger
+                ? scoreLead > 0
+                  ? `${formatWholeNumber(scoreLead)} points beyond the nearest challenger`
+                  : "The crown is being fiercely contested"
+                : "The first dynasty has begun"}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div className={styles.inscription} aria-hidden="true">
+        <span>✦</span>
+        <span>THE STARS REMEMBER THE ONE WHO ROSE ABOVE ALL</span>
+        <span>✦</span>
+      </div>
+    </article>
+  );
+}
+
+function RoyalStat({
+  label,
+  value,
+  featured = false,
+}: {
+  label: string;
+  value: string;
+  featured?: boolean;
+}) {
+  return (
+    <div
+      className={`${styles.royalStat} ${
+        featured ? styles.royalStatFeatured : ""
+      }`}
+    >
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
+  );
+}
+
 function PodiumCard({
   player,
   placement,
@@ -292,38 +459,19 @@ function PodiumCard({
   player: LeaderboardPlayer;
   placement: number;
 }) {
-  const orderClass =
-    placement === 1
-      ? "lg:order-2 lg:-translate-y-5"
-      : placement === 2
-        ? "lg:order-1"
-        : "lg:order-3";
-
   const accents = {
-    1: "border-yellow-100/70 bg-gradient-to-b from-yellow-200/[0.16] via-amber-300/[0.07] to-[#090b27]/90 ring-2 ring-yellow-200/35 shadow-[inset_0_0_0_1px_rgba(255,248,197,0.22),0_0_45px_rgba(250,204,21,0.2),0_30px_90px_rgba(0,0,0,0.38)]",
     2: "border-cyan-100/20 bg-cyan-200/[0.055]",
     3: "border-pink-100/18 bg-pink-200/[0.045]",
   };
 
   return (
     <PlayerPanel
-      className={`${orderClass} ${
-        accents[placement as 1 | 2 | 3]
+      className={`${
+        accents[placement as 2 | 3] ?? accents[3]
       } p-6 text-center`}
     >
-      {placement === 1 ? (
-        <>
-          <div className="pointer-events-none absolute inset-2 rounded-[1.55rem] border border-yellow-100/18" />
-          <div className="pointer-events-none absolute inset-x-10 top-0 h-px bg-gradient-to-r from-transparent via-yellow-100 to-transparent shadow-[0_0_14px_rgba(253,230,138,0.9)]" />
-        </>
-      ) : null}
-
       <div className="mx-auto grid h-16 w-16 place-items-center rounded-2xl border border-white/10 bg-white/[0.05] text-3xl font-black text-white">
-        {placement === 1
-          ? "♛"
-          : placement === 2
-            ? "✦"
-            : "◆"}
+        {placement === 2 ? "✦" : "◆"}
       </div>
 
       <div className="mx-auto mt-5 flex h-20 w-20 items-center justify-center overflow-hidden rounded-full border border-white/15 bg-violet-300/10 text-2xl font-black text-white">
@@ -341,12 +489,6 @@ function PodiumCard({
       <p className="mt-4 text-[0.6rem] font-black uppercase tracking-[0.15em] text-white/28">
         Rank #{placement}
       </p>
-
-      {placement === 1 ? (
-        <p className="mx-auto mt-2 w-fit rounded-full border border-yellow-100/40 bg-yellow-200/12 px-4 py-1 text-[0.62rem] font-black uppercase tracking-[0.22em] text-yellow-50 shadow-[0_0_18px_rgba(250,204,21,0.16)]">
-          Pharaoh
-        </p>
-      ) : null}
 
       <h2 className="mt-2 truncate text-xl font-black text-white">
         {player.displayName}
