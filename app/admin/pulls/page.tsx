@@ -23,9 +23,6 @@ type LabTier = {
   sortOrder: number;
   enabled: boolean;
   cardsInPool: number;
-  averageCardValue: number;
-  lowestCardValue: number;
-  highestCardValue: number;
 };
 
 type LabConfigResponse = {
@@ -52,7 +49,6 @@ type DistributionRow = {
   observedPercent: number;
   variancePoints: number;
   cardsInPool: number;
-  averageCardValue: number;
 };
 
 type SampleCard = {
@@ -64,7 +60,6 @@ type SampleCard = {
   setName: string;
   cardNumber: string;
   printedRarity: string;
-  marketValue: number;
   imageUrl: string | null;
   brokenLink: boolean;
 };
@@ -78,23 +73,21 @@ type SimulationResponse = {
   inputs: {
     count: number;
     pricePerWish: number;
+    chaseCardSpend: number;
+    sourcingSpend: number;
     configuredWeightTotal: number;
   };
   analytics: {
     revenue: number;
-    totalCardValue: number;
+    chaseCardSpend: number;
+    sourcingSpend: number;
+    totalCost: number;
     grossProfit: number;
     grossMarginPercent: number;
-    returnOnCardCostPercent: number;
-    averageCardValue: number;
+    returnOnCostPercent: number;
+    costPerWish: number;
     breakEvenWishPrice: number;
-    highestCardValue: number;
-    lowestCardValue: number;
-    expectedAverageCardValue: number;
-    expectedCardCost: number;
-    expectedProfit: number;
-    expectedGrossMarginPercent: number;
-    expectedReturnOnCardCostPercent: number;
+    breakEvenWishCount: number;
     brokenPulls: number;
   };
   distribution: DistributionRow[];
@@ -153,6 +146,8 @@ function toneForProfit(value: number): string {
 export default function AdminPullsPage() {
   const [pullCount, setPullCount] = useState(1000);
   const [pricePerWish, setPricePerWish] = useState(0.5);
+  const [chaseCardSpend, setChaseCardSpend] = useState(500);
+  const [sourcingSpend, setSourcingSpend] = useState(0);
   const [tiers, setTiers] = useState<LabTier[]>([]);
   const [poolCards, setPoolCards] = useState(0);
   const [brokenPoolLinks, setBrokenPoolLinks] = useState(0);
@@ -176,30 +171,22 @@ export default function AdminPullsPage() {
   );
 
   const forecast = useMemo(() => {
-    const active = tiers.filter(
-      (tier) => tier.enabled && tier.cardsInPool > 0 && tier.weight > 0,
-    );
-    const activeWeight = active.reduce((sum, tier) => sum + tier.weight, 0);
-    const expectedAverageValue = activeWeight
-      ? active.reduce(
-          (sum, tier) =>
-            sum + tier.averageCardValue * (tier.weight / activeWeight),
-          0,
-        )
-      : 0;
     const revenue = Math.max(0, pullCount) * Math.max(0, pricePerWish);
-    const cardCost = expectedAverageValue * Math.max(0, pullCount);
-    const profit = revenue - cardCost;
+    const totalCost =
+      Math.max(0, chaseCardSpend) + Math.max(0, sourcingSpend);
+    const profit = revenue - totalCost;
 
     return {
-      expectedAverageValue,
       revenue,
-      cardCost,
+      totalCost,
       profit,
       margin: revenue > 0 ? (profit / revenue) * 100 : 0,
-      roi: cardCost > 0 ? (profit / cardCost) * 100 : 0,
+      roi: totalCost > 0 ? (profit / totalCost) * 100 : 0,
+      costPerWish: pullCount > 0 ? totalCost / pullCount : 0,
+      breakEvenWishCount:
+        pricePerWish > 0 ? Math.ceil(totalCost / pricePerWish) : 0,
     };
-  }, [pricePerWish, pullCount, tiers]);
+  }, [chaseCardSpend, pricePerWish, pullCount, sourcingSpend]);
 
   useEffect(() => {
     let active = true;
@@ -324,6 +311,8 @@ export default function AdminPullsPage() {
             action: "simulate",
             count: pullCount,
             pricePerWish,
+            chaseCardSpend,
+            sourcingSpend,
             tiers: tiers.map((tier) => ({
               rarityTier: tier.rarityTier,
               weight: tier.weight,
@@ -416,10 +405,10 @@ export default function AdminPullsPage() {
 
   const analytics = result?.analytics;
   const displayedRevenue = analytics?.revenue ?? forecast.revenue;
-  const displayedCardCost = analytics?.totalCardValue ?? forecast.cardCost;
+  const displayedTotalCost = analytics?.totalCost ?? forecast.totalCost;
   const displayedProfit = analytics?.grossProfit ?? forecast.profit;
   const displayedMargin = analytics?.grossMarginPercent ?? forecast.margin;
-  const displayedRoi = analytics?.returnOnCardCostPercent ?? forecast.roi;
+  const displayedRoi = analytics?.returnOnCostPercent ?? forecast.roi;
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-[#03120d] px-4 pb-28 pt-4 text-white md:px-8 md:pt-8">
@@ -444,9 +433,10 @@ export default function AdminPullsPage() {
 
               <p className="mt-4 max-w-4xl text-base font-semibold leading-7 text-emerald-50/75 md:text-lg">
                 Stress-test up to {formatNumber(maxPulls)} wishes at once, inspect
-                rarity accuracy and profit, then adjust the same rarity weights
-                used by real player wishes. Simulations never spend wishes,
-                award cards, alter stock or create pull history.
+                rarity accuracy and campaign profit, then adjust the same rarity
+                weights used by real player wishes. Financial results use only
+                your chase-card and sourcing spend. Simulations never spend
+                wishes, award cards, alter stock or create pull history.
               </p>
             </div>
 
@@ -487,7 +477,7 @@ export default function AdminPullsPage() {
             <LabPanel
               eyebrow="Simulation controls"
               title="Run any-sized pull test"
-              description="The simulator uses the current virtual card pool and the rarity values below. Results are sampled with replacement, exactly as probability testing requires."
+              description="Enter the complete cost of the chase card and the complete cost of sourcing every other card for this campaign. Individual card values never affect profit."
             >
               <div className="mt-6 grid gap-4 sm:grid-cols-2">
                 <Field label="Number of wishes">
@@ -532,7 +522,61 @@ export default function AdminPullsPage() {
                     />
                   </div>
                 </Field>
+
+                <Field label="Chase card spend">
+                  <div className="relative">
+                    <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-lg font-black text-yellow-100/70">
+                      £
+                    </span>
+                    <input
+                      type="number"
+                      min="0"
+                      max="1000000"
+                      step="0.01"
+                      value={chaseCardSpend}
+                      onChange={(event) =>
+                        setChaseCardSpend(
+                          Math.max(
+                            0,
+                            Math.min(1000000, toNumber(event.target.value)),
+                          ),
+                        )
+                      }
+                      className="min-h-14 w-full rounded-xl border border-white/15 bg-black/30 pl-9 pr-4 text-lg font-black text-white outline-none focus:border-yellow-200/50"
+                    />
+                  </div>
+                </Field>
+
+                <Field label="Other cards sourcing spend">
+                  <div className="relative">
+                    <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-lg font-black text-emerald-100/70">
+                      £
+                    </span>
+                    <input
+                      type="number"
+                      min="0"
+                      max="1000000"
+                      step="0.01"
+                      value={sourcingSpend}
+                      onChange={(event) =>
+                        setSourcingSpend(
+                          Math.max(
+                            0,
+                            Math.min(1000000, toNumber(event.target.value)),
+                          ),
+                        )
+                      }
+                      className="min-h-14 w-full rounded-xl border border-white/15 bg-black/30 pl-9 pr-4 text-lg font-black text-white outline-none focus:border-emerald-200/50"
+                    />
+                  </div>
+                </Field>
               </div>
+
+              <p className="mt-3 rounded-xl border border-emerald-100/15 bg-emerald-200/[0.06] px-4 py-3 text-xs font-bold leading-5 text-emerald-50/70">
+                Sourced the bulk for free? Leave sourcing spend at £0. The Wish
+                Lab treats both amounts as total one-off costs for this entire
+                simulation, not a cost per wish.
+              </p>
 
               <div className="mt-4 flex flex-wrap gap-2">
                 {[10, 100, 1000, 10000, 100000]
@@ -628,8 +672,7 @@ export default function AdminPullsPage() {
                             ) : null}
                           </div>
                           <p className="mt-1 text-xs font-bold text-white/50">
-                            {formatNumber(tier.cardsInPool)} cards · average{" "}
-                            {formatMoney(tier.averageCardValue)}
+                            {formatNumber(tier.cardsInPool)} cards in this rarity pool
                           </p>
                         </div>
 
@@ -726,7 +769,7 @@ export default function AdminPullsPage() {
               description={
                 result
                   ? "Observed results from the most recent test. Run larger samples to reduce normal random variance."
-                  : "A live forecast calculated from each rarity pool's average card value. Run the test to compare it with an observed sample."
+                  : "A live campaign forecast using the chase-card spend and sourcing spend entered on the left."
               }
             >
               <div className="mt-6 grid gap-3 sm:grid-cols-2 2xl:grid-cols-3">
@@ -738,14 +781,18 @@ export default function AdminPullsPage() {
                   )} × ${formatNumber(result?.inputs.count ?? pullCount)}`}
                 />
                 <Metric
-                  label="Card value paid out"
-                  value={formatMoney(displayedCardCost)}
-                  detail={result ? "Observed pull value" : "Expected pool value"}
+                  label="Total campaign cost"
+                  value={formatMoney(displayedTotalCost)}
+                  detail={`${formatMoney(
+                    analytics?.chaseCardSpend ?? chaseCardSpend,
+                  )} chase + ${formatMoney(
+                    analytics?.sourcingSpend ?? sourcingSpend,
+                  )} sourcing`}
                 />
                 <Metric
                   label="Gross profit"
                   value={formatMoney(displayedProfit)}
-                  detail="Revenue minus card value"
+                  detail="Revenue minus total campaign cost"
                   valueClass={toneForProfit(displayedProfit)}
                 />
                 <Metric
@@ -755,30 +802,27 @@ export default function AdminPullsPage() {
                   valueClass={toneForProfit(displayedMargin)}
                 />
                 <Metric
-                  label="ROI on card cost"
+                  label="ROI on total cost"
                   value={formatPercent(displayedRoi)}
-                  detail="Profit ÷ card value"
+                  detail="Profit ÷ chase and sourcing spend"
                   valueClass={toneForProfit(displayedRoi)}
                 />
                 <Metric
                   label="Break-even wish price"
                   value={formatMoney(
-                    analytics?.breakEvenWishPrice ?? forecast.expectedAverageValue,
+                    analytics?.breakEvenWishPrice ?? forecast.costPerWish,
                   )}
-                  detail="Average value per pull"
+                  detail="Total cost ÷ wishes simulated"
+                />
+                <Metric
+                  label="Break-even wishes"
+                  value={formatNumber(
+                    analytics?.breakEvenWishCount ?? forecast.breakEvenWishCount,
+                  )}
+                  detail="Wishes needed to recover total cost"
                 />
                 {analytics ? (
                   <>
-                    <Metric
-                      label="Highest pull"
-                      value={formatMoney(analytics.highestCardValue)}
-                      detail="Most valuable observed card"
-                    />
-                    <Metric
-                      label="Lowest pull"
-                      value={formatMoney(analytics.lowestCardValue)}
-                      detail="Least valuable observed card"
-                    />
                     <Metric
                       label="Broken outcomes"
                       value={formatNumber(analytics.brokenPulls)}
@@ -847,7 +891,6 @@ export default function AdminPullsPage() {
                           observedPercent: 0,
                           variancePoints: 0,
                           cardsInPool: tier.cardsInPool,
-                          averageCardValue: tier.averageCardValue,
                         };
                       })).map((row) => (
                       <tr
@@ -934,7 +977,7 @@ export default function AdminPullsPage() {
                             {card.cardNumber ? ` · ${card.cardNumber}` : ""}
                           </p>
                           <p className="mt-2 font-black text-emerald-200">
-                            {formatMoney(card.marketValue)}
+                            Value excluded from profit calculations
                           </p>
                         </div>
                       </div>

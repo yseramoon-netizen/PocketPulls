@@ -31,7 +31,6 @@ type CardRow = {
   set_name: string | null;
   card_no: string | null;
   rarity: string | null;
-  market_value: number | string | null;
   image_url: string | null;
   image_url_large?: string | null;
 };
@@ -50,7 +49,6 @@ type LabCard = {
   setName: string;
   cardNumber: string;
   printedRarity: string;
-  marketValue: number;
   imageUrl: string | null;
   brokenLink: boolean;
 };
@@ -62,9 +60,6 @@ type LabTier = {
   sortOrder: number;
   enabled: boolean;
   cardsInPool: number;
-  averageCardValue: number;
-  lowestCardValue: number;
-  highestCardValue: number;
 };
 
 type LoadedLab = {
@@ -104,6 +99,10 @@ function readPrice(value: unknown): number {
   return Math.round(clampNumber(value, 0, 10000, 0.5) * 100) / 100;
 }
 
+function readCampaignCost(value: unknown, fallback: number): number {
+  return Math.round(clampNumber(value, 0, 1000000, fallback) * 100) / 100;
+}
+
 function readString(value: unknown, maxLength = 300): string {
   if (typeof value !== "string" && typeof value !== "number") {
     return "";
@@ -141,14 +140,14 @@ async function loadCards(
     let result = await admin
       .from("pokemon_cards")
       .select(
-        "id,name,set_name,card_no,rarity,market_value,image_url,image_url_large",
+        "id,name,set_name,card_no,rarity,image_url,image_url_large",
       )
       .in("id", chunk);
 
     if (result.error && isMissingColumn(result.error, "image_url_large")) {
       result = await admin
         .from("pokemon_cards")
-        .select("id,name,set_name,card_no,rarity,market_value,image_url")
+        .select("id,name,set_name,card_no,rarity,image_url")
         .in("id", chunk);
     }
 
@@ -218,7 +217,6 @@ async function loadWishLab(admin: ServerAdminClient): Promise<LoadedLab> {
       setName: card?.set_name || "Pool repair required",
       cardNumber: card?.card_no || "",
       printedRarity: card?.rarity || "Unknown rarity",
-      marketValue: Math.max(0, toNumber(card?.market_value)),
       imageUrl: card?.image_url_large || card?.image_url || null,
       brokenLink,
     };
@@ -234,19 +232,6 @@ async function loadWishLab(admin: ServerAdminClient): Promise<LoadedLab> {
 
   const tiers = tierRows.map((row): LabTier => {
     const cards = cardsByTier.get(row.rarity_tier) || [];
-    const values = cards.map((card) => card.marketValue);
-    const expectedCardValue = cards.reduce((sum, card, index) => {
-      if (cards.length === 1) {
-        return card.marketValue;
-      }
-
-      const previousDrawKey = index > 0
-        ? cards[index - 1].drawKey
-        : cards[cards.length - 1].drawKey - 1;
-      const drawProbability = Math.max(0, card.drawKey - previousDrawKey);
-
-      return sum + card.marketValue * drawProbability;
-    }, 0);
 
     return {
       rarityTier: row.rarity_tier,
@@ -255,12 +240,6 @@ async function loadWishLab(admin: ServerAdminClient): Promise<LoadedLab> {
       sortOrder: Math.floor(toNumber(row.sort_order)),
       enabled: row.enabled !== false,
       cardsInPool: cards.length,
-      // The player engine chooses the first indexed draw_key at or above a
-      // random value and wraps to the first card. Gap size therefore controls
-      // each card's exact chance; this is the true expected tier value.
-      averageCardValue: cards.length ? expectedCardValue : 0,
-      lowestCardValue: values.length ? Math.min(...values) : 0,
-      highestCardValue: values.length ? Math.max(...values) : 0,
     };
   });
 
@@ -466,6 +445,8 @@ export async function POST(request: Request) {
 
     const count = readCount(body.count);
     const pricePerWish = readPrice(body.pricePerWish);
+    const chaseCardSpend = readCampaignCost(body.chaseCardSpend, 500);
+    const sourcingSpend = readCampaignCost(body.sourcingSpend, 0);
     const drawableTiers = tiers.filter(
       (tier) => tier.enabled && tier.weight > 0 && tier.cardsInPool > 0,
     );
@@ -493,9 +474,6 @@ export async function POST(request: Request) {
     }));
     const observed = new Map<string, number>();
     const samples: Array<LabCard & { sequence: number; testId: string }> = [];
-    let totalCardValue = 0;
-    let highestCardValue = 0;
-    let lowestCardValue = Number.POSITIVE_INFINITY;
     let brokenPulls = 0;
 
     for (let sequence = 1; sequence <= count; sequence += 1) {
@@ -504,9 +482,6 @@ export async function POST(request: Request) {
       const card = chooseCard(cards);
 
       observed.set(tier.rarityTier, (observed.get(tier.rarityTier) || 0) + 1);
-      totalCardValue += card.marketValue;
-      highestCardValue = Math.max(highestCardValue, card.marketValue);
-      lowestCardValue = Math.min(lowestCardValue, card.marketValue);
 
       if (card.brokenLink) {
         brokenPulls += 1;
@@ -521,15 +496,12 @@ export async function POST(request: Request) {
       }
     }
 
-    const expectedAverageCardValue = weightedTiers.reduce(
-      (sum, tier) =>
-        sum + tier.averageCardValue * (tier.chancePercent / 100),
-      0,
-    );
     const revenue = pricePerWish * count;
-    const grossProfit = revenue - totalCardValue;
-    const expectedCardCost = expectedAverageCardValue * count;
-    const expectedProfit = revenue - expectedCardCost;
+    const totalCost = chaseCardSpend + sourcingSpend;
+    const grossProfit = revenue - totalCost;
+    const costPerWish = count > 0 ? totalCost / count : 0;
+    const breakEvenWishCount =
+      pricePerWish > 0 ? Math.ceil(totalCost / pricePerWish) : 0;
     const distribution = tiers.map((tier) => {
       const active = weightedTiers.find(
         (candidate) => candidate.rarityTier === tier.rarityTier,
@@ -549,7 +521,6 @@ export async function POST(request: Request) {
         observedPercent,
         variancePoints: observedPercent - targetPercent,
         cardsInPool: tier.cardsInPool,
-        averageCardValue: tier.averageCardValue,
       };
     });
     const warnings: string[] = [];
@@ -589,27 +560,21 @@ export async function POST(request: Request) {
         inputs: {
           count,
           pricePerWish,
+          chaseCardSpend,
+          sourcingSpend,
           configuredWeightTotal: configuredTotal,
         },
         analytics: {
           revenue,
-          totalCardValue,
+          chaseCardSpend,
+          sourcingSpend,
+          totalCost,
           grossProfit,
           grossMarginPercent: percent(grossProfit, revenue),
-          returnOnCardCostPercent: percent(grossProfit, totalCardValue),
-          averageCardValue: totalCardValue / count,
-          breakEvenWishPrice: totalCardValue / count,
-          highestCardValue,
-          lowestCardValue:
-            Number.isFinite(lowestCardValue) ? lowestCardValue : 0,
-          expectedAverageCardValue,
-          expectedCardCost,
-          expectedProfit,
-          expectedGrossMarginPercent: percent(expectedProfit, revenue),
-          expectedReturnOnCardCostPercent: percent(
-            expectedProfit,
-            expectedCardCost,
-          ),
+          returnOnCostPercent: percent(grossProfit, totalCost),
+          costPerWish,
+          breakEvenWishPrice: costPerWish,
+          breakEvenWishCount,
           brokenPulls,
         },
         distribution,
