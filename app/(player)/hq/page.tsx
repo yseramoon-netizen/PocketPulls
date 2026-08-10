@@ -3,12 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import NebuPortrait from "@/components/player/NebuPortrait";
 import UnownText from "@/components/player/UnownText";
-import {
-  modernisePlayerCopy,
-  normaliseDisplayGlyph,
-} from "@/lib/player/display";
 import { formatMarketValue } from "@/lib/player/format";
 import { supabase } from "@/lib/supabase";
 
@@ -41,11 +36,6 @@ type TrainerHqData = {
   recentCardImageUrl: string | null;
   recentCardValue: number;
   recentWishAt: string | null;
-  recommendedActionId: string;
-  recommendedActionTitle: string;
-  recommendedActionBody: string;
-  recommendedActionHref: string;
-  recommendedActionGlyph: string;
 };
 
 const REFRESH_EVENTS = [
@@ -113,17 +103,6 @@ function parseHqData(value: unknown): TrainerHqData | null {
     recentCardImageUrl: nullableText(row.recent_card_image_url),
     recentCardValue: number(row.recent_card_value),
     recentWishAt: nullableText(row.recent_wish_at),
-    recommendedActionId: text(row.recommended_action_id, "wish"),
-    recommendedActionTitle: modernisePlayerCopy(text(
-      row.recommended_action_title,
-      "Make another wish",
-    )),
-    recommendedActionBody: modernisePlayerCopy(text(
-      row.recommended_action_body,
-      "Add another card to your constellation.",
-    )),
-    recommendedActionHref: text(row.recommended_action_href, "/wishes"),
-    recommendedActionGlyph: normaliseDisplayGlyph(row.recommended_action_glyph),
   };
 }
 
@@ -191,15 +170,10 @@ function shipmentLabel(status: string | null): string {
 export default function TrainerHqPage() {
   const [data, setData] = useState<TrainerHqData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const loadHq = useCallback(async (background = false) => {
-    if (background) {
-      setRefreshing(true);
-    } else {
-      setLoading(true);
-    }
+  const loadHq = useCallback(async () => {
+    setLoading(true);
 
     const { data: result, error } = await supabase.rpc(
       "get_player_trainer_hq",
@@ -211,7 +185,6 @@ export default function TrainerHqPage() {
         "Trainer HQ could not read your archive. Run the new Supabase file, then try again.",
       );
       setLoading(false);
-      setRefreshing(false);
       return;
     }
 
@@ -225,7 +198,6 @@ export default function TrainerHqPage() {
     }
 
     setLoading(false);
-    setRefreshing(false);
   }, []);
 
   useEffect(() => {
@@ -233,7 +205,7 @@ export default function TrainerHqPage() {
       void loadHq();
     });
 
-    const refresh = () => void loadHq(true);
+    const refresh = () => void loadHq();
 
     window.addEventListener("focus", refresh);
     REFRESH_EVENTS.forEach((eventName) => {
@@ -298,14 +270,6 @@ export default function TrainerHqPage() {
           </p>
         </div>
 
-        <button
-          type="button"
-          disabled={refreshing}
-          onClick={() => void loadHq(true)}
-          className="min-h-11 rounded-xl border border-white/10 bg-white/[0.05] px-5 text-sm font-black text-white/65 transition hover:bg-white/[0.09] hover:text-white disabled:opacity-40"
-        >
-          {refreshing ? "Reading the stars…" : "Refresh HQ"}
-        </button>
       </header>
 
       {errorMessage ? (
@@ -314,50 +278,7 @@ export default function TrainerHqPage() {
         </div>
       ) : null}
 
-      <div className="mt-8 grid gap-6 xl:grid-cols-[1.28fr_0.72fr]">
-        <article className="group relative min-h-[25rem] overflow-hidden rounded-[2.35rem] border border-yellow-100/22 bg-[#090b2a]/92 shadow-[0_32px_100px_rgba(0,0,0,0.48)]">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_82%_25%,rgba(250,204,21,0.15),transparent_29%),radial-gradient(circle_at_15%_92%,rgba(103,232,249,0.12),transparent_35%),linear-gradient(135deg,rgba(124,58,237,0.11),transparent_56%)]" />
-          <div className="absolute -right-12 top-4 h-72 w-72 rounded-full border border-dashed border-yellow-100/15 transition duration-1000 group-hover:rotate-12" data-pocketpulls-ambient="heavy" />
-          <div className="absolute right-10 top-24 h-44 w-44 rounded-full bg-yellow-200/10 blur-3xl" data-pocketpulls-ambient="heavy" />
-
-          <div className="relative flex min-h-[25rem] flex-col p-6 sm:p-8 lg:p-10">
-            <div className="max-w-2xl">
-              <p className="text-[0.65rem] font-black uppercase tracking-[0.2em] text-yellow-100/50">
-                Recommended now
-              </p>
-              <div className="mt-5 flex h-14 w-14 items-center justify-center rounded-2xl border border-yellow-100/25 bg-yellow-200/[0.1] text-2xl text-yellow-50 shadow-[0_0_35px_rgba(250,204,21,0.1)]">
-                {data.recommendedActionGlyph}
-              </div>
-              <h2 className="mt-5 max-w-xl text-3xl font-black tracking-tight text-white sm:text-4xl">
-                {data.recommendedActionTitle}
-              </h2>
-              <p className="mt-4 max-w-xl text-sm font-semibold leading-7 text-white/52 sm:text-base">
-                {data.recommendedActionBody}
-              </p>
-            </div>
-
-            <div className="mt-auto flex flex-col gap-3 pt-8 sm:flex-row sm:items-center">
-              <Link
-                href={data.recommendedActionHref}
-                className="inline-flex min-h-13 items-center justify-center rounded-2xl bg-gradient-to-r from-cyan-100 via-yellow-100 to-violet-200 px-6 text-sm font-black text-[#111329] shadow-[0_16px_45px_rgba(103,232,249,0.12)] transition hover:-translate-y-0.5 hover:brightness-110"
-              >
-                Continue your journey →
-              </Link>
-              <span className="text-xs font-bold text-white/28">
-                Chosen from your live account activity
-              </span>
-            </div>
-
-            <NebuPortrait
-              alt=""
-              draggable={false}
-              data-pocketpulls-ambient="heavy"
-              className="pointer-events-none absolute -bottom-7 right-2 hidden w-52 object-contain opacity-100 lg:block"
-            />
-          </div>
-        </article>
-
-        <div className="grid grid-cols-2 gap-4">
+      <div className="mt-8 grid grid-cols-2 gap-4 lg:grid-cols-4">
           <MetricCard
             glyph="✦"
             label="Wishes"
@@ -390,7 +311,6 @@ export default function TrainerHqPage() {
             tone="pink"
             href="/constellation"
           />
-        </div>
       </div>
 
       <div className="mt-6 grid gap-6 xl:grid-cols-[1fr_0.86fr_0.86fr]">
