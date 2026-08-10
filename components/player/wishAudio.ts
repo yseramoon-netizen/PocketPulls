@@ -85,34 +85,44 @@ export function startWishAudio(
 
   const sources: AudioScheduledSourceNode[] = [];
   let stopped = false;
-  const impactAtSeconds = Math.max(1.75, timeline.impactAtMs / 1000);
+  const impactAtSeconds = Math.max(0.24, timeline.impactAtMs / 1000);
   const revealAtSeconds = Math.max(
-    impactAtSeconds + 0.18,
+    impactAtSeconds + 0.08,
     timeline.revealAtMs / 1000,
   );
-  const flightStartsAt = 0.62;
+  const flightStartsAt = Math.min(0.62, Math.max(0.1, impactAtSeconds - 1.15));
   const flightDuration = Math.max(
-    0.8,
+    0.24,
     impactAtSeconds - flightStartsAt - 0.06,
   );
   const awakeningAt = Math.max(0.95, impactAtSeconds - 1.28);
 
-  scheduleCharge(context, master, sources, startedAt, safeTier);
-  scheduleFlight(
-    context,
-    master,
-    sources,
-    startedAt + flightStartsAt,
-    safeTier,
-    flightDuration,
-  );
-  scheduleAwakening(
-    context,
-    master,
-    sources,
-    startedAt + awakeningAt,
-    safeTier,
-  );
+  if (safeTier <= 2) {
+    scheduleQuickReveal(
+      context,
+      master,
+      sources,
+      startedAt + Math.max(0.04, impactAtSeconds - 0.22),
+      safeTier,
+    );
+  } else {
+    scheduleCharge(context, master, sources, startedAt, safeTier);
+    scheduleFlight(
+      context,
+      master,
+      sources,
+      startedAt + flightStartsAt,
+      safeTier,
+      flightDuration,
+    );
+    scheduleAwakening(
+      context,
+      master,
+      sources,
+      startedAt + awakeningAt,
+      safeTier,
+    );
+  }
   scheduleImpact(
     context,
     master,
@@ -198,6 +208,24 @@ export function startWishAudio(
       }, 120);
     },
   };
+}
+
+function scheduleQuickReveal(
+  context: AudioContext,
+  destination: AudioNode,
+  sources: AudioScheduledSourceNode[],
+  start: number,
+  tier: number,
+) {
+  playTone(context, destination, sources, {
+    start,
+    frequency: 520 + tier * 55,
+    endFrequency: 760 + tier * 80,
+    duration: 0.3 + tier * 0.08,
+    volume: 0.018 + tier * 0.004,
+    type: "sine",
+    attack: 0.012,
+  });
 }
 
 function scheduleCharge(
@@ -360,7 +388,9 @@ function scheduleImpact(
   start: number,
   tier: number,
 ) {
-  const impactVolume = 0.065 + tier * 0.012;
+  const impactVolume = tier <= 2
+    ? 0.018 + tier * 0.006
+    : 0.05 + tier * 0.01;
 
   playTone(
     context,
@@ -399,7 +429,7 @@ function scheduleImpact(
     start,
     0.92,
     2450 + tier * 320,
-    0.05 + tier * 0.011,
+    tier <= 2 ? 0.014 + tier * 0.004 : 0.038 + tier * 0.009,
   );
 
   if (tier >= 4) {

@@ -9,15 +9,12 @@ import {
   useState,
 } from "react";
 
-import {
-  primeWishAudio,
-  startWishAudio,
-  type WishAudioSession,
-} from "./wishAudio";
-import usePlayerPreferences from "./usePlayerPreferences";
 import { publishPlayerPreferences } from "@/lib/player/preferences";
-import { supabase } from "@/lib/supabase";
-import AncientCatPullScene from "./AncientCatPullScene";
+import {
+  getWishRevealConfig,
+  getWishRevealParticleCount,
+  type WishRevealConfig,
+} from "@/lib/player/wish-reveal";
 import {
   DEFAULT_NEBU_SKIN,
   getNebuHeatAssets,
@@ -26,6 +23,15 @@ import {
   readNebuSkin,
   type NebuSkinKey,
 } from "@/lib/player/nebu";
+import { supabase } from "@/lib/supabase";
+
+import AncientCatPullScene from "./AncientCatPullScene";
+import {
+  primeWishAudio,
+  startWishAudio,
+  type WishAudioSession,
+} from "./wishAudio";
+import usePlayerPreferences from "./usePlayerPreferences";
 import styles from "./WishCinematic.module.css";
 
 export type WishRevealCard = {
@@ -52,235 +58,17 @@ type WishCinematicProps = {
   respectPreferences?: boolean;
 };
 
-type RarityTheme = {
-  label: string;
-  tier: number;
-  primary: string;
-  secondary: string;
-  glow: string;
-  particleCount: number;
-  impactScale: number;
-  shakeDistance: number;
-  flashStrength: number;
-  rayCount: number;
-};
-
-const IMAGE_PRELOAD_TIMEOUT_MS = 3500;
-const ESCALATION_START_MS = 2600;
-const RARITY_HOLD_MS = [
-  2000,
-  2000,
-  3000,
-  4000,
-  4000,
-  4000,
-  4000,
-  4000,
-  4000,
-] as const;
-const BASE_SCENE_SPRITES = [
+const IMAGE_PRELOAD_TIMEOUT_MS = 2600;
+const WORLD_SPRITES = [
   "/ancient-pulls/scene/pyramid-right-v1.webp",
   "/ancient-pulls/scene/distant-mountains-village-v1.webp",
 ] as const;
 
-function getRarityRevealOffset(tier: number): number {
-  return RARITY_HOLD_MS.slice(0, Math.max(1, tier)).reduce(
-    (total, duration) => total + duration,
-    0,
-  );
-}
-
-const THEMES: Record<string, RarityTheme> = {
-  common: {
-    label: "Common",
-    tier: 1,
-    primary: "#e2e8f0",
-    secondary: "#94a3b8",
-    glow: "rgba(226,232,240,0.76)",
-    particleCount: 24,
-    impactScale: 6.4,
-    shakeDistance: 2,
-    flashStrength: 0.72,
-    rayCount: 12,
-  },
-  uncommon: {
-    label: "Uncommon",
-    tier: 2,
-    primary: "#86efac",
-    secondary: "#22c55e",
-    glow: "rgba(134,239,172,0.8)",
-    particleCount: 28,
-    impactScale: 7,
-    shakeDistance: 3,
-    flashStrength: 0.78,
-    rayCount: 14,
-  },
-  rare: {
-    label: "Rare",
-    tier: 3,
-    primary: "#7dd3fc",
-    secondary: "#2563eb",
-    glow: "rgba(125,211,252,0.84)",
-    particleCount: 34,
-    impactScale: 7.8,
-    shakeDistance: 4,
-    flashStrength: 0.84,
-    rayCount: 17,
-  },
-  doubleRare: {
-    label: "Double Rare",
-    tier: 4,
-    primary: "#c4b5fd",
-    secondary: "#7c3aed",
-    glow: "rgba(196,181,253,0.88)",
-    particleCount: 40,
-    impactScale: 8.7,
-    shakeDistance: 6,
-    flashStrength: 0.9,
-    rayCount: 20,
-  },
-  ultraRare: {
-    label: "Ultra Rare",
-    tier: 5,
-    primary: "#fde68a",
-    secondary: "#f59e0b",
-    glow: "rgba(253,230,138,0.92)",
-    particleCount: 48,
-    impactScale: 9.7,
-    shakeDistance: 8,
-    flashStrength: 0.96,
-    rayCount: 24,
-  },
-  illustrationRare: {
-    label: "Illustration Rare",
-    tier: 6,
-    primary: "#f9a8d4",
-    secondary: "#a855f7",
-    glow: "rgba(249,168,212,0.92)",
-    particleCount: 50,
-    impactScale: 9.8,
-    shakeDistance: 8,
-    flashStrength: 0.96,
-    rayCount: 25,
-  },
-  specialIllustrationRare: {
-    label: "Special Illustration Rare",
-    tier: 7,
-    primary: "#67e8f9",
-    secondary: "#f9a8d4",
-    glow: "rgba(103,232,249,0.96)",
-    particleCount: 58,
-    impactScale: 10.8,
-    shakeDistance: 10,
-    flashStrength: 1,
-    rayCount: 29,
-  },
-  hyperRare: {
-    label: "Hyper Rare",
-    tier: 8,
-    primary: "#fef08a",
-    secondary: "#f59e0b",
-    glow: "rgba(250,204,21,0.98)",
-    particleCount: 66,
-    impactScale: 11.8,
-    shakeDistance: 12,
-    flashStrength: 1,
-    rayCount: 33,
-  },
-  crownRare: {
-    label: "Crown Rare",
-    tier: 9,
-    primary: "#ffffff",
-    secondary: "#fef08a",
-    glow: "rgba(255,255,255,1)",
-    particleCount: 76,
-    impactScale: 13,
-    shakeDistance: 14,
-    flashStrength: 1,
-    rayCount: 38,
-  },
-};
-
-function normaliseRarity(value: string | null | undefined): string {
-  return (value || "")
-    .toLowerCase()
-    .replace(/pokemon/gi, "")
-    .replace(/[^a-z0-9]+/g, " ")
-    .trim();
-}
-
+// Kept as a public compatibility helper for the existing cinematic laboratory.
 export function getWishRarityTheme(
   rarity: string | null | undefined,
-): RarityTheme {
-  const value = normaliseRarity(rarity);
-
-  if (
-    value.includes("crown rare") ||
-    value.includes("masterpiece") ||
-    value.includes("god rare")
-  ) {
-    return THEMES.crownRare;
-  }
-
-  if (
-    value.includes("hyper rare") ||
-    value.includes("secret rare") ||
-    value.includes("gold rare") ||
-    value === "rare secret"
-  ) {
-    return THEMES.hyperRare;
-  }
-
-  if (
-    value.includes("special illustration") ||
-    value.includes("special art") ||
-    value.includes("alternate art")
-  ) {
-    return THEMES.specialIllustrationRare;
-  }
-
-  if (
-    value.includes("illustration rare") ||
-    value.includes("trainer gallery") ||
-    value.includes("character rare")
-  ) {
-    return THEMES.illustrationRare;
-  }
-
-  if (
-    value.includes("ultra rare") ||
-    value.includes("full art") ||
-    value.includes("rainbow rare") ||
-    value.includes("ace spec") ||
-    value.includes("amazing rare")
-  ) {
-    return THEMES.ultraRare;
-  }
-
-  if (
-    value.includes("double rare") ||
-    value.includes("rare holo ex") ||
-    value.includes("rare holo gx") ||
-    value.includes("rare holo v") ||
-    value.includes("rare holo vmax") ||
-    value.includes("rare holo vstar")
-  ) {
-    return THEMES.doubleRare;
-  }
-
-  if (
-    value.includes("rare") ||
-    value.includes("holo") ||
-    value.includes("radiant")
-  ) {
-    return THEMES.rare;
-  }
-
-  if (value.includes("uncommon")) {
-    return THEMES.uncommon;
-  }
-
-  return THEMES.common;
+): WishRevealConfig {
+  return getWishRevealConfig(rarity);
 }
 
 function formatMoney(value: number | null | undefined): string {
@@ -294,6 +82,12 @@ function formatMoney(value: number | null | undefined): string {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(Math.max(0, Number(value) || 0));
+}
+
+function buildEscalationSteps(config: WishRevealConfig): readonly number[] {
+  const available = Math.max(450, config.timings.cardAtMs - 620);
+  const step = Math.max(150, Math.floor(available / config.tier));
+  return Array.from({ length: 9 }, () => step);
 }
 
 export default function WishCinematic({
@@ -311,6 +105,7 @@ export default function WishCinematic({
 }: WishCinematicProps) {
   const preloadTimerRef = useRef<number | null>(null);
   const completionTimerRef = useRef<number | null>(null);
+  const skipTimerRef = useRef<number | null>(null);
   const finishedRef = useRef(false);
   const onFinishedRef = useRef(onFinished);
   const audioSessionRef = useRef<WishAudioSession | null>(null);
@@ -320,68 +115,33 @@ export default function WishCinematic({
   const [ready, setReady] = useState(false);
   const [complete, setComplete] = useState(false);
   const [skipped, setSkipped] = useState(false);
+  const [skipAvailable, setSkipAvailable] = useState(false);
+  const [mobileEffects, setMobileEffects] = useState(false);
   const [runNumber, setRunNumber] = useState(0);
   const [muted, setMuted] = useState(false);
-  const [nebuSkin, setNebuSkin] =
-    useState<NebuSkinKey>(DEFAULT_NEBU_SKIN);
+  const [nebuSkin, setNebuSkin] = useState<NebuSkinKey>(DEFAULT_NEBU_SKIN);
 
-  const nebuHeatAssets = useMemo(
-    () => getNebuHeatAssets(nebuSkin),
-    [nebuSkin],
+  const config = useMemo(
+    () => getWishRevealConfig(card?.rarity, card?.marketValue),
+    [card?.marketValue, card?.rarity],
   );
-
+  const nebuHeatAssets = useMemo(() => getNebuHeatAssets(nebuSkin), [nebuSkin]);
+  const lowEffects = preferences.lowVisualEffects || preferences.dataSaver;
+  const particleCount = getWishRevealParticleCount(config, {
+    mobile: mobileEffects,
+    lowEffects,
+  });
+  const escalationSteps = useMemo(() => buildEscalationSteps(config), [config]);
   const revealFromPreferences =
     respectPreferences &&
-    (
-      preferences.reducedMotion ||
+    (preferences.reducedMotion ||
       (!forceFullSequence &&
         (preferences.dataSaver ||
-          (preferences.skipPullCinematic && preferences.cinematicSeen)))
-    );
-
-  const theme = useMemo(
-    () => getWishRarityTheme(card?.rarity),
-    [card?.rarity],
-  );
-  const isBlackHole = Number(card?.marketValue) > 500;
-  const sequenceTiming = useMemo(() => {
-    if (isBlackHole) {
-      return {
-        impactAtMs: 5400,
-        cardAtMs: 7080,
-        infoAtMs: 7800,
-        durationMs: 8600,
-      };
-    }
-
-    const cardAtMs =
-      ESCALATION_START_MS + getRarityRevealOffset(theme.tier);
-    const impactAtMs = Math.max(
-      ESCALATION_START_MS,
-      cardAtMs - 520,
-    );
-    const infoAtMs = cardAtMs + 720;
-
-    return {
-      impactAtMs,
-      cardAtMs,
-      infoAtMs,
-      durationMs: infoAtMs + 720,
-    };
-  }, [isBlackHole, theme.tier]);
+          (preferences.skipPullCinematic && preferences.cinematicSeen))));
 
   const cardKey = useMemo(() => {
-    if (!card) {
-      return "";
-    }
-
-    return [
-      card.id ?? "",
-      card.name,
-      card.rarity ?? "",
-      card.imageUrl ?? "",
-      card.marketValue ?? "",
-    ].join("|");
+    if (!card) return "";
+    return [card.id ?? "", card.name, card.rarity ?? "", card.imageUrl ?? "", card.marketValue ?? ""].join("|");
   }, [card]);
 
   useEffect(() => {
@@ -389,55 +149,38 @@ export default function WishCinematic({
   }, [onFinished]);
 
   useEffect(() => {
-    window.dispatchEvent(
-      new CustomEvent("pocketpulls:wish-cinematic-visibility", {
-        detail: { open },
-      }),
-    );
+    const media = window.matchMedia("(max-width: 700px)");
+    const sync = () => setMobileEffects(media.matches);
+    sync();
+    media.addEventListener("change", sync);
+    return () => media.removeEventListener("change", sync);
+  }, []);
 
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent("pocketpulls:wish-cinematic-visibility", { detail: { open } }));
     return () => {
       if (open) {
-        window.dispatchEvent(
-          new CustomEvent("pocketpulls:wish-cinematic-visibility", {
-            detail: { open: false },
-          }),
-        );
+        window.dispatchEvent(new CustomEvent("pocketpulls:wish-cinematic-visibility", { detail: { open: false } }));
       }
     };
   }, [open]);
 
   useEffect(() => {
-    const syncSkin = () => {
-      setNebuSkin(readNebuSkin());
-    };
-
+    const syncSkin = () => setNebuSkin(readNebuSkin());
     const handleSkinChange = (event: Event) => {
       const key = (event as CustomEvent<{ key?: unknown }>).detail?.key;
-
-      if (isNebuSkinKey(key)) {
-        setNebuSkin(key);
-      }
+      if (isNebuSkinKey(key)) setNebuSkin(key);
     };
-
     syncSkin();
     window.addEventListener(NEBU_SKIN_CHANGE_EVENT, handleSkinChange);
-
-    return () => {
-      window.removeEventListener(NEBU_SKIN_CHANGE_EVENT, handleSkinChange);
-    };
+    return () => window.removeEventListener(NEBU_SKIN_CHANGE_EVENT, handleSkinChange);
   }, []);
 
   useEffect(() => {
     try {
-      const stored = window.localStorage.getItem(
-        "pocketpulls-wish-muted",
-      );
-
-      // This one-time client preference hydration deliberately follows mount.
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setMuted(stored === "true");
+      setMuted(window.localStorage.getItem("pocketpulls-wish-muted") === "true");
     } catch {
-      // Local storage is optional.
+      // Browser storage is optional.
     }
   }, []);
 
@@ -447,23 +190,16 @@ export default function WishCinematic({
   }, []);
 
   const clearTimers = useCallback(() => {
-    if (preloadTimerRef.current !== null) {
-      window.clearTimeout(preloadTimerRef.current);
-      preloadTimerRef.current = null;
-    }
-
-    if (completionTimerRef.current !== null) {
-      window.clearTimeout(completionTimerRef.current);
-      completionTimerRef.current = null;
-    }
-
+    if (preloadTimerRef.current !== null) window.clearTimeout(preloadTimerRef.current);
+    if (completionTimerRef.current !== null) window.clearTimeout(completionTimerRef.current);
+    if (skipTimerRef.current !== null) window.clearTimeout(skipTimerRef.current);
+    preloadTimerRef.current = null;
+    completionTimerRef.current = null;
+    skipTimerRef.current = null;
   }, []);
 
   const reportFinished = useCallback(() => {
-    if (finishedRef.current) {
-      return;
-    }
-
+    if (finishedRef.current) return;
     finishedRef.current = true;
     onFinishedRef.current?.();
   }, []);
@@ -473,17 +209,14 @@ export default function WishCinematic({
     stopAudio();
     setReady(true);
     setSkipped(true);
+    setSkipAvailable(false);
     setComplete(true);
     reportFinished();
   }, [clearTimers, reportFinished, stopAudio]);
 
   const handleContinue = useCallback(() => {
     stopAudio();
-    window.dispatchEvent(
-      new Event(
-        "pocketpulls:wish-cinematic-continued",
-      ),
-    );
+    window.dispatchEvent(new Event("pocketpulls:wish-cinematic-continued"));
     onClose();
   }, [onClose, stopAudio]);
 
@@ -492,24 +225,23 @@ export default function WishCinematic({
       clearTimers();
       stopAudio();
       finishedRef.current = false;
-      // The prop-driven cinematic state machine resets when the dialog closes.
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setReady(false);
       setComplete(false);
       setSkipped(false);
+      setSkipAvailable(false);
       markedSeenRef.current = false;
       return;
     }
 
     let active = true;
     let started = false;
-
     clearTimers();
     stopAudio();
     finishedRef.current = false;
     setReady(false);
     setComplete(false);
     setSkipped(false);
+    setSkipAvailable(false);
 
     if (revealFromPreferences) {
       setReady(true);
@@ -524,51 +256,51 @@ export default function WishCinematic({
     }
 
     const startSequence = () => {
-      if (!active || started) {
-        return;
-      }
-
+      if (!active || started) return;
       started = true;
       setRunNumber((current) => current + 1);
       setReady(true);
 
       completionTimerRef.current = window.setTimeout(() => {
         setComplete(true);
+        setSkipAvailable(false);
         reportFinished();
-      }, sequenceTiming.durationMs);
-    };
+      }, config.timings.durationMs);
 
-    const preloadSources = [
-      ...BASE_SCENE_SPRITES,
-      nebuHeatAssets.walkSheet,
-      nebuHeatAssets.reactionSheet,
-      nebuHeatAssets.portrait,
-      card.imageUrl,
-    ].filter(
-      (source): source is string => Boolean(source),
-    );
-    let remainingImages = preloadSources.length;
-
-    const imageSettled = () => {
-      remainingImages -= 1;
-
-      if (remainingImages <= 0) {
-        startSequence();
+      if (allowSkip && config.timings.skipAfterMs !== null) {
+        skipTimerRef.current = window.setTimeout(
+          () => setSkipAvailable(true),
+          config.timings.skipAfterMs,
+        );
       }
     };
 
-    for (const source of preloadSources) {
-      const image = new Image();
+    const preloadSources = [
+      card.imageUrl,
+      ...(config.usesWorldScene && !lowEffects
+        ? [...WORLD_SPRITES, nebuHeatAssets.walkSheet, nebuHeatAssets.reactionSheet]
+        : []),
+    ].filter((source): source is string => Boolean(source));
 
-      image.onload = imageSettled;
-      image.onerror = imageSettled;
-      image.src = source;
+    if (preloadSources.length === 0) {
+      startSequence();
+    } else {
+      let remaining = preloadSources.length;
+      const settled = () => {
+        remaining -= 1;
+        if (remaining <= 0) startSequence();
+      };
+      for (const source of preloadSources) {
+        const image = new Image();
+        image.onload = settled;
+        image.onerror = settled;
+        image.src = source;
+      }
+      preloadTimerRef.current = window.setTimeout(
+        startSequence,
+        config.tier <= 2 ? 420 : IMAGE_PRELOAD_TIMEOUT_MS,
+      );
     }
-
-    preloadTimerRef.current = window.setTimeout(
-      startSequence,
-      IMAGE_PRELOAD_TIMEOUT_MS,
-    );
 
     return () => {
       active = false;
@@ -576,168 +308,113 @@ export default function WishCinematic({
       stopAudio();
     };
   }, [
-    open,
+    allowSkip,
     card,
     cardKey,
     clearTimers,
-    reportFinished,
-    stopAudio,
-    revealFromPreferences,
-    sequenceTiming.durationMs,
-    nebuHeatAssets.walkSheet,
+    config,
+    lowEffects,
     nebuHeatAssets.reactionSheet,
-    nebuHeatAssets.portrait,
+    nebuHeatAssets.walkSheet,
+    open,
+    reportFinished,
+    revealFromPreferences,
+    stopAudio,
   ]);
 
   useEffect(() => {
-    if (!open || !ready || skipped) {
-      return;
-    }
-
+    if (!open || !ready || skipped) return;
     let cancelled = false;
 
     void primeWishAudio()
       .then(() => {
-        if (cancelled) {
-          return;
-        }
-
+        if (cancelled) return;
         stopAudio();
         audioSessionRef.current = startWishAudio(
-          isBlackHole ? 8 : theme.tier,
+          config.tier,
           muted,
           preferences.sfxVolume,
           {
-            impactAtMs: sequenceTiming.impactAtMs,
-            revealAtMs: sequenceTiming.cardAtMs,
+            impactAtMs: config.timings.impactAtMs,
+            revealAtMs: config.timings.cardAtMs,
           },
         );
       })
       .catch(() => {
-        // The animation remains fully usable without sound.
+        // The visual reveal remains fully usable when Web Audio is unavailable.
       });
 
     return () => {
       cancelled = true;
       stopAudio();
     };
-  }, [
-    open,
-    ready,
-    runNumber,
-    skipped,
-    isBlackHole,
-    theme.tier,
-    sequenceTiming.impactAtMs,
-    sequenceTiming.cardAtMs,
-    muted,
-    stopAudio,
-    preferences.sfxVolume,
-  ]);
+  }, [config, muted, open, preferences.sfxVolume, ready, runNumber, skipped, stopAudio]);
 
   useEffect(() => {
     audioSessionRef.current?.setMuted(muted);
     audioSessionRef.current?.setVolume(preferences.sfxVolume);
-
     try {
-      window.localStorage.setItem(
-        "pocketpulls-wish-muted",
-        String(muted),
-      );
+      window.localStorage.setItem("pocketpulls-wish-muted", String(muted));
     } catch {
-      // Local storage is optional.
+      // Browser storage is optional.
     }
   }, [muted, preferences.sfxVolume]);
 
   useEffect(() => {
-    if (
-      !open ||
-      !complete ||
-      !respectPreferences ||
-      markedSeenRef.current ||
-      preferences.cinematicSeen
-    ) {
-      return;
-    }
-
+    if (!open || !complete || !respectPreferences || markedSeenRef.current || preferences.cinematicSeen) return;
     markedSeenRef.current = true;
-    publishPlayerPreferences({
-      ...preferences,
-      cinematicSeen: true,
-    });
-
+    publishPlayerPreferences({ ...preferences, cinematicSeen: true });
     void supabase.rpc("mark_player_cinematic_seen").then(({ error }) => {
-      if (error) {
-        console.warn("Cinematic viewing could not sync:", error.message);
-      }
+      if (error) console.warn("Cinematic viewing could not sync:", error.message);
     });
   }, [complete, open, preferences, respectPreferences]);
 
   useEffect(() => {
-    if (!open) {
-      return;
-    }
-
+    if (!open) return;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") {
-        return;
-      }
-
-      if (complete) {
-        handleContinue();
-        return;
-      }
-
-      if (allowSkip) {
-        revealImmediately();
-      }
+      if (event.key !== "Escape") return;
+      if (complete) handleContinue();
+      else if (skipAvailable) revealImmediately();
     };
-
     window.addEventListener("keydown", handleKeyDown);
-
     return () => {
       document.body.style.overflow = previousOverflow;
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [
-    open,
-    complete,
-    allowSkip,
-    handleContinue,
-    revealImmediately,
-  ]);
+  }, [complete, handleContinue, open, revealImmediately, skipAvailable]);
 
-  if (!open || !card) {
-    return null;
-  }
+  if (!open || !card) return null;
 
   const rootStyle = {
-    "--wish-primary": theme.primary,
-    "--wish-secondary": theme.secondary,
-    "--wish-glow": theme.glow,
-    "--impact-scale": String(theme.impactScale),
-    "--shake-distance": `${theme.shakeDistance}px`,
-    "--flash-strength": String(theme.flashStrength),
-    "--tier": String(theme.tier),
-    "--impact-at": `${sequenceTiming.impactAtMs}ms`,
-    "--card-at": `${sequenceTiming.cardAtMs}ms`,
-    "--info-at": `${sequenceTiming.infoAtMs}ms`,
+    "--wish-primary": config.primary,
+    "--wish-secondary": config.secondary,
+    "--wish-glow": config.glow,
+    "--impact-scale": String(config.impactScale),
+    "--shake-distance": `${config.shakeDistance}px`,
+    "--flash-strength": String(config.flashStrength),
+    "--tier": String(config.tier),
+    "--impact-at": `${config.timings.impactAtMs}ms`,
+    "--card-at": `${config.timings.cardAtMs}ms`,
+    "--info-at": `${config.timings.infoAtMs}ms`,
   } as CSSProperties;
 
   return (
     <div
       className={styles.overlay}
       style={rootStyle}
+      data-tier={config.tier}
+      data-family={config.family}
+      data-low-effects={lowEffects ? "true" : "false"}
       role="dialog"
       aria-modal="true"
       aria-label={`Wish reveal for ${card.name}`}
     >
       <div className={styles.sky} />
-      <div className={styles.ancientCardGhost} />
       <div className={styles.stars} />
+      <div className={styles.ancientCardGhost} />
       <div className={styles.holoDust} />
       <div className={styles.ancientGlyphBandTop} />
       <div className={styles.ancientGlyphBandBottom} />
@@ -759,200 +436,95 @@ export default function WishCinematic({
       {!ready ? (
         <div className={styles.preparing}>
           <div className={styles.preparingGlow} />
-
-          <img
-            src={nebuHeatAssets.portrait}
-            alt="Nebu, the ancientpulls celestial cat"
-            draggable={false}
-            className={styles.preparingNebu}
-          />
-
+          <img src={nebuHeatAssets.portrait} alt="Nebu" draggable={false} className={styles.preparingNebu} />
           <p>Nebu is reading the constellation...</p>
         </div>
       ) : (
         <div
           key={runNumber}
-          className={`${styles.sequence} ${
-            skipped ? styles.sequenceSkipped : ""
-          } ${
-            isBlackHole ? styles.blackHoleSequence : ""
-          }`}
+          className={`${styles.sequence} ${skipped ? styles.sequenceSkipped : ""} ${config.blackHole ? styles.blackHoleSequence : ""}`}
         >
-          <div className={styles.catScene}>
-            <AncientCatPullScene
-              tier={theme.tier}
-              escalationStartMs={ESCALATION_START_MS}
-              stepDurationsMs={RARITY_HOLD_MS}
-              cardRevealAtMs={sequenceTiming.cardAtMs}
-              walkSheet={nebuHeatAssets.walkSheet}
-              reactionSheet={nebuHeatAssets.reactionSheet}
-              blackHole={isBlackHole}
-              lowEffects={
-                preferences.lowVisualEffects || preferences.dataSaver
-              }
-            />
+          {config.usesWorldScene && !skipped ? (
+            <div className={styles.catScene}>
+              <AncientCatPullScene
+                tier={config.tier}
+                escalationStartMs={520}
+                stepDurationsMs={escalationSteps}
+                cardRevealAtMs={config.timings.cardAtMs}
+                walkSheet={nebuHeatAssets.walkSheet}
+                reactionSheet={nebuHeatAssets.reactionSheet}
+                blackHole={config.blackHole}
+                lowEffects={lowEffects}
+              />
+            </div>
+          ) : null}
+
+          <div className={styles.darkening} />
+          <p className={styles.omen}>{config.omen}</p>
+
+          <div className={styles.relicSeal} aria-hidden="true">
+            <span className={styles.relicOuter} />
+            <span className={styles.relicInner} />
+            <span className={styles.relicStar}>✦</span>
           </div>
 
-          <div className={styles.impact}>
+          {config.glyphCount > 0 ? (
+            <div className={styles.glyphOrbit} aria-hidden="true">
+              {Array.from({ length: config.glyphCount }, (_, index) => (
+                <span
+                  key={index}
+                  style={{ "--glyph-angle": `${(360 / config.glyphCount) * index}deg`, "--glyph-counter-angle": `${(-360 / config.glyphCount) * index}deg`, "--glyph-delay": `${(index % 6) * 70}ms` } as CSSProperties}
+                >
+                  {index % 3 === 0 ? "◇" : index % 3 === 1 ? "✦" : "⌁"}
+                </span>
+              ))}
+            </div>
+          ) : null}
+
+          <div className={styles.cardSilhouette} aria-hidden="true"><span>✦</span></div>
+
+          <div className={styles.impact} aria-hidden="true">
             <div className={styles.impactFlash} />
             <div className={styles.impactRing} />
             <div className={styles.impactRingSecond} />
-
-            {theme.tier >= 4 ? (
-              <div className={styles.impactRingThird} />
-            ) : null}
-
+            {config.tier >= 5 ? <div className={styles.impactRingThird} /> : null}
             <div className={styles.impactRays}>
-              {Array.from({ length: theme.rayCount }).map(
-                (_, index) => (
-                  <span
-                    key={index}
-                    style={
-                      {
-                        "--ray-angle": `${
-                          (360 / theme.rayCount) * index
-                        }deg`,
-                        "--ray-length": `${
-                          80 +
-                          theme.tier * 11 +
-                          (index % 6) * 16
-                        }px`,
-                        "--ray-delay": `${
-                          (index % 5) * 10
-                        }ms`,
-                      } as CSSProperties
-                    }
-                  />
-                ),
-              )}
+              {Array.from({ length: config.rayCount }, (_, index) => (
+                <span key={index} style={{ "--ray-angle": `${(360 / config.rayCount) * index}deg`, "--ray-length": `${65 + config.tier * 10 + (index % 6) * 13}px`, "--ray-delay": `${(index % 5) * 10}ms` } as CSSProperties} />
+              ))}
             </div>
-
             <div className={styles.particles}>
-              {Array.from({
-                length: theme.particleCount,
-              }).map((_, index) => (
-                <span
-                  key={index}
-                  style={
-                    {
-                      "--particle-angle": `${
-                        (360 / theme.particleCount) *
-                        index
-                      }deg`,
-                      "--particle-distance": `${
-                        105 +
-                        theme.tier * 10 +
-                        (index % 9) * 22
-                      }px`,
-                      "--particle-delay": `${
-                        (index % 7) * 11
-                      }ms`,
-                      "--particle-size": `${
-                        2.5 +
-                        theme.tier * 0.18 +
-                        (index % 5)
-                      }px`,
-                    } as CSSProperties
-                  }
-                />
+              {Array.from({ length: particleCount }, (_, index) => (
+                <span key={index} style={{ "--particle-angle": `${(360 / particleCount) * index}deg`, "--particle-distance": `${84 + config.tier * 10 + (index % 8) * 17}px`, "--particle-delay": `${(index % 7) * 12}ms`, "--particle-size": `${2 + config.tier * 0.16 + (index % 4)}px` } as CSSProperties} />
               ))}
             </div>
           </div>
 
-          <div className={styles.cardScene}>
+          <div className={styles.cardScene} data-share-ready="true">
             <div className={styles.cardGlow} />
-
             <div className={styles.cardFrame}>
-              {card.imageUrl ? (
-                <img
-                  src={card.imageUrl}
-                  alt={card.name}
-                  draggable={false}
-                />
-              ) : (
-                <div className={styles.cardFallback}>
-                  <span>*</span>
-                  <strong>{card.name}</strong>
-                </div>
-              )}
-
+              {card.imageUrl ? <img src={card.imageUrl} alt={card.name} draggable={false} /> : <div className={styles.cardFallback}><span>✦</span><strong>{card.name}</strong></div>}
               <div className={styles.cardShine} />
-
-              {theme.tier >= 5 ? (
-                <div className={styles.premiumCardShine} />
-              ) : null}
+              {config.tier >= 5 ? <div className={styles.premiumCardShine} /> : null}
             </div>
           </div>
 
-          <div className={styles.cardInfo}>
-            <p className={styles.rarity}>
-              {theme.label}
-            </p>
-
+          <div className={styles.cardInfo} data-share-ready="true">
+            <p className={styles.rarity}>{config.label}</p>
             <h2>{card.name}</h2>
-
-            <p className={styles.meta}>
-              {[
-                card.setName,
-                card.cardNumber
-                  ? `#${card.cardNumber}`
-                  : null,
-              ]
-                .filter(Boolean)
-                .join(" - ")}
-            </p>
-
-            <div className={styles.pills}>
-              <span>
-                {card.rarity || theme.label}
-              </span>
-
-              <span>
-                {formatMoney(card.marketValue)}
-              </span>
-            </div>
-
-            {actionError ? (
-              <div className={styles.actionError}>
-                {actionError}
-              </div>
-            ) : null}
-
+            <p className={styles.meta}>{[card.setName, card.cardNumber ? `#${card.cardNumber}` : null].filter(Boolean).join(" · ")}</p>
+            <div className={styles.pills}><span>{card.rarity || config.label}</span><span>{formatMoney(card.marketValue)}</span></div>
+            {actionError ? <div className={styles.actionError}>{actionError}</div> : null}
             <div className={styles.actions}>
-              {onWishAgain && canWishAgain ? (
-                <button
-                  type="button"
-                  onClick={onWishAgain}
-                  disabled={!complete || busy}
-                  className={styles.wishAgainButton}
-                >
-                  {busy
-                    ? "Choosing next card..."
-                    : "Wish Again - 1 Wish"}
-                </button>
-              ) : null}
-
-              <button
-                type="button"
-                onClick={handleContinue}
-                disabled={!complete || busy}
-                className={styles.keepButton}
-              >
-                Continue
-              </button>
+              {onWishAgain && canWishAgain ? <button type="button" onClick={onWishAgain} disabled={!complete || busy} className={styles.wishAgainButton}>{busy ? "Choosing next card..." : "Wish Again · 1 Wish"}</button> : null}
+              <button type="button" onClick={handleContinue} disabled={!complete || busy} className={styles.keepButton}>Continue</button>
             </div>
           </div>
         </div>
       )}
 
-      {allowSkip && ready && !complete ? (
-        <button
-          type="button"
-          className={styles.skipButton}
-          onClick={revealImmediately}
-        >
-          Skip
-        </button>
+      {allowSkip && ready && !complete && skipAvailable ? (
+        <button type="button" className={styles.skipButton} onClick={revealImmediately}>Reveal now</button>
       ) : null}
     </div>
   );

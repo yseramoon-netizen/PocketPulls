@@ -6,6 +6,7 @@ import WishCinematic, {
   type WishRevealCard,
   getWishRarityTheme,
 } from "@/components/player/WishCinematic";
+import { primeWishAudio } from "@/components/player/wishAudio";
 
 const DEMO_CARDS: WishRevealCard[] = [
   {
@@ -107,6 +108,7 @@ export default function WishPreviewPage() {
   }, [selectedIndex, runNumber]);
 
   function playPreview(index: number) {
+    void primeWishAudio();
     setSelectedIndex(index);
     setRunNumber((current) => current + 1);
     setOpen(true);
@@ -124,11 +126,10 @@ export default function WishPreviewPage() {
         </h1>
 
         <p className="mt-4 max-w-3xl text-sm font-semibold leading-7 text-white/45 sm:text-base">
-          Nebu walks out of the pyramid as the star rises behind the
-          mountains. Each rarity makes the sky hotter and earns a new
-          cooling reaction. Cards valued above £500 replace the sun
-          with the black-hole finale. Test every stage here before a
-          real wish.
+          Common cards answer quickly. Higher tiers progressively darken
+          the chamber, awaken ancient symbols and gather the constellation
+          before impact. Cards valued above £500 still trigger the black-hole
+          finale. Test every stage here before a real wish.
         </p>
 
         <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

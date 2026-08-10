@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import NebuPortrait from "@/components/player/NebuPortrait";
 import { type WishRevealCard } from "@/components/player/WishCinematic";
+import { primeWishAudio } from "@/components/player/wishAudio";
 import { supabase } from "@/lib/supabase";
 
 const WishCinematic = dynamic(
@@ -500,6 +501,9 @@ export default function WishesPage() {
       return;
     }
 
+    // Resume Web Audio while this direct player gesture is still active.
+    // The reveal itself begins only after the server-authoritative wish returns.
+    void primeWishAudio();
     window.dispatchEvent(new Event("unown-pulls:close-more"));
     setForceFullSequence(false);
     setMakingWish(true);
