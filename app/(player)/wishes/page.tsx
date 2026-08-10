@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import NebuPortrait from "@/components/player/NebuPortrait";
+import WishDetailsDialog from "@/components/player/WishDetailsDialog";
 import { type WishRevealCard } from "@/components/player/WishCinematic";
 import { primeWishAudio } from "@/components/player/wishAudio";
 import { applyNebuSkin } from "@/lib/player/nebu";
@@ -179,6 +180,7 @@ export default function WishesPage() {
   const [makingWish, setMakingWish] = useState(false);
   const [wishReveal, setWishReveal] = useState<WishReveal | null>(null);
   const [forceFullSequence, setForceFullSequence] = useState(false);
+  const [wishDetailsOpen, setWishDetailsOpen] = useState(false);
 
   const loadDashboard = useCallback(async (background = false) => {
     if (background) {
@@ -509,6 +511,7 @@ export default function WishesPage() {
     // The reveal itself begins only after the server-authoritative wish returns.
     void primeWishAudio();
     window.dispatchEvent(new Event("unown-pulls:close-more"));
+    setWishDetailsOpen(false);
     setForceFullSequence(false);
     setMakingWish(true);
     setErrorMessage(null);
@@ -694,6 +697,7 @@ export default function WishesPage() {
           totalWishes={dashboard.lifetimeWishesSpent}
           makingWish={makingWish}
           onMakeWish={() => void makeWish()}
+          onShowDetails={() => setWishDetailsOpen(true)}
         />
 
         <ShippingProgress
@@ -710,6 +714,11 @@ export default function WishesPage() {
 
         <QuickLinks />
       </div>
+
+      <WishDetailsDialog
+        open={wishDetailsOpen}
+        onClose={() => setWishDetailsOpen(false)}
+      />
 
       <WishCinematic
         open={Boolean(wishReveal)}
@@ -778,11 +787,13 @@ function WishChamber({
   totalWishes,
   makingWish,
   onMakeWish,
+  onShowDetails,
 }: {
   wishBalance: number;
   totalWishes: number;
   makingWish: boolean;
   onMakeWish: () => void;
+  onShowDetails: () => void;
 }) {
   const hasWishes = wishBalance > 0;
 
@@ -810,9 +821,19 @@ function WishChamber({
         </div>
 
         <div className="relative min-w-0 flex-1">
-          <p className="text-xs font-black uppercase tracking-[0.2em] text-yellow-100/45">
-            Wish chamber
-          </p>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-xs font-black uppercase tracking-[0.2em] text-yellow-100/45">
+              Wish chamber
+            </p>
+            <button
+              type="button"
+              onClick={onShowDetails}
+              className="inline-flex min-h-9 items-center gap-2 rounded-full border border-cyan-100/15 bg-cyan-100/[0.065] px-3.5 text-[0.62rem] font-black uppercase tracking-[0.11em] text-cyan-50/75 transition hover:border-cyan-100/30 hover:bg-cyan-100/[0.11] hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-200"
+            >
+              <span aria-hidden="true">✦</span>
+              View prizes &amp; odds
+            </button>
+          </div>
 
           <h2 className="mt-3 text-3xl font-black tracking-tight text-white">
             {hasWishes ? "Nebu is ready." : "Your next wish is waiting."}
