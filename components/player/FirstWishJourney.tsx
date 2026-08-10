@@ -126,7 +126,29 @@ function clamp(value: number, minimum: number, maximum: number): number {
 }
 
 function readTargetRect(element: Element): SpotlightRect {
-  const raw = element.getBoundingClientRect();
+  const targetRect = element.getBoundingClientRect();
+  const popoverRects = Array.from(
+    element.querySelectorAll<HTMLElement>(
+      "[data-onboarding-popover]",
+    ),
+  )
+    .map((popover) => popover.getBoundingClientRect())
+    .filter((rect) => rect.width > 0 && rect.height > 0);
+
+  const raw = popoverRects.reduce(
+    (combined, popover) => ({
+      top: Math.min(combined.top, popover.top),
+      left: Math.min(combined.left, popover.left),
+      right: Math.max(combined.right, popover.right),
+      bottom: Math.max(combined.bottom, popover.bottom),
+    }),
+    {
+      top: targetRect.top,
+      left: targetRect.left,
+      right: targetRect.right,
+      bottom: targetRect.bottom,
+    },
+  );
   const padding = 10;
   const top = clamp(raw.top - padding, 8, Math.max(8, window.innerHeight - 16));
   const left = clamp(raw.left - padding, 8, Math.max(8, window.innerWidth - 16));
@@ -168,6 +190,7 @@ export default function FirstWishJourney({
   const [cinematicOpen, setCinematicOpen] = useState(false);
   const [targetRect, setTargetRect] = useState<SpotlightRect | null>(null);
   const [locatingTarget, setLocatingTarget] = useState(false);
+  const [activeInteraction, setActiveInteraction] = useState<string | null>(null);
   const [celebrating, setCelebrating] = useState(false);
 
   const loadJourney = useCallback(async () => {
@@ -218,12 +241,36 @@ export default function FirstWishJourney({
       const detail = (event as CustomEvent<{ visible?: boolean }>).detail;
       setCinematicOpen(detail?.visible === true);
     };
+    const handleOnboardingInteraction = (event: Event) => {
+      const detail = (
+        event as CustomEvent<{
+          target?: string;
+          open?: boolean;
+        }>
+      ).detail;
+
+      if (!detail?.target) {
+        return;
+      }
+
+      setActiveInteraction((current) =>
+        detail.open
+          ? detail.target || null
+          : current === detail.target
+            ? null
+            : current,
+      );
+    };
 
     window.addEventListener("focus", refresh);
     document.addEventListener("visibilitychange", handleVisibility);
     window.addEventListener(
       "pocketpulls:wish-cinematic-visibility",
       handleCinematic,
+    );
+    window.addEventListener(
+      "pocketpulls:onboarding-interaction",
+      handleOnboardingInteraction,
     );
     REFRESH_EVENTS.forEach((eventName) => {
       window.addEventListener(eventName, refresh);
@@ -237,6 +284,10 @@ export default function FirstWishJourney({
       window.removeEventListener(
         "pocketpulls:wish-cinematic-visibility",
         handleCinematic,
+      );
+      window.removeEventListener(
+        "pocketpulls:onboarding-interaction",
+        handleOnboardingInteraction,
       );
       REFRESH_EVENTS.forEach((eventName) => {
         window.removeEventListener(eventName, refresh);
@@ -414,6 +465,9 @@ export default function FirstWishJourney({
       setTargetRect(readTargetRect(target));
       setLocatingTarget(false);
     };
+    const handleLayoutChange = () => {
+      window.requestAnimationFrame(updateRect);
+    };
 
     const findTarget = () => {
       const nextTarget = document.querySelector(
@@ -450,6 +504,10 @@ export default function FirstWishJourney({
     }
     window.addEventListener("resize", updateRect);
     window.addEventListener("scroll", updateRect, true);
+    window.addEventListener(
+      "pocketpulls:onboarding-layout",
+      handleLayoutChange,
+    );
 
     return () => {
       active = false;
@@ -460,6 +518,10 @@ export default function FirstWishJourney({
       }
       window.removeEventListener("resize", updateRect);
       window.removeEventListener("scroll", updateRect, true);
+      window.removeEventListener(
+        "pocketpulls:onboarding-layout",
+        handleLayoutChange,
+      );
     };
   }, [cinematicOpen, currentStep, journey, pathname, paused, router]);
 
@@ -639,6 +701,7 @@ export default function FirstWishJourney({
       rect={targetRect}
       locating={locatingTarget || pathname !== currentStep.href}
       advancing={advancing}
+      interactionOpen={activeInteraction === currentStep.target}
       onAction={() => void performStepAction()}
       onPause={() => setTourPaused(true)}
     />
@@ -652,6 +715,7 @@ function SpotlightTour({
   rect,
   locating,
   advancing,
+  interactionOpen,
   onAction,
   onPause,
 }: {
@@ -661,6 +725,7 @@ function SpotlightTour({
   rect: SpotlightRect | null;
   locating: boolean;
   advancing: boolean;
+  interactionOpen: boolean;
   onAction: () => void;
   onPause: () => void;
 }) {
@@ -694,10 +759,11 @@ function SpotlightTour({
         <div className="fixed inset-0 z-[180] bg-[#01020b]/88" />
       )}
 
-      <section
-        className="fixed z-[182] max-h-[calc(100dvh-24px)] overflow-y-auto rounded-[1.6rem] border border-yellow-100/25 bg-[#090b29]/98 shadow-[0_28px_90px_rgba(0,0,0,0.78)] backdrop-blur-2xl"
-        style={{ top: tooltipTop, left: tooltipLeft, width: tooltipWidth }}
-      >
+      {!interactionOpen ? (
+        <section
+          className="fixed z-[182] max-h-[calc(100dvh-24px)] overflow-y-auto rounded-[1.6rem] border border-yellow-100/25 bg-[#090b29]/98 shadow-[0_28px_90px_rgba(0,0,0,0.78)] backdrop-blur-2xl"
+          style={{ top: tooltipTop, left: tooltipLeft, width: tooltipWidth }}
+        >
         <div className="h-1 bg-gradient-to-r from-cyan-200 via-yellow-100 to-violet-300" />
         <div className="p-4 sm:p-5">
           <div className="flex items-start gap-3">
@@ -746,7 +812,8 @@ function SpotlightTour({
             {advancing ? "Nebu is opening the next step…" : step.action}
           </button>
         </div>
-      </section>
+        </section>
+      ) : null}
     </div>
   );
 }

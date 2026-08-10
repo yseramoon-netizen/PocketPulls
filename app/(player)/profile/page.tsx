@@ -873,6 +873,37 @@ function ZodiacPicker({
     ZODIAC_OPTIONS[0];
 
   useEffect(() => {
+    const frame = window.requestAnimationFrame(() => {
+      window.dispatchEvent(
+        new CustomEvent("pocketpulls:onboarding-interaction", {
+          detail: {
+            target: "zodiac",
+            open,
+          },
+        }),
+      );
+      window.dispatchEvent(
+        new Event("pocketpulls:onboarding-layout"),
+      );
+    });
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+
+      if (open) {
+        window.dispatchEvent(
+          new CustomEvent("pocketpulls:onboarding-interaction", {
+            detail: {
+              target: "zodiac",
+              open: false,
+            },
+          }),
+        );
+      }
+    };
+  }, [open]);
+
+  useEffect(() => {
     if (!open) return;
 
     const close = (event: MouseEvent) => {
@@ -923,6 +954,7 @@ function ZodiacPicker({
         <div
           role="listbox"
           aria-label="Star sign"
+          data-onboarding-popover="zodiac"
           className="absolute inset-x-0 top-[calc(100%+0.45rem)] z-[184] max-h-72 overflow-y-auto rounded-2xl border border-violet-200/15 bg-[#100d2b]/98 p-1.5 shadow-[0_24px_70px_rgba(0,0,0,0.62)] backdrop-blur-2xl"
         >
           {ZODIAC_OPTIONS.map((option) => {
