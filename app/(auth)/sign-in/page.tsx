@@ -1,19 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import {
-  Suspense,
-  type FormEvent,
-  useEffect,
-  useState,
-} from "react";
+import { Suspense, type FormEvent, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import type { Provider } from "@supabase/supabase-js";
 
-import { supabase } from "@/lib/supabase";
-import {
-  getAuthErrorDetails,
-  getAuthErrorMessage,
-} from "@/lib/auth/helpers";
+import { getAuthErrorDetails, getAuthErrorMessage } from "@/lib/auth/helpers";
+import { buildAuthCallbackUrl, normaliseNextPath } from "@/lib/auth/navigation";
 import {
   clearPendingRegistration,
   type PendingRegistration,
@@ -22,20 +15,9 @@ import {
   resendSignupConfirmation,
   secondsUntilVerificationResend,
 } from "@/lib/auth/pending-registration";
+import { supabase } from "@/lib/supabase";
 
-function safeNextPath(value: string | null): string {
-  if (
-    !value ||
-    !value.startsWith("/") ||
-    value.startsWith("//") ||
-    value.startsWith("/admin") ||
-    value.startsWith("/sign-in")
-  ) {
-    return "/hq";
-  }
-
-  return value;
-}
+type SocialProvider = "google" | "discord";
 
 async function hasPlayerProfile(userId: string): Promise<boolean> {
   const result = await supabase
@@ -44,42 +26,55 @@ async function hasPlayerProfile(userId: string): Promise<boolean> {
     .eq("user_id", userId)
     .maybeSingle();
 
-  if (result.error) {
-    throw result.error;
-  }
-
+  if (result.error) throw result.error;
   return Boolean(result.data);
 }
 
 async function ensurePlayerProfile(userId: string): Promise<boolean> {
-  if (await hasPlayerProfile(userId)) {
-    return true;
-  }
+  if (await hasPlayerProfile(userId)) return true;
 
   const { error } = await supabase.rpc("complete_player_registration");
-
-  if (error) {
-    throw error;
-  }
+  if (error) throw error;
 
   return hasPlayerProfile(userId);
+}
+
+function GoogleIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" className="h-5 w-5">
+      <path fill="#4285F4" d="M21.8 12.2c0-.7-.1-1.4-.2-2H12v3.8h5.5a4.7 4.7 0 0 1-2 3.1v2.5h3.2c1.9-1.8 3.1-4.4 3.1-7.4Z" />
+      <path fill="#34A853" d="M12 22c2.7 0 5-.9 6.7-2.4l-3.2-2.5c-.9.6-2 .9-3.5.9-2.7 0-5-1.8-5.8-4.3H2.9v2.6A10 10 0 0 0 12 22Z" />
+      <path fill="#FBBC05" d="M6.2 13.7A6 6 0 0 1 5.9 12c0-.6.1-1.2.3-1.7V7.7H2.9A10 10 0 0 0 2 12c0 1.6.4 3.1.9 4.3l3.3-2.6Z" />
+      <path fill="#EA4335" d="M12 6c1.7 0 3.2.6 4.3 1.7l3-3A10 10 0 0 0 2.9 7.7l3.3 2.6C7 7.8 9.3 6 12 6Z" />
+    </svg>
+  );
+}
+
+function DiscordIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" className="h-5 w-5 fill-current">
+      <path d="M20.3 4.7A16.6 16.6 0 0 0 16.2 3l-.5 1a15.3 15.3 0 0 0-7.4 0l-.5-1a16.5 16.5 0 0 0-4.1 1.7C1.1 8.6.4 12.4.8 16.1a16.8 16.8 0 0 0 5 2.5l1.2-1.6-1.7-.8.4-.3a11.7 11.7 0 0 0 12.6 0l.5.3-1.7.8 1.2 1.6a16.7 16.7 0 0 0 5-2.5c.5-4.3-.8-8.1-3-11.4ZM8.8 14.1c-1 0-1.8-.9-1.8-2s.8-2 1.8-2 1.8.9 1.8 2-.8 2-1.8 2Zm6.4 0c-1 0-1.8-.9-1.8-2s.8-2 1.8-2 1.8.9 1.8 2-.8 2-1.8 2Z" />
+    </svg>
+  );
 }
 
 function PlayerSignInContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const nextPath = safeNextPath(searchParams.get("next"));
+  const nextPath = normaliseNextPath(searchParams.get("next"));
+  const callbackError = searchParams.get("oauth_error");
 
   const [email, setEmail] = useState(searchParams.get("email") || "");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [checking, setChecking] = useState(true);
   const [signingIn, setSigningIn] = useState(false);
-  const [pendingRegistration, setPendingRegistration] =
-    useState<PendingRegistration | null>(null);
+  const [socialProvider, setSocialProvider] = useState<SocialProvider | null>(null);
+  const [pendingRegistration, setPendingRegistration] = useState<PendingRegistration | null>(null);
   const [resending, setResending] = useState(false);
   const [resendMessage, setResendMessage] = useState("");
-  const [error, setError] = useState("");
+  const [error, setError] = useState(callbackError || "");
+  const isBusy = signingIn || socialProvider !== null;
 
   useEffect(() => {
     let active = true;
@@ -87,7 +82,6 @@ function PlayerSignInContent() {
     async function checkPlayerSession() {
       try {
         const { data, error: sessionError } = await supabase.auth.getSession();
-
         if (sessionError || !data.session) {
           if (active) {
             setPendingRegistration(readPendingRegistration());
@@ -97,7 +91,6 @@ function PlayerSignInContent() {
         }
 
         const playerExists = await ensurePlayerProfile(data.session.user.id);
-
         if (playerExists) {
           if (active) {
             clearPendingRegistration();
@@ -107,38 +100,27 @@ function PlayerSignInContent() {
           return;
         }
 
-        // V18 migration path: an old Shaymin admin session may still be stored
-        // in the legacy shared player slot. Remove it locally only; the new
-        // isolated admin session uses a different storage key and is untouched.
+        // A legacy admin session must never occupy the player auth slot.
         await supabase.auth.signOut({ scope: "local" });
-
-        if (active) {
-          setChecking(false);
-        }
+        if (active) setChecking(false);
       } catch (sessionFailure: unknown) {
         console.warn("Player sign-in session check failed:", sessionFailure);
         if (active) {
-          setError(
-            getAuthErrorMessage(
-              sessionFailure,
-              "Your confirmed account could not finish preparing its player profile.",
-            ),
-          );
+          setError(getAuthErrorMessage(
+            sessionFailure,
+            "Your confirmed account could not finish preparing its player profile.",
+          ));
           setChecking(false);
         }
       }
     }
 
     void checkPlayerSession();
-
-    return () => {
-      active = false;
-    };
+    return () => { active = false; };
   }, [nextPath, router]);
 
   async function handleResendVerification() {
     if (!pendingRegistration || resending) return;
-
     const cooldown = secondsUntilVerificationResend(pendingRegistration);
     if (cooldown > 0) {
       setResendMessage(`You can send another email in ${cooldown}s.`);
@@ -148,29 +130,50 @@ function PlayerSignInContent() {
     setResending(true);
     setResendMessage("");
     setError("");
-
     try {
-      const refreshed = await resendSignupConfirmation(
-        pendingRegistration.email,
-        pendingRegistration.nextPath,
-      );
+      const refreshed = await resendSignupConfirmation(pendingRegistration.email, pendingRegistration.nextPath);
       setPendingRegistration(refreshed);
       setResendMessage("A new verification email has been sent.");
     } catch (failure: unknown) {
-      setError(
-        getAuthErrorMessage(
-          failure,
-          "The verification email could not be resent.",
-        ),
-      );
+      setError(getAuthErrorMessage(failure, "The verification email could not be resent."));
     } finally {
       setResending(false);
     }
   }
 
+  async function handleSocialSignIn(provider: SocialProvider) {
+    if (isBusy) return;
+    setSocialProvider(provider);
+    setError("");
+
+    try {
+      // Clear a stale browser-only player session before beginning PKCE. This
+      // does not touch any separately stored Ancient Pulls admin session.
+      await supabase.auth.signOut({ scope: "local" });
+      const { data, error: oauthError } = await supabase.auth.signInWithOAuth({
+        provider: provider as Provider,
+        options: {
+          redirectTo: buildAuthCallbackUrl(nextPath),
+          skipBrowserRedirect: true,
+        },
+      });
+
+      if (oauthError) throw oauthError;
+      if (!data.url) throw new Error("Supabase did not return a provider sign-in URL.");
+
+      window.location.assign(data.url);
+    } catch (failure: unknown) {
+      setError(getAuthErrorMessage(
+        failure,
+        `Nebu could not open ${provider === "google" ? "Google" : "Discord"} sign-in.`,
+      ));
+      setSocialProvider(null);
+    }
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (signingIn) return;
+    if (isBusy) return;
 
     const cleanEmail = email.trim().toLowerCase();
     if (!cleanEmail || !password) {
@@ -180,52 +183,30 @@ function PlayerSignInContent() {
 
     setSigningIn(true);
     setError("");
-
     try {
-      // Drop any expired or half-created browser session before asking Auth to
-      // create a fresh password session. This matters when confirmation was
-      // completed on another device.
-      await supabase.auth.signOut({
-        scope: "local",
-      });
-
+      await supabase.auth.signOut({ scope: "local" });
       const { data, error: signInError } = await supabase.auth.signInWithPassword({
         email: cleanEmail,
         password,
       });
 
       if (signInError || !data.session) {
-        const details = getAuthErrorDetails(
-          signInError,
-          "Nebu could not sign you in.",
-        );
-
-        if (
-          details.code === "email_not_confirmed" ||
-          details.message.toLowerCase().includes("confirm your email")
-        ) {
+        const details = getAuthErrorDetails(signInError, "Nebu could not sign you in.");
+        if (details.code === "email_not_confirmed" || details.message.toLowerCase().includes("confirm your email")) {
           const remembered = readPendingRegistration();
-          const pending = rememberPendingRegistration({
+          setPendingRegistration(rememberPendingRegistration({
             email: cleanEmail,
             nextPath,
-            lastSentAt:
-              remembered?.email === cleanEmail
-                ? remembered.lastSentAt
-                : 0,
-          });
-          setPendingRegistration(pending);
+            lastSentAt: remembered?.email === cleanEmail ? remembered.lastSentAt : 0,
+          }));
         }
-
         throw signInError || new Error("No trainer session was returned.");
       }
 
       const playerExists = await ensurePlayerProfile(data.session.user.id);
-
       if (!playerExists) {
         await supabase.auth.signOut({ scope: "local" });
-        throw new Error(
-          "That account is not an ancientpulls player account. Use the admin sign-in if this is an administrator account.",
-        );
+        throw new Error("That account is not an Ancient Pulls player account. Use the admin sign-in if this is an administrator account.");
       }
 
       clearPendingRegistration();
@@ -233,175 +214,31 @@ function PlayerSignInContent() {
       router.refresh();
     } catch (failure: unknown) {
       console.error("Player sign-in error:", failure);
-      setError(
-        getAuthErrorMessage(failure, "Nebu could not sign you in."),
-      );
+      setError(getAuthErrorMessage(failure, "Nebu could not sign you in."));
       setSigningIn(false);
     }
   }
 
   if (checking) {
-    return (
-      <main className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden bg-[#02030d] px-5 text-white">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(124,58,237,0.2),transparent_34%),radial-gradient(circle_at_75%_20%,rgba(34,211,238,0.12),transparent_28%),linear-gradient(180deg,#070922_0%,#030513_55%,#02030d_100%)]" />
-        <div className="relative z-10 flex flex-col items-center">
-          <div className="relative flex h-28 w-28 items-center justify-center">
-            <div className="absolute inset-1 animate-spin rounded-full border border-transparent border-r-cyan-100/45 border-t-yellow-100/80 [animation-duration:2.6s]" />
-            <img src="/ancient-pulls/celestial-cat.png" alt="" draggable={false} className="relative h-20 w-20 object-contain animate-[bounce_3.5s_ease-in-out_infinite]" />
-          </div>
-          <p className="mt-5 text-sm font-black text-yellow-50/70">Checking your constellation...</p>
-        </div>
-      </main>
-    );
+    return <main className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden bg-[#02030d] px-5 text-white"><div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(124,58,237,0.2),transparent_34%),linear-gradient(180deg,#070922_0%,#02030d_100%)]" /><div className="relative z-10 flex flex-col items-center"><div className="relative flex h-28 w-28 items-center justify-center"><div className="absolute inset-1 animate-spin rounded-full border border-transparent border-r-cyan-100/45 border-t-yellow-100/80 [animation-duration:2.6s]" /><img src="/ancient-pulls/celestial-cat.png" alt="" draggable={false} className="relative h-20 w-20 animate-[bounce_3.5s_ease-in-out_infinite] object-contain" /></div><p className="mt-5 text-sm font-black text-yellow-50/70">Checking your constellation...</p></div></main>;
   }
 
   return (
     <main className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden bg-[#02030d] px-4 py-10 text-white">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(124,58,237,0.2),transparent_34%),radial-gradient(circle_at_78%_24%,rgba(34,211,238,0.12),transparent_30%),radial-gradient(circle_at_20%_75%,rgba(250,204,21,0.07),transparent_28%),linear-gradient(180deg,#070922_0%,#030513_55%,#02030d_100%)]" />
-
-      {Array.from({ length: 18 }, (_, index) => (
-        <span
-          key={index}
-          aria-hidden="true"
-          className="pointer-events-none absolute animate-pulse rounded-full bg-yellow-100/70 shadow-[0_0_10px_rgba(254,249,195,0.65)]"
-          style={{
-            left: `${(index * 37 + 8) % 94}%`,
-            top: `${(index * 53 + 7) % 88}%`,
-            width: `${2 + (index % 3)}px`,
-            height: `${2 + (index % 3)}px`,
-            animationDelay: `${(index % 7) * 240}ms`,
-          }}
-        />
-      ))}
-
+      {Array.from({ length: 18 }, (_, index) => <span key={index} aria-hidden="true" className="pointer-events-none absolute animate-pulse rounded-full bg-yellow-100/70 shadow-[0_0_10px_rgba(254,249,195,0.65)]" style={{ left: `${(index * 37 + 8) % 94}%`, top: `${(index * 53 + 7) % 88}%`, width: `${2 + (index % 3)}px`, height: `${2 + (index % 3)}px`, animationDelay: `${(index % 7) * 240}ms` }} />)}
       <section className="relative z-10 grid w-full max-w-5xl overflow-hidden rounded-[2.5rem] border border-violet-100/15 bg-[#080a25]/90 shadow-[0_40px_140px_rgba(0,0,0,0.58)] backdrop-blur-3xl lg:grid-cols-[0.9fr_1.1fr]">
-        <div className="relative hidden min-h-[38rem] items-center justify-center overflow-hidden border-r border-white/10 lg:flex">
-          <div className="absolute h-[26rem] w-[26rem] rounded-full border border-yellow-100/15 animate-spin [animation-duration:18s]" />
-          <div className="absolute h-[20rem] w-[31rem] rounded-[50%] border border-cyan-100/10 animate-spin [animation-duration:24s] [animation-direction:reverse]" />
-          <div className="absolute h-64 w-64 rounded-full bg-yellow-200/12 blur-[70px]" />
-          <img src="/ancient-pulls/celestial-cat.png" alt="Nebu" draggable={false} className="relative z-10 w-64 object-contain animate-[bounce_4.5s_ease-in-out_infinite] drop-shadow-[0_30px_42px_rgba(0,0,0,0.5)]" />
-        </div>
-
+        <div className="relative hidden min-h-[42rem] items-center justify-center overflow-hidden border-r border-white/10 lg:flex"><div className="absolute h-[26rem] w-[26rem] animate-spin rounded-full border border-yellow-100/15 [animation-duration:18s]" /><div className="absolute h-[20rem] w-[31rem] animate-spin rounded-[50%] border border-cyan-100/10 [animation-direction:reverse] [animation-duration:24s]" /><div className="absolute h-64 w-64 rounded-full bg-yellow-200/12 blur-[70px]" /><img src="/ancient-pulls/celestial-cat.png" alt="Nebu" draggable={false} className="relative z-10 w-64 animate-[bounce_4.5s_ease-in-out_infinite] object-contain drop-shadow-[0_30px_42px_rgba(0,0,0,0.5)]" /></div>
         <div className="p-6 sm:p-9 lg:p-12">
-          <p className="text-xs font-black uppercase tracking-[0.22em] text-yellow-100/45">
-            ancientpulls · Nebu
-          </p>
-          <h1 className="mt-3 text-4xl font-black tracking-tight sm:text-5xl">
-            Return to your wishes
-          </h1>
-          <p className="mt-4 max-w-xl text-sm font-semibold leading-7 text-white/45">
-            Player and admin sessions are separate. Signing in here always returns you to the ancientpulls constellation.
-          </p>
-
-          {pendingRegistration ? (
-            <div className="mt-6 rounded-2xl border border-cyan-100/20 bg-cyan-300/[0.08] p-5">
-              <p className="text-xs font-black uppercase tracking-[0.14em] text-cyan-100/70">
-                Email confirmation still pending
-              </p>
-              <p className="mt-2 break-all text-sm font-black text-white">
-                {pendingRegistration.email}
-              </p>
-              <p className="mt-2 text-xs font-semibold leading-5 text-white/60">
-                This browser only remembers the original pending screen. If
-                you confirmed on another device, try signing in below; this
-                reminder clears automatically as soon as Supabase accepts it.
-              </p>
-              <button
-                type="button"
-                onClick={() => void handleResendVerification()}
-                disabled={resending}
-                className="mt-4 flex min-h-11 w-full items-center justify-center rounded-xl bg-cyan-100 px-4 text-sm font-black text-[#101427] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {resending ? "Sending verification..." : "Resend verification email"}
-              </button>
-              {resendMessage ? (
-                <p className="mt-3 text-xs font-bold text-cyan-50">
-                  {resendMessage}
-                </p>
-              ) : null}
-
-              <button
-                type="button"
-                onClick={() => {
-                  clearPendingRegistration();
-                  setPendingRegistration(null);
-                  setResendMessage("");
-                  setError("");
-                }}
-                disabled={resending}
-                className="mt-3 w-full text-center text-xs font-black text-white/55 underline decoration-white/25 underline-offset-4 hover:text-white"
-              >
-                I already confirmed it — hide this reminder
-              </button>
-            </div>
-          ) : null}
-
-          {error ? (
-            <div className="mt-6 rounded-2xl border border-red-200/20 bg-red-400/[0.08] px-5 py-4 text-sm font-bold leading-6 text-red-100">
-              {error}
-            </div>
-          ) : null}
-
-          <form onSubmit={handleSubmit} className="mt-7 space-y-5">
-            <label className="block">
-              <span className="text-sm font-black">Trainer email</span>
-              <input
-                type="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                autoComplete="username"
-                disabled={signingIn}
-                className="mt-2 min-h-14 w-full rounded-2xl border border-white/10 bg-white/[0.045] px-4 text-sm font-bold text-white outline-none placeholder:text-white/20 focus:border-cyan-100/30"
-                placeholder="trainer@example.com"
-              />
-            </label>
-
-            <label className="block">
-              <span className="text-sm font-black">Password</span>
-              <div className="relative mt-2">
-                <input
-                  type={showPassword ? "text" : "password"}
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                  autoComplete="current-password"
-                  disabled={signingIn}
-                  className="min-h-14 w-full rounded-2xl border border-white/10 bg-white/[0.045] px-4 pr-20 text-sm font-bold text-white outline-none placeholder:text-white/20 focus:border-cyan-100/30"
-                  placeholder="Password"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((value) => !value)}
-                  className="absolute inset-y-0 right-0 px-5 text-xs font-black uppercase tracking-[0.1em] text-white/35 hover:text-white"
-                >
-                  {showPassword ? "Hide" : "Show"}
-                </button>
-              </div>
-            </label>
-
-            <button
-              type="submit"
-              disabled={signingIn}
-              className="flex min-h-14 w-full items-center justify-center rounded-2xl bg-gradient-to-r from-yellow-200 via-cyan-100 to-violet-200 px-5 text-sm font-black text-[#111329] shadow-[0_18px_50px_rgba(103,232,249,0.12)] transition hover:brightness-105 disabled:opacity-50"
-            >
-              {signingIn ? "Nebu is opening the way..." : "Sign in to ancientpulls"}
-            </button>
-
-            <Link
-              href="/forgot-password"
-              className="flex min-h-12 w-full items-center justify-center rounded-2xl border border-yellow-100/15 bg-yellow-100/[0.045] px-5 text-sm font-black text-yellow-50/70 transition hover:border-yellow-100/30 hover:bg-yellow-100/[0.09] hover:text-yellow-50"
-            >
-              Reset forgotten password
-            </Link>
-          </form>
-
-          <div className="mt-6 flex flex-wrap items-center justify-between gap-3 text-xs font-black">
-            <Link href="/create-account" className="text-cyan-100/50 hover:text-white">
-              Create a trainer account
-            </Link>
-            <Link href="/admin/sign-in" className="text-emerald-100/40 hover:text-white">
-              ancientpulls admin sign-in
-            </Link>
-          </div>
+          <p className="text-xs font-black uppercase tracking-[0.22em] text-yellow-100/45">Ancient Pulls · Nebu</p>
+          <h1 className="mt-3 text-4xl font-black tracking-tight sm:text-5xl">Return to your wishes</h1>
+          <p className="mt-4 max-w-xl text-sm font-semibold leading-7 text-white/45">Choose a path into your constellation. Player and admin sessions remain separate.</p>
+          {pendingRegistration ? <div className="mt-6 rounded-2xl border border-cyan-100/20 bg-cyan-300/[0.08] p-5"><p className="text-xs font-black uppercase tracking-[0.14em] text-cyan-100/70">Email confirmation still pending</p><p className="mt-2 break-all text-sm font-black text-white">{pendingRegistration.email}</p><p className="mt-2 text-xs font-semibold leading-5 text-white/60">If you confirmed on another device, try signing in below. This reminder clears as soon as Supabase accepts the confirmation.</p><button type="button" onClick={() => void handleResendVerification()} disabled={resending} className="mt-4 flex min-h-11 w-full items-center justify-center rounded-xl bg-cyan-100 px-4 text-sm font-black text-[#101427] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50">{resending ? "Sending verification..." : "Resend verification email"}</button>{resendMessage ? <p className="mt-3 text-xs font-bold text-cyan-50">{resendMessage}</p> : null}<button type="button" onClick={() => { clearPendingRegistration(); setPendingRegistration(null); setResendMessage(""); setError(""); }} disabled={resending} className="mt-3 w-full text-center text-xs font-black text-white/55 underline decoration-white/25 underline-offset-4 hover:text-white">I already confirmed it — hide this reminder</button></div> : null}
+          {error ? <div role="alert" className="mt-6 rounded-2xl border border-red-200/20 bg-red-400/[0.08] px-5 py-4 text-sm font-bold leading-6 text-red-100">{error}</div> : null}
+          <div className="mt-7 grid gap-3"><button type="button" disabled={isBusy} onClick={() => void handleSocialSignIn("google")} className="flex min-h-14 w-full items-center justify-center gap-3 rounded-2xl border border-white/14 bg-white/[0.07] px-5 text-sm font-black text-white transition hover:border-yellow-100/35 hover:bg-white/[0.11] disabled:cursor-not-allowed disabled:opacity-50"><GoogleIcon />{socialProvider === "google" ? "Opening Google..." : "Continue with Google"}</button><button type="button" disabled={isBusy} onClick={() => void handleSocialSignIn("discord")} className="flex min-h-14 w-full items-center justify-center gap-3 rounded-2xl border border-indigo-200/25 bg-[#5865f2]/[0.16] px-5 text-sm font-black text-indigo-50 transition hover:border-indigo-100/50 hover:bg-[#5865f2]/[0.25] disabled:cursor-not-allowed disabled:opacity-50"><DiscordIcon />{socialProvider === "discord" ? "Opening Discord..." : "Continue with Discord"}</button></div>
+          <div className="my-7 flex items-center gap-4" aria-hidden="true"><div className="h-px flex-1 bg-white/10" /><span className="text-[11px] font-black uppercase tracking-[0.28em] text-white/35">or</span><div className="h-px flex-1 bg-white/10" /></div>
+          <form onSubmit={handleSubmit} className="space-y-5"><label className="block"><span className="text-sm font-black">Trainer email</span><input type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="username" disabled={isBusy} className="mt-2 min-h-14 w-full rounded-2xl border border-white/10 bg-white/[0.045] px-4 text-sm font-bold text-white outline-none placeholder:text-white/20 focus:border-cyan-100/30 disabled:opacity-50" placeholder="trainer@example.com" /></label><label className="block"><span className="text-sm font-black">Password</span><div className="relative mt-2"><input type={showPassword ? "text" : "password"} value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" disabled={isBusy} className="min-h-14 w-full rounded-2xl border border-white/10 bg-white/[0.045] px-4 pr-20 text-sm font-bold text-white outline-none placeholder:text-white/20 focus:border-cyan-100/30 disabled:opacity-50" placeholder="Password" /><button type="button" onClick={() => setShowPassword((value) => !value)} disabled={isBusy} className="absolute inset-y-0 right-0 px-5 text-xs font-black uppercase tracking-[0.1em] text-white/35 hover:text-white disabled:opacity-50">{showPassword ? "Hide" : "Show"}</button></div></label><button type="submit" disabled={isBusy} className="flex min-h-14 w-full items-center justify-center rounded-2xl bg-gradient-to-r from-yellow-200 via-cyan-100 to-violet-200 px-5 text-sm font-black text-[#111329] shadow-[0_18px_50px_rgba(103,232,249,0.12)] transition hover:brightness-105 disabled:opacity-50">{signingIn ? "Nebu is opening the way..." : "Sign in to Ancient Pulls"}</button><Link href="/forgot-password" className="flex min-h-11 w-full items-center justify-center text-sm font-black text-yellow-50/65 underline decoration-yellow-100/25 underline-offset-4 transition hover:text-yellow-50">Forgot password?</Link></form>
+          <div className="mt-5 flex flex-wrap items-center justify-between gap-3 text-xs font-black"><Link href="/create-account" className="text-cyan-100/60 hover:text-white">Create a trainer account</Link><Link href="/admin/sign-in" className="text-emerald-100/40 hover:text-white">Ancient Pulls admin sign-in</Link></div>
         </div>
       </section>
     </main>
@@ -409,9 +246,5 @@ function PlayerSignInContent() {
 }
 
 export default function PlayerSignInPage() {
-  return (
-    <Suspense>
-      <PlayerSignInContent />
-    </Suspense>
-  );
+  return <Suspense><PlayerSignInContent /></Suspense>;
 }
