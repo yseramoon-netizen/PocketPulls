@@ -40,8 +40,8 @@ const ADMIN_ITEMS: AdminNavItem[] = [
   },
   {
     href: "/admin/pulls",
-    label: "Pull",
-    shortLabel: "Pull",
+    label: "Wish Lab",
+    shortLabel: "Lab",
   },
   {
     href: "/admin/players",

@@ -39,6 +39,18 @@ export type ServerAdminClient = {
         user: User | null;
       }>;
 
+      updateUserById(
+        userId: string,
+        attributes: {
+          user_metadata?: Record<
+            string,
+            unknown
+          >;
+        },
+      ): AuthResult<{
+        user: User | null;
+      }>;
+
       listUsers(
         parameters?: {
           page?: number;

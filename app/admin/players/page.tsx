@@ -119,6 +119,11 @@ type ActionResponse = {
   isAdmin?: boolean;
   email?: string;
   alreadyConfirmed?: boolean;
+  startingWishBalance?: number;
+  removedCards?: number;
+  removedWishes?: number;
+  warehouseCardsReturned?: number;
+  metadataReset?: boolean;
 };
 
 function toNumber(
@@ -330,6 +335,18 @@ export default function AdminPlayersPage() {
     useState("");
 
   const [
+    resetReason,
+    setResetReason,
+  ] =
+    useState("");
+
+  const [
+    resetConfirmation,
+    setResetConfirmation,
+  ] =
+    useState("");
+
+  const [
     loading,
     setLoading,
   ] =
@@ -418,6 +435,11 @@ export default function AdminPlayersPage() {
         if (!background) {
           setDetailLoading(
             true,
+          );
+
+          setResetReason("");
+          setResetConfirmation(
+            "",
           );
         }
 
@@ -608,6 +630,14 @@ export default function AdminPlayersPage() {
 
       setSuccess(message);
 
+      if (
+        key ===
+        "reset-account"
+      ) {
+        setResetReason("");
+        setResetConfirmation("");
+      }
+
       await Promise.all([
         loadPlayer(
           selectedPlayer.user_id,
@@ -722,6 +752,13 @@ export default function AdminPlayersPage() {
         ),
       [players],
     );
+
+  const resetPhrase =
+    selectedPlayer?.email
+      ? `RESET ${selectedPlayer.email
+          .trim()
+          .toLowerCase()}`
+      : "";
 
   return (
     <main
@@ -1274,6 +1311,117 @@ export default function AdminPlayersPage() {
                     )}
                   />
                 </section>
+
+                <Panel
+                  eyebrow="Destructive account tool"
+                  title="Reset to a fresh player account"
+                  description="Keep this person's Supabase login identity while clearing their Ancient Pulls gameplay progress."
+                >
+                  <div className="mt-5 rounded-2xl border border-red-200/20 bg-red-400/[0.08] p-5">
+                    <p className="text-sm font-black text-red-50">
+                      This cannot be undone from Shaymin.
+                    </p>
+
+                    <p className="mt-2 text-sm font-semibold leading-6 text-red-50/70">
+                      Wishes, collection cards, wish history, achievements,
+                      friends, trades, shipping addresses, binder choices,
+                      onboarding and player preferences are cleared. Unshipped
+                      allocated cards are returned to warehouse stock.
+                    </p>
+
+                    <p className="mt-3 text-sm font-semibold leading-6 text-emerald-50/70">
+                      Their email, password, username, trainer code, legal
+                      consent, payment records, Shaymin admin access and private
+                      Nebu entitlement stay intact. Their wallet returns to the
+                      current new-account starting offer.
+                    </p>
+
+                    <p className="mt-3 text-xs font-bold leading-5 text-white/45">
+                      An active shipment must be finished or cancelled first.
+                      You cannot reset the account currently running this admin
+                      session.
+                    </p>
+                  </div>
+
+                  <label className="mt-5 block text-xs font-black uppercase tracking-[0.14em] text-white/50">
+                    Required audit reason
+                  </label>
+
+                  <input
+                    value={resetReason}
+                    onChange={(event) =>
+                      setResetReason(
+                        event.target.value,
+                      )
+                    }
+                    placeholder="For example: Rebuild requested by the player"
+                    className="mt-2 min-h-12 w-full rounded-xl border border-white/15 bg-black/30 px-4 font-bold text-white outline-none placeholder:text-white/25 focus:border-red-200/45"
+                  />
+
+                  <label className="mt-5 block text-xs font-black uppercase tracking-[0.14em] text-white/50">
+                    Type this exact confirmation
+                  </label>
+
+                  <code className="mt-2 block overflow-x-auto rounded-xl border border-red-200/20 bg-black/35 px-4 py-3 text-sm font-black text-red-100">
+                    {resetPhrase ||
+                      "This account has no email address"}
+                  </code>
+
+                  <input
+                    value={resetConfirmation}
+                    onChange={(event) =>
+                      setResetConfirmation(
+                        event.target.value,
+                      )
+                    }
+                    autoComplete="off"
+                    spellCheck={false}
+                    placeholder="Type the confirmation here"
+                    className="mt-3 min-h-12 w-full rounded-xl border border-red-200/20 bg-black/30 px-4 font-black text-white outline-none placeholder:text-white/25 focus:border-red-200/55"
+                  />
+
+                  <div className="mt-4 flex flex-wrap items-center gap-3">
+                    <ActionButton
+                      tone="danger"
+                      disabled={
+                        Boolean(
+                          actionKey,
+                        ) ||
+                        !resetPhrase ||
+                        resetConfirmation !==
+                          resetPhrase ||
+                        resetReason
+                          .trim()
+                          .length < 5
+                      }
+                      onClick={() =>
+                        void runAction(
+                          "reset-account",
+                          {
+                            action:
+                              "reset_account",
+                            confirmation:
+                              resetConfirmation,
+                            reason:
+                              resetReason.trim(),
+                          },
+                          `${getName(
+                            selectedPlayer,
+                          )} now has a fresh player account.`,
+                        )
+                      }
+                    >
+                      {actionKey ===
+                      "reset-account"
+                        ? "Resetting account..."
+                        : "Reset player account"}
+                    </ActionButton>
+
+                    <p className="text-xs font-bold text-white/38">
+                      The button unlocks only after both fields are valid.
+                    </p>
+                  </div>
+                </Panel>
 
                 <section
                   className="

@@ -20,7 +20,8 @@ type PlayerAction =
   | "adjust_card"
   | "set_ban"
   | "resend_confirmation"
-  | "set_admin";
+  | "set_admin"
+  | "reset_account";
 
 type ActionBody = {
   action?: unknown;
@@ -30,6 +31,7 @@ type ActionBody = {
   banned?: unknown;
   adminEnabled?: unknown;
   reason?: unknown;
+  confirmation?: unknown;
 };
 
 type PlayerAccountRow = {
@@ -171,7 +173,9 @@ function parseAction(
     value ===
       "resend_confirmation" ||
     value ===
-      "set_admin"
+      "set_admin" ||
+    value ===
+      "reset_account"
     ? value
     : null;
 }
@@ -1044,6 +1048,190 @@ export async function POST(
           targetEmail,
         alreadyConfirmed:
           false,
+      });
+    }
+
+    if (
+      action ===
+      "reset_account"
+    ) {
+      if (
+        userId === user.id
+      ) {
+        return Response.json(
+          {
+            ok: false,
+            error: {
+              code:
+                "account_reset_self_blocked",
+              message:
+                "You cannot reset the account currently running this Shaymin session.",
+            },
+          },
+          {
+            status: 409,
+          },
+        );
+      }
+
+      const target =
+        await getAuthUser(
+          admin,
+          userId,
+        );
+
+      const targetEmail =
+        normaliseEmail(
+          target.email,
+        );
+
+      if (!targetEmail) {
+        return Response.json(
+          {
+            ok: false,
+            error: {
+              code:
+                "account_reset_email_missing",
+              message:
+                "This account has no email address and cannot use the protected reset flow.",
+            },
+          },
+          {
+            status: 409,
+          },
+        );
+      }
+
+      const confirmation =
+        readString(
+          body.confirmation,
+          260,
+        );
+
+      const expected =
+        `RESET ${targetEmail}`;
+
+      if (
+        confirmation !==
+        expected
+      ) {
+        return Response.json(
+          {
+            ok: false,
+            error: {
+              code:
+                "account_reset_confirmation_mismatch",
+              message:
+                `Type ${expected} exactly to confirm this reset.`,
+            },
+          },
+          {
+            status: 400,
+          },
+        );
+      }
+
+      if (
+        reason.length < 5
+      ) {
+        return Response.json(
+          {
+            ok: false,
+            error: {
+              code:
+                "account_reset_reason_required",
+              message:
+                "Add a short audit reason before resetting this account.",
+            },
+          },
+          {
+            status: 400,
+          },
+        );
+      }
+
+      const {
+        data,
+        error,
+      } = await admin.rpc(
+        "admin_reset_player_account",
+        {
+          p_user_id:
+            userId,
+          p_admin_user_id:
+            user.id,
+          p_admin_email:
+            email,
+          p_reason:
+            reason,
+        },
+      );
+
+      if (error) {
+        throw error;
+      }
+
+      const metadata = {
+        ...(target.user_metadata || {}),
+        nebu_skin:
+          "midnight",
+        nebu_performances:
+          [],
+      };
+
+      const {
+        error:
+          metadataError,
+      } =
+        await admin.auth.admin
+          .updateUserById(
+            userId,
+            {
+              user_metadata:
+                metadata,
+            },
+          );
+
+      if (metadataError) {
+        console.warn(
+          "Fresh-account reset completed, but Nebu metadata could not be reset:",
+          metadataError,
+        );
+      }
+
+      const reset =
+        typeof data ===
+            "object" &&
+          data !== null
+          ? data as Record<
+              string,
+              unknown
+            >
+          : {};
+
+      return Response.json({
+        ok: true,
+        action,
+        email:
+          targetEmail,
+        startingWishBalance:
+          Number(
+            reset.startingWishBalance,
+          ) || 0,
+        removedCards:
+          Number(
+            reset.removedCards,
+          ) || 0,
+        removedWishes:
+          Number(
+            reset.removedWishes,
+          ) || 0,
+        warehouseCardsReturned:
+          Number(
+            reset.warehouseCardsReturned,
+          ) || 0,
+        metadataReset:
+          !metadataError,
       });
     }
 
