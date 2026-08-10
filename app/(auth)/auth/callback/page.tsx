@@ -120,7 +120,44 @@ export default function AuthCallbackPage() {
         const code =
           search.get("code");
 
-        if (tokenHash) {
+        const accessToken =
+          hash.get("access_token");
+
+        const refreshToken =
+          hash.get("refresh_token");
+
+        // Supabase can return a confirmed session in the URL hash (implicit
+        // flow), a PKCE code, or a token hash depending on the email template
+        // and project Auth settings. URL auto-detection is disabled globally so
+        // this page is the only code allowed to consume a confirmation URL.
+        if (accessToken && refreshToken) {
+          const {
+            error,
+          } =
+            await supabase.auth
+              .setSession({
+                access_token:
+                  accessToken,
+                refresh_token:
+                  refreshToken,
+              });
+
+          if (error) {
+            throw error;
+          }
+        } else if (code) {
+          const {
+            error,
+          } =
+            await supabase.auth
+              .exchangeCodeForSession(
+                code,
+              );
+
+          if (error) {
+            throw error;
+          }
+        } else if (tokenHash) {
           const {
             error,
           } =
@@ -135,18 +172,6 @@ export default function AuthCallbackPage() {
                     ),
                   ),
               });
-
-          if (error) {
-            throw error;
-          }
-        } else if (code) {
-          const {
-            error,
-          } =
-            await supabase.auth
-              .exchangeCodeForSession(
-                code,
-              );
 
           if (error) {
             throw error;
@@ -245,6 +270,13 @@ export default function AuthCallbackPage() {
           className="flex min-h-12 w-full items-center justify-center rounded-xl bg-gradient-to-r from-cyan-100 via-violet-200 to-pink-200 px-5 text-sm font-black text-[#111329]"
         >
           Return to sign in
+        </Link>
+
+        <Link
+          href="/check-email"
+          className="flex min-h-11 w-full items-center justify-center rounded-xl border border-white/15 bg-white/[0.05] px-5 text-sm font-black text-white/75 transition hover:bg-white/10 hover:text-white"
+        >
+          Send a fresh confirmation email
         </Link>
       </div>
     </AuthShell>

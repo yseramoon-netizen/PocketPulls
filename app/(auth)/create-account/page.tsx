@@ -206,7 +206,14 @@ export default function CreateAccountPage() {
     const remembered = readPendingRegistration();
     if (remembered?.email === cleanEmail) {
       setPendingRegistration(remembered);
-      await resendRememberedConfirmation(remembered);
+      setResendMessage(
+        "A confirmation email is already waiting for you. Open the newest email, or resend one from the next screen if needed.",
+      );
+      router.replace(
+        `/check-email?email=${encodeURIComponent(
+          remembered.email,
+        )}&next=${encodeURIComponent(remembered.nextPath)}`,
+      );
       return;
     }
 
