@@ -217,6 +217,8 @@ export default function AncientCatPullScene({
     "--sky-star-opacity": String(0.55 - heatLevel * 0.38),
     "--sun-halo-opacity": String(0.42 + heatLevel * 0.42),
     "--sun-ray-opacity": String(0.18 + heatLevel * 0.42),
+    "--orbit-scale": String(0.76 + heatLevel * 0.74),
+    "--orbit-energy": String(0.3 + heatLevel * 0.58),
     "--mount-brightness": String(0.88 + heatLevel * 0.22),
     "--mount-saturation": String(0.82 + heatLevel * 0.48),
     "--sand-gold": `${Math.round(88 - heatLevel * 30)}%`,
@@ -259,28 +261,10 @@ export default function AncientCatPullScene({
         <div className={styles.sun}>
           <span className={styles.sunCore} />
           <span className={styles.sunHalo} />
-          <span
-            key={`orbit-system-${activeTier}`}
-            className={styles.sunOrbitSystem}
-          >
+          <span className={styles.sunOrbitSystem}>
             <i className={`${styles.orbitRing} ${styles.orbitRingOne}`} />
             <i className={`${styles.orbitRing} ${styles.orbitRingTwo}`} />
             <i className={`${styles.orbitRing} ${styles.orbitRingThree}`} />
-            <i className={`${styles.orbitRing} ${styles.orbitRingFour}`} />
-            <i className={`${styles.orbitRing} ${styles.orbitRingFive}`} />
-            <i className={styles.orbitSpokes} />
-            <i className={styles.orbitConstellation} />
-            <i className={styles.orbitGlyphs}>
-              <b>✦</b>
-              <b>◇</b>
-              <b>☥</b>
-              <b>✦</b>
-              <b>◇</b>
-              <b>☥</b>
-              <b>✦</b>
-              <b>◇</b>
-            </i>
-            <i className={styles.orbitCrown} />
           </span>
         </div>
 
