@@ -113,7 +113,11 @@ export default function LeaderboardPage() {
   }, []);
 
   useEffect(() => {
-    void loadLeaderboard();
+    const frame = window.requestAnimationFrame(() => {
+      void loadLeaderboard();
+    });
+
+    return () => window.cancelAnimationFrame(frame);
   }, [loadLeaderboard]);
 
   const podium = players.slice(0, 3);
@@ -296,7 +300,7 @@ function PodiumCard({
         : "lg:order-3";
 
   const accents = {
-    1: "border-yellow-100/25 bg-yellow-200/[0.07]",
+    1: "border-yellow-100/70 bg-gradient-to-b from-yellow-200/[0.16] via-amber-300/[0.07] to-[#090b27]/90 ring-2 ring-yellow-200/35 shadow-[inset_0_0_0_1px_rgba(255,248,197,0.22),0_0_45px_rgba(250,204,21,0.2),0_30px_90px_rgba(0,0,0,0.38)]",
     2: "border-cyan-100/20 bg-cyan-200/[0.055]",
     3: "border-pink-100/18 bg-pink-200/[0.045]",
   };
@@ -307,6 +311,13 @@ function PodiumCard({
         accents[placement as 1 | 2 | 3]
       } p-6 text-center`}
     >
+      {placement === 1 ? (
+        <>
+          <div className="pointer-events-none absolute inset-2 rounded-[1.55rem] border border-yellow-100/18" />
+          <div className="pointer-events-none absolute inset-x-10 top-0 h-px bg-gradient-to-r from-transparent via-yellow-100 to-transparent shadow-[0_0_14px_rgba(253,230,138,0.9)]" />
+        </>
+      ) : null}
+
       <div className="mx-auto grid h-16 w-16 place-items-center rounded-2xl border border-white/10 bg-white/[0.05] text-3xl font-black text-white">
         {placement === 1
           ? "♛"
@@ -330,6 +341,12 @@ function PodiumCard({
       <p className="mt-4 text-[0.6rem] font-black uppercase tracking-[0.15em] text-white/28">
         Rank #{placement}
       </p>
+
+      {placement === 1 ? (
+        <p className="mx-auto mt-2 w-fit rounded-full border border-yellow-100/40 bg-yellow-200/12 px-4 py-1 text-[0.62rem] font-black uppercase tracking-[0.22em] text-yellow-50 shadow-[0_0_18px_rgba(250,204,21,0.16)]">
+          Pharaoh
+        </p>
+      ) : null}
 
       <h2 className="mt-2 truncate text-xl font-black text-white">
         {player.displayName}
@@ -358,7 +375,9 @@ function LeaderboardTableRow({
   return (
     <tr
       className={`border-b border-white/[0.055] text-sm ${
-        player.isCurrentUser
+        player.rank === 1
+          ? "border-y border-yellow-100/30 bg-yellow-200/[0.07] shadow-[inset_0_1px_0_rgba(253,230,138,0.12),inset_0_-1px_0_rgba(253,230,138,0.12)]"
+          : player.isCurrentUser
           ? "bg-violet-300/[0.08]"
           : "hover:bg-white/[0.025]"
       }`}
@@ -388,6 +407,11 @@ function LeaderboardTableRow({
           <div className="min-w-0">
             <p className="truncate font-black text-white">
               {player.displayName}
+              {player.rank === 1 ? (
+                <span className="ml-2 rounded-full border border-yellow-100/30 bg-yellow-200/10 px-2 py-0.5 text-[0.52rem] uppercase tracking-[0.12em] text-yellow-50">
+                  Pharaoh
+                </span>
+              ) : null}
               {player.isCurrentUser ? (
                 <span className="ml-2 text-[0.55rem] uppercase tracking-[0.1em] text-yellow-100/50">
                   You

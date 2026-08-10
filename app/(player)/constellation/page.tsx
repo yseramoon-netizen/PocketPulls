@@ -2067,7 +2067,7 @@ export default function ConstellationPage() {
                 type="button"
                 onClick={() => router.push(`/friends/${encodeURIComponent(friend.userId)}`)}
                 aria-label={`Open ${friend.displayName}'s trainer profile`}
-                className="group absolute z-40 flex h-10 w-10 items-center justify-center rounded-full border border-cyan-100/28 bg-[#090b27]/90 shadow-[0_0_28px_rgba(103,232,249,0.38)] transition duration-200 hover:scale-125 hover:border-yellow-100/45 hover:shadow-[0_0_36px_rgba(250,204,21,0.42)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-100"
+                className="group absolute z-40 flex h-12 w-12 items-center justify-center rounded-full border border-cyan-100/28 bg-[#090b27]/90 shadow-[0_0_28px_rgba(103,232,249,0.38)] transition-[border-color,background-color,box-shadow] duration-200 hover:border-yellow-100/45 hover:bg-[#10133a]/95 hover:shadow-[0_0_36px_rgba(250,204,21,0.42)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-100"
                 style={{
                   left: 0,
                   top: 0,
@@ -2075,19 +2075,23 @@ export default function ConstellationPage() {
                   animation: `friendStarIn 700ms ${friend.delay}ms ease-out both`,
                 }}
               >
-                <span className="pointer-events-none absolute -inset-2 rounded-full bg-cyan-200/10 blur-md" />
-                <span className="pointer-events-none absolute h-7 w-7 rounded-full border border-cyan-50/45 bg-cyan-100/18 shadow-[0_0_18px_rgba(103,232,249,0.72)]" />
-                {friend.avatarUrl ? (
-                  <img
-                    src={friend.avatarUrl}
-                    alt=""
-                    className="relative z-10 h-5 w-5 rounded-full border border-white/30 object-cover"
-                  />
-                ) : (
-                  <span className="relative z-10 text-[0.58rem] font-black text-white">
-                    {friend.displayName.slice(0, 1).toUpperCase()}
-                  </span>
-                )}
+                <span className="pointer-events-none absolute inset-0 transition-transform duration-200 group-hover:scale-110">
+                  <span className="absolute -inset-2 rounded-full bg-cyan-200/10 blur-md" />
+                  <span className="absolute left-1/2 top-1/2 h-8 w-8 -translate-x-1/2 -translate-y-1/2 rounded-full border border-cyan-50/45 bg-cyan-100/18 shadow-[0_0_18px_rgba(103,232,249,0.72)]" />
+                </span>
+                <span className="relative z-10 flex h-7 w-7 items-center justify-center overflow-hidden rounded-full border border-white/30 bg-[#11143b] transition-transform duration-200 group-hover:scale-110">
+                  {friend.avatarUrl ? (
+                    <img
+                      src={friend.avatarUrl}
+                      alt=""
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <span className="text-[0.62rem] font-black text-white">
+                      {friend.displayName.slice(0, 1).toUpperCase()}
+                    </span>
+                  )}
+                </span>
                 <span className="pointer-events-none absolute left-1/2 top-full mt-2 hidden -translate-x-1/2 whitespace-nowrap rounded-full border border-white/10 bg-[#07091f]/95 px-2.5 py-1 text-[0.58rem] font-black text-white/80 shadow-xl group-hover:block group-focus-visible:block">
                   {friend.displayName}
                 </span>

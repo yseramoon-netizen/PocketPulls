@@ -444,6 +444,51 @@
   font-weight: 850;
 }
 
+.vaultDailyTrack {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(3rem, 1fr));
+  gap: 0.42rem;
+  margin-top: 0.9rem;
+  overflow-x: auto;
+  padding: 0.15rem 0 0.25rem;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(253, 230, 138, 0.28) transparent;
+}
+
+.vaultDay {
+  display: grid;
+  min-width: 3rem;
+  place-items: center;
+  gap: 0.1rem;
+  border: 1px solid rgba(253, 230, 138, 0.15);
+  border-radius: 0.8rem;
+  background: linear-gradient(180deg, rgba(253, 230, 138, 0.09), rgba(255, 255, 255, 0.025));
+  padding: 0.45rem 0.25rem;
+}
+
+.vaultDay small {
+  color: rgba(255, 255, 255, 0.38);
+  font-size: 0.5rem;
+  font-style: normal;
+  font-weight: 900;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.vaultDay strong {
+  color: #fde68a;
+  font-size: 1rem;
+  line-height: 1;
+  text-shadow: 0 0 12px rgba(250, 204, 21, 0.5);
+}
+
+.vaultDay em {
+  color: rgba(254, 243, 199, 0.66);
+  font-size: 0.55rem;
+  font-style: normal;
+  font-weight: 950;
+}
+
 .vaultBenefits li {
   display: inline-flex;
   align-items: center;
@@ -505,27 +550,21 @@
   filter: brightness(1.06);
 }
 
+.vaultButton:disabled {
+  border-color: rgba(253, 230, 138, 0.14);
+  background: linear-gradient(180deg, rgba(255, 241, 168, 0.25), rgba(231, 184, 36, 0.13));
+  color: rgba(255, 248, 197, 0.52);
+  cursor: not-allowed;
+  filter: saturate(0.55);
+  transform: none;
+}
+
 .vaultFinePrint {
   margin: 0.55rem 0 0;
   color: rgba(255, 255, 255, 0.3);
   font-size: 0.66rem;
   font-weight: 700;
   line-height: 1.45;
-}
-
-.vaultNotice {
-  position: relative;
-  z-index: 1;
-  grid-column: 1 / -1;
-  margin: 0;
-  border: 1px solid rgba(248, 113, 113, 0.18);
-  border-radius: 0.9rem;
-  background: rgba(248, 113, 113, 0.08);
-  padding: 0.75rem 0.9rem;
-  color: #fee2e2;
-  font-size: 0.8rem;
-  font-weight: 850;
-  line-height: 1.5;
 }
 
 .loadingCard {

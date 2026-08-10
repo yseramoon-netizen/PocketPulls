@@ -229,7 +229,9 @@ export default function TrainerHqPage() {
   }, []);
 
   useEffect(() => {
-    void loadHq();
+    const frame = window.requestAnimationFrame(() => {
+      void loadHq();
+    });
 
     const refresh = () => void loadHq(true);
 
@@ -239,6 +241,7 @@ export default function TrainerHqPage() {
     });
 
     return () => {
+      window.cancelAnimationFrame(frame);
       window.removeEventListener("focus", refresh);
       REFRESH_EVENTS.forEach((eventName) => {
         window.removeEventListener(eventName, refresh);
@@ -406,7 +409,7 @@ export default function TrainerHqPage() {
           ["/wishes", "✦", "Make a wish", "Reveal your next card"],
           ["/collection", "▣", "Open Binder", "Browse every owned card"],
           ["/friends", "♢", "Trainer circle", "Friends and requests"],
-          ["/shipping", "▰", "Shipping", "Cards and delivery status"],
+          ["/shipping", "S", "Shipping", "Cards and delivery status"],
         ].map(([href, glyph, title, detail]) => (
           <Link
             key={href}
@@ -547,7 +550,7 @@ function ActivityPanel({ data }: { data: TrainerHqData }) {
       href: "/wishes/shop",
       glyph: "✦",
       title: "Nebu’s Vault of Stars",
-      detail: "Monthly pass and wish recharges",
+      detail: "One daily login star after launch",
       ready: false,
     },
     {
@@ -570,7 +573,7 @@ function ActivityPanel({ data }: { data: TrainerHqData }) {
     },
     {
       href: "/shipping",
-      glyph: "▰",
+      glyph: "S",
       title: "Shipping",
       detail: shipmentLabel(data.shipmentStatus),
       ready: data.shipmentStatus === "shipped",

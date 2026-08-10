@@ -150,7 +150,6 @@ export default function WishShopPage() {
   const [successMessage, setSuccessMessage] = useState("");
   const [selectedPackageId, setSelectedPackageId] = useState("constellation");
   const [starBursts, setStarBursts] = useState(0);
-  const [vaultNoticeOpen, setVaultNoticeOpen] = useState(false);
 
   const triggerTwinkle = useCallback(() => {
     setStarBursts((current) => current + 1);
@@ -207,18 +206,22 @@ export default function WishShopPage() {
   }, [loadStore, triggerTwinkle]);
 
   useEffect(() => {
-    void loadStore();
+    const frame = window.requestAnimationFrame(() => {
+      void loadStore();
 
-    const params = new URLSearchParams(window.location.search);
-    const purchase = params.get("purchase");
-    const sessionId = params.get("session_id");
+      const params = new URLSearchParams(window.location.search);
+      const purchase = params.get("purchase");
+      const sessionId = params.get("session_id");
 
-    if (purchase === "success" && sessionId) {
-      setSuccessMessage("Nebu is counting your new wishes...");
-      void checkCompletedPurchase(sessionId);
-    } else if (purchase === "cancelled") {
-      setErrorMessage("Checkout was cancelled. No wishes were charged.");
-    }
+      if (purchase === "success" && sessionId) {
+        setSuccessMessage("Nebu is counting your new wishes...");
+        void checkCompletedPurchase(sessionId);
+      } else if (purchase === "cancelled") {
+        setErrorMessage("Checkout was cancelled. No wishes were charged.");
+      }
+    });
+
+    return () => window.cancelAnimationFrame(frame);
   }, [checkCompletedPurchase, loadStore]);
 
   const selectedPackage = useMemo(
@@ -387,17 +390,27 @@ export default function WishShopPage() {
           </div>
 
           <div className={styles.vaultCopy}>
-            <p className={styles.vaultEyebrow}>Monthly constellation pass</p>
+            <p className={styles.vaultEyebrow}>Daily login constellation pass</p>
             <h2 id="vault-pass-title">Nebu’s Vault of Stars</h2>
             <p className={styles.vaultBody}>
-              A monthly home for extra wishes, Nebu rewards and surprises from
-              across the constellation.
+              While your pass is active, Nebu grants one free wish star on the
+              first day you log in each day. Return tomorrow to receive the next.
             </p>
 
+            <div className={styles.vaultDailyTrack} aria-label="One wish star for each day you log in">
+              {Array.from({ length: 7 }, (_, index) => (
+                <span key={index} className={styles.vaultDay}>
+                  <small>Day {index + 1}</small>
+                  <strong aria-hidden="true">★</strong>
+                  <em>+1</em>
+                </span>
+              ))}
+            </div>
+
             <ul className={styles.vaultBenefits}>
-              <li><span aria-hidden="true">✦</span> A fresh drop of stars every month</li>
-              <li><span aria-hidden="true">✦</span> Vault-exclusive Nebu rewards</li>
-              <li><span aria-hidden="true">✦</span> Constellation member surprises</li>
+              <li><span aria-hidden="true">✦</span> One free wish star per login day</li>
+              <li><span aria-hidden="true">✦</span> Awarded on your first login that day</li>
+              <li><span aria-hidden="true">✦</span> Missed days do not stack or return later</li>
             </ul>
           </div>
 
@@ -409,21 +422,15 @@ export default function WishShopPage() {
             <button
               type="button"
               className={styles.vaultButton}
-              onClick={() => setVaultNoticeOpen(true)}
-              aria-describedby={vaultNoticeOpen ? "vault-order-notice" : undefined}
+              disabled
             >
-              Join Nebu’s Vault
+              Available at launch
             </button>
             <p className={styles.vaultFinePrint}>
-              Full membership details will be confirmed before checkout opens.
+              Preview only. Membership and daily claims remain completely
+              unavailable until Ancient Pulls launches.
             </p>
           </div>
-
-          {vaultNoticeOpen ? (
-            <p id="vault-order-notice" className={styles.vaultNotice} role="status">
-              {ORDERS_NOT_READY_MESSAGE}
-            </p>
-          ) : null}
         </section>
 
         {loading ? (
