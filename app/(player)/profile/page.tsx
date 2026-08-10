@@ -237,6 +237,8 @@ export default function ProfilePage() {
     useState<string | null>(null);
   const [errorMessage, setErrorMessage] =
     useState<string | null>(null);
+  const [cosmicIssueNumber, setCosmicIssueNumber] =
+    useState<number | null>(null);
 
   const loadProfile = useCallback(async () => {
     setLoading(true);
@@ -302,8 +304,18 @@ export default function ProfilePage() {
       profileOwnerRef.current =
         activeUser.id;
 
+      const cosmicResult = await supabase
+        .from("cosmic_nebu_ownerships")
+        .select("issue_number")
+        .eq("user_id", activeUser.id)
+        .maybeSingle();
+      const cosmicIssue = cosmicResult.error
+        ? 0
+        : toWholeNumber(cosmicResult.data?.issue_number);
+
       setProfile(parsed);
       setForm(parsed);
+      setCosmicIssueNumber(cosmicIssue > 0 ? cosmicIssue : null);
     } catch (error: unknown) {
       console.error("Profile error:", error);
       setErrorMessage(
@@ -674,6 +686,12 @@ export default function ProfilePage() {
                   <p className="mt-1 text-sm font-bold text-violet-100/38">
                     @{form.username || "trainer"}
                   </p>
+
+                  {cosmicIssueNumber ? (
+                    <p className="mt-3 inline-flex rounded-full border border-cyan-100/30 bg-cyan-200/[0.08] px-3 py-1.5 text-[0.58rem] font-black uppercase tracking-[0.12em] text-cyan-50 shadow-[0_0_20px_rgba(34,211,238,0.12)]">
+                      ✦ Cosmic Nebu #{String(cosmicIssueNumber).padStart(6, "0")}
+                    </p>
+                  ) : null}
 
                   {trainerCode ? (
                     <button

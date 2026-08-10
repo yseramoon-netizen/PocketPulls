@@ -51,6 +51,7 @@ type LeaderboardPlayer = {
   lifetimeWishes: number;
   score: number;
   isCurrentUser: boolean;
+  cosmicIssueNumber: number | null;
 };
 
 function parseRows(value: unknown): LeaderboardPlayer[] {
@@ -73,6 +74,7 @@ function parseRows(value: unknown): LeaderboardPlayer[] {
     ),
     score: toWholeNumber(row.score),
     isCurrentUser: row.is_current_user === true,
+    cosmicIssueNumber: null,
   }));
 }
 
@@ -99,7 +101,23 @@ export default function LeaderboardPage() {
         throw error;
       }
 
-      setPlayers(parseRows(data));
+      const parsed = parseRows(data);
+      const { data: cosmicHolders, error: cosmicError } = await supabase.rpc(
+        "get_public_cosmic_nebu_holders",
+        { p_user_ids: parsed.map((player) => player.userId).filter(Boolean) },
+      );
+      const cosmicByUser = new Map<string, number>();
+      if (!cosmicError && Array.isArray(cosmicHolders)) {
+        for (const holder of cosmicHolders as Array<{ user_id?: unknown; issue_number?: unknown }>) {
+          const userId = typeof holder.user_id === "string" ? holder.user_id : "";
+          const issue = toWholeNumber(holder.issue_number);
+          if (userId && issue > 0) cosmicByUser.set(userId, issue);
+        }
+      }
+      setPlayers(parsed.map((player) => ({
+        ...player,
+        cosmicIssueNumber: cosmicByUser.get(player.userId) ?? null,
+      })));
     } catch (error: unknown) {
       console.error("Leaderboard error:", error);
       setErrorMessage(
@@ -383,6 +401,9 @@ function PharaohThrone({
           <p className={styles.eyebrow}>The throne beneath the stars</p>
           <h2 className={styles.pharaohName}>{player.displayName}</h2>
           <p className={styles.username}>@{player.username}</p>
+          {player.cosmicIssueNumber ? (
+            <p className={styles.cosmicRecord}>✦ COSMIC NEBU #{String(player.cosmicIssueNumber).padStart(6, "0")}</p>
+          ) : null}
 
           <p className={styles.proclamation}>
             Crowned above every trainer. Each wish, discovery and card
@@ -552,6 +573,11 @@ function LeaderboardTableRow({
               {player.rank === 1 ? (
                 <span className="ml-2 rounded-full border border-yellow-100/30 bg-yellow-200/10 px-2 py-0.5 text-[0.52rem] uppercase tracking-[0.12em] text-yellow-50">
                   Pharaoh
+                </span>
+              ) : null}
+              {player.cosmicIssueNumber ? (
+                <span className="ml-2 rounded-full border border-cyan-100/30 bg-cyan-200/10 px-2 py-0.5 text-[0.52rem] uppercase tracking-[0.12em] text-cyan-50">
+                  ✦ Cosmic #{String(player.cosmicIssueNumber).padStart(6, "0")}
                 </span>
               ) : null}
               {player.isCurrentUser ? (

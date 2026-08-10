@@ -29,6 +29,13 @@ type NebuWardrobeProps = {
 };
 
 function skinUnlockCopy(skin: NebuSkin, unlocked: boolean, loading: boolean) {
+  if (skin.cosmicOwnershipRequired) {
+    if (loading) return "Reading the oldest stars...";
+    return unlocked
+      ? "Permanent legendary form · numbered discovery"
+      : "Undiscovered · independent 1 in 100,000 chance per wish";
+  }
+
   if (skin.exclusiveOwner) {
     return `${skin.label} admin exclusive · this account only`;
   }
@@ -109,7 +116,7 @@ export default function NebuWardrobe({
     const currentSkin = getNebuSkin(selected);
 
     if (
-      currentSkin.exclusiveOwner &&
+      (currentSkin.exclusiveOwner || currentSkin.cosmicOwnershipRequired) &&
       !exclusiveSkinKeys.has(currentSkin.key)
     ) {
       const frame = window.requestAnimationFrame(() => {
@@ -123,13 +130,15 @@ export default function NebuWardrobe({
 
   const selectSkin = async (skin: NebuSkin) => {
     const unlocked =
-      skin.exclusiveOwner
+      skin.exclusiveOwner || skin.cosmicOwnershipRequired
         ? exclusiveSkinKeys.has(skin.key)
         : !skin.achievementKey || unlockedKeys.has(skin.achievementKey);
 
     if (!unlocked || saving) {
       setMessage(
-        skin.exclusiveOwner
+        skin.cosmicOwnershipRequired
+          ? "Cosmic Nebu can only be equipped by the trainer who discovered this numbered legendary form."
+          : skin.exclusiveOwner
           ? `${skin.label} belongs only to the ${skin.label} administrator account.`
           : skin.achievementTitle
           ? `Complete “${skin.achievementTitle}” to unlock ${skin.label}.`
@@ -214,7 +223,7 @@ export default function NebuWardrobe({
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
               {visibleSkins.map((skin) => {
                 const unlocked =
-                  skin.exclusiveOwner
+                  skin.exclusiveOwner || skin.cosmicOwnershipRequired
                     ? exclusiveSkinKeys.has(skin.key)
                     : !skin.achievementKey || unlockedKeys.has(skin.achievementKey);
                 const active = selected === skin.key;

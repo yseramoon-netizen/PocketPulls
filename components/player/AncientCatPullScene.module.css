@@ -228,6 +228,105 @@
   width: 100%;
 }
 
+.cosmicFlightTrail {
+  position: absolute;
+  inset: 28% 54% 28% -48%;
+  z-index: -1;
+  filter: blur(3px);
+  opacity: 0;
+  transform-origin: right center;
+  animation: cosmicTrailBreath var(--walk-duration) 180ms ease-out both;
+}
+
+.cosmicFlightTrail::before,
+.cosmicFlightTrail::after,
+.cosmicFlightTrail span {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  height: 5px;
+  border-radius: 999px;
+  content: "";
+  transform: translateY(-50%);
+  background: linear-gradient(90deg, transparent, #8b5cf6 35%, #22d3ee 72%, var(--active-accent));
+  box-shadow: 0 0 18px var(--active-glow);
+}
+
+.cosmicFlightTrail::before { width: 100%; }
+.cosmicFlightTrail::after { width: 82%; transform: translateY(-50%) rotate(7deg); }
+.cosmicFlightTrail span:nth-child(1) { width: 76%; transform: translateY(-50%) rotate(-9deg); }
+.cosmicFlightTrail span:nth-child(2) { width: 58%; transform: translateY(-50%) rotate(15deg); }
+.cosmicFlightTrail span:nth-child(3) { width: 66%; transform: translateY(-50%) rotate(-16deg); }
+
+.scene[data-cosmic="true"] .pyramidWrap {
+  filter:
+    brightness(calc(var(--pyramid-brightness) * 0.72))
+    saturate(1.45)
+    hue-rotate(20deg)
+    drop-shadow(0 0 28px rgba(58, 104, 255, 0.36))
+    drop-shadow(22px 26px 24px rgba(10, 5, 31, 0.62));
+}
+
+.scene[data-cosmic="true"] .pyramidWrap::before {
+  position: absolute;
+  z-index: 2;
+  inset: 21% 19% 11% 25%;
+  content: "";
+  opacity: 0.72;
+  background:
+    linear-gradient(61deg, transparent 47%, #22d3ee 49% 50%, transparent 52%),
+    linear-gradient(122deg, transparent 58%, #8b5cf6 60% 61%, transparent 63%);
+  mix-blend-mode: screen;
+  filter: drop-shadow(0 0 8px #2563eb);
+  animation: cosmicPyramidPulse 2.4s ease-in-out infinite alternate;
+}
+
+.scene[data-cosmic="true"] .walkStage {
+  width: min(31vw, 390px);
+  filter:
+    drop-shadow(0 0 11px rgba(34, 211, 238, 0.76))
+    drop-shadow(0 0 28px rgba(124, 58, 237, 0.48));
+  animation:
+    cosmicNebuFlight var(--walk-duration) 180ms cubic-bezier(0.2, 0.74, 0.21, 1) both,
+    entranceClears 260ms var(--escalation-start) ease-in both;
+}
+
+.scene[data-cosmic="true"] .reactionStage {
+  width: min(32vw, 410px);
+  filter:
+    drop-shadow(0 0 12px rgba(34, 211, 238, 0.65))
+    drop-shadow(0 0 34px var(--active-glow));
+}
+
+.scene[data-cosmic="true"] .reactionStage::before,
+.scene[data-cosmic="true"] .reactionStage::after {
+  position: absolute;
+  z-index: -1;
+  inset: 14%;
+  border-radius: 50%;
+  content: "";
+  opacity: 0.58;
+  background: conic-gradient(from 0deg, transparent, var(--active-accent), transparent 28%, #8b5cf6, transparent 62%, #22d3ee, transparent);
+  filter: blur(14px);
+  animation: cosmicReactionAura 4.8s linear infinite;
+}
+
+.scene[data-cosmic="true"] .reactionStage::after {
+  inset: 25%;
+  animation-direction: reverse;
+  animation-duration: 3.2s;
+}
+
+.scene[data-cosmic="true"][data-tier="1"] .reactionStage[data-visible="true"] { animation: cosmicReactionOne 2.2s ease-in-out both; }
+.scene[data-cosmic="true"][data-tier="2"] .reactionStage[data-visible="true"] { animation: cosmicReactionTwo 2.2s ease-in-out both; }
+.scene[data-cosmic="true"][data-tier="3"] .reactionStage[data-visible="true"] { animation: cosmicReactionThree 2.4s ease-out both; }
+.scene[data-cosmic="true"][data-tier="4"] .reactionStage[data-visible="true"] { animation: cosmicReactionFour 2.5s ease-in-out both; }
+.scene[data-cosmic="true"][data-tier="5"] .reactionStage[data-visible="true"] { animation: cosmicReactionFive 2.4s ease-out both; }
+.scene[data-cosmic="true"][data-tier="6"] .reactionStage[data-visible="true"] { animation: cosmicReactionSix 2.8s ease-in-out both; }
+.scene[data-cosmic="true"][data-tier="7"] .reactionStage[data-visible="true"] { animation: cosmicReactionSeven 2.5s ease-out both; }
+.scene[data-cosmic="true"][data-tier="8"] .reactionStage[data-visible="true"] { animation: cosmicReactionEight 2.7s cubic-bezier(0.16, 0.86, 0.24, 1.1) both; }
+.scene[data-cosmic="true"][data-tier="9"] .reactionStage[data-visible="true"] { animation: cosmicReactionNine 3s cubic-bezier(0.16, 0.86, 0.24, 1.1) both; }
+
 .reactionStage {
   z-index: 11;
   left: 45%;
@@ -509,6 +608,38 @@
   }
 }
 
+@keyframes cosmicNebuFlight {
+  0%, 7% { opacity: 0; transform: translate3d(-18%, 18%, 0) scale(0.34) rotate(-8deg); }
+  15% { opacity: 1; transform: translate3d(1%, 0, 0) scale(0.62) rotate(-2deg); }
+  34% { transform: translate3d(42%, -70%, 0) scale(0.82) rotate(-18deg); }
+  51% { transform: translate3d(115%, -118%, 0) scale(1.03) rotate(13deg); }
+  67% { transform: translate3d(168%, -42%, 0) scale(0.9) rotate(25deg); }
+  82% { transform: translate3d(113%, 10%, 0) scale(1.06) rotate(-9deg); }
+  100% { opacity: 1; transform: translate3d(var(--walk-distance), 0, 0) scale(1) rotate(0); }
+}
+
+@keyframes cosmicTrailBreath {
+  0%, 10% { opacity: 0; transform: scaleX(0.1); }
+  32%, 78% { opacity: 0.82; transform: scaleX(1); }
+  100% { opacity: 0; transform: scaleX(0.25); }
+}
+
+@keyframes cosmicPyramidPulse {
+  from { opacity: 0.34; filter: drop-shadow(0 0 5px #2563eb); }
+  to { opacity: 0.84; filter: drop-shadow(0 0 13px #22d3ee); }
+}
+
+@keyframes cosmicReactionAura { to { transform: rotate(360deg); } }
+@keyframes cosmicReactionOne { 0% { opacity: 0; transform: translateY(12px) scale(.88); } 58% { opacity: 1; transform: translateY(-3px) scale(1.03); } 100% { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes cosmicReactionTwo { 0% { opacity: 0; transform: translateY(16px) scale(.8) rotate(-24deg); } 68% { opacity: 1; transform: translateY(-9px) scale(1.05) rotate(8deg); } 100% { opacity: 1; transform: translateY(0) scale(1) rotate(0); } }
+@keyframes cosmicReactionThree { 0% { opacity: 0; transform: scale(.7); } 28% { opacity: 1; transform: scale(1.1); } 43% { transform: scale(.97); } 100% { opacity: 1; transform: scale(1); } }
+@keyframes cosmicReactionFour { 0% { opacity: 0; transform: translateY(30px) scale(.78); } 60% { opacity: 1; transform: translateY(-16px) scale(1.06); } 100% { opacity: 1; transform: translateY(-7px) scale(1); } }
+@keyframes cosmicReactionFive { 0% { opacity: 0; filter: brightness(.5); transform: scale(.82); } 25% { opacity: 1; filter: brightness(1.75); transform: scale(1.1); } 48% { transform: translateX(-5px) rotate(-2deg); } 64% { transform: translateX(5px) rotate(2deg); } 100% { opacity: 1; filter: brightness(1); transform: none; } }
+@keyframes cosmicReactionSix { 0% { opacity: 0; transform: translateX(-20px) scale(.8); } 46% { opacity: 1; transform: translateX(7px) scale(1.06) rotate(3deg); } 100% { opacity: 1; transform: none; } }
+@keyframes cosmicReactionSeven { 0% { opacity: 0; filter: blur(5px); transform: scale(.68); } 36% { opacity: 1; filter: blur(0); transform: scale(1.12); } 55% { transform: scale(.96); } 100% { opacity: 1; transform: scale(1); } }
+@keyframes cosmicReactionEight { 0% { opacity: 0; transform: translateY(25px) scale(.64) rotate(-8deg); } 52% { opacity: 1; transform: translateY(-8px) scale(1.08) rotate(2deg); } 100% { opacity: 1; transform: none; } }
+@keyframes cosmicReactionNine { 0% { opacity: 0; filter: brightness(.35) blur(7px); transform: translateY(30px) scale(.52); } 35% { opacity: 1; filter: brightness(2) blur(0); transform: translateY(-15px) scale(1.15); } 62% { transform: translateY(-9px) scale(1); } 100% { opacity: 1; filter: brightness(1.12); transform: translateY(-12px) scale(1.04); } }
+
 @keyframes doorwayDust {
   0%,
   12% {
@@ -692,6 +823,16 @@
     width: min(62vw, 280px);
   }
 
+  .scene[data-cosmic="true"] .walkStage {
+    left: 12%;
+    width: min(74vw, 330px);
+  }
+
+  .scene[data-cosmic="true"] .reactionStage {
+    left: 41%;
+    width: min(70vw, 320px);
+  }
+
   .reactionStage {
     bottom: 8%;
     left: 48%;
@@ -763,7 +904,16 @@
   .sunRayOne,
   .sunRayTwo,
   .blackHoleRing,
-  .blackHoleRingOuter {
+  .blackHoleRingOuter,
+  .cosmicFlightTrail,
+  .scene[data-cosmic="true"] .pyramidWrap::before,
+  .scene[data-cosmic="true"] .reactionStage::before,
+  .scene[data-cosmic="true"] .reactionStage::after {
     animation: none;
+  }
+
+  .scene[data-cosmic="true"] .walkStage {
+    animation: entranceClears 1ms var(--escalation-start) linear both;
+    transform: translate3d(var(--walk-distance), 0, 0);
   }
 }

@@ -19,9 +19,9 @@
   top: 0;
   left: 0;
   display: block;
-  width: 400%;
+  width: calc(var(--nebu-sheet-columns, 4) * 100%);
   max-width: none;
-  height: 400%;
+  height: calc(var(--nebu-sheet-rows, 4) * 100%);
   object-fit: fill;
   pointer-events: none;
   user-select: none;
@@ -33,8 +33,8 @@
 .staticSheet {
   transform:
     translate3d(
-      calc(var(--nebu-frame-column) * -25%),
-      calc(var(--nebu-frame-row) * -25%),
+      var(--nebu-frame-x, 0%),
+      var(--nebu-frame-y, 0%),
       0
     );
 }

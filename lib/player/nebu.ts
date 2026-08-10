@@ -7,7 +7,8 @@ export type NebuSkinKey =
   | "royal"
   | "pearl"
   | "sherry"
-  | "bubbles";
+  | "bubbles"
+  | "cosmic_nebu";
 
 export type NebuExclusiveOwner = "sherry" | "bubbles";
 
@@ -15,6 +16,10 @@ export type NebuHeatAssets = {
   portrait: string;
   walkSheet: string;
   reactionSheet: string;
+  walkColumns?: number;
+  walkRows?: number;
+  reactionColumns?: number;
+  reactionRows?: number;
 };
 
 export type NebuSkin = {
@@ -25,6 +30,7 @@ export type NebuSkin = {
   achievementKey: string | null;
   achievementTitle: string | null;
   exclusiveOwner: NebuExclusiveOwner | null;
+  cosmicOwnershipRequired?: boolean;
   heatAssets: NebuHeatAssets | null;
 };
 
@@ -131,6 +137,25 @@ export const NEBU_SKINS: readonly NebuSkin[] = [
       reactionSheet: "/ancient-pulls/skins/bubbles/heat-reactions.webp",
     },
   },
+  {
+    key: "cosmic_nebu",
+    label: "Cosmic Nebu",
+    palette: "Living nebula · constellation core · comet light",
+    swatch: "linear-gradient(135deg, #050b3d 0 30%, #2563eb 30% 49%, #8b5cf6 49% 68%, #22d3ee 68% 82%, #f9d976 82%)",
+    achievementKey: null,
+    achievementTitle: null,
+    exclusiveOwner: null,
+    cosmicOwnershipRequired: true,
+    heatAssets: {
+      portrait: "/ancient-pulls/skins/cosmic-nebu/portrait.webp",
+      walkSheet: "/ancient-pulls/skins/cosmic-nebu/flight.webp",
+      reactionSheet: "/ancient-pulls/skins/cosmic-nebu/tier-reactions.webp",
+      walkColumns: 4,
+      walkRows: 4,
+      reactionColumns: 3,
+      reactionRows: 3,
+    },
+  },
 ];
 
 const DEFAULT_NEBU_HEAT_ASSETS: NebuHeatAssets = {
@@ -161,7 +186,7 @@ export function canUseNebuSkin(
 ): boolean {
   const skin = getNebuSkin(key);
 
-  if (!skin.exclusiveOwner) {
+  if (!skin.exclusiveOwner && !skin.cosmicOwnershipRequired) {
     return true;
   }
 

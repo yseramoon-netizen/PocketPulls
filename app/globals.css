@@ -108,6 +108,22 @@ html[data-nebu-skin="bubbles"] {
   --nebu-performance-soft: rgba(145, 173, 71, 0.3);
 }
 
+html[data-nebu-skin="cosmic_nebu"] {
+  --nebu-image-filter:
+    saturate(1.16) contrast(1.08)
+    drop-shadow(0 8px 18px rgba(0, 0, 0, 0.45))
+    drop-shadow(0 0 14px rgba(34, 211, 238, 0.62))
+    drop-shadow(0 0 30px rgba(139, 92, 246, 0.34));
+  --nebu-scene-filter:
+    saturate(1.12) contrast(1.06)
+    drop-shadow(0 0 12px rgba(34, 211, 238, 0.7))
+    drop-shadow(0 0 28px rgba(124, 58, 237, 0.42));
+  --nebu-portrait-filter: var(--nebu-image-filter);
+  --nebu-ghost-filter: saturate(1.15) contrast(1.12) brightness(1.07);
+  --nebu-performance-accent: #67e8f9;
+  --nebu-performance-soft: rgba(103, 232, 249, 0.34);
+}
+
 html {
   width: 100%;
   max-width: 100%;

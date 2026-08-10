@@ -204,9 +204,6 @@
   contain: layout paint style;
   transform: translateZ(0);
   backface-visibility: hidden;
-}
-
-.sequence[data-effects-active="true"] {
   animation: sequenceShake 760ms var(--impact-at) cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
 }
 
@@ -245,8 +242,7 @@
 }
 
 .overlay[data-tier="1"] .omen,
-.overlay[data-tier="2"] .omen,
-.overlay[data-tier="1"] .relicSeal { display: none; }
+.overlay[data-tier="2"] .omen { display: none; }
 
 .relicSeal,
 .glyphOrbit,
@@ -371,6 +367,35 @@
   animation: infoAppears 600ms var(--info-at) ease-out both;
 }
 
+.cosmicDiscoveryBadge {
+  display: grid;
+  width: fit-content;
+  margin: 0 auto 0.65rem;
+  border: 1px solid rgba(103, 232, 249, 0.52);
+  border-radius: 1rem;
+  padding: 0.55rem 1rem 0.62rem;
+  background: linear-gradient(135deg, rgba(12, 21, 74, 0.92), rgba(76, 29, 149, 0.8));
+  box-shadow: 0 0 34px rgba(56, 189, 248, 0.28), inset 0 0 22px rgba(168, 85, 247, 0.16);
+  backdrop-filter: blur(12px);
+}
+
+.cosmicDiscoveryBadge span {
+  color: rgba(207, 250, 254, 0.72);
+  font-size: 0.5rem;
+  font-weight: 900;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+
+.cosmicDiscoveryBadge strong {
+  margin-top: 0.2rem;
+  color: #fff7c2;
+  font-size: clamp(0.72rem, 2.2vw, 0.92rem);
+  font-weight: 950;
+  letter-spacing: 0.12em;
+  text-shadow: 0 0 18px rgba(103, 232, 249, 0.7);
+}
+
 .rarity { margin: 0; color: var(--wish-primary); font-size: 0.68rem; font-weight: 900; letter-spacing: 0.24em; text-shadow: 0 0 16px var(--wish-glow); text-transform: uppercase; }
 .cardInfo h2 { margin: 0.38rem 0 0; color: #fff; font-size: clamp(1.75rem, 4.8vw, 2.75rem); font-weight: 900; letter-spacing: -0.03em; line-height: 1.06; text-shadow: 0 5px 24px rgba(0,0,0,.7); }
 .meta { margin: 0.55rem 0 0; color: rgba(255,255,255,.58); font-size: 0.84rem; font-weight: 700; }
@@ -400,7 +425,7 @@
 
 .overlay[data-family="legendary"] .ancientFrame { border-width: 2px; box-shadow: inset 0 0 50px color-mix(in srgb, var(--wish-glow) 11%, transparent), 0 0 28px color-mix(in srgb, var(--wish-glow) 18%, transparent); }
 .overlay[data-family="legendary"] .stars { animation-duration: 5.2s; }
-.overlay[data-tier="9"] .sequence[data-effects-active="true"]:not(.sequenceSkipped) { animation: legendaryStillness 520ms calc(var(--impact-at) - 520ms) linear both, sequenceShake 920ms var(--impact-at) cubic-bezier(.36,.07,.19,.97) both; }
+.overlay[data-tier="9"] .sequence:not(.sequenceSkipped) { animation: legendaryStillness 520ms calc(var(--impact-at) - 520ms) linear both, sequenceShake 920ms var(--impact-at) cubic-bezier(.36,.07,.19,.97) both; }
 
 @keyframes dustDrift { to { transform: translate3d(-110px, 65px, 0) rotate(3deg); } }
 @keyframes starsBreathe { from { filter: brightness(.82); } to { filter: brightness(1.18); } }

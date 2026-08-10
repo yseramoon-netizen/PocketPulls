@@ -17,6 +17,11 @@ type AncientCatPullSceneProps = {
   cardRevealAtMs: number;
   walkSheet?: string;
   reactionSheet?: string;
+  walkColumns?: number;
+  walkRows?: number;
+  reactionColumns?: number;
+  reactionRows?: number;
+  cosmic?: boolean;
   blackHole?: boolean;
   lowEffects?: boolean;
 };
@@ -135,6 +140,11 @@ export default function AncientCatPullScene({
   cardRevealAtMs,
   walkSheet = DEFAULT_WALK_SHEET,
   reactionSheet = DEFAULT_REACTION_SHEET,
+  walkColumns = 4,
+  walkRows = 4,
+  reactionColumns = 4,
+  reactionRows = 4,
+  cosmic = false,
   blackHole = false,
   lowEffects = false,
 }: AncientCatPullSceneProps) {
@@ -190,7 +200,9 @@ export default function AncientCatPullScene({
   const grade = GRADES[activeTier - 1];
   const reactionFrame = blackHole
     ? 14
-    : REACTION_FRAMES[activeTier - 1][reactionBeat];
+    : cosmic
+      ? activeTier - 1
+      : REACTION_FRAMES[activeTier - 1][reactionBeat];
   const walkDurationMs = Math.max(1900, escalationStartMs - 260);
   const heatLevel = (activeTier - 1) / (GRADES.length - 1);
 
@@ -231,6 +243,7 @@ export default function AncientCatPullScene({
       data-tier={activeTier}
       data-black-hole={blackHole ? "true" : "false"}
       data-low-effects={lowEffects ? "true" : "false"}
+      data-cosmic={cosmic ? "true" : "false"}
       style={sceneStyle}
       aria-hidden="true"
     >
@@ -261,10 +274,19 @@ export default function AncientCatPullScene({
         <div className={styles.scorchedSand} />
 
         <div className={styles.walkStage}>
+          {cosmic ? (
+            <div className={styles.cosmicFlightTrail}>
+              <span />
+              <span />
+              <span />
+            </div>
+          ) : null}
           <NebuPerformanceSprite
             sheet={walkSheet}
             durationMs={walkDurationMs}
             delayMs={180}
+            columns={walkColumns}
+            rows={walkRows}
             className={styles.walkSprite}
           />
         </div>
@@ -287,6 +309,8 @@ export default function AncientCatPullScene({
             sheet={reactionSheet}
             durationMs={1000}
             staticFrame={reactionFrame}
+            columns={reactionColumns}
+            rows={reactionRows}
             className={styles.reactionSprite}
           />
         </div>

@@ -251,6 +251,21 @@
   font-weight: 800;
 }
 
+.cosmicRecord {
+  width: fit-content;
+  margin-top: 0.7rem;
+  border: 1px solid rgba(103, 232, 249, 0.32);
+  border-radius: 999px;
+  padding: 0.38rem 0.72rem;
+  color: #d9faff;
+  background: linear-gradient(135deg, rgba(14, 116, 144, 0.2), rgba(109, 40, 217, 0.2));
+  box-shadow: 0 0 20px rgba(34, 211, 238, 0.16);
+  font-size: 0.56rem;
+  font-weight: 900;
+  letter-spacing: 0.13em;
+  text-shadow: 0 0 14px rgba(103, 232, 249, 0.55);
+}
+
 .proclamation {
   max-width: 43rem;
   margin-top: 1.55rem;
@@ -409,6 +424,11 @@
   }
 
   .reignRecord {
+    margin-right: auto;
+    margin-left: auto;
+  }
+
+  .cosmicRecord {
     margin-right: auto;
     margin-left: auto;
   }

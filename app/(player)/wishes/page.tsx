@@ -7,6 +7,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import NebuPortrait from "@/components/player/NebuPortrait";
 import { type WishRevealCard } from "@/components/player/WishCinematic";
 import { primeWishAudio } from "@/components/player/wishAudio";
+import { applyNebuSkin } from "@/lib/player/nebu";
 import { supabase } from "@/lib/supabase";
 
 const WishCinematic = dynamic(
@@ -75,6 +76,7 @@ type WishReveal = {
   imageUrl: string | null;
   marketValue: number;
   wishBalance: number;
+  cosmicIssueNumber: number | null;
 };
 
 type DashboardData = {
@@ -425,6 +427,7 @@ export default function WishesPage() {
             imageUrl: latest.imageUrl,
             marketValue: latest.valueAtWish,
             wishBalance: nextDashboard.wishBalance,
+            cosmicIssueNumber: null,
           });
         } else {
           setErrorMessage(
@@ -477,6 +480,7 @@ export default function WishesPage() {
       imageUrl: latest.imageUrl,
       marketValue: latest.valueAtWish,
       wishBalance: dashboard.wishBalance,
+      cosmicIssueNumber: null,
     });
   }, [dashboard.recentWishes, dashboard.wishBalance]);
 
@@ -524,9 +528,25 @@ export default function WishesPage() {
 
       const result = row as Record<string, unknown>;
       const nextBalance = toWholeNumber(result.wish_balance);
+      const wishId = String(result.wish_id ?? "");
+      const cosmicDiscovery = wishId
+        ? await supabase
+            .from("cosmic_nebu_ownerships")
+            .select("issue_number")
+            .eq("discovery_pull_id", wishId)
+            .maybeSingle()
+        : { data: null, error: null };
+      const cosmicIssueNumber = cosmicDiscovery.error
+        ? 0
+        : toWholeNumber(cosmicDiscovery.data?.issue_number);
+
+      if (cosmicIssueNumber > 0) {
+        applyNebuSkin("cosmic_nebu");
+        void supabase.auth.updateUser({ data: { nebu_skin: "cosmic_nebu" } });
+      }
 
       setWishReveal({
-        wishId: String(result.wish_id ?? ""),
+        wishId,
         cardId: String(result.card_id ?? ""),
         cardName: typeof result.name === "string" && result.name.trim() ? result.name.trim() : "Mystery card",
         setName: typeof result.set_name === "string" && result.set_name.trim() ? result.set_name.trim() : "Unknown set",
@@ -535,6 +555,7 @@ export default function WishesPage() {
         imageUrl: typeof result.image_url === "string" && result.image_url.trim() ? result.image_url.trim() : null,
         marketValue: toNumber(result.market_value),
         wishBalance: nextBalance,
+        cosmicIssueNumber: cosmicIssueNumber > 0 ? cosmicIssueNumber : null,
       });
 
       window.dispatchEvent(
@@ -704,6 +725,7 @@ export default function WishesPage() {
         canWishAgain={Boolean(wishReveal && wishReveal.wishBalance > 0)}
         busy={makingWish}
         forceFullSequence={forceFullSequence}
+        cosmicIssueNumber={wishReveal?.cosmicIssueNumber}
         onClose={() => {
           setWishReveal(null);
           setForceFullSequence(false);

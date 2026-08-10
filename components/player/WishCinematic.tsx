@@ -13,8 +13,6 @@ import { publishPlayerPreferences } from "@/lib/player/preferences";
 import {
   getWishRevealConfig,
   getWishRevealParticleCount,
-  WISH_WORLD_ESCALATION_START_MS,
-  WISH_WORLD_STEP_DURATIONS_MS,
   type WishRevealConfig,
 } from "@/lib/player/wish-reveal";
 import {
@@ -58,6 +56,7 @@ type WishCinematicProps = {
   allowSkip?: boolean;
   forceFullSequence?: boolean;
   respectPreferences?: boolean;
+  cosmicIssueNumber?: number | null;
 };
 
 const IMAGE_PRELOAD_TIMEOUT_MS = 2600;
@@ -86,6 +85,12 @@ function formatMoney(value: number | null | undefined): string {
   }).format(Math.max(0, Number(value) || 0));
 }
 
+function buildEscalationSteps(config: WishRevealConfig): readonly number[] {
+  const available = Math.max(450, config.timings.cardAtMs - 620);
+  const step = Math.max(150, Math.floor(available / config.tier));
+  return Array.from({ length: 9 }, () => step);
+}
+
 export default function WishCinematic({
   open,
   card,
@@ -98,11 +103,11 @@ export default function WishCinematic({
   allowSkip = true,
   forceFullSequence = false,
   respectPreferences = true,
+  cosmicIssueNumber = null,
 }: WishCinematicProps) {
   const preloadTimerRef = useRef<number | null>(null);
   const completionTimerRef = useRef<number | null>(null);
   const skipTimerRef = useRef<number | null>(null);
-  const effectStartTimerRef = useRef<number | null>(null);
   const finishedRef = useRef(false);
   const onFinishedRef = useRef(onFinished);
   const audioSessionRef = useRef<WishAudioSession | null>(null);
@@ -112,7 +117,6 @@ export default function WishCinematic({
   const [ready, setReady] = useState(false);
   const [complete, setComplete] = useState(false);
   const [skipped, setSkipped] = useState(false);
-  const [effectsActive, setEffectsActive] = useState(false);
   const [skipAvailable, setSkipAvailable] = useState(false);
   const [mobileEffects, setMobileEffects] = useState(false);
   const [runNumber, setRunNumber] = useState(0);
@@ -124,11 +128,13 @@ export default function WishCinematic({
     [card?.marketValue, card?.rarity],
   );
   const nebuHeatAssets = useMemo(() => getNebuHeatAssets(nebuSkin), [nebuSkin]);
+  const cosmicNebu = nebuSkin === "cosmic_nebu";
   const lowEffects = preferences.lowVisualEffects || preferences.dataSaver;
   const particleCount = getWishRevealParticleCount(config, {
     mobile: mobileEffects,
     lowEffects,
   });
+  const escalationSteps = useMemo(() => buildEscalationSteps(config), [config]);
   const revealFromPreferences =
     respectPreferences &&
     (preferences.reducedMotion ||
@@ -190,11 +196,9 @@ export default function WishCinematic({
     if (preloadTimerRef.current !== null) window.clearTimeout(preloadTimerRef.current);
     if (completionTimerRef.current !== null) window.clearTimeout(completionTimerRef.current);
     if (skipTimerRef.current !== null) window.clearTimeout(skipTimerRef.current);
-    if (effectStartTimerRef.current !== null) window.clearTimeout(effectStartTimerRef.current);
     preloadTimerRef.current = null;
     completionTimerRef.current = null;
     skipTimerRef.current = null;
-    effectStartTimerRef.current = null;
   }, []);
 
   const reportFinished = useCallback(() => {
@@ -208,7 +212,6 @@ export default function WishCinematic({
     stopAudio();
     setReady(true);
     setSkipped(true);
-    setEffectsActive(true);
     setSkipAvailable(false);
     setComplete(true);
     reportFinished();
@@ -228,7 +231,6 @@ export default function WishCinematic({
       setReady(false);
       setComplete(false);
       setSkipped(false);
-      setEffectsActive(false);
       setSkipAvailable(false);
       markedSeenRef.current = false;
       return;
@@ -242,7 +244,6 @@ export default function WishCinematic({
     setReady(false);
     setComplete(false);
     setSkipped(false);
-    setEffectsActive(false);
     setSkipAvailable(false);
 
     if (revealFromPreferences) {
@@ -263,29 +264,11 @@ export default function WishCinematic({
       setRunNumber((current) => current + 1);
       setReady(true);
 
-      // Keep the final star colour secret. The rarity-specific reveal layer
-      // only begins after the full sunrise ladder has reached its last grade.
-      const worldSequenceEndMs =
-        WISH_WORLD_ESCALATION_START_MS +
-        WISH_WORLD_STEP_DURATIONS_MS.slice(0, config.tier).reduce(
-          (total, duration) => total + duration,
-          0,
-        );
-
-      if (config.blackHole) {
-        setEffectsActive(true);
-      } else {
-        effectStartTimerRef.current = window.setTimeout(
-          () => setEffectsActive(true),
-          worldSequenceEndMs,
-        );
-      }
-
       completionTimerRef.current = window.setTimeout(() => {
         setComplete(true);
         setSkipAvailable(false);
         reportFinished();
-      }, config.blackHole ? config.timings.durationMs : worldSequenceEndMs + 1600);
+      }, config.timings.durationMs);
 
       if (allowSkip && config.timings.skipAfterMs !== null) {
         skipTimerRef.current = window.setTimeout(
@@ -343,7 +326,7 @@ export default function WishCinematic({
   ]);
 
   useEffect(() => {
-    if (!open || !ready || skipped || (!effectsActive && !config.blackHole)) return;
+    if (!open || !ready || skipped) return;
     let cancelled = false;
 
     void primeWishAudio()
@@ -368,7 +351,7 @@ export default function WishCinematic({
       cancelled = true;
       stopAudio();
     };
-  }, [config, effectsActive, muted, open, preferences.sfxVolume, ready, runNumber, skipped, stopAudio]);
+  }, [config, muted, open, preferences.sfxVolume, ready, runNumber, skipped, stopAudio]);
 
   useEffect(() => {
     audioSessionRef.current?.setMuted(muted);
@@ -408,27 +391,25 @@ export default function WishCinematic({
 
   if (!open || !card) return null;
 
-  const showRevealEffects = effectsActive || config.blackHole;
-  const usePostSunTimings = effectsActive && !config.blackHole;
   const rootStyle = {
-    "--wish-primary": showRevealEffects ? config.primary : "#e8bf5a",
-    "--wish-secondary": showRevealEffects ? config.secondary : "#9b7b32",
-    "--wish-glow": showRevealEffects ? config.glow : "rgba(232,191,90,0.5)",
-    "--impact-scale": String(showRevealEffects ? config.impactScale : 4),
-    "--shake-distance": `${showRevealEffects ? config.shakeDistance : 0}px`,
-    "--flash-strength": String(showRevealEffects ? config.flashStrength : 0.3),
-    "--tier": String(showRevealEffects ? config.tier : 1),
-    "--impact-at": `${usePostSunTimings ? 120 : config.timings.impactAtMs}ms`,
-    "--card-at": `${usePostSunTimings ? 280 : config.timings.cardAtMs}ms`,
-    "--info-at": `${usePostSunTimings ? 960 : config.timings.infoAtMs}ms`,
+    "--wish-primary": config.primary,
+    "--wish-secondary": config.secondary,
+    "--wish-glow": config.glow,
+    "--impact-scale": String(config.impactScale),
+    "--shake-distance": `${config.shakeDistance}px`,
+    "--flash-strength": String(config.flashStrength),
+    "--tier": String(config.tier),
+    "--impact-at": `${config.timings.impactAtMs}ms`,
+    "--card-at": `${config.timings.cardAtMs}ms`,
+    "--info-at": `${config.timings.infoAtMs}ms`,
   } as CSSProperties;
 
   return (
     <div
       className={styles.overlay}
       style={rootStyle}
-      data-tier={showRevealEffects ? config.tier : 1}
-      data-family={showRevealEffects ? config.family : "common"}
+      data-tier={config.tier}
+      data-family={config.family}
       data-low-effects={lowEffects ? "true" : "false"}
       role="dialog"
       aria-modal="true"
@@ -458,31 +439,34 @@ export default function WishCinematic({
       {!ready ? (
         <div className={styles.preparing}>
           <div className={styles.preparingGlow} />
-          <img src={nebuHeatAssets.portrait} alt="Nebu" draggable={false} className={styles.preparingNebu} />
-          <p>Nebu is reading the constellation...</p>
+          <img src={nebuHeatAssets.portrait} alt={cosmicNebu ? "Cosmic Nebu" : "Nebu"} draggable={false} className={styles.preparingNebu} />
+          <p>{cosmicNebu ? "Cosmic Nebu is bending the constellation..." : "Nebu is reading the constellation..."}</p>
         </div>
       ) : (
         <div
           key={runNumber}
           className={`${styles.sequence} ${skipped ? styles.sequenceSkipped : ""} ${config.blackHole ? styles.blackHoleSequence : ""}`}
-          data-effects-active={showRevealEffects ? "true" : "false"}
         >
           {config.usesWorldScene && !skipped ? (
             <div className={styles.catScene}>
               <AncientCatPullScene
                 tier={config.tier}
-                escalationStartMs={WISH_WORLD_ESCALATION_START_MS}
-                stepDurationsMs={WISH_WORLD_STEP_DURATIONS_MS}
+                escalationStartMs={520}
+                stepDurationsMs={escalationSteps}
                 cardRevealAtMs={config.timings.cardAtMs}
                 walkSheet={nebuHeatAssets.walkSheet}
                 reactionSheet={nebuHeatAssets.reactionSheet}
+                walkColumns={nebuHeatAssets.walkColumns}
+                walkRows={nebuHeatAssets.walkRows}
+                reactionColumns={nebuHeatAssets.reactionColumns}
+                reactionRows={nebuHeatAssets.reactionRows}
+                cosmic={cosmicNebu}
                 blackHole={config.blackHole}
                 lowEffects={lowEffects}
               />
             </div>
           ) : null}
 
-          {showRevealEffects ? <>
           <div className={styles.darkening} />
           <p className={styles.omen}>{config.omen}</p>
 
@@ -534,6 +518,12 @@ export default function WishCinematic({
           </div>
 
           <div className={styles.cardInfo} data-share-ready="true">
+            {cosmicIssueNumber ? (
+              <div className={styles.cosmicDiscoveryBadge}>
+                <span>✦ Permanent legendary form discovered</span>
+                <strong>COSMIC NEBU #{String(cosmicIssueNumber).padStart(6, "0")}</strong>
+              </div>
+            ) : null}
             <p className={styles.rarity}>{config.label}</p>
             <h2>{card.name}</h2>
             <p className={styles.meta}>{[card.setName, card.cardNumber ? `#${card.cardNumber}` : null].filter(Boolean).join(" · ")}</p>
@@ -544,7 +534,6 @@ export default function WishCinematic({
               <button type="button" onClick={handleContinue} disabled={!complete || busy} className={styles.keepButton}>Continue</button>
             </div>
           </div>
-          </> : null}
         </div>
       )}
 
