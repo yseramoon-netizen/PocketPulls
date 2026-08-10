@@ -385,6 +385,13 @@ function PlayerSignInContent() {
             >
               {signingIn ? "Nebu is opening the way..." : "Sign in to ancientpulls"}
             </button>
+
+            <Link
+              href="/forgot-password"
+              className="flex min-h-12 w-full items-center justify-center rounded-2xl border border-yellow-100/15 bg-yellow-100/[0.045] px-5 text-sm font-black text-yellow-50/70 transition hover:border-yellow-100/30 hover:bg-yellow-100/[0.09] hover:text-yellow-50"
+            >
+              Reset forgotten password
+            </Link>
           </form>
 
           <div className="mt-6 flex flex-wrap items-center justify-between gap-3 text-xs font-black">
