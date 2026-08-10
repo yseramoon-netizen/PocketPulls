@@ -486,15 +486,15 @@ export default function CreateAccountPage() {
           >
             <span>
               I agree to the {" "}
-              <Link href="/terms" className="font-black text-cyan-100 underline decoration-cyan-100/30 underline-offset-2">
+              <Link href="/terms" target="_blank" rel="noreferrer" className="font-black text-cyan-100 underline decoration-cyan-100/30 underline-offset-2">
                 Terms
               </Link>
               {" "}and{" "}
-              <Link href="/rules" className="font-black text-cyan-100 underline decoration-cyan-100/30 underline-offset-2">
+              <Link href="/rules" target="_blank" rel="noreferrer" className="font-black text-cyan-100 underline decoration-cyan-100/30 underline-offset-2">
                 Wish Rules
               </Link>
               , and I have read the{" "}
-              <Link href="/player-protection" className="font-black text-cyan-100 underline decoration-cyan-100/30 underline-offset-2">
+              <Link href="/player-protection" target="_blank" rel="noreferrer" className="font-black text-cyan-100 underline decoration-cyan-100/30 underline-offset-2">
                 Player Protection
               </Link>
               {" "}information.

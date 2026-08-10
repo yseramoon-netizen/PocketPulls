@@ -130,15 +130,15 @@ export default function PurchaseConsentGate({
           >
             <span>
               I agree to the{" "}
-              <Link className="font-black text-cyan-100 underline decoration-cyan-100/30 underline-offset-2" href="/terms">
+              <Link className="font-black text-cyan-100 underline decoration-cyan-100/30 underline-offset-2" href="/terms" target="_blank" rel="noreferrer">
                 Terms
               </Link>
               {" "}and{" "}
-              <Link className="font-black text-cyan-100 underline decoration-cyan-100/30 underline-offset-2" href="/rules">
+              <Link className="font-black text-cyan-100 underline decoration-cyan-100/30 underline-offset-2" href="/rules" target="_blank" rel="noreferrer">
                 Wish Rules
               </Link>
               , and I have read the{" "}
-              <Link className="font-black text-cyan-100 underline decoration-cyan-100/30 underline-offset-2" href="/player-protection">
+              <Link className="font-black text-cyan-100 underline decoration-cyan-100/30 underline-offset-2" href="/player-protection" target="_blank" rel="noreferrer">
                 Player Protection
               </Link>
               {" "}information.

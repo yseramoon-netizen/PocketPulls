@@ -41,6 +41,12 @@ const CARDS = [
   },
 ] as const;
 
+const NEW_TAB_LINKS = new Set([
+  "/rules",
+  "/player-protection",
+  "/terms",
+]);
+
 export default function HelpPage() {
   return (
     <TrustShell
@@ -53,6 +59,8 @@ export default function HelpPage() {
           <Link
             key={card.href}
             href={card.href}
+            target={NEW_TAB_LINKS.has(card.href) ? "_blank" : undefined}
+            rel={NEW_TAB_LINKS.has(card.href) ? "noreferrer" : undefined}
             className="group rounded-2xl border border-white/10 bg-white/[0.035] p-5 transition hover:-translate-y-0.5 hover:border-cyan-100/20 hover:bg-white/[0.055]"
           >
             <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-cyan-100/15 bg-cyan-100/[0.06] text-lg font-black text-cyan-50/80">

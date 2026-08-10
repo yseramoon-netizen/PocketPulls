@@ -18,6 +18,12 @@ const LINKS = [
   { href: "/terms", label: "Terms" },
 ] as const;
 
+const NEW_TAB_LINKS = new Set([
+  "/rules",
+  "/player-protection",
+  "/terms",
+]);
+
 export function TrustShell({
   eyebrow,
   title,
@@ -63,6 +69,8 @@ export function TrustShell({
                 <Link
                   key={item.href}
                   href={item.href}
+                  target={NEW_TAB_LINKS.has(item.href) ? "_blank" : undefined}
+                  rel={NEW_TAB_LINKS.has(item.href) ? "noreferrer" : undefined}
                   className="whitespace-nowrap rounded-xl border border-transparent px-3 py-2.5 text-xs font-black text-white/45 transition hover:border-white/10 hover:bg-white/[0.05] hover:text-white lg:whitespace-normal"
                 >
                   {item.label}
