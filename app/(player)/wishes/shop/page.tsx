@@ -428,7 +428,7 @@ export default function WishShopPage() {
             </button>
             <p className={styles.vaultFinePrint}>
               Preview only. Membership and daily claims remain completely
-              unavailable until Ancient Pulls launches.
+              unavailable until ancientpulls launches.
             </p>
           </div>
         </section>

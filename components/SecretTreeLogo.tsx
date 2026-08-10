@@ -213,7 +213,7 @@ function createFallbackMood(): MoodResponse {
         "The forest is quiet, but Shaymin is still here.",
 
       detail:
-        "Live Ancient Pulls information will return when the connection recovers.",
+        "Live ancientpulls information will return when the connection recovers.",
     };
   } else if (hour < 8) {
     mood = {
@@ -226,7 +226,7 @@ function createFallbackMood(): MoodResponse {
         "The forest is waking up.",
 
       detail:
-        "Shaymin is waiting for the live Ancient Pulls connection.",
+        "Shaymin is waiting for the live ancientpulls connection.",
     };
   } else {
     mood = {
@@ -236,10 +236,10 @@ function createFallbackMood(): MoodResponse {
         "The forest is peaceful",
 
       message:
-        "Shaymin is watching over Ancient Pulls.",
+        "Shaymin is watching over ancientpulls.",
 
       detail:
-        "Live Ancient Pulls information will return when the connection recovers.",
+        "Live ancientpulls information will return when the connection recovers.",
     };
   }
 
@@ -360,7 +360,7 @@ function getMoodReason(
 
     case "celebration":
       return (
-        "Ancient Pulls recently reached a new legacy tree milestone."
+        "ancientpulls recently reached a new legacy tree milestone."
       );
 
     case "together":
@@ -421,7 +421,7 @@ function getMoodReason(
 
     case "proud":
       return (
-        "Ancient Pulls has reached a new inventory value record."
+        "ancientpulls has reached a new inventory value record."
       );
 
     default:

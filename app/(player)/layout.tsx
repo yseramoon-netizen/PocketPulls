@@ -681,7 +681,7 @@ function PlayerLoadingScreen() {
 
         <div className="mt-4">
           <UnownText
-            text="Ancient Pulls"
+            text="ancientpulls"
             size="2rem"
             tone="holo"
             centred
@@ -766,7 +766,7 @@ function PlayerBannedScreen({
 
           <p className="mt-5 text-sm font-semibold leading-7 text-white/55">
             {reason ||
-              "This account has been suspended by an Ancient Pulls administrator."}
+              "This account has been suspended by an ancientpulls administrator."}
           </p>
 
           {formattedDate ? (

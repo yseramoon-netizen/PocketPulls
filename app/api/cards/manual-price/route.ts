@@ -111,7 +111,7 @@ async function authenticateAdmin(
     allowedEmails.length === 0
   ) {
     throw new RouteError(
-      "The Ancient Pulls admin allowlist has not been configured.",
+      "The ancientpulls admin allowlist has not been configured.",
       500,
     );
   }

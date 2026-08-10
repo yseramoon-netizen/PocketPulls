@@ -107,7 +107,7 @@ async function completePurchase(session: StripeCheckoutSession) {
   const orderId = readString(metadata?.order_id);
 
   if (!checkoutSessionId || !orderId) {
-    throw new Error("Paid Stripe session is missing Ancient Pulls order metadata.");
+    throw new Error("Paid Stripe session is missing ancientpulls order metadata.");
   }
 
   const service = getServiceClient();

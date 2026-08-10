@@ -247,7 +247,7 @@ function buildStage(growth: number): VisualStage {
     label: "A promise in the soil",
     asset: "/tree-wonder/seedling.png",
     assetClassName: styles.treeSeed,
-    description: "For now, it is meant to be small: a seedling, a few lights, and everything still ahead of Ancient Pulls.",
+    description: "For now, it is meant to be small: a seedling, a few lights, and everything still ahead of ancientpulls.",
     leafHotspots: [
       { left: "47%", top: "43%" }, { left: "53%", top: "39%" },
     ],
@@ -476,7 +476,7 @@ export default function TreePage() {
 
         <div className={styles.treeWorld}>
           <div className={styles.treeHalo} />
-          <img src={stage.asset} alt="The current growth stage of the Ancient Pulls tree" draggable={false} className={`${styles.treeAsset} ${stage.assetClassName}`} />
+          <img src={stage.asset} alt="The current growth stage of the ancientpulls tree" draggable={false} className={`${styles.treeAsset} ${stage.assetClassName}`} />
 
           {stage.leafHotspots.map((spot, index) => (
             <button
@@ -595,7 +595,7 @@ export default function TreePage() {
 
         {detailsOpen ? (
           <aside className={styles.detailsPanel}>
-            <div className={styles.panelHeader}><div><small>Ancient Pulls garden</small><h2>{stage.label}</h2></div><button onClick={() => setDetailsOpen(false)}>×</button></div>
+            <div className={styles.panelHeader}><div><small>ancientpulls garden</small><h2>{stage.label}</h2></div><button onClick={() => setDetailsOpen(false)}>×</button></div>
             <p className={styles.panelBody}>{stage.description}</p>
             <div className={styles.detailGrid}>
               <div><span>Stock cards</span><strong>{formatNumber(tree?.stockCards ?? 0)}</strong></div>

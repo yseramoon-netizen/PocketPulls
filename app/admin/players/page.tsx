@@ -1315,7 +1315,7 @@ export default function AdminPlayersPage() {
                 <Panel
                   eyebrow="Destructive account tool"
                   title="Reset to a fresh player account"
-                  description="Keep this person's Supabase login identity while clearing their Ancient Pulls gameplay progress."
+                  description="Keep this person's Supabase login identity while clearing their ancientpulls gameplay progress."
                 >
                   <div className="mt-5 rounded-2xl border border-red-200/20 bg-red-400/[0.08] p-5">
                     <p className="text-sm font-black text-red-50">

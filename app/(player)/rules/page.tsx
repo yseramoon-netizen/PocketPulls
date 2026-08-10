@@ -11,7 +11,7 @@ export default function RulesPage() {
         <CompactList>
           <li>One wish is consumed for one successfully allocated physical-card result.</li>
           <li>If allocation fails before a result is recorded, the transaction is designed to roll back.</li>
-          <li>There is no cash prize and no cash-out through Ancient Pulls.</li>
+          <li>There is no cash prize and no cash-out through ancientpulls.</li>
         </CompactList>
       </Section>
 
@@ -25,11 +25,11 @@ export default function RulesPage() {
       </Section>
 
       <Section title="Summonable does not always mean already in the warehouse">
-        <p>Some cards may be listed in the summon catalogue before Ancient Pulls physically holds a copy. If one is allocated to you, it is recorded in your account and must be sourced before it can be dispatched.</p>
+        <p>Some cards may be listed in the summon catalogue before ancientpulls physically holds a copy. If one is allocated to you, it is recorded in your account and must be sourced before it can be dispatched.</p>
       </Section>
 
       <Section title="Values are references, not promises">
-        <p>Displayed market values can move up or down. They are not guaranteed resale prices or offers from Ancient Pulls to buy cards back.</p>
+        <p>Displayed market values can move up or down. They are not guaranteed resale prices or offers from ancientpulls to buy cards back.</p>
       </Section>
 
       <Section title="Fair use">

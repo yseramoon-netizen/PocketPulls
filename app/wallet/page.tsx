@@ -311,7 +311,7 @@ text-5xl
 font-black
 ">
 
-Ancient Pulls Treasury
+ancientpulls Treasury
 
 </h1>
 

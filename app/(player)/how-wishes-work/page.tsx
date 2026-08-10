@@ -5,7 +5,7 @@ export default function HowWishesWorkPage() {
     <TrustShell
       eyebrow="How it works"
       title="One wish. One physical card."
-      intro="A wish allocates one genuine physical trading card from the Ancient Pulls summon catalogue."
+      intro="A wish allocates one genuine physical trading card from the ancientpulls summon catalogue."
     >
       <Section title="1. Buy wishes">
         <p>The minimum recharge is 10 wishes. Larger packs cost less per wish. The displayed first-recharge discount applies once to an eligible account.</p>

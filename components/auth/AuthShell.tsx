@@ -12,7 +12,7 @@ export default function AuthShell({
   description,
   children,
   footer,
-  storyTitle = "Ancient Pulls",
+  storyTitle = "ancientpulls",
   storyDescription =
     "Real Pokemon cards wait within a living constellation of wishes, memories and ancient symbols.",
 }: {
@@ -49,7 +49,7 @@ export default function AuthShell({
               <div>
                 <UnownText
                   text="ANCIENT PULLS"
-                  translation="Ancient Pulls"
+                  translation="ancientpulls"
                   size="1.15rem"
                   tone="holo"
                   wrap={false}

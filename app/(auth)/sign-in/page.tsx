@@ -182,6 +182,13 @@ function PlayerSignInContent() {
     setError("");
 
     try {
+      // Drop any expired or half-created browser session before asking Auth to
+      // create a fresh password session. This matters when confirmation was
+      // completed on another device.
+      await supabase.auth.signOut({
+        scope: "local",
+      });
+
       const { data, error: signInError } = await supabase.auth.signInWithPassword({
         email: cleanEmail,
         password,
@@ -217,7 +224,7 @@ function PlayerSignInContent() {
       if (!playerExists) {
         await supabase.auth.signOut({ scope: "local" });
         throw new Error(
-          "That account is not an Ancient Pulls player account. Use the admin sign-in if this is an administrator account.",
+          "That account is not an ancientpulls player account. Use the admin sign-in if this is an administrator account.",
         );
       }
 
@@ -277,13 +284,13 @@ function PlayerSignInContent() {
 
         <div className="p-6 sm:p-9 lg:p-12">
           <p className="text-xs font-black uppercase tracking-[0.22em] text-yellow-100/45">
-            Ancient Pulls · Nebu
+            ancientpulls · Nebu
           </p>
           <h1 className="mt-3 text-4xl font-black tracking-tight sm:text-5xl">
             Return to your wishes
           </h1>
           <p className="mt-4 max-w-xl text-sm font-semibold leading-7 text-white/45">
-            Player and admin sessions are separate. Signing in here always returns you to the Ancient Pulls constellation.
+            Player and admin sessions are separate. Signing in here always returns you to the ancientpulls constellation.
           </p>
 
           {pendingRegistration ? (
@@ -295,8 +302,9 @@ function PlayerSignInContent() {
                 {pendingRegistration.email}
               </p>
               <p className="mt-2 text-xs font-semibold leading-5 text-white/60">
-                This browser remembers the unfinished account. Send a fresh
-                verification link to finish creating it.
+                This browser only remembers the original pending screen. If
+                you confirmed on another device, try signing in below; this
+                reminder clears automatically as soon as Supabase accepts it.
               </p>
               <button
                 type="button"
@@ -311,6 +319,20 @@ function PlayerSignInContent() {
                   {resendMessage}
                 </p>
               ) : null}
+
+              <button
+                type="button"
+                onClick={() => {
+                  clearPendingRegistration();
+                  setPendingRegistration(null);
+                  setResendMessage("");
+                  setError("");
+                }}
+                disabled={resending}
+                className="mt-3 w-full text-center text-xs font-black text-white/55 underline decoration-white/25 underline-offset-4 hover:text-white"
+              >
+                I already confirmed it — hide this reminder
+              </button>
             </div>
           ) : null}
 
@@ -361,7 +383,7 @@ function PlayerSignInContent() {
               disabled={signingIn}
               className="flex min-h-14 w-full items-center justify-center rounded-2xl bg-gradient-to-r from-yellow-200 via-cyan-100 to-violet-200 px-5 text-sm font-black text-[#111329] shadow-[0_18px_50px_rgba(103,232,249,0.12)] transition hover:brightness-105 disabled:opacity-50"
             >
-              {signingIn ? "Nebu is opening the way..." : "Sign in to Ancient Pulls"}
+              {signingIn ? "Nebu is opening the way..." : "Sign in to ancientpulls"}
             </button>
           </form>
 
@@ -370,7 +392,7 @@ function PlayerSignInContent() {
               Create a trainer account
             </Link>
             <Link href="/admin/sign-in" className="text-emerald-100/40 hover:text-white">
-              Ancient Pulls admin sign-in
+              ancientpulls admin sign-in
             </Link>
           </div>
         </div>

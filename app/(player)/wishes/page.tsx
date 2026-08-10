@@ -596,7 +596,7 @@ export default function WishesPage() {
           </h1>
 
           <p className="mt-4 max-w-2xl text-sm font-semibold leading-7 text-white/45 sm:text-base">
-            Reveal genuine trading cards, grow your Ancient Pulls collection and recharge wishes whenever you want to keep the constellation moving.
+            Reveal genuine trading cards, grow your ancientpulls collection and recharge wishes whenever you want to keep the constellation moving.
           </p>
         </div>
 
@@ -796,8 +796,8 @@ function WishChamber({
             {hasWishes
               ? `You have ${formatWholeNumber(wishBalance)} wish${
                   wishBalance === 1 ? "" : "es"
-                } available. Spend one to reveal a real card from the Ancient Pulls stock pool.`
-              : "Purchase or receive wish credits to open real cards from the Ancient Pulls stock pool."}
+                } available. Spend one to reveal a real card from the ancientpulls stock pool.`
+              : "Purchase or receive wish credits to open real cards from the ancientpulls stock pool."}
           </p>
 
           <div className="mt-6 flex flex-col gap-3 sm:flex-row">

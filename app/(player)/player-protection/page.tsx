@@ -26,7 +26,7 @@ export default function PlayerProtectionPage() {
 
       <Section title="Physical fulfilment">
         <CompactList>
-          <li>Some summonable cards may already be held by Ancient Pulls.</li>
+          <li>Some summonable cards may already be held by ancientpulls.</li>
           <li>Others may be sourced after they are pulled.</li>
           <li>A sourced-on-demand card must be physically obtained before it can be dispatched.</li>
         </CompactList>
@@ -34,7 +34,7 @@ export default function PlayerProtectionPage() {
 
       <Section title="Payments">
         <CompactList>
-          <li>Payment-card details are handled by the payment provider rather than stored by the Ancient Pulls application.</li>
+          <li>Payment-card details are handled by the payment provider rather than stored by the ancientpulls application.</li>
           <li>Wishes are credited after the payment provider confirms a successful payment.</li>
         </CompactList>
       </Section>
@@ -44,7 +44,7 @@ export default function PlayerProtectionPage() {
       </Section>
 
       <InfoCallout title="No cash-out" tone="emerald">
-        Cards and wishes cannot be converted into withdrawable cash through Ancient Pulls. Market values are informational only.
+        Cards and wishes cannot be converted into withdrawable cash through ancientpulls. Market values are informational only.
       </InfoCallout>
     </TrustShell>
   );

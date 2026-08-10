@@ -26,7 +26,6 @@ const PAGE_TITLES: ReadonlyArray<readonly [string, string]> = [
   ["/friends", "Friends"],
   ["/trade", "Trade"],
   ["/shipping", "Shipping"],
-  ["/rewards", "Daily Gift"],
   ["/history", "Wish History"],
   ["/profile", "Profile"],
   ["/create-account", "Create Account"],
@@ -53,7 +52,7 @@ function getPageTitle(pathname: string): string {
     ([path]) => pathname === path || pathname.startsWith(`${path}/`),
   )?.[1];
 
-  return title ? `${title} · Ancient Pulls` : "Ancient Pulls";
+  return title ? `${title} · ancientpulls` : "ancientpulls";
 }
 
 export default function RootTemplate({

@@ -157,7 +157,7 @@ export default function AdminNav() {
             className="hidden min-w-0 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-emerald-200 sm:block"
           >
             <p className="truncate text-sm font-black tracking-tight text-white">
-              Ancient Pulls
+              ancientpulls
             </p>
 
             <p className="mt-0.5 truncate text-[0.58rem] font-black uppercase tracking-[0.17em] text-emerald-100/38">

@@ -30,7 +30,9 @@ import {
 
 const ALLOWED_EMAIL_TYPES =
   new Set<EmailOtpType>([
+    "signup",
     "email",
+    "magiclink",
     "invite",
     "recovery",
     "email_change",

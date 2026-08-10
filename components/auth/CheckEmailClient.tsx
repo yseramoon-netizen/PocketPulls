@@ -9,6 +9,7 @@ import AuthShell from "@/components/auth/AuthShell";
 import { getAuthErrorMessage } from "@/lib/auth/helpers";
 import {
   type PendingRegistration,
+  clearPendingRegistration,
   readPendingRegistration,
   rememberPendingRegistration,
   resendSignupConfirmation,
@@ -164,7 +165,7 @@ export default function CheckEmailClient({
           )}
 
           <p className="mt-3 text-sm font-semibold leading-6 text-white/60">
-            Open the message from Ancient Pulls and press the confirmation link.
+            Open the message from ancientpulls and press the confirmation link.
             The link returns here and completes your profile automatically.
           </p>
         </div>
@@ -190,6 +191,18 @@ export default function CheckEmailClient({
             Another email can be sent in {cooldown}s.
           </p>
         ) : null}
+
+        <Link
+          href={signInHref}
+          onClick={() => {
+            // Confirmation may have happened on another device. The local
+            // reminder must not trap this browser on a stale pending screen.
+            clearPendingRegistration();
+          }}
+          className="flex min-h-11 w-full items-center justify-center rounded-xl border border-white/15 bg-white/[0.05] px-5 text-sm font-black text-white/75 hover:bg-white/10 hover:text-white"
+        >
+          I already confirmed it — sign in
+        </Link>
       </div>
     </AuthShell>
   );

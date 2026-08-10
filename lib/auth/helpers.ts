@@ -184,7 +184,7 @@ function translateAuthMessage(
     lower === "{}" ||
     lower === "[object object]"
   ) {
-    return "Supabase rejected registration without a readable reason. Run the Ancient Pulls registration repair migration, then check Authentication > Logs if the problem remains.";
+    return "Supabase rejected registration without a readable reason. Run the ancientpulls registration repair migration, then check Authentication > Logs if the problem remains.";
   }
 
   if (
@@ -257,7 +257,7 @@ function translateAuthMessage(
     normalisedCode === "42702" ||
     (lower.includes("wish_balance") && lower.includes("ambiguous"))
   ) {
-    return "Your email is confirmed, but the player profile could not finish preparing. The Ancient Pulls registration repair must be applied, then you can sign in again without creating another account.";
+    return "Your email is confirmed, but the player profile could not finish preparing. The ancientpulls registration repair must be applied, then you can sign in again without creating another account.";
   }
 
   if (

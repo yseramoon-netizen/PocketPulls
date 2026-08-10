@@ -20,7 +20,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Ancient Pulls",
+  title: "ancientpulls",
   description: "Make wishes, build your binder and explore your constellation.",
   icons: {
     icon: {

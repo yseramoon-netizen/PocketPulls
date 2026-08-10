@@ -934,7 +934,7 @@ function CatalogueHero({
       <div className="relative flex flex-col gap-7 xl:flex-row xl:items-end xl:justify-between">
         <div>
           <p className="text-xs font-black uppercase tracking-[0.22em] text-cyan-100/40">
-            The Ancient Pulls archive
+            The ancientpulls archive
           </p>
 
           <div className="mt-4 max-w-full overflow-hidden">
@@ -946,7 +946,7 @@ function CatalogueHero({
           </div>
 
           <p className="mt-4 max-w-3xl text-sm font-semibold leading-7 text-white/45 sm:text-base">
-            Explore every card recorded by Ancient Pulls. Values are
+            Explore every card recorded by ancientpulls. Values are
             shown for reference, while live stock tells you which
             physical cards can currently answer a wish.
           </p>
@@ -1573,7 +1573,7 @@ function CatalogueEmptyState({
       <p className="mt-3 max-w-md text-sm font-semibold leading-7 text-white/38">
         {hasActiveFilters
           ? "Try another name, set, rarity or stock filter."
-          : "Cards will appear here as soon as they are added to the Ancient Pulls database."}
+          : "Cards will appear here as soon as they are added to the ancientpulls database."}
       </p>
 
       {hasActiveFilters ? (
@@ -1725,7 +1725,7 @@ function CardDetailModal({
 
               <p className="mt-3 text-sm font-semibold leading-7 text-white/48">
                 {card.stockQuantity > 0
-                  ? `${card.name} is currently capable of appearing in a real Ancient Pulls wish. Every awarded card removes one physical copy from live stock.`
+                  ? `${card.name} is currently capable of appearing in a real ancientpulls wish. Every awarded card removes one physical copy from live stock.`
                   : `${card.name} remains visible in the archive, but it cannot currently appear in a wish until new physical stock is added.`}
               </p>
             </div>

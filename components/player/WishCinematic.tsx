@@ -757,7 +757,7 @@ export default function WishCinematic({
 
           <img
             src={nebuHeatAssets.portrait}
-            alt="Nebu, the Ancient Pulls celestial cat"
+            alt="Nebu, the ancientpulls celestial cat"
             draggable={false}
             className={styles.preparingNebu}
           />

@@ -280,7 +280,7 @@ async function authenticateAdmin(
 
   if (!configured) {
     console.error(
-      "No Ancient Pulls founder allowlist is configured.",
+      "No ancientpulls founder allowlist is configured.",
     );
 
     throw new RouteError(

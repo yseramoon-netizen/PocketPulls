@@ -99,7 +99,7 @@ export default function WelcomePage() {
   return (
     <AuthShell
       eyebrow="Account ready"
-      title="Welcome To Ancient Pulls"
+      title="Welcome To ancientpulls"
       description={`${displayName}, your trainer identity, wish wallet and private collection are ready.`}
       storyTitle="Your symbol has joined the constellation"
     >
@@ -153,7 +153,7 @@ export default function WelcomePage() {
           }}
           className="flex min-h-13 w-full items-center justify-center rounded-xl bg-gradient-to-r from-yellow-200 via-cyan-100 to-violet-200 px-5 text-sm font-black text-[#111329] transition hover:-translate-y-0.5 hover:brightness-110"
         >
-          Enter Ancient Pulls
+          Enter ancientpulls
         </button>
       </div>
     </AuthShell>

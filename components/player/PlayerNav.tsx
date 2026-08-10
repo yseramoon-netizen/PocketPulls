@@ -259,7 +259,7 @@ export default function PlayerNav({
             ),
         ) || {
           href: pathname,
-          label: "Ancient Pulls",
+          label: "ancientpulls",
           glyph: "✦",
         },
       [pathname],
@@ -603,7 +603,7 @@ export default function PlayerNav({
           <Link
             href="/hq"
             onClick={closeMore}
-            title="Ancient Pulls"
+            title="ancientpulls"
             className="
               flex
               min-w-0
@@ -665,7 +665,7 @@ export default function PlayerNav({
 
             <div className="hidden min-w-0 sm:block">
               <UnownText
-                text="Ancient Pulls"
+                text="ancientpulls"
                 size="1rem"
                 tone="holo"
                 wrap={false}
@@ -699,7 +699,7 @@ export default function PlayerNav({
                 text-violet-100/35
               "
             >
-              Ancient Pulls
+              ancientpulls
             </p>
 
             <p

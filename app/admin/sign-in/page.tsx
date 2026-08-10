@@ -65,7 +65,7 @@ async function verifyAdminToken(accessToken: string) {
 
   if (!response.ok || !payload?.admin?.userId || !payload.admin.email) {
     throw new Error(
-      payload?.error?.message || "This account does not have Ancient Pulls administrator access.",
+      payload?.error?.message || "This account does not have ancientpulls administrator access.",
     );
   }
 
@@ -205,7 +205,7 @@ function AdminSignInContent() {
 
           <div className="mt-6 text-center">
             <p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-100/45">
-              Ancient Pulls administration
+              ancientpulls administration
             </p>
             <h1 className="mt-3 text-4xl font-black tracking-tight text-white">
               Unlock the Forest Vault

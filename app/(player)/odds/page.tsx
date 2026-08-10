@@ -84,7 +84,7 @@ export default function OddsPage() {
       </InfoCallout>
 
       <InfoCallout title="Catalogue vs physical stock" tone="yellow">
-        A summonable card may already be physically held by Ancient Pulls or may be sourced after it is pulled and a shipment is requested. This does not change its summon chance.
+        A summonable card may already be physically held by ancientpulls or may be sourced after it is pulled and a shipment is requested. This does not change its summon chance.
       </InfoCallout>
 
       <div className="mt-5 flex flex-wrap items-center justify-between gap-3">

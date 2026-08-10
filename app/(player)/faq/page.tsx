@@ -13,13 +13,13 @@ const FAQS = [
   ["Where do my cards go?", "They are recorded in your Collection. Cards remain associated with your account until they are traded or processed through shipping."],
   ["What happens when I request shipping?", "Cards already physically held can move straight into fulfilment. Any outstanding sourced-on-demand cards are flagged for sourcing before the shipment is prepared."],
   ["Can I trade cards?", "Where trading is available, eligible cards can be transferred through the in-app trade flow."],
-  ["What does market value mean?", "It is reference information only, not a guaranteed selling price or a promise that Ancient Pulls will buy the card from you."],
-  ["Can I cash out wishes or cards?", "No. Ancient Pulls does not provide cash redemption for wishes or pulled cards."],
+  ["What does market value mean?", "It is reference information only, not a guaranteed selling price or a promise that ancientpulls will buy the card from you."],
+  ["Can I cash out wishes or cards?", "No. ancientpulls does not provide cash redemption for wishes or pulled cards."],
   ["What is the minimum recharge?", "10 wishes for £5.00 before any eligible first-recharge discount."],
   ["How does the first recharge discount work?", "An eligible account receives 20% off its first successful wish recharge. It applies once per account."],
   ["What if payment succeeds but my wishes do not appear?", "Give payment confirmation a short moment to complete. If the balance still does not update, contact support."],
   ["What if the animation closes or my connection drops?", "The animation is not the source of truth. Your server-side wish record and Collection determine the result."],
-  ["Are you affiliated with Pokémon?", "No. Ancient Pulls is an independent reseller and is not affiliated with, sponsored by or endorsed by Nintendo, The Pokémon Company or Game Freak."],
+  ["Are you affiliated with Pokémon?", "No. ancientpulls is an independent reseller and is not affiliated with, sponsored by or endorsed by Nintendo, The Pokémon Company or Game Freak."],
 ] as const;
 
 export default function FaqPage() {

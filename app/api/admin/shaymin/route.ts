@@ -649,7 +649,7 @@ function deriveMood(
     return {
       key: "blooming",
       reason:
-        "Ancient Pulls has crossed the million-growth promise milestone.",
+        "ancientpulls has crossed the million-growth promise milestone.",
     };
   }
 
@@ -690,7 +690,7 @@ function deriveMood(
     return {
       key: "exploring",
       reason:
-        "There is fresh activity in Ancient Pulls and every new leaf deserves inspection.",
+        "There is fresh activity in ancientpulls and every new leaf deserves inspection.",
     };
   }
 

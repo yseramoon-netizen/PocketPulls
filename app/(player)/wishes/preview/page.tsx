@@ -12,7 +12,7 @@ const DEMO_CARDS: WishRevealCard[] = [
     id: "common-preview",
     name: "Dune Spark",
     rarity: "Common",
-    setName: "Ancient Pulls Preview",
+    setName: "ancientpulls Preview",
     cardNumber: "001",
     marketValue: 0.12,
   },
@@ -20,7 +20,7 @@ const DEMO_CARDS: WishRevealCard[] = [
     id: "uncommon-preview",
     name: "Papyrus Mouse",
     rarity: "Uncommon",
-    setName: "Ancient Pulls Preview",
+    setName: "ancientpulls Preview",
     cardNumber: "002",
     marketValue: 0.28,
   },
@@ -28,7 +28,7 @@ const DEMO_CARDS: WishRevealCard[] = [
     id: "rare-preview",
     name: "Moon Moth",
     rarity: "Rare Holo",
-    setName: "Ancient Pulls Preview",
+    setName: "ancientpulls Preview",
     cardNumber: "003",
     marketValue: 1.45,
   },
@@ -36,7 +36,7 @@ const DEMO_CARDS: WishRevealCard[] = [
     id: "double-preview",
     name: "Temple Bird",
     rarity: "Double Rare",
-    setName: "Ancient Pulls Preview",
+    setName: "ancientpulls Preview",
     cardNumber: "004",
     marketValue: 3.8,
   },
@@ -44,7 +44,7 @@ const DEMO_CARDS: WishRevealCard[] = [
     id: "ultra-preview",
     name: "Sunbeam Relic",
     rarity: "Ultra Rare",
-    setName: "Ancient Pulls Preview",
+    setName: "ancientpulls Preview",
     cardNumber: "005",
     marketValue: 18.4,
   },
@@ -52,7 +52,7 @@ const DEMO_CARDS: WishRevealCard[] = [
     id: "illustration-preview",
     name: "Living Mural",
     rarity: "Illustration Rare",
-    setName: "Ancient Pulls Preview",
+    setName: "ancientpulls Preview",
     cardNumber: "006",
     marketValue: 11.25,
   },
@@ -60,7 +60,7 @@ const DEMO_CARDS: WishRevealCard[] = [
     id: "special-preview",
     name: "Catnip Star",
     rarity: "Special Illustration Rare",
-    setName: "Ancient Pulls Preview",
+    setName: "ancientpulls Preview",
     cardNumber: "007",
     marketValue: 79.5,
   },
@@ -68,7 +68,7 @@ const DEMO_CARDS: WishRevealCard[] = [
     id: "hyper-preview",
     name: "Solar Crown",
     rarity: "Hyper Rare",
-    setName: "Ancient Pulls Preview",
+    setName: "ancientpulls Preview",
     cardNumber: "008",
     marketValue: 125,
   },
@@ -76,7 +76,7 @@ const DEMO_CARDS: WishRevealCard[] = [
     id: "crown-preview",
     name: "Crown of the Constellation",
     rarity: "Crown Rare",
-    setName: "Ancient Pulls Preview",
+    setName: "ancientpulls Preview",
     cardNumber: "009",
     marketValue: 500,
   },
@@ -84,7 +84,7 @@ const DEMO_CARDS: WishRevealCard[] = [
     id: "black-hole-preview",
     name: "Event Horizon Relic",
     rarity: "Crown Rare",
-    setName: "Ancient Pulls Preview",
+    setName: "ancientpulls Preview",
     cardNumber: "010",
     marketValue: 501,
   },
@@ -120,7 +120,7 @@ export default function WishPreviewPage() {
         </p>
 
         <h1 className="mt-3 text-3xl font-black tracking-tight text-white sm:text-5xl">
-          Ancient Pulls Wish Ceremony
+          ancientpulls Wish Ceremony
         </h1>
 
         <p className="mt-4 max-w-3xl text-sm font-semibold leading-7 text-white/45 sm:text-base">
@@ -198,7 +198,7 @@ export default function WishPreviewPage() {
         respectPreferences={false}
         onFinished={() => {
           console.log(
-            "Ancient Pulls wish ceremony completed.",
+            "ancientpulls wish ceremony completed.",
           );
         }}
         onClose={() => setOpen(false)}

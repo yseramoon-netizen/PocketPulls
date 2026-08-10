@@ -447,7 +447,7 @@ export default function ProfilePage() {
       <PlayerPageHeader
         eyebrow="Your trainer identity"
         title="Profile"
-        description="Choose how you appear across Ancient Pulls, select the card that represents you and decide whether your profile can appear publicly in the rankings."
+        description="Choose how you appear across ancientpulls, select the card that represents you and decide whether your profile can appear publicly in the rankings."
         actions={
           <PlayerSecondaryButton
             onClick={() => void loadProfile()}

@@ -93,7 +93,7 @@ export default function LoginPage() {
 
       if (!data.user) {
         throw new Error(
-          "Ancient Pulls could not verify your account.",
+          "ancientpulls could not verify your account.",
         );
       }
 
@@ -172,7 +172,7 @@ export default function LoginPage() {
               text-emerald-100
             "
           >
-            Awakening Ancient Pulls...
+            Awakening ancientpulls...
           </p>
         </div>
       </main>
@@ -341,7 +341,7 @@ export default function LoginPage() {
                   "
                 />
 
-                Ancient Pulls Operations
+                ancientpulls Operations
               </div>
 
               <h1
@@ -373,7 +373,7 @@ export default function LoginPage() {
               >
                 Manage the Pokémon card database,
                 physical inventory, customer pulls and
-                Ancient Pulls operations from one secure
+                ancientpulls operations from one secure
                 workspace.
               </p>
             </div>
@@ -644,7 +644,7 @@ export default function LoginPage() {
                 >
                   <img
                     src="/ancient-pulls/celestial-cat.png"
-                    alt="Ancient Pulls"
+                    alt="ancientpulls"
                     className="
                       h-24
                       w-24
@@ -674,7 +674,7 @@ export default function LoginPage() {
                     lg:hidden
                   "
                 >
-                  Ancient Pulls Operations
+                  ancientpulls Operations
                 </div>
 
                 <h2
@@ -696,7 +696,7 @@ export default function LoginPage() {
                     text-white/45
                   "
                 >
-                  Sign in to access the Ancient Pulls admin
+                  Sign in to access the ancientpulls admin
                   workspace.
                 </p>
               </div>
@@ -964,7 +964,7 @@ export default function LoginPage() {
                     </>
                   ) : (
                     <>
-                      Sign in to Ancient Pulls
+                      Sign in to ancientpulls
                       <span aria-hidden="true">
                         →
                       </span>
@@ -1037,7 +1037,7 @@ export default function LoginPage() {
                   text-white/25
                 "
               >
-                Ancient Pulls internal operations system
+                ancientpulls internal operations system
               </p>
             </div>
           </div>
