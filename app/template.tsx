@@ -35,7 +35,6 @@ const PAGE_TITLES: ReadonlyArray<readonly [string, string]> = [
   ["/update-password", "Choose New Password"],
   ["/sign-in", "Sign In"],
   ["/sign-up", "Create Account"],
-  ["/login", "Sign In"],
   ["/welcome", "Welcome"],
   ["/faq", "FAQ"],
   ["/help", "Help"],
