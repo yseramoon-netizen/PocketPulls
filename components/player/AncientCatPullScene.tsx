@@ -259,8 +259,29 @@ export default function AncientCatPullScene({
         <div className={styles.sun}>
           <span className={styles.sunCore} />
           <span className={styles.sunHalo} />
-          <span className={styles.sunRayOne} />
-          <span className={styles.sunRayTwo} />
+          <span
+            key={`orbit-system-${activeTier}`}
+            className={styles.sunOrbitSystem}
+          >
+            <i className={`${styles.orbitRing} ${styles.orbitRingOne}`} />
+            <i className={`${styles.orbitRing} ${styles.orbitRingTwo}`} />
+            <i className={`${styles.orbitRing} ${styles.orbitRingThree}`} />
+            <i className={`${styles.orbitRing} ${styles.orbitRingFour}`} />
+            <i className={`${styles.orbitRing} ${styles.orbitRingFive}`} />
+            <i className={styles.orbitSpokes} />
+            <i className={styles.orbitConstellation} />
+            <i className={styles.orbitGlyphs}>
+              <b>✦</b>
+              <b>◇</b>
+              <b>☥</b>
+              <b>✦</b>
+              <b>◇</b>
+              <b>☥</b>
+              <b>✦</b>
+              <b>◇</b>
+            </i>
+            <i className={styles.orbitCrown} />
+          </span>
         </div>
 
         <img

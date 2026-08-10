@@ -74,9 +74,7 @@
 }
 
 .sunCore,
-.sunHalo,
-.sunRayOne,
-.sunRayTwo {
+.sunHalo {
   position: absolute;
   inset: 0;
   border-radius: 999px;
@@ -103,19 +101,182 @@
   transition: opacity 560ms ease;
 }
 
-.sunRayOne,
-.sunRayTwo {
-  inset: -23%;
-  border: 2px solid color-mix(in srgb, var(--active-accent) 62%, transparent);
-  opacity: var(--sun-ray-opacity);
-  animation: rayTurns 11s linear infinite;
+.sunOrbitSystem {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  border-radius: 50%;
+  color: var(--active-accent);
+  filter: drop-shadow(0 0 8px var(--active-glow));
+  animation: orbitSystemAwakens 720ms cubic-bezier(0.12, 0.76, 0.24, 1.12) both;
+  transition: color 560ms ease, filter 560ms ease;
 }
 
-.sunRayTwo {
-  inset: -39%;
+.orbitRing,
+.orbitSpokes,
+.orbitConstellation,
+.orbitGlyphs,
+.orbitCrown {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.orbitRing {
+  border: 1.5px solid color-mix(in srgb, var(--active-accent) 68%, transparent);
+  opacity: 0;
+  transition: border-color 560ms ease, opacity 560ms ease;
+}
+
+.orbitRingOne {
+  inset: -8%;
+  opacity: calc(var(--sun-ray-opacity) + 0.16);
+}
+
+.orbitRingTwo {
+  inset: -28%;
   border-style: dashed;
-  animation-direction: reverse;
-  animation-duration: 17s;
+  opacity: var(--sun-ray-opacity);
+  animation: rayTurns 17s linear infinite reverse;
+}
+
+.orbitRingThree {
+  inset: -48%;
+  border-width: 2px;
+  border-style: dotted;
+  animation: rayTurns 14s linear infinite;
+}
+
+.orbitRingFour {
+  inset: -70%;
+  border-style: dashed;
+  animation: rayTurns 22s linear infinite reverse;
+}
+
+.orbitRingFive {
+  inset: -94%;
+  border-width: 2px;
+  border-style: double;
+  animation: rayTurns 28s linear infinite;
+}
+
+.orbitSpokes {
+  inset: -72%;
+  opacity: 0;
+  background: repeating-conic-gradient(
+    from 0deg,
+    color-mix(in srgb, var(--active-accent) 56%, transparent) 0deg 0.8deg,
+    transparent 0.8deg 45deg
+  );
+  mask: radial-gradient(circle, transparent 0 54%, #000 55% 57%, transparent 58%);
+  animation: rayTurns 32s linear infinite;
+}
+
+.orbitConstellation {
+  inset: -86%;
+  opacity: 0;
+  background:
+    radial-gradient(circle at 50% 0%, currentColor 0 2px, transparent 2.8px),
+    radial-gradient(circle at 85% 15%, currentColor 0 2px, transparent 2.8px),
+    radial-gradient(circle at 100% 50%, currentColor 0 2px, transparent 2.8px),
+    radial-gradient(circle at 85% 85%, currentColor 0 2px, transparent 2.8px),
+    radial-gradient(circle at 50% 100%, currentColor 0 2px, transparent 2.8px),
+    radial-gradient(circle at 15% 85%, currentColor 0 2px, transparent 2.8px),
+    radial-gradient(circle at 0% 50%, currentColor 0 2px, transparent 2.8px),
+    radial-gradient(circle at 15% 15%, currentColor 0 2px, transparent 2.8px),
+    conic-gradient(
+      from 22.5deg,
+      transparent 0 7%,
+      color-mix(in srgb, var(--active-accent) 46%, transparent) 7.2% 7.7%,
+      transparent 7.9% 12.5%
+    );
+  mask: radial-gradient(circle, transparent 0 62%, #000 63% 67%, transparent 68%);
+  animation: constellationTurns 19s linear infinite;
+}
+
+.orbitGlyphs {
+  inset: -108%;
+  opacity: 0;
+  animation: rayTurns 34s linear infinite reverse;
+}
+
+.orbitGlyphs b {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  color: color-mix(in srgb, var(--active-accent) 82%, white);
+  font-size: clamp(0.42rem, 0.9vw, 0.62rem);
+  font-style: normal;
+  font-weight: 900;
+  text-shadow: 0 0 7px var(--active-glow);
+  transform:
+    translate(-50%, -50%)
+    rotate(calc(var(--glyph-index) * 45deg))
+    translateY(calc(clamp(76px, 12vw, 138px) * -1))
+    rotate(calc(var(--glyph-index) * -45deg));
+}
+
+.orbitGlyphs b:nth-child(1) { --glyph-index: 0; }
+.orbitGlyphs b:nth-child(2) { --glyph-index: 1; }
+.orbitGlyphs b:nth-child(3) { --glyph-index: 2; }
+.orbitGlyphs b:nth-child(4) { --glyph-index: 3; }
+.orbitGlyphs b:nth-child(5) { --glyph-index: 4; }
+.orbitGlyphs b:nth-child(6) { --glyph-index: 5; }
+.orbitGlyphs b:nth-child(7) { --glyph-index: 6; }
+.orbitGlyphs b:nth-child(8) { --glyph-index: 7; }
+
+.orbitCrown {
+  inset: -124%;
+  opacity: 0;
+  background: repeating-conic-gradient(
+    from 0deg,
+    color-mix(in srgb, var(--active-accent) 76%, white) 0deg 1.2deg,
+    transparent 1.4deg 15deg
+  );
+  mask: radial-gradient(circle, transparent 0 73%, #000 74% 76%, transparent 77%);
+  animation: crownMechanismBreath 1.8s ease-in-out infinite alternate;
+}
+
+.scene:is([data-tier="2"], [data-tier="3"], [data-tier="4"], [data-tier="5"], [data-tier="6"], [data-tier="7"], [data-tier="8"], [data-tier="9"]) .orbitRingThree {
+  opacity: calc(var(--sun-ray-opacity) + 0.06);
+}
+
+.scene:is([data-tier="3"], [data-tier="4"], [data-tier="5"], [data-tier="6"], [data-tier="7"], [data-tier="8"], [data-tier="9"]) .orbitConstellation {
+  opacity: 0.34;
+}
+
+.scene:is([data-tier="4"], [data-tier="5"], [data-tier="6"], [data-tier="7"], [data-tier="8"], [data-tier="9"]) .orbitSpokes {
+  opacity: 0.46;
+}
+
+.scene:is([data-tier="5"], [data-tier="6"], [data-tier="7"], [data-tier="8"], [data-tier="9"]) .orbitRingFour {
+  opacity: calc(var(--sun-ray-opacity) + 0.04);
+}
+
+.scene:is([data-tier="6"], [data-tier="7"], [data-tier="8"], [data-tier="9"]) .orbitGlyphs {
+  opacity: 0.64;
+}
+
+.scene:is([data-tier="7"], [data-tier="8"], [data-tier="9"]) .orbitConstellation {
+  opacity: 0.78;
+  filter: drop-shadow(0 0 8px var(--active-glow));
+}
+
+.scene:is([data-tier="8"], [data-tier="9"]) .orbitRingFive {
+  opacity: calc(var(--sun-ray-opacity) + 0.12);
+}
+
+.scene[data-tier="8"] .sunOrbitSystem {
+  animation: orbitSystemAwakens 720ms cubic-bezier(0.12, 0.76, 0.24, 1.12) both, hyperMechanismSurge 2.2s ease-in-out infinite alternate;
+}
+
+.scene[data-tier="9"] .orbitCrown {
+  opacity: 0.88;
+}
+
+.scene[data-tier="9"] .sunOrbitSystem {
+  filter: drop-shadow(0 0 12px var(--active-glow)) drop-shadow(0 0 28px var(--active-glow));
+  animation: orbitSystemCrowned 900ms cubic-bezier(0.12, 0.76, 0.24, 1.14) both;
 }
 
 .horizon {
@@ -522,7 +683,12 @@
 
 .scene[data-low-effects="true"] .heatHaze,
 .scene[data-low-effects="true"] .embers,
-.scene[data-low-effects="true"] .sunRayTwo {
+.scene[data-low-effects="true"] .orbitRingFour,
+.scene[data-low-effects="true"] .orbitRingFive,
+.scene[data-low-effects="true"] .orbitSpokes,
+.scene[data-low-effects="true"] .orbitConstellation,
+.scene[data-low-effects="true"] .orbitGlyphs,
+.scene[data-low-effects="true"] .orbitCrown {
   display: none;
 }
 
@@ -582,6 +748,72 @@
 @keyframes rayTurns {
   to {
     transform: rotate(360deg);
+  }
+}
+
+@keyframes constellationTurns {
+  to {
+    transform: rotate(-360deg);
+  }
+}
+
+@keyframes orbitSystemAwakens {
+  0% {
+    opacity: 0;
+    transform: scale(0.72) rotate(-12deg);
+  }
+
+  58% {
+    opacity: 1;
+    transform: scale(1.08) rotate(3deg);
+  }
+
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(0);
+  }
+}
+
+@keyframes orbitSystemCrowned {
+  0% {
+    opacity: 0.2;
+    transform: scale(0.62) rotate(-18deg);
+  }
+
+  45% {
+    opacity: 1;
+    transform: scale(1.16) rotate(4deg);
+  }
+
+  72% {
+    transform: scale(0.97) rotate(-1deg);
+  }
+
+  100% {
+    opacity: 1;
+    transform: scale(1.04) rotate(0);
+  }
+}
+
+@keyframes hyperMechanismSurge {
+  from {
+    opacity: 0.8;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes crownMechanismBreath {
+  from {
+    filter: drop-shadow(0 0 5px var(--active-glow));
+    transform: scale(0.96) rotate(-1.5deg);
+  }
+
+  to {
+    filter: drop-shadow(0 0 15px var(--active-glow));
+    transform: scale(1.035) rotate(1.5deg);
   }
 }
 
@@ -901,8 +1133,12 @@
   .heatHaze,
   .embers span,
   .sunCore,
-  .sunRayOne,
-  .sunRayTwo,
+  .sunOrbitSystem,
+  .orbitRing,
+  .orbitSpokes,
+  .orbitConstellation,
+  .orbitGlyphs,
+  .orbitCrown,
   .blackHoleRing,
   .blackHoleRingOuter,
   .cosmicFlightTrail,
