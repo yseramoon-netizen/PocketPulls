@@ -171,6 +171,8 @@ export default function FirstWishJourney({
   const pathname = usePathname();
   const router = useRouter();
   const requestRef = useRef(0);
+  const journeyStepRef = useRef<JourneyStepId | null>(null);
+  const holdWishCompletionRef = useRef(false);
 
   const [journey, setJourney] = useState<JourneyRow | null>(null);
   const [available, setAvailable] = useState(true);
@@ -188,12 +190,17 @@ export default function FirstWishJourney({
   const [beginning, setBeginning] = useState(false);
   const [advancing, setAdvancing] = useState(false);
   const [cinematicOpen, setCinematicOpen] = useState(false);
+  const [waitingForWishContinue, setWaitingForWishContinue] = useState(false);
   const [targetRect, setTargetRect] = useState<SpotlightRect | null>(null);
   const [locatingTarget, setLocatingTarget] = useState(false);
   const [activeInteraction, setActiveInteraction] = useState<string | null>(null);
   const [celebrating, setCelebrating] = useState(false);
 
-  const loadJourney = useCallback(async () => {
+  const loadJourney = useCallback(async (force = false) => {
+    if (!force && holdWishCompletionRef.current) {
+      return;
+    }
+
     const requestId = requestRef.current + 1;
     requestRef.current = requestId;
 
@@ -212,6 +219,15 @@ export default function FirstWishJourney({
     }
 
     const nextJourney = asJourneyRow(data);
+    journeyStepRef.current = nextJourney?.current_step ?? null;
+
+    if (
+      nextJourney?.current_step === "wish" &&
+      !nextJourney.first_wish_complete
+    ) {
+      holdWishCompletionRef.current = true;
+    }
+
     setAvailable(true);
     setJourney(nextJourney);
 
@@ -238,8 +254,28 @@ export default function FirstWishJourney({
       }
     };
     const handleCinematic = (event: Event) => {
-      const detail = (event as CustomEvent<{ visible?: boolean }>).detail;
-      setCinematicOpen(detail?.visible === true);
+      const detail = (event as CustomEvent<{ open?: boolean }>).detail;
+      const open = detail?.open === true;
+
+      setCinematicOpen(open);
+
+      if (
+        open &&
+        journeyStepRef.current === "wish"
+      ) {
+        holdWishCompletionRef.current = true;
+        setWaitingForWishContinue(true);
+      }
+    };
+    const handleCinematicContinued = () => {
+      if (!holdWishCompletionRef.current) {
+        return;
+      }
+
+      holdWishCompletionRef.current = false;
+      setWaitingForWishContinue(false);
+      setCinematicOpen(false);
+      void loadJourney(true);
     };
     const handleOnboardingInteraction = (event: Event) => {
       const detail = (
@@ -269,6 +305,10 @@ export default function FirstWishJourney({
       handleCinematic,
     );
     window.addEventListener(
+      "pocketpulls:wish-cinematic-continued",
+      handleCinematicContinued,
+    );
+    window.addEventListener(
       "pocketpulls:onboarding-interaction",
       handleOnboardingInteraction,
     );
@@ -284,6 +324,10 @@ export default function FirstWishJourney({
       window.removeEventListener(
         "pocketpulls:wish-cinematic-visibility",
         handleCinematic,
+      );
+      window.removeEventListener(
+        "pocketpulls:wish-cinematic-continued",
+        handleCinematicContinued,
       );
       window.removeEventListener(
         "pocketpulls:onboarding-interaction",
@@ -665,6 +709,13 @@ export default function FirstWishJourney({
   }
 
   if (!currentStep) {
+    return null;
+  }
+
+  if (
+    cinematicOpen ||
+    waitingForWishContinue
+  ) {
     return null;
   }
 

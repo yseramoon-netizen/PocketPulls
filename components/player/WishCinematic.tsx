@@ -479,6 +479,11 @@ export default function WishCinematic({
 
   const handleContinue = useCallback(() => {
     stopAudio();
+    window.dispatchEvent(
+      new Event(
+        "pocketpulls:wish-cinematic-continued",
+      ),
+    );
     onClose();
   }, [onClose, stopAudio]);
 
@@ -682,7 +687,7 @@ export default function WishCinematic({
       }
 
       if (complete) {
-        onClose();
+        handleContinue();
         return;
       }
 
@@ -701,7 +706,7 @@ export default function WishCinematic({
     open,
     complete,
     allowSkip,
-    onClose,
+    handleContinue,
     revealImmediately,
   ]);
 
