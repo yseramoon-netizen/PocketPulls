@@ -1274,7 +1274,7 @@ export default function ConstellationPage() {
       setZoom(targetZoom);
       setCameraOffset(targetOffset);
       setTravellingStarId(null);
-      resetAfterCardRef.current = mobileSky;
+      resetAfterCardRef.current = true;
       setSelectedStar(star);
       return;
     }
@@ -1294,7 +1294,7 @@ export default function ConstellationPage() {
       cameraOffsetRef.current = targetOffset;
       setZoom(targetZoom);
       setCameraOffset(targetOffset);
-      resetAfterCardRef.current = mobileSky;
+      resetAfterCardRef.current = true;
       setSelectedStar(star);
       return;
     }
@@ -1335,7 +1335,7 @@ export default function ConstellationPage() {
       setZoom(targetZoom);
       setCameraOffset(targetOffset);
       setTravellingStarId(null);
-      resetAfterCardRef.current = mobileSky;
+      resetAfterCardRef.current = true;
       setSelectedStar(star);
 
       window.requestAnimationFrame(() => {
@@ -1469,7 +1469,7 @@ export default function ConstellationPage() {
     gesture.pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
 
     if (gesture.pointers.size >= 2) {
-      if (mobileSky && resetAfterCardRef.current) {
+      if (resetAfterCardRef.current) {
         resetAfterCardRef.current = false;
         gesture.pointers.clear();
         setDraggingSky(false);
@@ -1503,7 +1503,7 @@ export default function ConstellationPage() {
         return;
       }
 
-      if (mobileSky && resetAfterCardRef.current) {
+      if (resetAfterCardRef.current) {
         resetAfterCardRef.current = false;
         gesture.moved = true;
         gesture.pointers.clear();
@@ -1591,6 +1591,17 @@ export default function ConstellationPage() {
 
   const handleSkyWheel = useCallback((event: ReactWheelEvent<HTMLElement>) => {
     event.preventDefault();
+
+    // A card journey leaves the camera focused on the selected star. The
+    // first desktop scroll must restore the whole sky instead of zooming that
+    // focused camera farther away and making the constellation impossible to
+    // find. Mobile uses the same rule for pinch/drag above.
+    if (resetAfterCardRef.current) {
+      resetAfterCardRef.current = false;
+      recenterEarthView();
+      return;
+    }
+
     const multiplier = Math.exp(-event.deltaY * 0.00135);
     queueSkyView({
       zoom: clampZoom(
@@ -1608,7 +1619,7 @@ export default function ConstellationPage() {
       setRotation({ ...viewRef.current.rotation });
       setZoom(viewRef.current.zoom);
     }, 140);
-  }, [clampZoom, queueSkyView]);
+  }, [clampZoom, queueSkyView, recenterEarthView]);
 
   const loadConstellation = useCallback(async (manual = false) => {
     if (manual) {
@@ -2178,7 +2189,7 @@ export default function ConstellationPage() {
               type="button"
               onClick={() => {
                 setSelectedStar(null);
-                resetAfterCardRef.current = mobileSky;
+                resetAfterCardRef.current = true;
               }}
               aria-label="Close memory"
               className="flex h-9 w-9 flex-none items-center justify-center rounded-xl border border-white/10 bg-white/[0.05] text-lg font-black text-white/55 transition hover:bg-white/10 hover:text-white"

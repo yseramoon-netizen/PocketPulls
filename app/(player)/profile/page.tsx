@@ -139,6 +139,27 @@ const EMPTY_PROFILE: ProfileData = {
   signatureImageUrl: null,
 };
 
+const AVATAR_BUCKET = "player-avatars";
+const MAX_AVATAR_FILE_SIZE = 3 * 1024 * 1024;
+const AVATAR_CONTENT_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+]);
+
+function getAvatarExtension(file: File): string | null {
+  switch (file.type) {
+    case "image/jpeg":
+      return "jpg";
+    case "image/png":
+      return "png";
+    case "image/webp":
+      return "webp";
+    default:
+      return null;
+  }
+}
+
 function parseProfile(value: unknown): ProfileData {
   const row = Array.isArray(value) ? value[0] : value;
 
@@ -200,6 +221,8 @@ async function getVerifiedPlayerUser() {
 export default function ProfilePage() {
   const profileOwnerRef =
     useRef<string | null>(null);
+  const avatarInputRef =
+    useRef<HTMLInputElement | null>(null);
 
   const [profile, setProfile] =
     useState<ProfileData>(EMPTY_PROFILE);
@@ -208,6 +231,8 @@ export default function ProfilePage() {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] =
+    useState(false);
   const [savedMessage, setSavedMessage] =
     useState<string | null>(null);
   const [errorMessage, setErrorMessage] =
@@ -433,6 +458,94 @@ export default function ProfilePage() {
     [form, saving, loadProfile],
   );
 
+  const uploadAvatar = useCallback(
+    async (event: React.ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0];
+      event.target.value = "";
+
+      if (!file || uploadingAvatar) {
+        return;
+      }
+
+      setErrorMessage(null);
+      setSavedMessage(null);
+
+      const extension = getAvatarExtension(file);
+      if (!extension || !AVATAR_CONTENT_TYPES.has(file.type)) {
+        setErrorMessage(
+          "Choose a JPG, PNG or WebP image for your portrait.",
+        );
+        return;
+      }
+
+      if (file.size > MAX_AVATAR_FILE_SIZE) {
+        setErrorMessage(
+          "Your portrait must be 3 MB or smaller.",
+        );
+        return;
+      }
+
+      setUploadingAvatar(true);
+
+      try {
+        const activeUser = await getVerifiedPlayerUser();
+
+        if (
+          !profileOwnerRef.current ||
+          profileOwnerRef.current !== activeUser.id ||
+          form.userId !== activeUser.id
+        ) {
+          throw new Error(
+            "The signed-in player changed. Reload the profile before changing the portrait.",
+          );
+        }
+
+        const objectPath = `${activeUser.id}/portrait.${extension}`;
+        const { error: uploadError } = await supabase.storage
+          .from(AVATAR_BUCKET)
+          .upload(objectPath, file, {
+            cacheControl: "3600",
+            contentType: file.type,
+            upsert: true,
+          });
+
+        if (uploadError) {
+          throw uploadError;
+        }
+
+        const { data: publicUrlData } = supabase.storage
+          .from(AVATAR_BUCKET)
+          .getPublicUrl(objectPath);
+
+        const avatarUrl = publicUrlData.publicUrl
+          ? `${publicUrlData.publicUrl}?v=${Date.now()}`
+          : "";
+
+        if (!avatarUrl) {
+          throw new Error("The uploaded portrait could not be prepared.");
+        }
+
+        setForm((current) => ({
+          ...current,
+          avatarUrl,
+        }));
+        setSavedMessage(
+          "Portrait selected. Save your trainer profile to publish it.",
+        );
+      } catch (error: unknown) {
+        setErrorMessage(
+          getErrorMessage(
+            error,
+            "Your portrait could not be uploaded.",
+          ),
+        );
+      } finally {
+        setUploadingAvatar(false);
+      }
+    },
+    [form.userId, uploadingAvatar],
+  );
+
   const initials =
     (form.displayName || form.username || "T")
       .charAt(0)
@@ -519,16 +632,37 @@ export default function ProfilePage() {
               }
             >
               <div className="flex flex-col gap-5 border-b border-white/10 pb-6 sm:flex-row sm:items-center">
-                <div className="flex h-24 w-24 flex-none items-center justify-center overflow-hidden rounded-full border border-violet-200/20 bg-violet-300/10 text-3xl font-black text-white">
-                  {form.avatarUrl ? (
-                    <img
-                      src={form.avatarUrl}
-                      alt=""
-                      className="h-full w-full object-cover"
-                    />
-                  ) : (
-                    initials
-                  )}
+                <div className="relative h-24 w-24 flex-none">
+                  <input
+                    ref={avatarInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    onChange={(event) => void uploadAvatar(event)}
+                    className="sr-only"
+                    tabIndex={-1}
+                  />
+
+                  <button
+                    type="button"
+                    onClick={() => avatarInputRef.current?.click()}
+                    disabled={uploadingAvatar || saving}
+                    className="group relative flex h-24 w-24 items-center justify-center overflow-hidden rounded-full border border-violet-200/30 bg-violet-300/10 text-3xl font-black text-white shadow-[0_0_0_6px_rgba(196,181,253,0.04)] transition hover:border-yellow-100/60 hover:shadow-[0_0_0_6px_rgba(250,204,21,0.1)] disabled:cursor-not-allowed disabled:opacity-55"
+                    aria-label="Choose a profile picture"
+                  >
+                    {form.avatarUrl ? (
+                      <img
+                        src={form.avatarUrl}
+                        alt=""
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      initials
+                    )}
+
+                    <span className="absolute inset-0 flex items-center justify-center bg-[#060718]/0 px-2 text-center text-[0.58rem] font-black uppercase tracking-[0.1em] text-white opacity-0 transition group-hover:bg-[#060718]/72 group-hover:opacity-100 group-focus-visible:bg-[#060718]/72 group-focus-visible:opacity-100">
+                      {uploadingAvatar ? "Uploading..." : "Change portrait"}
+                    </span>
+                  </button>
                 </div>
 
                 <div>
@@ -555,6 +689,17 @@ export default function ProfilePage() {
                   <p className="mt-3 text-xs font-semibold text-white/28">
                     Joined {formatDate(profile.joinedAt)}
                   </p>
+
+                  <button
+                    type="button"
+                    onClick={() => avatarInputRef.current?.click()}
+                    disabled={uploadingAvatar || saving}
+                    className="mt-3 text-xs font-black text-yellow-100/60 underline decoration-yellow-100/25 underline-offset-4 transition hover:text-yellow-50 disabled:cursor-not-allowed disabled:opacity-45"
+                  >
+                    {uploadingAvatar
+                      ? "Uploading portrait..."
+                      : "Click your picture to choose a portrait"}
+                  </button>
                 </div>
               </div>
 
@@ -651,25 +796,6 @@ export default function ProfilePage() {
                 </div>
 
                 <ProfileField
-                  label="Avatar image URL"
-                  className="sm:col-span-2"
-                >
-                  <input
-                    type="url"
-                    value={form.avatarUrl}
-                    onChange={(event) =>
-                      setForm((current) => ({
-                        ...current,
-                        avatarUrl:
-                          event.target.value.slice(0, 500),
-                      }))
-                    }
-                    placeholder="https://..."
-                    className="profile-input"
-                  />
-                </ProfileField>
-
-                <ProfileField
                   label="Trainer bio"
                   hint={`${form.bio.length} / 280`}
                   className="sm:col-span-2"
@@ -723,17 +849,19 @@ export default function ProfilePage() {
               <div className="mt-7 flex flex-col gap-3 sm:flex-row">
                 <PlayerPrimaryButton
                   type="submit"
-                  disabled={saving}
+                  disabled={saving || uploadingAvatar}
                   className="flex-1"
                 >
                   {saving
                     ? "Saving profile..."
+                    : uploadingAvatar
+                      ? "Uploading portrait..."
                     : "Save trainer profile"}
                 </PlayerPrimaryButton>
 
                 <PlayerSecondaryButton
                   onClick={() => setForm(profile)}
-                  disabled={saving}
+                  disabled={saving || uploadingAvatar}
                   className="flex-1"
                 >
                   Undo changes
