@@ -142,8 +142,10 @@ export function buildPasswordRecoveryUrl():
     getConfiguredPublicOrigin();
 
   if (publicOrigin) {
-    return `${publicOrigin}/update-password`;
+    return `${publicOrigin}/auth/callback?next=${encodeURIComponent(
+      "/update-password",
+    )}`;
   }
 
-  return "/update-password";
+  return "/auth/callback?next=%2Fupdate-password";
 }

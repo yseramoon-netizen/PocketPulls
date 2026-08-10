@@ -117,6 +117,13 @@ export default function AuthCallbackPage() {
             "token_hash",
           );
 
+        const emailType =
+          parseEmailType(
+            search.get(
+              "type",
+            ),
+          );
+
         const code =
           search.get("code");
 
@@ -166,11 +173,7 @@ export default function AuthCallbackPage() {
                 token_hash:
                   tokenHash,
                 type:
-                  parseEmailType(
-                    search.get(
-                      "type",
-                    ),
-                  ),
+                  emailType,
               });
 
           if (error) {
@@ -194,6 +197,21 @@ export default function AuthCallbackPage() {
           throw new Error(
             "The confirmation link did not create a valid session. It may have expired or already been used.",
           );
+        }
+
+        if (
+          emailType ===
+          "recovery"
+        ) {
+          if (!active) {
+            return;
+          }
+
+          router.replace(
+            "/update-password",
+          );
+          router.refresh();
+          return;
         }
 
         const {

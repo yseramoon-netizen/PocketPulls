@@ -2,130 +2,42 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1"
-    />
-    <title>Confirm your Unknown Pulls account</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Confirm your Ancient Pulls account</title>
   </head>
-
-  <body
-    style="
-      margin: 0;
-      padding: 32px 16px;
-      background: #07091f;
-      color: #ffffff;
-      font-family: Arial, Helvetica, sans-serif;
-    "
-  >
-    <table
-      role="presentation"
-      width="100%"
-      cellspacing="0"
-      cellpadding="0"
-      border="0"
-    >
+  <body style="margin:0;padding:0;background:#03040d;color:#ffffff;font-family:Arial,Helvetica,sans-serif;">
+    <div style="display:none;max-height:0;overflow:hidden;opacity:0;">One final step before your constellation awakens.</div>
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;background:#03040d;">
       <tr>
-        <td align="center">
-          <table
-            role="presentation"
-            width="100%"
-            cellspacing="0"
-            cellpadding="0"
-            border="0"
-            style="
-              max-width: 560px;
-              border: 1px solid rgba(165, 243, 252, 0.18);
-              border-radius: 24px;
-              background: #0b0d2b;
-              overflow: hidden;
-            "
-          >
+        <td align="center" style="padding:32px 14px;">
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;max-width:600px;background:#090b22;border:1px solid #3f351c;border-radius:24px;overflow:hidden;">
             <tr>
-              <td
-                style="
-                  height: 5px;
-                  background: #a5f3fc;
-                "
-              ></td>
+              <td style="height:5px;background:#e8bf5a;font-size:0;line-height:0;">&nbsp;</td>
             </tr>
-
             <tr>
-              <td
-                style="
-                  padding: 36px 30px;
-                  text-align: center;
-                "
-              >
-                <p
-                  style="
-                    margin: 0;
-                    color: #a5f3fc;
-                    font-size: 12px;
-                    font-weight: 800;
-                    letter-spacing: 2px;
-                    text-transform: uppercase;
-                  "
-                >
-                  Unknown Pulls
-                </p>
-
-                <h1
-                  style="
-                    margin: 16px 0 0;
-                    color: #ffffff;
-                    font-size: 30px;
-                    line-height: 1.15;
-                  "
-                >
-                  Confirm your trainer symbol
-                </h1>
-
-                <p
-                  style="
-                    margin: 18px auto 0;
-                    max-width: 430px;
-                    color: #c4c7dc;
-                    font-size: 15px;
-                    line-height: 1.7;
-                  "
-                >
-                  Confirm this email address to finish creating
-                  your Unknown Pulls trainer account.
-                </p>
-
-                <p style="margin: 28px 0 0;">
-                  <a
-                    href="{{ .ConfirmationURL }}"
-                    style="
-                      display: inline-block;
-                      padding: 15px 24px;
-                      border-radius: 14px;
-                      background: #a5f3fc;
-                      color: #111329;
-                      font-size: 15px;
-                      font-weight: 800;
-                      text-decoration: none;
-                    "
-                  >
-                    Confirm email address
-                  </a>
-                </p>
-
-                <p
-                  style="
-                    margin: 24px 0 0;
-                    color: #777b98;
-                    font-size: 12px;
-                    line-height: 1.6;
-                  "
-                >
-                  This secure link confirms your email, then
-                  returns you to Unknown Pulls to finish setup.
-                </p>
+              <td align="center" style="padding:38px 28px 18px;">
+                <div style="width:66px;height:66px;line-height:66px;border-radius:50%;background:#17152a;border:1px solid #715d29;color:#f6d878;font-size:38px;text-align:center;">★</div>
+                <p style="margin:20px 0 0;color:#e8bf5a;font-size:11px;font-weight:800;letter-spacing:3px;text-transform:uppercase;">Ancient Pulls</p>
+                <h1 style="margin:14px 0 0;color:#ffffff;font-size:30px;line-height:1.2;font-weight:800;">Awaken your constellation</h1>
+                <p style="margin:18px auto 0;max-width:440px;color:#c8c8d8;font-size:15px;line-height:1.7;">Your trainer account is almost ready. Confirm your email address and Nebu will guide you to your first wish.</p>
+              </td>
+            </tr>
+            <tr>
+              <td align="center" style="padding:10px 28px 18px;">
+                <a href="{{ .RedirectTo }}&amp;token_hash={{ .TokenHash }}&amp;type=signup" style="display:inline-block;padding:15px 27px;border-radius:13px;background:#e8bf5a;color:#15120a;font-size:15px;font-weight:800;text-decoration:none;box-shadow:0 8px 24px rgba(232,191,90,0.18);">Confirm email address</a>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:18px 28px 34px;">
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;background:#0d1029;border:1px solid #232642;border-radius:14px;">
+                  <tr>
+                    <td align="center" style="padding:16px;color:#85889f;font-size:12px;line-height:1.6;">If you did not create an Ancient Pulls account, you can safely ignore this email.</td>
+                  </tr>
+                </table>
               </td>
             </tr>
           </table>
+          <p style="margin:18px 0 0;color:#5f6175;font-size:11px;line-height:1.5;">A secure message from Ancient Pulls</p>
         </td>
       </tr>
     </table>
