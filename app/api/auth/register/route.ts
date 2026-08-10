@@ -10,6 +10,10 @@ type RegisterRequest = {
   displayName?: unknown;
   username?: unknown;
   nextPath?: unknown;
+  purchaseConsentVersion?: unknown;
+  ageConfirmed?: unknown;
+  randomCardAccepted?: unknown;
+  termsAccepted?: unknown;
 };
 
 type AuthServicePayload =
@@ -571,6 +575,15 @@ export async function POST(
     const nextPath =
       normaliseNextPath(body.nextPath);
 
+    const purchaseConsentVersion =
+      readString(body.purchaseConsentVersion);
+
+    const hasPurchaseConsent =
+      purchaseConsentVersion === "2026-08-08-v1" &&
+      body.ageConfirmed === true &&
+      body.randomCardAccepted === true &&
+      body.termsAccepted === true;
+
     if (
       !email ||
       !email.includes("@")
@@ -617,6 +630,15 @@ export async function POST(
       });
     }
 
+    if (!hasPurchaseConsent) {
+      throw new RegisterRouteError({
+        status: 400,
+        code: "purchase_consent_required",
+        message:
+          "Confirm the account and purchase acknowledgements before creating an account.",
+      });
+    }
+
     const callbackUrl =
       buildCallbackUrl(
         request,
@@ -660,6 +682,11 @@ export async function POST(
               username,
               brand:
                 "ancientpulls",
+              purchase_consent_version:
+                purchaseConsentVersion,
+              age_18_confirmed: true,
+              random_physical_card_ack: true,
+              terms_ack: true,
             },
           }),
         },

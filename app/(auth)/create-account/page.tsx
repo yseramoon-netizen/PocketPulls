@@ -18,7 +18,6 @@ import {
   normaliseUsername,
 } from "@/lib/auth/helpers";
 import {
-  buildAuthCallbackUrl,
   getSafeNextPath,
 } from "@/lib/auth/navigation";
 import {
@@ -40,6 +39,43 @@ type UsernameState =
   | "available"
   | "taken"
   | "invalid";
+
+type RegistrationGatewayResponse = {
+  ok?: boolean;
+  session?: {
+    access_token?: unknown;
+    refresh_token?: unknown;
+  } | null;
+  error?: {
+    message?: unknown;
+    code?: unknown;
+    details?: unknown;
+    upstreamStatus?: unknown;
+  };
+};
+
+function registrationGatewayError(
+  payload: RegistrationGatewayResponse | null,
+): Error {
+  const failure =
+    payload?.error;
+
+  const error = new Error(
+    typeof failure?.message === "string" && failure.message.trim()
+      ? failure.message
+      : "ancientpulls could not create your account.",
+  ) as Error & {
+    code?: unknown;
+    details?: unknown;
+    status?: unknown;
+  };
+
+  error.code = failure?.code;
+  error.details = failure?.details;
+  error.status = failure?.upstreamStatus;
+
+  return error;
+}
 
 export default function CreateAccountPage() {
   const router = useRouter();
@@ -237,26 +273,53 @@ export default function CreateAccountPage() {
     setSubmitting(true);
 
     try {
-      const { data, error } = await supabase.auth.signUp({
-        email: cleanEmail,
-        password,
-        options: {
-          data: {
-            display_name: cleanName,
-            username: cleanUsername,
-            brand: "ancientpulls",
-            purchase_consent_version: PURCHASE_CONSENT_VERSION,
-            age_18_confirmed: true,
-            random_physical_card_ack: true,
-            terms_ack: true,
-          },
-          emailRedirectTo: buildAuthCallbackUrl(nextPath),
+      const response = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
         },
+        body: JSON.stringify({
+          email: cleanEmail,
+          password,
+          displayName: cleanName,
+          username: cleanUsername,
+          nextPath,
+          purchaseConsentVersion: PURCHASE_CONSENT_VERSION,
+          ageConfirmed: true,
+          randomCardAccepted: true,
+          termsAccepted: true,
+        }),
       });
 
-      if (error) throw error;
+      const payload =
+        await response.json().catch(() => null) as
+          | RegistrationGatewayResponse
+          | null;
 
-      if (data.session) {
+      if (!response.ok || payload?.ok !== true) {
+        throw registrationGatewayError(payload);
+      }
+
+      const accessToken =
+        typeof payload.session?.access_token === "string"
+          ? payload.session.access_token
+          : null;
+      const refreshToken =
+        typeof payload.session?.refresh_token === "string"
+          ? payload.session.refresh_token
+          : null;
+
+      if (accessToken && refreshToken) {
+        const { error: sessionError } =
+          await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          });
+
+        if (sessionError) {
+          throw sessionError;
+        }
+
         const { error: registrationError } = await supabase.rpc(
           "complete_player_registration",
         );
