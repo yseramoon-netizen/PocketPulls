@@ -13,6 +13,8 @@ import { publishPlayerPreferences } from "@/lib/player/preferences";
 import {
   getWishRevealConfig,
   getWishRevealParticleCount,
+  WISH_WORLD_ESCALATION_START_MS,
+  WISH_WORLD_STEP_DURATIONS_MS,
   type WishRevealConfig,
 } from "@/lib/player/wish-reveal";
 import {
@@ -84,12 +86,6 @@ function formatMoney(value: number | null | undefined): string {
   }).format(Math.max(0, Number(value) || 0));
 }
 
-function buildEscalationSteps(config: WishRevealConfig): readonly number[] {
-  const available = Math.max(450, config.timings.cardAtMs - 620);
-  const step = Math.max(150, Math.floor(available / config.tier));
-  return Array.from({ length: 9 }, () => step);
-}
-
 export default function WishCinematic({
   open,
   card,
@@ -131,7 +127,6 @@ export default function WishCinematic({
     mobile: mobileEffects,
     lowEffects,
   });
-  const escalationSteps = useMemo(() => buildEscalationSteps(config), [config]);
   const revealFromPreferences =
     respectPreferences &&
     (preferences.reducedMotion ||
@@ -448,8 +443,8 @@ export default function WishCinematic({
             <div className={styles.catScene}>
               <AncientCatPullScene
                 tier={config.tier}
-                escalationStartMs={520}
-                stepDurationsMs={escalationSteps}
+                escalationStartMs={WISH_WORLD_ESCALATION_START_MS}
+                stepDurationsMs={WISH_WORLD_STEP_DURATIONS_MS}
                 cardRevealAtMs={config.timings.cardAtMs}
                 walkSheet={nebuHeatAssets.walkSheet}
                 reactionSheet={nebuHeatAssets.reactionSheet}

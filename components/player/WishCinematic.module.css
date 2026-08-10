@@ -242,7 +242,8 @@
 }
 
 .overlay[data-tier="1"] .omen,
-.overlay[data-tier="2"] .omen { display: none; }
+.overlay[data-tier="2"] .omen,
+.overlay[data-tier="1"] .relicSeal { display: none; }
 
 .relicSeal,
 .glyphOrbit,
