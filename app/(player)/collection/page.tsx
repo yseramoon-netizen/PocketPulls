@@ -721,27 +721,29 @@ export default function CollectionPage() {
         </div>
       ) : null}
 
-      {loading ? (
-        <div className={styles.binderLoading}>Opening your binder...</div>
-      ) : cards.length === 0 ? (
-        <div className={styles.emptyBinder}>
-          <div className={styles.emptyPage}>
-            <span>✦</span>
-            <h2>{hasFilters ? "No cards match those filters." : "Your binder is waiting."}</h2>
-            <p>{hasFilters ? "Try another search or filter." : "Complete a wish and your first card will appear here."}</p>
-            {hasFilters ? <PlayerSecondaryButton onClick={clearFilters}>Clear filters</PlayerSecondaryButton> : null}
+      <div data-onboarding-target="binder">
+        {loading ? (
+          <div className={styles.binderLoading}>Opening your binder...</div>
+        ) : cards.length === 0 ? (
+          <div className={styles.emptyBinder}>
+            <div className={styles.emptyPage}>
+              <span>✦</span>
+              <h2>{hasFilters ? "No cards match those filters." : "Your binder is waiting."}</h2>
+              <p>{hasFilters ? "Try another search or filter." : "Complete a wish and your first card will appear here."}</p>
+              {hasFilters ? <PlayerSecondaryButton onClick={clearFilters}>Clear filters</PlayerSecondaryButton> : null}
+            </div>
           </div>
-        </div>
-      ) : (
-        <BinderSpread
-          cards={displayCards}
-          themeKey={themeKey}
-          onOpen={(card) => setSelectedCard(card as CollectionCard)}
-          swapSourceId={swapSource?.id || null}
-          onSwapTarget={(card) => void swapWith(card)}
-          dimmed={filtering || swapBusy}
-        />
-      )}
+        ) : (
+          <BinderSpread
+            cards={displayCards}
+            themeKey={themeKey}
+            onOpen={(card) => setSelectedCard(card as CollectionCard)}
+            swapSourceId={swapSource?.id || null}
+            onSwapTarget={(card) => void swapWith(card)}
+            dimmed={filtering || swapBusy}
+          />
+        )}
+      </div>
 
       <div className={styles.pagination}>
         <span>Spread {page} of {totalPages}</span>

@@ -761,7 +761,7 @@ function WishChamber({
   const hasWishes = wishBalance > 0;
 
   return (
-    <article className="relative overflow-hidden rounded-[2rem] border border-yellow-200/15 bg-[#090b27]/85 p-6 shadow-[0_30px_100px_rgba(0,0,0,0.3)] backdrop-blur-xl sm:p-8">
+    <article data-onboarding-target="wish" className="relative overflow-hidden rounded-[2rem] border border-yellow-200/15 bg-[#090b27]/85 p-6 shadow-[0_30px_100px_rgba(0,0,0,0.3)] backdrop-blur-xl sm:p-8">
       <div className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-yellow-200/10 blur-[90px]" />
       <div className="pointer-events-none absolute -bottom-24 left-10 h-64 w-64 rounded-full bg-violet-400/10 blur-[90px]" />
 
@@ -804,6 +804,7 @@ function WishChamber({
             {hasWishes ? (
               <button
                 type="button"
+                data-onboarding-action="make-wish"
                 onClick={onMakeWish}
                 disabled={makingWish}
                 className="min-h-13 flex-1 rounded-xl bg-gradient-to-r from-yellow-200 via-cyan-100 to-violet-200 px-5 text-sm font-black text-[#111329] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-55"

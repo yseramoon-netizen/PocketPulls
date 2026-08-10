@@ -375,7 +375,7 @@ export default function WishShopPage() {
         ) : null}
         {successMessage ? <div className={styles.successBanner}>{successMessage}</div> : null}
 
-        <section className={styles.vaultCard} aria-labelledby="vault-pass-title">
+        <section data-onboarding-target="reward" className={styles.vaultCard} aria-labelledby="vault-pass-title">
           <div className={styles.vaultStars} aria-hidden="true">
             <span>✦</span>
             <span>·</span>

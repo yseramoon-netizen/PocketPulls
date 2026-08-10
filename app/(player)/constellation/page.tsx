@@ -1963,6 +1963,7 @@ export default function ConstellationPage() {
       ) : null}
 
       <article
+        data-onboarding-target="constellation"
         ref={skyViewportRef}
         onPointerDown={handleSkyPointerDown}
         onPointerMove={handleSkyPointerMove}

@@ -513,6 +513,7 @@ export default function ProfilePage() {
             <div className="h-[44rem] animate-pulse rounded-2xl bg-white/[0.03]" />
           ) : (
             <form
+              data-onboarding-form="profile"
               onSubmit={(event) =>
                 void saveProfile(event)
               }
@@ -596,21 +597,23 @@ export default function ProfilePage() {
                   />
                 </ProfileField>
 
-                <ProfileField label="Favourite card or character">
-                  <input
-                    value={form.favouritePokemon}
-                    onChange={(event) =>
-                      setForm((current) => ({
-                        ...current,
-                        favouritePokemon:
-                          event.target.value.slice(0, 40),
-                      }))
-                    }
-                    maxLength={40}
-                    placeholder="Nebu or a favourite card"
-                    className="profile-input"
-                  />
-                </ProfileField>
+                <div data-onboarding-target="profile">
+                  <ProfileField label="Favourite card or character">
+                    <input
+                      value={form.favouritePokemon}
+                      onChange={(event) =>
+                        setForm((current) => ({
+                          ...current,
+                          favouritePokemon:
+                            event.target.value.slice(0, 40),
+                        }))
+                      }
+                      maxLength={40}
+                      placeholder="Nebu or a favourite card"
+                      className="profile-input"
+                    />
+                  </ProfileField>
+                </div>
 
                 <ProfileField label="Location">
                   <input
@@ -628,7 +631,7 @@ export default function ProfilePage() {
                   />
                 </ProfileField>
 
-                <div className="block">
+                <div className="block" data-onboarding-target="zodiac">
                   <span className="mb-2 flex items-center justify-between gap-3 text-xs font-black uppercase tracking-[0.12em] text-white/35">
                     <span>Star sign</span>
                     <span className="normal-case tracking-normal text-white/20">
@@ -920,7 +923,7 @@ function ZodiacPicker({
         <div
           role="listbox"
           aria-label="Star sign"
-          className="absolute inset-x-0 top-[calc(100%+0.45rem)] z-[80] max-h-72 overflow-y-auto rounded-2xl border border-violet-200/15 bg-[#100d2b]/98 p-1.5 shadow-[0_24px_70px_rgba(0,0,0,0.62)] backdrop-blur-2xl"
+          className="absolute inset-x-0 top-[calc(100%+0.45rem)] z-[184] max-h-72 overflow-y-auto rounded-2xl border border-violet-200/15 bg-[#100d2b]/98 p-1.5 shadow-[0_24px_70px_rgba(0,0,0,0.62)] backdrop-blur-2xl"
         >
           {ZODIAC_OPTIONS.map((option) => {
             const active = option.value === value;
