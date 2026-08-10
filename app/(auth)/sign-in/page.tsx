@@ -51,6 +51,20 @@ async function hasPlayerProfile(userId: string): Promise<boolean> {
   return Boolean(result.data);
 }
 
+async function ensurePlayerProfile(userId: string): Promise<boolean> {
+  if (await hasPlayerProfile(userId)) {
+    return true;
+  }
+
+  const { error } = await supabase.rpc("complete_player_registration");
+
+  if (error) {
+    throw error;
+  }
+
+  return hasPlayerProfile(userId);
+}
+
 function PlayerSignInContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -82,7 +96,7 @@ function PlayerSignInContent() {
           return;
         }
 
-        const playerExists = await hasPlayerProfile(data.session.user.id);
+        const playerExists = await ensurePlayerProfile(data.session.user.id);
 
         if (playerExists) {
           if (active) {
@@ -103,7 +117,15 @@ function PlayerSignInContent() {
         }
       } catch (sessionFailure: unknown) {
         console.warn("Player sign-in session check failed:", sessionFailure);
-        if (active) setChecking(false);
+        if (active) {
+          setError(
+            getAuthErrorMessage(
+              sessionFailure,
+              "Your confirmed account could not finish preparing its player profile.",
+            ),
+          );
+          setChecking(false);
+        }
       }
     }
 
@@ -190,7 +212,7 @@ function PlayerSignInContent() {
         throw signInError || new Error("No trainer session was returned.");
       }
 
-      const playerExists = await hasPlayerProfile(data.session.user.id);
+      const playerExists = await ensurePlayerProfile(data.session.user.id);
 
       if (!playerExists) {
         await supabase.auth.signOut({ scope: "local" });

@@ -254,6 +254,13 @@ function translateAuthMessage(
   }
 
   if (
+    normalisedCode === "42702" ||
+    (lower.includes("wish_balance") && lower.includes("ambiguous"))
+  ) {
+    return "Your email is confirmed, but the player profile could not finish preparing. The Ancient Pulls registration repair must be applied, then you can sign in again without creating another account.";
+  }
+
+  if (
     lower.includes("same password")
   ) {
     return "Your new password must be different from the previous password.";
