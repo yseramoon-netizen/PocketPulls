@@ -40,11 +40,12 @@ export default function EndlessDuatPortal() {
   }, []);
 
   const exit = () => router.push("/hq");
+  const openBadges = () => router.push("/achievements");
 
   return (
     <div className="endless-duat-portal">
       {bootstrap && accessToken ? (
-        <EndlessDuatGame bootstrap={bootstrap} accessToken={accessToken} onExit={exit} />
+        <EndlessDuatGame bootstrap={bootstrap} accessToken={accessToken} onExit={exit} onOpenBadges={openBadges} />
       ) : (
         <main className="duat-gate">
           <div className="duat-gate-star">✦</div>

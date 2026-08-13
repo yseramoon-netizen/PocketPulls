@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
-import { supabase } from "@/lib/supabase";
+import NebuPerformanceSprite from "@/components/player/NebuPerformanceSprite";
+import NebuSprite, { type NebuPose } from "@/components/player/NebuSprite";
+import { getNebuHeatAssets } from "@/lib/player/nebu";
 import {
   attackPower,
   biomeFor,
@@ -49,10 +51,12 @@ type DuatGameProps = {
   bootstrap: DuatBootstrap;
   accessToken: string;
   onExit: () => void;
+  onOpenBadges: () => void;
 };
 
 type Notice = { id: number; title: string; body: string; tone?: "gold" | "violet" | "red" };
 type OfflineReport = { minutes: number; dust: number; glyphs: number } | null;
+type NebuAction = "idle" | "travel" | "attack" | "pounce" | "ward" | "technique" | "hurt" | "victory" | "defeat";
 
 const NAV: Array<{ id: Tab; label: string; icon: string }> = [
   { id: "adventure", label: "Expedition", icon: "✦" },
@@ -91,23 +95,91 @@ function cloneState(state: GameState): GameState {
   };
 }
 
-function Nebu({ skin = "midnight", fighting = false, defeated = false }: { skin?: SkinId; fighting?: boolean; defeated?: boolean }) {
-  return (
-    <div className={`nebu skin-${skin} ${fighting ? "is-fighting" : ""} ${defeated ? "is-defeated" : ""}`} aria-label={getSkin(skin).name}>
-      <span className="nebu-aura" />
-      <span className="nebu-tail" />
-      <span className="nebu-body" />
-      <span className="nebu-head">
-        <i className="ear ear-left" />
-        <i className="ear ear-right" />
-        <i className="eye eye-left" />
-        <i className="eye eye-right" />
-        <i className="nebu-mark">✦</i>
-      </span>
-      <span className="nebu-paw paw-one" />
-      <span className="nebu-paw paw-two" />
-    </div>
-  );
+const MASTER_SEQUENCE: Record<NebuAction, readonly NebuPose[]> = {
+  idle: ["idle", "idle", "wiggle", "idle"],
+  travel: ["walk", "run", "walk", "run"],
+  attack: ["idle", "swipe", "pounce", "swipe", "idle"],
+  pounce: ["puffed", "pounce", "leap", "pounce", "idle"],
+  ward: ["puffed", "sacred", "sacred", "idle"],
+  technique: ["sacred", "leap", "crown", "sacred", "idle"],
+  hurt: ["idle", "puffed", "back", "puffed", "idle"],
+  victory: ["smug", "crown", "smug", "crown"],
+  defeat: ["puffed", "back", "catnip", "catnip"],
+};
+
+const COMPANION_SEQUENCE: Record<NebuAction, readonly number[]> = {
+  idle: [14, 15, 14, 15],
+  travel: [1, 2, 3, 4],
+  attack: [14, 12, 14, 12, 15],
+  pounce: [14, 12, 13, 12, 15],
+  ward: [14, 13, 13, 14],
+  technique: [14, 12, 15, 12, 14],
+  hurt: [14, 12, 13, 14],
+  victory: [14, 15, 14, 15],
+  defeat: [12, 13, 2, 2],
+};
+
+const COSMIC_SEQUENCE: Record<NebuAction, readonly number[]> = {
+  idle: [0, 1, 0, 1],
+  travel: [0, 1, 2, 3],
+  attack: [0, 3, 4, 3, 0],
+  pounce: [0, 3, 4, 8, 0],
+  ward: [0, 6, 6, 0],
+  technique: [0, 6, 8, 7, 0],
+  hurt: [0, 5, 2, 0],
+  victory: [0, 7, 8, 7],
+  defeat: [5, 2, 2, 2],
+};
+
+const ACTION_FRAME_MS: Record<NebuAction, number> = {
+  idle: 520,
+  travel: 130,
+  attack: 92,
+  pounce: 118,
+  ward: 180,
+  technique: 150,
+  hurt: 105,
+  victory: 220,
+  defeat: 240,
+};
+
+function DuatNebu({ skin = "midnight", action = "idle", compact = false }: { skin?: SkinId; action?: NebuAction; compact?: boolean }) {
+  const assets = getNebuHeatAssets(skin);
+  const isCompanion = skin === "sherry" || skin === "bubbles";
+  const isCosmic = skin === "cosmic_nebu";
+  const className = `duat-nebu-sprite action-${action} ${compact ? "is-compact" : ""}`;
+  const sequenceLength = isCosmic
+    ? COSMIC_SEQUENCE[action].length
+    : isCompanion
+      ? COMPANION_SEQUENCE[action].length
+      : MASTER_SEQUENCE[action].length;
+  const [sequenceFrame, setSequenceFrame] = useState(0);
+  const safeSequenceFrame = sequenceFrame % sequenceLength;
+
+  useEffect(() => {
+    if (compact || sequenceLength <= 1) return;
+    const timer = window.setInterval(() => {
+      setSequenceFrame((current) => {
+        if (action === "defeat" && current >= sequenceLength - 1) return current;
+        return (current + 1) % sequenceLength;
+      });
+    }, ACTION_FRAME_MS[action]);
+    return () => window.clearInterval(timer);
+  }, [action, compact, sequenceLength, skin]);
+
+  if (isCosmic && action === "travel") {
+    return <NebuPerformanceSprite sheet={assets.walkSheet} durationMs={1450} columns={assets.walkColumns ?? 4} rows={assets.walkRows ?? 4} className={className} label="Cosmic Nebu flying" />;
+  }
+  if (isCosmic) {
+    return <NebuPerformanceSprite sheet={assets.reactionSheet} durationMs={900} staticFrame={COSMIC_SEQUENCE[action][safeSequenceFrame]} columns={assets.reactionColumns ?? 3} rows={assets.reactionRows ?? 3} className={className} label={`Cosmic Nebu ${action}`} />;
+  }
+  if (isCompanion && action === "travel") {
+    return <NebuPerformanceSprite sheet={assets.walkSheet} durationMs={1450} columns={assets.walkColumns ?? 4} rows={assets.walkRows ?? 4} className={className} label={`${getSkin(skin).name} travelling`} />;
+  }
+  if (isCompanion) {
+    return <NebuPerformanceSprite sheet={assets.reactionSheet} durationMs={900} staticFrame={COMPANION_SEQUENCE[action][safeSequenceFrame]} columns={assets.reactionColumns ?? 4} rows={assets.reactionRows ?? 4} className={className} label={`${getSkin(skin).name} ${action}`} />;
+  }
+  return <NebuSprite pose={MASTER_SEQUENCE[action][safeSequenceFrame]} className={className} label={`${getSkin(skin).name} ${action}`} />;
 }
 
 function ResourcePill({ icon, label, value, accent }: { icon: string; label: string; value: number; accent?: string }) {
@@ -143,7 +215,7 @@ function stateFromBootstrap(bootstrap: DuatBootstrap): GameState {
   return next;
 }
 
-export default function EndlessDuatGame({ bootstrap, accessToken, onExit }: DuatGameProps) {
+export default function EndlessDuatGame({ bootstrap, accessToken, onExit, onOpenBadges }: DuatGameProps) {
   const [state, setState] = useState<GameState>(() => stateFromBootstrap(bootstrap));
   const [tab, setTab] = useState<Tab>("adventure");
   const [hydrated] = useState(true);
@@ -154,7 +226,20 @@ export default function EndlessDuatGame({ bootstrap, accessToken, onExit }: Duat
   const [offlineReport, setOfflineReport] = useState<OfflineReport>(null);
   const [adOpen, setAdOpen] = useState(false);
   const [adSeconds, setAdSeconds] = useState(5);
+  const [nebuAction, setNebuAction] = useState<NebuAction>("idle");
+  const [activeAccountSkin, setActiveAccountSkin] = useState<SkinId>(bootstrap.selectedSkin);
   const noticeId = useRef(0);
+  const nebuActionTimer = useRef<number | null>(null);
+  const previousHp = useRef(state.run.hp);
+  const previousDefeats = useRef(state.enemiesDefeated);
+
+  const playNebuAction = useCallback((action: NebuAction, duration = 720) => {
+    if (nebuActionTimer.current) window.clearTimeout(nebuActionTimer.current);
+    setNebuAction(action);
+    if (action !== "defeat") {
+      nebuActionTimer.current = window.setTimeout(() => setNebuAction("idle"), duration);
+    }
+  }, []);
 
   const notify = (title: string, body: string, tone: Notice["tone"] = "gold") => {
     const id = ++noticeId.current;
@@ -162,11 +247,31 @@ export default function EndlessDuatGame({ bootstrap, accessToken, onExit }: Duat
     window.setTimeout(() => setNotices((items) => items.filter((item) => item.id !== id)), 3600);
   };
 
+  useEffect(() => () => {
+    if (nebuActionTimer.current) window.clearTimeout(nebuActionTimer.current);
+  }, []);
+
+  useEffect(() => {
+    const lostVitality = state.run.hp < previousHp.current;
+    const wonBattle = state.enemiesDefeated > previousDefeats.current;
+    previousHp.current = state.run.hp;
+    previousDefeats.current = state.enemiesDefeated;
+    const action = state.run.phase === "defeat" ? "defeat" : wonBattle ? "victory" : lostVitality ? "hurt" : null;
+    if (!action) return;
+    const timer = window.setTimeout(() => playNebuAction(action, action === "victory" ? 1200 : 620), 0);
+    return () => window.clearTimeout(timer);
+  }, [playNebuAction, state.enemiesDefeated, state.run.hp, state.run.phase]);
+
   useEffect(() => {
     const syncAncientPullsSkin = (event: Event) => {
       const key = (event as CustomEvent<{ key?: SkinId }>).detail?.key;
       if (!key || !SKINS.some((skin) => skin.id === key)) return;
-      setState((current) => current.ownedSkins.includes(key) ? { ...current, selectedSkin: key } : current);
+      setActiveAccountSkin(key);
+      setState((current) => {
+        if (!current.ownedSkins.includes(key)) return current;
+        if (current.run.depth !== 0 || current.run.phase !== "choice") return current;
+        return { ...current, selectedSkin: key };
+      });
     };
     window.addEventListener("pocketpulls:nebu-skin-changed", syncAncientPullsSkin);
     return () => window.removeEventListener("pocketpulls:nebu-skin-changed", syncAncientPullsSkin);
@@ -232,6 +337,7 @@ export default function EndlessDuatGame({ bootstrap, accessToken, onExit }: Duat
   useEffect(() => {
     if (state.run.phase !== "combat") return;
     const battle = window.setInterval(() => {
+      playNebuAction("attack", 480);
       setState((current) => {
         if (current.run.phase !== "combat" || !current.run.enemy) return current;
         const next = cloneState(current);
@@ -315,7 +421,7 @@ export default function EndlessDuatGame({ bootstrap, accessToken, onExit }: Duat
       });
     }, 820);
     return () => window.clearInterval(battle);
-  }, [state.run.phase]);
+  }, [playNebuAction, state.run.phase]);
 
   useEffect(() => {
     if (!adOpen) return;
@@ -339,6 +445,7 @@ export default function EndlessDuatGame({ bootstrap, accessToken, onExit }: Duat
   const nextEclipseDepth = 30;
 
   const enterRoute = (route: RouteChoice) => {
+    playNebuAction("travel", 900);
     setState((current) => {
       if (current.run.phase !== "choice") return current;
       const next = cloneState(current);
@@ -404,6 +511,7 @@ export default function EndlessDuatGame({ bootstrap, accessToken, onExit }: Duat
 
   const solarPounce = () => {
     if (state.run.phase !== "combat" || skillRemaining > 0) return;
+    playNebuAction("pounce", 760);
     setState((current) => {
       if (!current.run.enemy || current.run.skillReadyAt > Date.now()) return current;
       const next = cloneState(current);
@@ -420,6 +528,7 @@ export default function EndlessDuatGame({ bootstrap, accessToken, onExit }: Duat
 
   const moonGuard = () => {
     if (state.run.phase !== "combat" || guardRemaining > 0) return;
+    playNebuAction("ward", 900);
     setState((current) => {
       if (!current.run.enemy || current.run.guardReadyAt > Date.now()) return current;
       const next = cloneState(current);
@@ -434,6 +543,7 @@ export default function EndlessDuatGame({ bootstrap, accessToken, onExit }: Duat
 
   const novaBurst = () => {
     if (state.run.phase !== "combat" || state.run.combo < 3) return;
+    playNebuAction("technique", 820);
     setState((current) => {
       if (!current.run.enemy || current.run.combo < 3) return current;
       const next = cloneState(current);
@@ -446,6 +556,7 @@ export default function EndlessDuatGame({ bootstrap, accessToken, onExit }: Duat
 
   const useSkinTechnique = () => {
     if (state.run.phase !== "combat" || skinRemaining > 0) return;
+    playNebuAction("technique", 980);
     setState((current) => {
       if (!current.run.enemy || current.run.skinReadyAt > Date.now()) return current;
       const next = cloneState(current);
@@ -786,22 +897,6 @@ export default function EndlessDuatGame({ bootstrap, accessToken, onExit }: Duat
     notify("Prophecy fulfilled", prophecy.reward);
   };
 
-  const selectSkin = async (skinId: SkinId) => {
-    if (!state.ownedSkins.includes(skinId)) return;
-    if (state.run.depth !== 0 || state.run.phase !== "choice") {
-      notify("Return to the oasis first", "Nebu can only change form before an expedition begins.", "red");
-      return;
-    }
-    const skin = getSkin(skinId);
-    setState((current) => ({ ...current, selectedSkin: skinId }));
-    window.localStorage.setItem("pocketpulls:nebu-skin-v1", skinId);
-    window.dispatchEvent(new CustomEvent("pocketpulls:nebu-skin-changed", { detail: { key: skinId } }));
-    window.dispatchEvent(new CustomEvent("ancientpulls:nebu-skin-selected", { detail: { skinId } }));
-    const { error } = await supabase.auth.updateUser({ data: { nebu_skin: skinId } });
-    if (error) notify("Coat saved on this device", "Ancient Pulls account sync will retry from the main wardrobe.", "red");
-    notify(`${skin.name} equipped`, skin.passiveName, skin.rarity === "legendary" ? "violet" : "gold");
-  };
-
   const selectOath = (oathId: OathId) => {
     if (state.run.depth !== 0 || state.run.phase !== "choice") return;
     const oath = getOath(oathId);
@@ -814,6 +909,8 @@ export default function EndlessDuatGame({ bootstrap, accessToken, onExit }: Duat
   const activeBoons = BOONS.filter((boon) => state.run.boons[boon.id] > 0);
   const wishProgress = Math.min(100, (state.resources.fragments / WISH_FRAGMENTS) * 100);
   const canAd = now >= state.nextAdAt;
+  const displayedNebuAction: NebuAction = state.run.phase === "defeat" ? "defeat" : nebuAction;
+  const badgeSkinWaiting = activeAccountSkin !== state.selectedSkin;
 
   return (
     <main className="game-shell">
@@ -828,14 +925,14 @@ export default function EndlessDuatGame({ bootstrap, accessToken, onExit }: Duat
           <ResourcePill icon="⌘" label="Glyphs" value={state.resources.glyphs} />
           <ResourcePill icon="☼" label="Flames" value={state.resources.flames} accent="flame" />
           <ResourcePill icon="◉" label="Wish balance" value={state.resources.wishes} accent="wish" />
-          <button className="duat-exit" onClick={onExit}>Exit to HQ</button>
+          <button className="duat-exit" onClick={onExit}><span>←</span> Return to Ancient Pulls</button>
         </div>
       </header>
 
       <div className="game-layout">
         <aside className="sidebar">
           <button className="player-seal" onClick={() => setTab("skins")} aria-label="Change Nebu skin">
-            <div className="seal-avatar">N</div>
+            <div className="seal-avatar"><DuatNebu skin={state.selectedSkin} action="idle" compact /></div>
             <div><small>ACTIVE NEBU</small><b>{activeSkin.name}</b></div>
             <span className="seal-level">E{state.eclipse + 1}</span>
           </button>
@@ -875,6 +972,7 @@ export default function EndlessDuatGame({ bootstrap, accessToken, onExit }: Duat
                 <div><span className="eyebrow">Expedition · Depth {state.run.depth}</span><h1>{biome.name}</h1><p>{biome.subtitle}</p></div>
                 <button className="quiet-button" onClick={returnToOasis} disabled={state.run.phase !== "choice"}>↩ Return to oasis</button>
               </div>
+              {badgeSkinWaiting && <div className="badge-skin-sync"><span>♛</span><div><b>{getSkin(activeAccountSkin).name} equipped from Badges</b><small>Finish or leave this expedition and the Duat will change Nebu safely at the oasis.</small></div></div>}
 
               <section className={`duat-stage phase-${state.run.phase}`}>
                 <div className="stage-moon" />
@@ -887,7 +985,7 @@ export default function EndlessDuatGame({ bootstrap, accessToken, onExit }: Duat
                   <div className="fighter-label"><b>{activeSkin.name}</b><span>ATK {displayedAttack} · ARM {state.run.armor}</span></div>
                   <ProgressBar value={state.run.hp} max={state.run.maxHp} />
                   <small>{Math.max(0, Math.round(state.run.hp))} / {state.run.maxHp} vitality</small>
-                  <Nebu skin={state.selectedSkin} fighting={state.run.phase === "combat"} defeated={state.run.phase === "defeat"} />
+                  <DuatNebu key={`${state.selectedSkin}-${displayedNebuAction}`} skin={state.selectedSkin} action={displayedNebuAction} />
                 </div>
 
                 {state.run.enemy && (
@@ -1044,9 +1142,9 @@ export default function EndlessDuatGame({ bootstrap, accessToken, onExit }: Duat
                 <div className="skin-rule"><span>◇</span><div><b>Sidegrades, not shortcuts</b><small>Every strength carries a burden; forge recipes never change</small></div></div>
               </div>
               <section className={`active-skin-hero theme-${activeSkin.id}`} style={{ "--skin-accent": activeSkin.accent } as CSSProperties}>
-                <div className="skin-stage"><div className="skin-orbit"><i /><i /></div><Nebu skin={state.selectedSkin} /></div>
+                <div className="skin-stage"><div className="skin-orbit"><i /><i /></div><DuatNebu skin={state.selectedSkin} action="victory" /></div>
                 <div className="active-skin-copy"><span className="eyebrow">Currently equipped · {activeSkin.rarity}</span><h2>{activeSkin.name}</h2><strong>{activeSkin.title}</strong><p>{activeSkin.description}</p><div className="passive-callout"><span>{activeSkin.icon}</span><div><small>UNIQUE PASSIVE</small><b>{activeSkin.passiveName}</b><p>{activeSkin.passive}</p><em>{activeSkin.burden}</em></div></div><div className="technique-callout"><small>SKIN TECHNIQUE</small><b>{activeSkin.techniqueName}</b><p>{activeSkin.technique}</p></div></div>
-                <div className="skin-family"><small>PLAYSTYLE</small><b>{activeSkin.family}</b><div className="mastery-block"><small>MASTERY {masteryLevel} / 10</small><div><span style={{ width: `${masteryProgress}%` }} /></div><em>{masteryXp} resonance points</em></div><span>{state.run.depth === 0 && state.run.phase === "choice" ? "Ready to change at the oasis" : "Finish or leave the current expedition to change"}</span></div>
+                <div className="skin-family"><small>PLAYSTYLE</small><b>{activeSkin.family}</b><div className="mastery-block"><small>MASTERY {masteryLevel} / 10</small><div><span style={{ width: `${masteryProgress}%` }} /></div><em>{masteryXp} resonance points</em></div><span>Coat selection is controlled by the Ancient Pulls Badges wardrobe.</span><button className="badge-wardrobe-button" onClick={onOpenBadges}>Open Badges wardrobe</button></div>
               </section>
               <div className="skin-grid">
                 {SKINS.map((skin) => {
@@ -1055,9 +1153,9 @@ export default function EndlessDuatGame({ bootstrap, accessToken, onExit }: Duat
                   const skinMasteryLevel = Math.min(10, Math.floor((state.skinMastery[skin.id] ?? 0) / 12));
                   return (
                     <article className={`skin-card theme-${skin.id} ${selected ? "selected" : ""} ${owned ? "owned" : "locked"}`} style={{ "--skin-accent": skin.accent } as CSSProperties} key={skin.id}>
-                      <div className="skin-card-visual"><span className="skin-halo" /><Nebu skin={skin.id} /><i className="skin-swatch" style={{ background: skin.swatch }} /></div>
+                      <div className="skin-card-visual"><span className="skin-halo" /><DuatNebu skin={skin.id} action="idle" /><i className="skin-swatch" style={{ background: skin.swatch }} /></div>
                       <div className="skin-card-copy"><span className="eyebrow">{skin.rarity} · {skin.family}</span><h3>{skin.name}</h3><small>{skin.title}</small><span className="skin-unlock">{skin.unlock}</span><div className="mini-passive"><span>{skin.icon}</span><div><b>{skin.passiveName}</b><p>{skin.passive}</p><em>{skin.burden}</em></div></div><div className="mini-technique"><small>ACTIVE · MASTERY {skinMasteryLevel}</small><b>{skin.techniqueName}</b></div></div>
-                      <button disabled={!owned || selected} onClick={() => void selectSkin(skin.id)}>{selected ? "Equipped" : owned ? state.run.depth === 0 && state.run.phase === "choice" ? "Equip this form" : "Return to oasis to equip" : "Not owned"}</button>
+                      <button disabled={!owned || selected} onClick={onOpenBadges}>{selected ? "Equipped in Badges" : owned ? "Equip from Badges" : "Not unlocked"}</button>
                     </article>
                   );
                 })}
