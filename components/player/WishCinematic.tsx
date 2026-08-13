@@ -107,7 +107,7 @@ export default function WishCinematic({
 }: WishCinematicProps) {
   const preloadTimerRef = useRef<number | null>(null);
   const completionTimerRef = useRef<number | null>(null);
-  const skipTimerRef = useRef<number | null>(null);
+  const skipRequestedRef = useRef(false);
   const finishedRef = useRef(false);
   const onFinishedRef = useRef(onFinished);
   const audioSessionRef = useRef<WishAudioSession | null>(null);
@@ -117,7 +117,6 @@ export default function WishCinematic({
   const [ready, setReady] = useState(false);
   const [complete, setComplete] = useState(false);
   const [skipped, setSkipped] = useState(false);
-  const [skipAvailable, setSkipAvailable] = useState(false);
   const [mobileEffects, setMobileEffects] = useState(false);
   const [runNumber, setRunNumber] = useState(0);
   const [muted, setMuted] = useState(false);
@@ -195,10 +194,8 @@ export default function WishCinematic({
   const clearTimers = useCallback(() => {
     if (preloadTimerRef.current !== null) window.clearTimeout(preloadTimerRef.current);
     if (completionTimerRef.current !== null) window.clearTimeout(completionTimerRef.current);
-    if (skipTimerRef.current !== null) window.clearTimeout(skipTimerRef.current);
     preloadTimerRef.current = null;
     completionTimerRef.current = null;
-    skipTimerRef.current = null;
   }, []);
 
   const reportFinished = useCallback(() => {
@@ -208,11 +205,11 @@ export default function WishCinematic({
   }, []);
 
   const revealImmediately = useCallback(() => {
+    skipRequestedRef.current = true;
     clearTimers();
     stopAudio();
     setReady(true);
     setSkipped(true);
-    setSkipAvailable(false);
     setComplete(true);
     reportFinished();
   }, [clearTimers, reportFinished, stopAudio]);
@@ -231,7 +228,7 @@ export default function WishCinematic({
       setReady(false);
       setComplete(false);
       setSkipped(false);
-      setSkipAvailable(false);
+      skipRequestedRef.current = false;
       markedSeenRef.current = false;
       return;
     }
@@ -244,7 +241,7 @@ export default function WishCinematic({
     setReady(false);
     setComplete(false);
     setSkipped(false);
-    setSkipAvailable(false);
+    skipRequestedRef.current = false;
 
     if (revealFromPreferences) {
       setReady(true);
@@ -259,23 +256,15 @@ export default function WishCinematic({
     }
 
     const startSequence = () => {
-      if (!active || started) return;
+      if (!active || started || skipRequestedRef.current) return;
       started = true;
       setRunNumber((current) => current + 1);
       setReady(true);
 
       completionTimerRef.current = window.setTimeout(() => {
         setComplete(true);
-        setSkipAvailable(false);
         reportFinished();
       }, config.timings.durationMs);
-
-      if (allowSkip && config.timings.skipAfterMs !== null) {
-        skipTimerRef.current = window.setTimeout(
-          () => setSkipAvailable(true),
-          config.timings.skipAfterMs,
-        );
-      }
     };
 
     const preloadSources = [
@@ -311,7 +300,6 @@ export default function WishCinematic({
       stopAudio();
     };
   }, [
-    allowSkip,
     card,
     cardKey,
     clearTimers,
@@ -380,14 +368,14 @@ export default function WishCinematic({
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
       if (complete) handleContinue();
-      else if (skipAvailable) revealImmediately();
+      else if (allowSkip) revealImmediately();
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => {
       document.body.style.overflow = previousOverflow;
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [complete, handleContinue, open, revealImmediately, skipAvailable]);
+  }, [allowSkip, complete, handleContinue, open, revealImmediately]);
 
   if (!open || !card) return null;
 
@@ -537,7 +525,7 @@ export default function WishCinematic({
         </div>
       )}
 
-      {allowSkip && ready && !complete && skipAvailable ? (
+      {allowSkip && !complete ? (
         <button type="button" className={styles.skipButton} onClick={revealImmediately}>Reveal now</button>
       ) : null}
     </div>

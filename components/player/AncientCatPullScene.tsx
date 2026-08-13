@@ -150,16 +150,23 @@ export default function AncientCatPullScene({
 }: AncientCatPullSceneProps) {
   const finalTier = clampTier(tier);
   const [activeTier, setActiveTier] = useState(1);
+  const [finalTierReached, setFinalTierReached] = useState(false);
   const [reactionBeat, setReactionBeat] = useState(0);
   const [reactionsStarted, setReactionsStarted] = useState(false);
 
   useEffect(() => {
     const timers: number[] = [];
 
+    setActiveTier(1);
+    setFinalTierReached(false);
+    setReactionBeat(0);
+    setReactionsStarted(false);
+
     timers.push(
       window.setTimeout(() => {
         setReactionsStarted(true);
         setActiveTier(blackHole ? finalTier : 1);
+        if (blackHole) setFinalTierReached(true);
       }, escalationStartMs),
     );
 
@@ -179,6 +186,7 @@ export default function AncientCatPullScene({
           window.setTimeout(() => {
             setActiveTier(nextTier);
             setReactionBeat(0);
+            if (nextTier === finalTier) setFinalTierReached(true);
           }, stepStartsAt),
         );
 
@@ -217,8 +225,6 @@ export default function AncientCatPullScene({
     "--sky-star-opacity": String(0.55 - heatLevel * 0.38),
     "--sun-halo-opacity": String(0.42 + heatLevel * 0.42),
     "--sun-ray-opacity": String(0.18 + heatLevel * 0.42),
-    "--orbit-scale": String(0.76 + heatLevel * 0.74),
-    "--orbit-energy": String(0.3 + heatLevel * 0.58),
     "--mount-brightness": String(0.88 + heatLevel * 0.22),
     "--mount-saturation": String(0.82 + heatLevel * 0.48),
     "--sand-gold": `${Math.round(88 - heatLevel * 30)}%`,
@@ -246,6 +252,7 @@ export default function AncientCatPullScene({
       data-black-hole={blackHole ? "true" : "false"}
       data-low-effects={lowEffects ? "true" : "false"}
       data-cosmic={cosmic ? "true" : "false"}
+      data-final-tier-reached={finalTierReached ? "true" : "false"}
       style={sceneStyle}
       aria-hidden="true"
     >

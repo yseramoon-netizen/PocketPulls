@@ -248,6 +248,12 @@ export default function PlayerNav({
   ] =
     useState(false);
 
+  const [
+    wishCinematicOpen,
+    setWishCinematicOpen,
+  ] =
+    useState(false);
+
   const currentItem =
     useMemo(
       () =>
@@ -273,6 +279,28 @@ export default function PlayerNav({
           item.href,
         ),
     );
+
+  useEffect(() => {
+    const handleWishCinematicVisibility = (event: Event) => {
+      setWishCinematicOpen(
+        Boolean(
+          (event as CustomEvent<{ open?: unknown }>).detail?.open,
+        ),
+      );
+    };
+
+    window.addEventListener(
+      "pocketpulls:wish-cinematic-visibility",
+      handleWishCinematicVisibility,
+    );
+
+    return () => {
+      window.removeEventListener(
+        "pocketpulls:wish-cinematic-visibility",
+        handleWishCinematicVisibility,
+      );
+    };
+  }, []);
 
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => {
@@ -505,6 +533,10 @@ export default function PlayerNav({
         "/sign-in",
       );
     }
+  }
+
+  if (wishCinematicOpen) {
+    return null;
   }
 
   return (
