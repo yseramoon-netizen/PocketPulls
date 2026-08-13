@@ -1,6 +1,14 @@
 "use client";
 
-import { type CSSProperties, useEffect, useMemo, useState } from "react";
+import {
+  type CSSProperties,
+  type RefCallback,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 import NebuPerformanceSprite from "./NebuPerformanceSprite";
 import styles from "./AncientCatPullScene.module.css";
@@ -13,10 +21,7 @@ type AncientCatPullSceneProps = {
   cardRevealAtMs: number;
   arrivalHoldMs?: number;
   blackHoleTravelMs?: number;
-  walkSheet?: string;
   reactionSheet?: string;
-  walkColumns?: number;
-  walkRows?: number;
   reactionColumns?: number;
   reactionRows?: number;
   cosmic?: boolean;
@@ -34,16 +39,54 @@ type Grade = {
   glow: string;
 };
 
-type Journey = {
-  id: number;
-  fromTier: number;
-  toTier: number;
-  durationMs: number;
-  toBlackHole: boolean;
+type RouteNode = {
+  id: string;
+  tier: number | null;
+  x: number;
+  y: number;
+  z: number;
+  blackHole?: boolean;
 };
 
-const DEFAULT_WALK_SHEET = "/ancient-pulls/scene/nebu-pyramid-exit-v1.webp";
+type CameraPoint = {
+  x: number;
+  y: number;
+  z: number;
+};
+
+type RoutePhase = {
+  kind: "travel" | "hold";
+  from: RouteNode;
+  to: RouteNode;
+  startsAt: number;
+  endsAt: number;
+};
+
+type BackgroundStar = {
+  x: number;
+  y: number;
+  z: number;
+  size: number;
+  alpha: number;
+  temperature: number;
+};
+
+type PrebuiltSpaceRouteProps = {
+  active: boolean;
+  finalTier: number;
+  stepDurationsMs: readonly number[];
+  arrivalHoldMs: number;
+  blackHoleTravelMs: number;
+  blackHole: boolean;
+  finaleStarted: boolean;
+  lowEffects: boolean;
+  onArrive: (tier: number) => void;
+  onBlackHoleReached: () => void;
+  onTravelStateChange: (travelling: boolean) => void;
+};
+
 const DEFAULT_REACTION_SHEET = "/ancient-pulls/scene/nebu-heat-reactions-v1.webp";
+const CAMERA_STAR_DISTANCE = 76;
 
 const GRADES: readonly Grade[] = [
   { name: "Gentle dawn", label: "Common", skyTop: "#172746", skyBottom: "#ba7048", accent: "#fde68a", secondary: "#fb923c", glow: "rgba(253,230,138,.74)" },
@@ -57,14 +100,42 @@ const GRADES: readonly Grade[] = [
   { name: "Crownfire", label: "Crown Rare", skyTop: "#211b08", skyBottom: "#70530e", accent: "#fff7c2", secondary: "#f5b83b", glow: "rgba(255,247,194,1)" },
 ] as const;
 
-const STREAKS = Array.from({ length: 30 }, (_, index) => index);
-const DEPTH_STARS = Array.from({ length: 24 }, (_, index) => index);
+const ROUTE_NODES: readonly RouteNode[] = [
+  { id: "common", tier: 1, x: 0, y: 0, z: 0 },
+  { id: "uncommon", tier: 2, x: 24, y: -9, z: 132 },
+  { id: "rare", tier: 3, x: -28, y: 14, z: 298 },
+  { id: "double-rare", tier: 4, x: 18, y: -17, z: 492 },
+  { id: "ultra-rare", tier: 5, x: -24, y: 9, z: 704 },
+  { id: "illustration-rare", tier: 6, x: 29, y: -7, z: 926 },
+  { id: "special-illustration-rare", tier: 7, x: -13, y: -19, z: 1158 },
+  { id: "hyper-rare", tier: 8, x: 21, y: 13, z: 1402 },
+  { id: "crown-rare", tier: 9, x: 0, y: -4, z: 1658 },
+  { id: "event-horizon", tier: null, x: -8, y: 3, z: 1976, blackHole: true },
+] as const;
+
 const SOLAR_TONGUES = Array.from({ length: 14 }, (_, index) => index);
 const SOLAR_SPARKS = Array.from({ length: 12 }, (_, index) => index);
 const SUPERNOVA_FRAGMENTS = Array.from({ length: 18 }, (_, index) => index);
 
+function clamp(value: number, minimum: number, maximum: number): number {
+  return Math.max(minimum, Math.min(maximum, value));
+}
+
 function clampTier(tier: number): number {
-  return Math.max(1, Math.min(GRADES.length, Math.round(tier)));
+  return clamp(Math.round(tier), 1, GRADES.length);
+}
+
+function smootherStep(value: number): number {
+  const t = clamp(value, 0, 1);
+  return t * t * t * (t * (t * 6 - 15) + 10);
+}
+
+function mix(from: number, to: number, progress: number): number {
+  return from + (to - from) * progress;
+}
+
+function cameraAtNode(node: RouteNode): CameraPoint {
+  return { x: node.x, y: node.y, z: node.z - CAMERA_STAR_DISTANCE };
 }
 
 function gradeVariables(grade: Grade, tier: number): CSSProperties {
@@ -77,6 +148,63 @@ function gradeVariables(grade: Grade, tier: number): CSSProperties {
     "--grade-bottom": grade.skyBottom,
     "--heat-level": String(heat),
   } as CSSProperties;
+}
+
+function buildBackgroundStars(): readonly BackgroundStar[] {
+  let seed = 0x51f15e;
+  const random = () => {
+    seed = (seed * 1664525 + 1013904223) >>> 0;
+    return seed / 4294967296;
+  };
+
+  return Array.from({ length: 240 }, (_, index) => {
+    const angle = random() * Math.PI * 2;
+    const radius = 18 + Math.pow(random(), 0.62) * 128;
+    return {
+      x: Math.cos(angle) * radius + (random() - 0.5) * 18,
+      y: Math.sin(angle) * radius * 0.68 + (random() - 0.5) * 12,
+      z: -35 + (index / 239) * 2150 + random() * 34,
+      size: 0.7 + random() * 1.65,
+      alpha: 0.34 + random() * 0.66,
+      temperature: random(),
+    };
+  });
+}
+
+const BACKGROUND_STARS = buildBackgroundStars();
+
+function buildRoutePhases(
+  finalTier: number,
+  stepDurationsMs: readonly number[],
+  arrivalHoldMs: number,
+  blackHole: boolean,
+  blackHoleTravelMs: number,
+): readonly RoutePhase[] {
+  const phases: RoutePhase[] = [];
+  let cursor = 0;
+
+  for (let targetTier = 2; targetTier <= finalTier; targetTier += 1) {
+    const from = ROUTE_NODES[targetTier - 2];
+    const to = ROUTE_NODES[targetTier - 1];
+    const duration = stepDurationsMs[targetTier - 1] ?? 4000;
+    phases.push({ kind: "travel", from, to, startsAt: cursor, endsAt: cursor + duration });
+    cursor += duration;
+    phases.push({ kind: "hold", from: to, to, startsAt: cursor, endsAt: cursor + arrivalHoldMs });
+    cursor += arrivalHoldMs;
+  }
+
+  if (blackHole) {
+    const from = ROUTE_NODES[finalTier - 1];
+    const to = ROUTE_NODES[ROUTE_NODES.length - 1];
+    phases.push({ kind: "travel", from, to, startsAt: cursor, endsAt: cursor + blackHoleTravelMs });
+    cursor += blackHoleTravelMs;
+    phases.push({ kind: "hold", from: to, to, startsAt: cursor, endsAt: Number.POSITIVE_INFINITY });
+  } else {
+    const finalNode = ROUTE_NODES[finalTier - 1];
+    phases.push({ kind: "hold", from: finalNode, to: finalNode, startsAt: cursor, endsAt: Number.POSITIVE_INFINITY });
+  }
+
+  return phases;
 }
 
 function BurningStar({ grade, tier, final = false }: { grade: Grade; tier: number; final?: boolean }) {
@@ -129,18 +257,260 @@ function BurningStar({ grade, tier, final = false }: { grade: Grade; tier: numbe
   );
 }
 
+function PrebuiltSpaceRoute({
+  active,
+  finalTier,
+  stepDurationsMs,
+  arrivalHoldMs,
+  blackHoleTravelMs,
+  blackHole,
+  finaleStarted,
+  lowEffects,
+  onArrive,
+  onBlackHoleReached,
+  onTravelStateChange,
+}: PrebuiltSpaceRouteProps) {
+  const stageRef = useRef<HTMLDivElement | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const starRefs = useRef(new Map<string, HTMLDivElement>());
+  const animationFrameRef = useRef<number | null>(null);
+  const routeStartedAtRef = useRef(0);
+  const lastCameraRef = useRef<CameraPoint>(cameraAtNode(ROUTE_NODES[0]));
+  const lastFrameAtRef = useRef(0);
+  const announcedNodeRef = useRef<string>("common");
+  const travellingRef = useRef(false);
+
+  const phases = useMemo(
+    () => buildRoutePhases(finalTier, stepDurationsMs, arrivalHoldMs, blackHole, blackHoleTravelMs),
+    [arrivalHoldMs, blackHole, blackHoleTravelMs, finalTier, stepDurationsMs],
+  );
+
+  const registerStar = useCallback(
+    (id: string): RefCallback<HTMLDivElement> => (element) => {
+      if (element) starRefs.current.set(id, element);
+      else starRefs.current.delete(id);
+    },
+    [],
+  );
+
+  useEffect(() => {
+    if (!active) {
+      if (animationFrameRef.current !== null) window.cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
+      routeStartedAtRef.current = 0;
+      announcedNodeRef.current = "common";
+      travellingRef.current = false;
+      onTravelStateChange(false);
+      return;
+    }
+
+    const canvas = canvasRef.current;
+    const stage = stageRef.current;
+    if (!canvas || !stage) return;
+
+    const context = canvas.getContext("2d", { alpha: true });
+    if (!context) return;
+
+    routeStartedAtRef.current = performance.now();
+    lastFrameAtRef.current = routeStartedAtRef.current;
+    lastCameraRef.current = cameraAtNode(ROUTE_NODES[0]);
+    let width = 1;
+    let height = 1;
+    let pixelRatio = 1;
+
+    const resize = () => {
+      const bounds = stage.getBoundingClientRect();
+      width = Math.max(1, bounds.width);
+      height = Math.max(1, bounds.height);
+      pixelRatio = Math.min(window.devicePixelRatio || 1, lowEffects ? 1 : 1.5);
+      canvas.width = Math.round(width * pixelRatio);
+      canvas.height = Math.round(height * pixelRatio);
+      canvas.style.width = `${width}px`;
+      canvas.style.height = `${height}px`;
+      context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+    };
+
+    const observer = new ResizeObserver(resize);
+    observer.observe(stage);
+    resize();
+
+    const render = (now: number) => {
+      const elapsed = now - routeStartedAtRef.current;
+      const phase = phases.find((candidate) => elapsed >= candidate.startsAt && elapsed < candidate.endsAt) ?? phases[phases.length - 1];
+      const isTravelling = phase.kind === "travel";
+
+      if (isTravelling !== travellingRef.current) {
+        travellingRef.current = isTravelling;
+        onTravelStateChange(isTravelling);
+      }
+
+      let camera: CameraPoint;
+      if (phase.kind === "travel") {
+        const duration = Math.max(1, phase.endsAt - phase.startsAt);
+        const rawProgress = clamp((elapsed - phase.startsAt) / duration, 0, 1);
+        const pullBackFraction = Math.min(0.16, 320 / duration);
+        const start = cameraAtNode(phase.from);
+        const finish = cameraAtNode(phase.to);
+
+        if (rawProgress < pullBackFraction) {
+          const progress = smootherStep(rawProgress / pullBackFraction);
+          camera = {
+            x: mix(start.x, start.x - (phase.to.x - start.x) * 0.025, progress),
+            y: mix(start.y, start.y - (phase.to.y - start.y) * 0.025, progress),
+            z: mix(start.z, start.z - 10, progress),
+          };
+        } else {
+          const progress = smootherStep((rawProgress - pullBackFraction) / (1 - pullBackFraction));
+          camera = {
+            x: mix(start.x - (phase.to.x - start.x) * 0.025, finish.x, progress),
+            y: mix(start.y - (phase.to.y - start.y) * 0.025, finish.y, progress),
+            z: mix(start.z - 10, finish.z, progress),
+          };
+        }
+      } else {
+        const at = cameraAtNode(phase.to);
+        const holdElapsed = Math.max(0, elapsed - phase.startsAt);
+        const settle = smootherStep(Math.min(1, holdElapsed / 620));
+        const drift = Math.sin(holdElapsed / 1250) * 0.9 * settle;
+        camera = {
+          x: at.x + drift,
+          y: at.y + Math.cos(holdElapsed / 1480) * 0.42 * settle,
+          z: at.z - Math.sin(holdElapsed / 1750) * 0.7 * settle,
+        };
+
+        if (announcedNodeRef.current !== phase.to.id) {
+          announcedNodeRef.current = phase.to.id;
+          if (phase.to.blackHole) onBlackHoleReached();
+          else if (phase.to.tier) onArrive(phase.to.tier);
+        }
+      }
+
+      const deltaSeconds = clamp((now - lastFrameAtRef.current) / 1000, 1 / 240, 0.08);
+      const lastCamera = lastCameraRef.current;
+      const cameraSpeed = Math.hypot(camera.x - lastCamera.x, camera.y - lastCamera.y, camera.z - lastCamera.z) / deltaSeconds;
+      const motionStrength = isTravelling ? clamp(cameraSpeed / 72, 0.08, 1) : 0;
+      const focalLength = Math.min(width, height) * 0.86;
+
+      context.clearRect(0, 0, width, height);
+      const backgroundCount = lowEffects ? 96 : BACKGROUND_STARS.length;
+
+      for (let index = 0; index < backgroundCount; index += 1) {
+        const star = BACKGROUND_STARS[index];
+        const depth = star.z - camera.z;
+        if (depth <= 1.5 || depth > 680) continue;
+
+        const projectedX = width / 2 + ((star.x - camera.x) * focalLength) / depth;
+        const projectedY = height / 2 + ((star.y - camera.y) * focalLength) / depth;
+        if (projectedX < -80 || projectedX > width + 80 || projectedY < -80 || projectedY > height + 80) continue;
+
+        const depthScale = clamp(120 / depth, 0.18, 3.4);
+        const radius = clamp(star.size * depthScale, 0.45, 3.2);
+        const alpha = star.alpha * clamp(230 / depth, 0.22, 1);
+        const red = star.temperature > 0.82 ? 255 : star.temperature < 0.18 ? 175 : 230;
+        const green = star.temperature > 0.82 ? 226 : star.temperature < 0.18 ? 215 : 235;
+        const blue = star.temperature > 0.82 ? 172 : 255;
+
+        if (motionStrength > 0.08) {
+          const radialX = projectedX - width / 2;
+          const radialY = projectedY - height / 2;
+          const radialLength = Math.max(1, Math.hypot(radialX, radialY));
+          const trailLength = clamp(motionStrength * depthScale * 22, 1.5, 42);
+          context.beginPath();
+          context.moveTo(projectedX, projectedY);
+          context.lineTo(
+            projectedX - (radialX / radialLength) * trailLength,
+            projectedY - (radialY / radialLength) * trailLength,
+          );
+          context.strokeStyle = `rgba(${red},${green},${blue},${alpha * 0.56})`;
+          context.lineWidth = Math.max(0.45, radius * 0.58);
+          context.stroke();
+        }
+
+        context.beginPath();
+        context.arc(projectedX, projectedY, radius, 0, Math.PI * 2);
+        context.fillStyle = `rgba(${red},${green},${blue},${alpha})`;
+        context.shadowColor = `rgba(${red},${green},${blue},${alpha * 0.8})`;
+        context.shadowBlur = radius > 1.25 ? 7 : 2;
+        context.fill();
+      }
+
+      context.shadowBlur = 0;
+      const visibleDistance = 188;
+
+      for (const node of ROUTE_NODES.slice(1)) {
+        const element = starRefs.current.get(node.id);
+        if (!element) continue;
+        const depth = node.z - camera.z;
+
+        if (depth <= 3 || depth >= visibleDistance) {
+          element.style.opacity = "0";
+          element.style.visibility = "hidden";
+          element.dataset.visible = "false";
+          continue;
+        }
+
+        const projectedX = width / 2 + ((node.x - camera.x) * focalLength) / depth;
+        const projectedY = height / 2 + ((node.y - camera.y) * focalLength) / depth;
+        const scale = clamp(CAMERA_STAR_DISTANCE / depth, 0.012, 12);
+        const appearance = smootherStep((visibleDistance - depth) / 78);
+        const insideFrame = projectedX > -width * 0.75 && projectedX < width * 1.75 && projectedY > -height * 0.75 && projectedY < height * 1.75;
+
+        element.style.visibility = insideFrame ? "visible" : "hidden";
+        element.style.opacity = insideFrame ? String(appearance) : "0";
+        element.style.transform = `translate3d(${projectedX}px, ${projectedY}px, 0) translate(-50%, -50%) scale(${scale})`;
+        element.dataset.visible = insideFrame && appearance > 0.025 ? "true" : "false";
+      }
+
+      lastCameraRef.current = camera;
+      lastFrameAtRef.current = now;
+      animationFrameRef.current = window.requestAnimationFrame(render);
+    };
+
+    animationFrameRef.current = window.requestAnimationFrame(render);
+
+    return () => {
+      observer.disconnect();
+      if (animationFrameRef.current !== null) window.cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
+    };
+  }, [active, lowEffects, onArrive, onBlackHoleReached, onTravelStateChange, phases]);
+
+  return (
+    <div ref={stageRef} className={styles.routeStage} data-active={active ? "true" : "false"} aria-hidden="true">
+      <div className={styles.routeNebula} />
+      <canvas ref={canvasRef} className={styles.routeCanvas} />
+
+      {ROUTE_NODES.slice(1, 9).map((node) => {
+        const nodeTier = node.tier ?? 9;
+        const grade = GRADES[nodeTier - 1];
+        return (
+          <div key={node.id} ref={registerStar(node.id)} className={styles.routeStar} data-visible="false" style={gradeVariables(grade, nodeTier)}>
+            <BurningStar grade={grade} tier={nodeTier} final={!blackHole && finaleStarted && nodeTier === finalTier} />
+          </div>
+        );
+      })}
+
+      <div ref={registerStar("event-horizon")} className={styles.routeBlackHole} data-visible="false">
+        <span className={styles.blackHoleDisc} />
+        <span className={styles.blackHoleAccretion} />
+        <span className={styles.blackHoleLens} />
+        <div className={styles.goldenGlimmer} data-visible={blackHole && finaleStarted ? "true" : "false"}><span /></div>
+      </div>
+
+      <div className={styles.routeVignette} />
+    </div>
+  );
+}
+
 export default function AncientCatPullScene({
   tier,
   escalationStartMs,
   stepDurationsMs,
   collapseAtMs,
   cardRevealAtMs,
-  arrivalHoldMs = 420,
+  arrivalHoldMs = 850,
   blackHoleTravelMs = 5000,
-  walkSheet = DEFAULT_WALK_SHEET,
   reactionSheet = DEFAULT_REACTION_SHEET,
-  walkColumns = 4,
-  walkRows = 4,
   reactionColumns = 4,
   reactionRows = 4,
   cosmic = false,
@@ -149,68 +519,35 @@ export default function AncientCatPullScene({
 }: AncientCatPullSceneProps) {
   const finalTier = clampTier(tier);
   const [activeTier, setActiveTier] = useState(1);
-  const [journey, setJourney] = useState<Journey | null>(null);
-  const [spaceMode, setSpaceMode] = useState(false);
   const [introComplete, setIntroComplete] = useState(false);
+  const [spaceMode, setSpaceMode] = useState(false);
+  const [travelling, setTravelling] = useState(false);
   const [blackHoleReached, setBlackHoleReached] = useState(false);
   const [finaleStarted, setFinaleStarted] = useState(false);
 
   useEffect(() => {
-    const timers: number[] = [];
     setActiveTier(1);
-    setJourney(null);
-    setSpaceMode(false);
     setIntroComplete(false);
+    setSpaceMode(false);
+    setTravelling(false);
     setBlackHoleReached(false);
     setFinaleStarted(false);
 
-    timers.push(window.setTimeout(() => setIntroComplete(true), escalationStartMs));
+    const introTimer = window.setTimeout(() => {
+      setIntroComplete(true);
+      if (finalTier > 1 || blackHole) setSpaceMode(true);
+    }, escalationStartMs);
+    const finaleTimer = window.setTimeout(() => setFinaleStarted(true), collapseAtMs);
 
-    let cursor = escalationStartMs;
-    let journeyId = 0;
-
-    for (let targetTier = 2; targetTier <= finalTier; targetTier += 1) {
-      const durationMs = stepDurationsMs[targetTier - 1] ?? 4000;
-      const fromTier = targetTier - 1;
-      const thisJourneyId = ++journeyId;
-
-      timers.push(window.setTimeout(() => {
-        setSpaceMode(true);
-        setJourney({ id: thisJourneyId, fromTier, toTier: targetTier, durationMs, toBlackHole: false });
-      }, cursor));
-
-      cursor += durationMs;
-      timers.push(window.setTimeout(() => {
-        setActiveTier(targetTier);
-        setJourney(null);
-      }, cursor));
-      cursor += arrivalHoldMs;
-    }
-
-    if (blackHole) {
-      const thisJourneyId = ++journeyId;
-      timers.push(window.setTimeout(() => {
-        setSpaceMode(true);
-        setJourney({ id: thisJourneyId, fromTier: finalTier, toTier: finalTier, durationMs: blackHoleTravelMs, toBlackHole: true });
-      }, cursor));
-      cursor += blackHoleTravelMs;
-      timers.push(window.setTimeout(() => {
-        setJourney(null);
-        setBlackHoleReached(true);
-      }, cursor));
-    }
-
-    timers.push(window.setTimeout(() => setFinaleStarted(true), collapseAtMs));
-
-    return () => timers.forEach((timer) => window.clearTimeout(timer));
-  }, [arrivalHoldMs, blackHole, blackHoleTravelMs, collapseAtMs, escalationStartMs, finalTier, stepDurationsMs]);
+    return () => {
+      window.clearTimeout(introTimer);
+      window.clearTimeout(finaleTimer);
+    };
+  }, [blackHole, collapseAtMs, escalationStartMs, finalTier]);
 
   const activeGrade = GRADES[activeTier - 1];
-  const destinationGrade = journey ? GRADES[journey.toTier - 1] : activeGrade;
   const introDurationMs = Math.max(900, escalationStartMs - 260);
   const worldFinal = finalTier === 1 && !blackHole && finaleStarted;
-  const settledFinal = spaceMode && !journey && !blackHole && activeTier === finalTier && finaleStarted;
-
   const sceneStyle = useMemo(() => ({
     ...gradeVariables(activeGrade, activeTier),
     "--intro-duration": `${introDurationMs}ms`,
@@ -218,90 +555,53 @@ export default function AncientCatPullScene({
     "--scene-clear-at": `${cardRevealAtMs}ms`,
   } as CSSProperties), [activeGrade, activeTier, cardRevealAtMs, collapseAtMs, introDurationMs]);
 
-  const journeyStyle = journey ? ({
-    ...gradeVariables(destinationGrade, journey.toTier),
-    "--travel-duration": `${journey.durationMs}ms`,
-    "--departure-accent": GRADES[journey.fromTier - 1].accent,
-    "--departure-glow": GRADES[journey.fromTier - 1].glow,
-  } as CSSProperties) : undefined;
+  const handleArrive = useCallback((arrivedTier: number) => {
+    setActiveTier(arrivedTier);
+    setBlackHoleReached(false);
+  }, []);
+  const handleBlackHoleReached = useCallback(() => setBlackHoleReached(true), []);
+  const handleTravelStateChange = useCallback((nextTravelling: boolean) => setTravelling(nextTravelling), []);
+
+  const showCaption =
+    introComplete &&
+    !travelling &&
+    !blackHoleReached &&
+    !finaleStarted &&
+    (finalTier === 1 || spaceMode);
 
   return (
-    <div className={styles.scene} data-tier={activeTier} data-space-mode={spaceMode ? "true" : "false"} data-traveling={journey ? "true" : "false"} data-black-hole={blackHole ? "true" : "false"} data-low-effects={lowEffects ? "true" : "false"} data-cosmic={cosmic ? "true" : "false"} style={sceneStyle} aria-hidden="true">
-      <div className={styles.deepSpaceBackdrop} />
-      <div className={styles.depthStarField}>
-        {DEPTH_STARS.map((index) => (
-          <i key={index} style={{
-            "--star-x": `${5 + ((index * 37) % 90)}%`,
-            "--star-y": `${4 + ((index * 53) % 90)}%`,
-            "--star-size": `${1 + (index % 3) * 0.65}px`,
-            "--star-delay": `${index * -127}ms`,
-          } as CSSProperties} />
-        ))}
-      </div>
-
+    <div className={styles.scene} data-tier={activeTier} data-space-mode={spaceMode ? "true" : "false"} data-black-hole={blackHole ? "true" : "false"} data-low-effects={lowEffects ? "true" : "false"} data-cosmic={cosmic ? "true" : "false"} style={sceneStyle} aria-hidden="true">
       <div className={styles.world} data-gone={spaceMode ? "true" : "false"}>
         <div className={styles.worldSky} />
         <div className={styles.worldStars} />
-        <div className={styles.worldSun} data-final={worldFinal ? "true" : "false"}>
+        <div className={styles.worldSun}>
           <BurningStar grade={GRADES[0]} tier={1} final={worldFinal} />
         </div>
         <img src="/ancient-pulls/scene/distant-mountains-village-v1.webp" alt="" draggable={false} className={styles.horizon} />
         <div className={styles.sandGround} />
-        <div className={styles.walkStage}>
-          {cosmic ? <div className={styles.cosmicFlightTrail}><span /><span /><span /></div> : null}
-          <NebuPerformanceSprite sheet={walkSheet} durationMs={introDurationMs} delayMs={180} columns={walkColumns} rows={walkRows} className={styles.walkSprite} />
-        </div>
         <div className={styles.pyramidWrap}>
           <img src="/ancient-pulls/scene/pyramid-right-v1.webp" alt="" draggable={false} className={styles.pyramid} />
         </div>
-        <div className={styles.reactionStage} data-visible={introComplete ? "true" : "false"}>
+        <div className={styles.watchingNebu}>
           <NebuPerformanceSprite sheet={reactionSheet} durationMs={1000} staticFrame={cosmic ? 0 : 1} columns={reactionColumns} rows={reactionRows} className={styles.reactionSprite} />
         </div>
       </div>
 
-      {spaceMode && !journey && !blackHoleReached ? (
-        <div className={styles.settledDestination} style={gradeVariables(activeGrade, activeTier)}>
-          <div className={styles.settledStar}><BurningStar grade={activeGrade} tier={activeTier} final={settledFinal} /></div>
-          <div className={styles.arrivalBloom} />
-        </div>
-      ) : null}
+      <PrebuiltSpaceRoute
+        active={spaceMode}
+        finalTier={finalTier}
+        stepDurationsMs={stepDurationsMs}
+        arrivalHoldMs={arrivalHoldMs}
+        blackHoleTravelMs={blackHoleTravelMs}
+        blackHole={blackHole}
+        finaleStarted={finaleStarted}
+        lowEffects={lowEffects}
+        onArrive={handleArrive}
+        onBlackHoleReached={handleBlackHoleReached}
+        onTravelStateChange={handleTravelStateChange}
+      />
 
-      {journey ? (
-        <div key={`journey-${journey.id}`} className={styles.spaceJourney} data-to-black-hole={journey.toBlackHole ? "true" : "false"} style={journeyStyle}>
-          <div className={styles.warpTunnel} />
-          <div className={styles.departureStar} />
-          <div className={styles.starStreaks}>
-            {STREAKS.map((index) => {
-              const angle = (index * 137.508) % 360;
-              const radius = 7 + ((index * 17) % 39);
-              return <i key={index} style={{
-                "--streak-angle": `${angle}deg`,
-                "--streak-radius": `${radius}vmin`,
-                "--streak-length": `${34 + (index % 7) * 18}px`,
-                "--streak-width": `${1 + (index % 3) * 0.55}px`,
-                "--streak-delay": `${(index % 9) * -83}ms`,
-              } as CSSProperties} />;
-            })}
-          </div>
-          <div className={styles.destination}>
-            {journey.toBlackHole ? (
-              <div className={styles.approachingBlackHole}>
-                <span className={styles.blackHoleDisc} /><span className={styles.blackHoleAccretion} /><span className={styles.blackHoleLens} />
-              </div>
-            ) : <BurningStar grade={destinationGrade} tier={journey.toTier} />}
-          </div>
-          <div className={styles.travelVignette} />
-        </div>
-      ) : null}
-
-      {blackHoleReached ? (
-        <div className={styles.eventHorizon} data-final={finaleStarted ? "true" : "false"} style={gradeVariables(GRADES[8], 9)}>
-          <span className={styles.blackHoleDisc} /><span className={styles.blackHoleAccretion} /><span className={styles.blackHoleLens} />
-          <div className={styles.goldenGlimmer}><span /></div>
-        </div>
-      ) : null}
-
-      {introComplete && !journey && !blackHoleReached && !finaleStarted ? (
+      {showCaption ? (
         <div key={`caption-${activeTier}`} className={styles.rarityCaption}><span>{activeGrade.name}</span><strong>{activeGrade.label}</strong></div>
       ) : null}
       {finaleStarted && !blackHole ? <div className={styles.supernovaSkyBloom} /> : null}

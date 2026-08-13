@@ -99,7 +99,7 @@ type WishRevealTimeline = {
 const SUN_RISE_DELAY_MS = 260;
 const SUN_RISE_DURATION_MS = 2000;
 const SUPERNOVA_DURATION_MS = 1500;
-const STAR_ARRIVAL_HOLD_MS = 420;
+const STAR_ARRIVAL_HOLD_MS = 850;
 const BLACK_HOLE_TRAVEL_MS = 5000;
 const WORLD_RARITY_STAGE_DURATIONS_MS = [
   0,
@@ -347,7 +347,7 @@ export default function WishCinematic({
     const preloadSources = [
       card.imageUrl,
       ...(config.usesWorldScene && !lowEffects
-        ? [...WORLD_SPRITES, nebuHeatAssets.walkSheet, nebuHeatAssets.reactionSheet]
+        ? [...WORLD_SPRITES, nebuHeatAssets.reactionSheet]
         : []),
     ].filter((source): source is string => Boolean(source));
 
@@ -383,7 +383,6 @@ export default function WishCinematic({
     config,
     lowEffects,
     nebuHeatAssets.reactionSheet,
-    nebuHeatAssets.walkSheet,
     open,
     reportFinished,
     revealFromPreferences,
@@ -526,10 +525,7 @@ export default function WishCinematic({
                 cardRevealAtMs={timeline.cardAtMs}
                 arrivalHoldMs={STAR_ARRIVAL_HOLD_MS}
                 blackHoleTravelMs={BLACK_HOLE_TRAVEL_MS}
-                walkSheet={nebuHeatAssets.walkSheet}
                 reactionSheet={nebuHeatAssets.reactionSheet}
-                walkColumns={nebuHeatAssets.walkColumns}
-                walkRows={nebuHeatAssets.walkRows}
                 reactionColumns={nebuHeatAssets.reactionColumns}
                 reactionRows={nebuHeatAssets.reactionRows}
                 cosmic={cosmicNebu}
