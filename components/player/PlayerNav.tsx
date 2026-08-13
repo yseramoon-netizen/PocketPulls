@@ -548,6 +548,7 @@ export default function PlayerNav({
   return (
     <>
       <header
+        data-player-nav
         className="
           sticky
           top-0

@@ -932,7 +932,7 @@ export default function EndlessDuatGame({ bootstrap, accessToken, onExit, onOpen
           <ResourcePill icon="⌘" label="Glyphs" value={state.resources.glyphs} />
           <ResourcePill icon="☼" label="Flames" value={state.resources.flames} accent="flame" />
           <ResourcePill icon="◉" label="Wish balance" value={state.resources.wishes} accent="wish" />
-          <button className="duat-exit" onClick={onExit}><span>←</span> Return to Ancient Pulls</button>
+          <button className="duat-exit" onClick={onExit}><span>←</span> Ancient Pulls</button>
         </div>
       </header>
 

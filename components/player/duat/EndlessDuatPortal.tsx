@@ -39,6 +39,11 @@ export default function EndlessDuatPortal() {
     return () => { cancelled = true; };
   }, []);
 
+  useEffect(() => {
+    document.documentElement.dataset.duatOpen = "true";
+    return () => { delete document.documentElement.dataset.duatOpen; };
+  }, []);
+
   const exit = () => router.push("/hq");
   const openBadges = () => router.push("/achievements");
 
