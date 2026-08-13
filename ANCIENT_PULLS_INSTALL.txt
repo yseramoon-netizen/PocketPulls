@@ -1,0 +1,14 @@
+ANCIENT PULLS REBRAND PATCH
+===========================
+
+1. Extract this ZIP directly into the root of your existing project.
+2. Choose Replace when Windows asks about matching files.
+3. Right-click REMOVE_OLD_BRAND_ASSETS.ps1 and choose "Run with PowerShell".
+4. Deploy the updated project to Vercel as normal.
+
+The cleanup script only removes the old public mascot and glyph artwork. It does
+not touch accounts, Supabase data, environment variables, cards, or uploads.
+
+Some internal route, event, storage, and database names intentionally keep their
+older technical identifiers so existing users and production data continue to
+work. Everything player-facing is branded Ancient Pulls.

@@ -1,0 +1,9 @@
+1. In Supabase, open SQL Editor.
+2. Run supabase/migrations/20260804_unknown_pulls_auth_transaction_repair.sql.
+3. Then run supabase/migrations/20260810_registration_wish_balance_ambiguity_fix_v43.sql.
+4. Replace the two app files from this package and deploy them.
+5. Create one new test account.
+
+The first SQL file archives and removes old custom Auth triggers that can abort
+signup before Supabase returns a useful error. The second fixes profile and
+wallet setup after the player confirms their email.

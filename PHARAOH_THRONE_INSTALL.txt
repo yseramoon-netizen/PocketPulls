@@ -1,0 +1,10 @@
+ANCIENT PULLS - PHARAOH THRONE
+
+Replace these two files in your project:
+
+1. app/(player)/leaderboard/page.tsx
+2. app/(player)/leaderboard/Leaderboard.module.css
+
+Then commit and deploy normally.
+
+No Supabase migration or environment change is required.

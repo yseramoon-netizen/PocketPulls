@@ -1,0 +1,10 @@
+ANCIENT PULLS - CONSTELLATION DESKTOP RECENTER FIX
+
+Replace this one file:
+
+app/(player)/constellation/page.tsx
+
+Then commit and deploy normally.
+
+After selecting a card star, the first drag, pinch or mouse-wheel gesture now
+returns the camera to the centred Earth view before normal sky movement resumes.

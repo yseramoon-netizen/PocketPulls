@@ -1,0 +1,14 @@
+CONFIRM SIGN UP
+Subject: Confirm your Ancient Pulls account
+Template: supabase/email-templates/confirm-signup.html
+
+RESET PASSWORD
+Subject: Reset your Ancient Pulls password
+Template: supabase/email-templates/reset-password.html
+
+In Supabase, open Authentication > Emails > Templates.
+Choose the matching template, open Source, paste the entire matching HTML file,
+set the subject shown above, and save.
+
+The two app replacement files in this package make password recovery pass
+through the secure callback before opening the new-password screen.
