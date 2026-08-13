@@ -8,7 +8,11 @@ import WishCinematic, {
 } from "@/components/player/WishCinematic";
 import { primeWishAudio } from "@/components/player/wishAudio";
 
-const DEMO_CARDS: WishRevealCard[] = [
+type PreviewCard = WishRevealCard & {
+  cosmicIssueNumber?: number;
+};
+
+const DEMO_CARDS: PreviewCard[] = [
   {
     id: "common-preview",
     name: "Dune Spark",
@@ -89,6 +93,15 @@ const DEMO_CARDS: WishRevealCard[] = [
     cardNumber: "010",
     marketValue: 501,
   },
+  {
+    id: "cosmic-nebu-preview",
+    name: "The First Constellation",
+    rarity: "Rare Holo",
+    setName: "ancientpulls Preview",
+    cardNumber: "∞",
+    marketValue: 1.45,
+    cosmicIssueNumber: 1,
+  },
 ];
 
 export default function WishPreviewPage() {
@@ -126,10 +139,10 @@ export default function WishPreviewPage() {
         </h1>
 
         <p className="mt-4 max-w-3xl text-sm font-semibold leading-7 text-white/45 sm:text-base">
-          Common cards answer quickly. Higher tiers progressively darken
-          the chamber, awaken ancient symbols and gather the constellation
-          before impact. Cards valued above £500 still trigger the black-hole
-          finale. Test every stage here before a real wish.
+          Every upgrade now travels beyond the current star to a farther
+          destination. Cards valued above £500 end at the black hole, while
+          Cosmic Nebu stays on the planet for its transformation. Test every
+          route here before a real wish.
         </p>
 
         <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -160,12 +173,16 @@ export default function WishPreviewPage() {
                 >
                   {Number(card.marketValue) > 500
                     ? "£500+ override"
+                    : card.cosmicIssueNumber
+                      ? "1 in 100,000 discovery"
                     : `Tier ${theme.tier}`}
                 </p>
 
                 <h2 className="mt-2 text-lg font-black text-white">
                   {Number(card.marketValue) > 500
                     ? "Black Hole"
+                    : card.cosmicIssueNumber
+                      ? "Cosmic Nebu"
                     : theme.label}
                 </h2>
 
@@ -195,6 +212,8 @@ export default function WishPreviewPage() {
       <WishCinematic
         open={open}
         card={selectedCard}
+        cosmicIssueNumber={selectedCard.cosmicIssueNumber}
+        cosmicSourceSkin="midnight"
         allowSkip
         respectPreferences={false}
         onFinished={() => {

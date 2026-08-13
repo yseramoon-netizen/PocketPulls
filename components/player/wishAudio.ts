@@ -9,6 +9,12 @@ export type WishAudioSession = {
 export type WishAudioTimeline = {
   impactAtMs: number;
   revealAtMs: number;
+  mode?: "journey" | "cosmic";
+  travelWindows?: readonly {
+    startAtMs: number;
+    durationMs: number;
+    intensity: number;
+  }[];
 };
 
 type BrowserWindow = Window &
@@ -96,8 +102,25 @@ export function startWishAudio(
     impactAtSeconds - flightStartsAt - 0.06,
   );
   const awakeningAt = Math.max(0.95, impactAtSeconds - 1.28);
+  const travelWindows = timeline.travelWindows || [];
 
-  if (safeTier <= 2) {
+  if (timeline.mode === "cosmic") {
+    scheduleCharge(context, master, sources, startedAt, Math.max(6, safeTier));
+    scheduleCosmicAscension(
+      context,
+      master,
+      sources,
+      startedAt + 0.72,
+      Math.max(1.8, impactAtSeconds - 1.15),
+    );
+    scheduleAwakening(
+      context,
+      master,
+      sources,
+      startedAt + awakeningAt,
+      8,
+    );
+  } else if (safeTier <= 2 && travelWindows.length === 0) {
     scheduleQuickReveal(
       context,
       master,
@@ -107,14 +130,37 @@ export function startWishAudio(
     );
   } else {
     scheduleCharge(context, master, sources, startedAt, safeTier);
-    scheduleFlight(
-      context,
-      master,
-      sources,
-      startedAt + flightStartsAt,
-      safeTier,
-      flightDuration,
-    );
+    if (travelWindows.length > 0) {
+      for (const window of travelWindows) {
+        const windowTier = Math.max(1, Math.min(8, Math.round(window.intensity)));
+        const windowStart = startedAt + Math.max(0, window.startAtMs / 1000);
+        const windowDuration = Math.max(0.48, window.durationMs / 1000);
+        scheduleFlight(
+          context,
+          master,
+          sources,
+          windowStart,
+          windowTier,
+          windowDuration,
+        );
+        scheduleDestinationTone(
+          context,
+          master,
+          sources,
+          windowStart + windowDuration,
+          windowTier,
+        );
+      }
+    } else {
+      scheduleFlight(
+        context,
+        master,
+        sources,
+        startedAt + flightStartsAt,
+        safeTier,
+        Math.min(3.2, flightDuration),
+      );
+    }
     scheduleAwakening(
       context,
       master,
@@ -208,6 +254,61 @@ export function startWishAudio(
       }, 120);
     },
   };
+}
+
+function scheduleDestinationTone(
+  context: AudioContext,
+  destination: AudioNode,
+  sources: AudioScheduledSourceNode[],
+  start: number,
+  tier: number,
+) {
+  playTone(context, destination, sources, {
+    start,
+    frequency: 420 + tier * 42,
+    endFrequency: 760 + tier * 68,
+    duration: 0.72,
+    volume: 0.018 + tier * 0.0025,
+    type: "sine",
+    attack: 0.012,
+  });
+  playTone(context, destination, sources, {
+    start: start + 0.04,
+    frequency: 630 + tier * 31,
+    endFrequency: 1030 + tier * 54,
+    duration: 0.58,
+    volume: 0.012 + tier * 0.0016,
+    type: "triangle",
+    attack: 0.014,
+  });
+}
+
+function scheduleCosmicAscension(
+  context: AudioContext,
+  destination: AudioNode,
+  sources: AudioScheduledSourceNode[],
+  start: number,
+  duration: number,
+) {
+  playAir(context, destination, sources, start, duration, 260, 5200, 0.034);
+  playTone(context, destination, sources, {
+    start,
+    frequency: 174.61,
+    endFrequency: 1396.91,
+    duration,
+    volume: 0.024,
+    type: "sine",
+    attack: 0.42,
+  });
+  playTone(context, destination, sources, {
+    start: start + 0.36,
+    frequency: 261.63,
+    endFrequency: 2093,
+    duration: Math.max(0.8, duration - 0.32),
+    volume: 0.016,
+    type: "triangle",
+    attack: 0.62,
+  });
 }
 
 function scheduleQuickReveal(

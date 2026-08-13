@@ -428,7 +428,31 @@
 .sequenceSkipped .impact { display: none; }
 .sequenceSkipped .cardScene { opacity: 1; animation: none; transform: translate3d(-50%, -50%, 0) scale(1) rotateY(0); }
 .sequenceSkipped .cardInfo { opacity: 1; animation: none; transform: none; }
-.blackHoleSequence .impact { display: none; }
+.blackHoleSequence .impactFlash {
+  background: radial-gradient(circle at 50% 42%, #fff 0, #fde68a 6%, rgba(124,58,237,.88) 16%, rgba(15,23,42,.3) 31%, transparent 58%);
+}
+
+.blackHoleSequence .impactRing,
+.blackHoleSequence .impactRingSecond,
+.blackHoleSequence .impactRingThird {
+  border-color: #fff8cb;
+  box-shadow: 0 0 34px #f5b83b, 0 0 70px rgba(124,58,237,.65);
+}
+
+.overlay[data-cosmic-discovery="true"] .darkening {
+  display: none;
+}
+
+.overlay[data-cosmic-discovery="true"] .sky {
+  background:
+    radial-gradient(circle at 50% 34%, rgba(103,232,249,.34), transparent 25%),
+    radial-gradient(circle at 28% 62%, rgba(139,92,246,.32), transparent 33%),
+    linear-gradient(180deg, #111f5a 0%, #321d70 48%, #05051a 100%);
+}
+
+.overlay[data-cosmic-discovery="true"] .cardGlow {
+  background: radial-gradient(circle, rgba(103,232,249,.78), rgba(139,92,246,.48) 34%, transparent 70%);
+}
 
 .overlay[data-family="legendary"] .ancientFrame { border-width: 2px; box-shadow: inset 0 0 50px color-mix(in srgb, var(--wish-glow) 11%, transparent), 0 0 28px color-mix(in srgb, var(--wish-glow) 18%, transparent); }
 .overlay[data-family="legendary"] .stars { animation-duration: 5.2s; }

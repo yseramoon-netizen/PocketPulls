@@ -69,10 +69,8 @@
   width: clamp(76px, 13vw, 150px);
   aspect-ratio: 1;
   transform: translate3d(-50%, 120%, 0) scale(0.76);
-  animation:
-    sunRises var(--sun-rise-duration) 260ms cubic-bezier(0.16, 0.72, 0.22, 1) both,
-    finalSunCollapse var(--supernova-duration) var(--sun-collapse-at) cubic-bezier(0.52, 0.02, 0.78, 0.38) forwards;
-  will-change: filter, opacity, transform;
+  animation: sunRises var(--sun-rise-duration) 260ms cubic-bezier(0.16, 0.72, 0.22, 1) both;
+  will-change: opacity, transform;
 }
 
 .sunCore,
@@ -272,7 +270,7 @@
   );
   filter: blur(4px) saturate(1.25);
   mix-blend-mode: screen;
-  animation: supernovaCorona var(--supernova-duration) var(--sun-collapse-at) ease-in-out both;
+  animation: none;
 }
 
 .supernovaRays {
@@ -287,7 +285,7 @@
   filter: blur(1px) drop-shadow(0 0 8px var(--active-glow));
   mask: radial-gradient(circle, #000 0 8%, rgba(0, 0, 0, 0.9) 21%, transparent 72%);
   mix-blend-mode: screen;
-  animation: supernovaRays var(--supernova-duration) var(--sun-collapse-at) cubic-bezier(0.16, 0.82, 0.24, 1) both;
+  animation: none;
 }
 
 .supernovaFragments {
@@ -307,7 +305,7 @@
   box-shadow:
     0 0 7px 2px var(--active-glow),
     0 0 15px var(--active-accent);
-  animation: supernovaFragment var(--supernova-duration) calc(var(--sun-collapse-at) + var(--fragment-delay)) cubic-bezier(0.12, 0.72, 0.24, 1) both;
+  animation: none;
 }
 
 .scene::after {
@@ -324,7 +322,7 @@
   mix-blend-mode: screen;
   pointer-events: none;
   content: "";
-  animation: supernovaSkyBloom var(--supernova-duration) var(--sun-collapse-at) ease-out both;
+  animation: none;
 }
 
 .scene[data-black-hole="true"] .supernovaCorona,
@@ -597,6 +595,427 @@
   animation: rarityBam 420ms cubic-bezier(0.12, 0.78, 0.28, 1) both;
 }
 
+/* The rarity journey starts only when the first visible star upgrades. The
+   original desert world remains the first destination, then falls behind the
+   camera while this layer takes over. */
+.spaceJourney,
+.deepSpace,
+.deepNebula,
+.farStarField,
+.starTunnel,
+.spaceMotes,
+.singularityCollision {
+  position: absolute;
+  inset: 0;
+}
+
+.spaceJourney {
+  z-index: 4;
+  overflow: hidden;
+  background: #01020a;
+  perspective: 900px;
+  transform-style: preserve-3d;
+  animation: spaceReveals 900ms cubic-bezier(0.18, 0.72, 0.22, 1) both;
+}
+
+.deepSpace {
+  z-index: 0;
+  background:
+    radial-gradient(ellipse at 50% 43%, color-mix(in srgb, var(--active-accent) 17%, transparent), transparent 24%),
+    radial-gradient(ellipse at 16% 20%, rgba(37, 99, 235, 0.2), transparent 32%),
+    radial-gradient(ellipse at 82% 72%, rgba(126, 34, 206, 0.2), transparent 37%),
+    radial-gradient(ellipse at 53% 46%, rgba(14, 116, 144, 0.1), transparent 28%),
+    linear-gradient(180deg, #020414, #02020d 54%, #000106);
+}
+
+.deepNebula {
+  z-index: 1;
+  inset: -20%;
+  opacity: 0.42;
+  background:
+    radial-gradient(ellipse at 48% 38%, color-mix(in srgb, var(--active-accent) 34%, transparent), transparent 20%),
+    radial-gradient(ellipse at 28% 41%, rgba(59, 130, 246, 0.3), transparent 22%),
+    radial-gradient(ellipse at 69% 58%, rgba(168, 85, 247, 0.25), transparent 26%),
+    conic-gradient(from 145deg at 52% 48%, transparent, rgba(34, 211, 238, 0.08), transparent 31%, rgba(139, 92, 246, 0.1), transparent 67%);
+  filter: blur(22px);
+  transform: translateZ(-120px) scale(1.15);
+  animation: nebulaDrifts 18s ease-in-out infinite alternate;
+}
+
+.farStarField {
+  z-index: 2;
+  opacity: 0.9;
+  background-image:
+    radial-gradient(circle at 7% 12%, #fff 0 1px, transparent 1.5px),
+    radial-gradient(circle at 14% 72%, #dbeafe 0 1px, transparent 1.6px),
+    radial-gradient(circle at 22% 38%, #fff8d6 0 1.2px, transparent 1.8px),
+    radial-gradient(circle at 31% 84%, #fff 0 0.8px, transparent 1.4px),
+    radial-gradient(circle at 38% 18%, #bfdbfe 0 1px, transparent 1.6px),
+    radial-gradient(circle at 46% 67%, #fff 0 1.3px, transparent 1.9px),
+    radial-gradient(circle at 55% 8%, #f5d0fe 0 1px, transparent 1.6px),
+    radial-gradient(circle at 63% 79%, #fff 0 0.8px, transparent 1.4px),
+    radial-gradient(circle at 72% 31%, #dbeafe 0 1.2px, transparent 1.8px),
+    radial-gradient(circle at 79% 89%, #fff8d6 0 1px, transparent 1.6px),
+    radial-gradient(circle at 88% 19%, #fff 0 1.1px, transparent 1.7px),
+    radial-gradient(circle at 94% 61%, #c4b5fd 0 1px, transparent 1.6px);
+  transform: translateZ(-60px) scale(1.08);
+  animation: farStarsBreathe 4.8s ease-in-out infinite alternate;
+}
+
+.spaceMotes {
+  z-index: 3;
+}
+
+.spaceMotes i {
+  position: absolute;
+  top: var(--mote-top);
+  left: var(--mote-left);
+  width: var(--mote-size);
+  height: var(--mote-size);
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--active-accent) 50%, white);
+  box-shadow: 0 0 8px var(--active-glow);
+  opacity: 0.28;
+  animation: spaceMoteTwinkles 2.8s var(--mote-delay) ease-in-out infinite alternate;
+}
+
+.starTunnel {
+  z-index: 8;
+  overflow: hidden;
+  transform-origin: center;
+  animation: cameraAccelerates var(--travel-duration) cubic-bezier(0.58, 0.02, 0.92, 0.48) both;
+}
+
+.starTunnel i {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: clamp(16px, 3.8vw, 58px);
+  height: var(--streak-size);
+  border-radius: 999px;
+  opacity: 0;
+  background: linear-gradient(90deg, rgba(255,255,255,0), rgba(255,255,255,.98) 64%, var(--destination-accent));
+  box-shadow: 0 0 8px var(--destination-glow);
+  transform: rotate(var(--streak-angle)) translateX(1vmax) scaleX(0.08);
+  transform-origin: left center;
+  animation: starlightRush var(--streak-duration) var(--streak-delay) cubic-bezier(0.54, 0.01, 0.96, 0.42) infinite;
+  will-change: opacity, transform;
+}
+
+.spaceJourney[data-travelling="true"] .farStarField {
+  animation: starfieldSurges var(--travel-duration) cubic-bezier(0.56, 0.02, 0.94, 0.44) both;
+}
+
+.spaceJourney[data-travelling="true"] .deepNebula {
+  animation: nebulaRush var(--travel-duration) cubic-bezier(0.6, 0.01, 0.96, 0.4) both;
+}
+
+.journeyStar {
+  position: absolute;
+  z-index: 12;
+  top: 43%;
+  left: 50%;
+  width: clamp(142px, calc(17vw + var(--active-tier) * 1.25vw), 330px);
+  aspect-ratio: 1;
+  opacity: 1;
+  transform: translate3d(-50%, -50%, 0) scale(1);
+  transform-style: preserve-3d;
+  animation:
+    destinationStarArrives 760ms cubic-bezier(0.16, 0.84, 0.22, 1) both,
+    destinationStarGrows 2.7s 760ms ease-in-out infinite alternate;
+  will-change: opacity, transform;
+}
+
+.spaceJourney[data-travelling="true"] .journeyStar {
+  animation: starRushesPast var(--travel-duration) cubic-bezier(0.52, 0.01, 0.9, 0.42) both;
+}
+
+.scene[data-left-world="true"] .world {
+  animation: worldFallsBehind 980ms cubic-bezier(0.58, 0.02, 0.9, 0.4) both;
+  pointer-events: none;
+}
+
+.scene[data-left-world="true"] .nightSky,
+.scene[data-left-world="true"] .gradeLayer,
+.scene[data-left-world="true"] > .skyStars {
+  animation: planetSkyFallsBehind 760ms ease-in both;
+}
+
+.scene[data-collapsing="true"][data-left-world="false"]:not([data-cosmic-discovery="true"]) .sun {
+  animation: finalSunCollapse var(--supernova-duration) cubic-bezier(0.52, 0.02, 0.78, 0.38) both;
+}
+
+.scene[data-collapsing="true"] .journeyStar {
+  animation: journeyStarCollapse var(--supernova-duration) cubic-bezier(0.52, 0.02, 0.78, 0.38) both;
+}
+
+.scene[data-collapsing="true"]:not([data-black-hole-reached="true"]):not([data-cosmic-discovery="true"]) .supernovaCorona {
+  animation: supernovaCorona var(--supernova-duration) ease-in-out both;
+}
+
+.scene[data-collapsing="true"]:not([data-black-hole-reached="true"]):not([data-cosmic-discovery="true"]) .supernovaRays {
+  animation: supernovaRays var(--supernova-duration) cubic-bezier(0.16, 0.82, 0.24, 1) both;
+}
+
+.scene[data-collapsing="true"]:not([data-black-hole-reached="true"]):not([data-cosmic-discovery="true"]) .supernovaFragments i {
+  animation: supernovaFragment var(--supernova-duration) var(--fragment-delay) cubic-bezier(0.12, 0.72, 0.24, 1) both;
+}
+
+.scene[data-collapsing="true"]:not([data-black-hole-reached="true"]):not([data-cosmic-discovery="true"])::after {
+  animation: supernovaSkyBloom var(--supernova-duration) ease-out both;
+}
+
+.travelReadout {
+  position: absolute;
+  z-index: 18;
+  top: max(4.65rem, calc(env(safe-area-inset-top) + 3rem));
+  left: 50%;
+  display: grid;
+  width: fit-content;
+  max-width: 82vw;
+  border: 1px solid rgba(191, 219, 254, 0.2);
+  border-radius: 999px;
+  padding: 0.5rem 1.15rem 0.58rem;
+  text-align: center;
+  background: rgba(2, 4, 20, 0.5);
+  box-shadow: 0 0 28px rgba(59, 130, 246, 0.16);
+  backdrop-filter: blur(10px);
+  transform: translateX(-50%);
+  animation: captionArrives 420ms ease-out both;
+}
+
+.travelReadout span {
+  color: rgba(219, 234, 254, 0.52);
+  font-size: 0.48rem;
+  font-weight: 900;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.travelReadout strong {
+  margin-top: 0.16rem;
+  color: #f8fbff;
+  font-size: clamp(0.64rem, 1.8vw, 0.82rem);
+  font-weight: 900;
+  letter-spacing: 0.16em;
+  text-shadow: 0 0 16px var(--destination-glow);
+  text-transform: uppercase;
+}
+
+.destinationBlackHole {
+  position: absolute;
+  z-index: 14;
+  top: 43%;
+  left: 50%;
+  width: clamp(210px, 37vw, 510px);
+  aspect-ratio: 1;
+  opacity: 0;
+  transform: translate3d(-50%, -50%, 0) scale(0.08);
+  animation: blackHoleDestinationArrives 1.15s cubic-bezier(0.12, 0.82, 0.2, 1) both;
+}
+
+.gravitationalLens,
+.accretionDiskRear,
+.eventHorizon,
+.photonRing,
+.accretionDiskFront {
+  position: absolute;
+  border-radius: 50%;
+}
+
+.gravitationalLens {
+  inset: -24%;
+  background: radial-gradient(circle, transparent 0 28%, rgba(147, 197, 253, 0.16) 36%, transparent 48%);
+  filter: blur(3px);
+  animation: gravitationalLensBreath 3.4s ease-in-out infinite alternate;
+}
+
+.eventHorizon {
+  z-index: 4;
+  inset: 29%;
+  background: #000;
+  box-shadow:
+    inset 0 0 14px rgba(255,255,255,.03),
+    0 0 18px 9px #000,
+    0 0 55px 24px rgba(0,0,0,.96);
+}
+
+.photonRing {
+  z-index: 3;
+  inset: 25%;
+  border: 3px solid rgba(255, 248, 203, 0.95);
+  box-shadow:
+    0 0 7px #fff,
+    0 0 18px #fbbf24,
+    0 0 40px rgba(168, 85, 247, 0.82);
+  transform: rotateX(72deg);
+}
+
+.accretionDiskRear,
+.accretionDiskFront {
+  inset: 17% -5%;
+  border: 12px solid transparent;
+  background: conic-gradient(from 8deg, transparent 0 8%, #7c3aed 16%, #38bdf8 27%, #fff8cb 43%, #f59e0b 55%, #ef4444 66%, #8b5cf6 78%, transparent 92%) border-box;
+  filter: blur(2px) drop-shadow(0 0 13px rgba(245, 184, 59, 0.8));
+  mask: linear-gradient(#000 0 0) padding-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  transform: rotateX(72deg) rotateZ(-8deg);
+  animation: accretionDiskTurns 2.1s linear infinite;
+}
+
+.accretionDiskRear { z-index: 2; opacity: 0.72; }
+.accretionDiskFront { z-index: 5; clip-path: inset(50% 0 0); animation-duration: 1.4s; }
+
+.scene[data-black-hole-reached="true"][data-collapsing="true"] .destinationBlackHole {
+  animation: singularityConsumes 1.5s cubic-bezier(0.5, 0.02, 0.84, 0.42) both;
+}
+
+.singularityCollision {
+  z-index: 19;
+  opacity: 0;
+  background:
+    repeating-conic-gradient(from 4deg at 50% 43%, transparent 0 7deg, rgba(255,248,203,.85) 7.4deg 7.9deg, transparent 8.4deg 18deg),
+    radial-gradient(circle at 50% 43%, #fff 0 1%, #fde68a 4%, rgba(124,58,237,.72) 11%, transparent 36%);
+  mix-blend-mode: screen;
+  animation: singularityShockwave 1.5s ease-out both;
+}
+
+/* Cosmic Nebu is an ownership discovery, not another destination in the
+   rarity ladder. The planet remains visible while its sky is overwhelmed. */
+.cosmicTransformation {
+  position: absolute;
+  z-index: 24;
+  bottom: 7%;
+  left: 47%;
+  width: min(33vw, 430px);
+  aspect-ratio: 1;
+  opacity: 0;
+  filter: drop-shadow(0 0 14px rgba(103, 232, 249, 0.4));
+  animation: cosmicStageArrives 620ms var(--escalation-start) ease-out both;
+}
+
+.mortalNebu,
+.transformedNebu,
+.transformationCore,
+.transformationRing {
+  position: absolute;
+  inset: 0;
+}
+
+.mortalNebu {
+  z-index: 3;
+  animation: mortalNebuTranscends 1.75s var(--cosmic-transform-at) cubic-bezier(0.2, 0.7, 0.24, 1) both;
+}
+
+.transformedNebu {
+  z-index: 5;
+  opacity: 0;
+  filter:
+    drop-shadow(0 0 10px #67e8f9)
+    drop-shadow(0 0 28px rgba(139, 92, 246, 0.82));
+  animation: cosmicNebuIsBorn 1.8s calc(var(--cosmic-transform-at) + 420ms) cubic-bezier(0.12, 0.82, 0.22, 1.08) both;
+}
+
+.transformationCore {
+  z-index: 4;
+  inset: 32%;
+  border-radius: 50%;
+  opacity: 0;
+  background: radial-gradient(circle, #fff, #67e8f9 22%, #8b5cf6 52%, transparent 72%);
+  filter: blur(4px);
+  animation: transformationCoreIgnites 1.7s var(--cosmic-transform-at) ease-in-out both;
+}
+
+.transformationRing {
+  z-index: 2;
+  inset: 12%;
+  border: 1px solid rgba(103, 232, 249, 0.72);
+  border-radius: 50%;
+  opacity: 0;
+  box-shadow: 0 0 26px rgba(139, 92, 246, 0.7);
+  animation: transformationRingExpands 2s var(--cosmic-transform-at) ease-out both;
+}
+
+.cosmicSkyBloom,
+.cosmicWhiteout,
+.cosmicConstellationBurst {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.cosmicSkyBloom {
+  z-index: 31;
+  opacity: 0;
+  background:
+    radial-gradient(circle at 51% 42%, rgba(255,255,255,.96), rgba(103,232,249,.62) 16%, rgba(139,92,246,.32) 38%, transparent 72%),
+    linear-gradient(180deg, rgba(219,234,254,.72), rgba(255,255,255,.36));
+  mix-blend-mode: screen;
+  animation: cosmicSkyBrightens var(--cosmic-brighten-duration) var(--escalation-start) cubic-bezier(0.36, 0.02, 0.78, 0.38) both;
+}
+
+.cosmicWhiteout {
+  z-index: 58;
+  opacity: 0;
+  background: #fff;
+  animation: cosmicWhiteConsumes 1.65s calc(var(--cosmic-transform-at) + 520ms) ease-in both;
+}
+
+.cosmicConstellationBurst {
+  z-index: 37;
+  inset: -35%;
+  opacity: 0;
+  background:
+    repeating-conic-gradient(from 2deg at 50% 50%, transparent 0 10deg, rgba(255,255,255,.82) 10.4deg 10.8deg, transparent 11.2deg 24deg),
+    radial-gradient(circle, transparent 0 12%, rgba(103,232,249,.42) 21%, transparent 48%);
+  mix-blend-mode: screen;
+  animation: cosmicConstellationOpens 1.9s var(--cosmic-transform-at) ease-out both;
+}
+
+.cosmicCaption {
+  position: absolute;
+  z-index: 52;
+  top: max(4.65rem, calc(env(safe-area-inset-top) + 3rem));
+  left: 50%;
+  display: grid;
+  width: fit-content;
+  max-width: 84vw;
+  text-align: center;
+  opacity: 0;
+  transform: translateX(-50%);
+  animation: cosmicCaptionArrives 1.3s calc(var(--cosmic-transform-at) + 720ms) ease-out both;
+}
+
+.cosmicCaption span {
+  color: rgba(224, 242, 254, 0.82);
+  font-size: 0.5rem;
+  font-weight: 900;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.cosmicCaption strong {
+  margin-top: 0.26rem;
+  color: #fff;
+  font-size: clamp(0.9rem, 2.6vw, 1.3rem);
+  font-weight: 950;
+  letter-spacing: 0.22em;
+  text-shadow: 0 0 11px #67e8f9, 0 0 28px #8b5cf6;
+  text-transform: uppercase;
+}
+
+.scene[data-cosmic-discovery="true"] .sun {
+  animation:
+    sunRises var(--sun-rise-duration) 260ms cubic-bezier(0.16, 0.72, 0.22, 1) both,
+    cosmicSunOverexposes var(--cosmic-brighten-duration) var(--escalation-start) ease-in forwards;
+}
+
+.scene[data-cosmic-discovery="true"] .gradeLayer {
+  background:
+    radial-gradient(circle at 50% 48%, rgba(255,255,255,.34), transparent 30%),
+    linear-gradient(180deg, #132a60, #5c4a91 52%, #d7b7a4);
+}
+
 .blackHole {
   position: absolute;
   z-index: 28;
@@ -643,16 +1062,6 @@
   animation: blackHoleTurns 1.55s linear infinite reverse;
 }
 
-.scene[data-black-hole="true"] .world {
-  animation: worldSucked 1.55s 3850ms cubic-bezier(0.55, 0.02, 0.86, 0.48) both;
-}
-
-.scene[data-black-hole="true"] .sun {
-  animation:
-    sunRises 3.6s 260ms cubic-bezier(0.16, 0.72, 0.22, 1) both,
-    sunCollapses 760ms 3470ms ease-in both;
-}
-
 .goldenGlimmer {
   position: absolute;
   z-index: 31;
@@ -662,7 +1071,7 @@
   height: 8px;
   opacity: 0;
   transform: translate(-50%, -50%);
-  animation: glimmerAppears 680ms 6400ms ease-out both;
+  animation: glimmerAppears 680ms ease-out both;
 }
 
 .goldenGlimmer::before,
@@ -740,12 +1149,198 @@
 .scene[data-low-effects="true"] .embers,
 .scene[data-low-effects="true"] .solarSparks,
 .scene[data-low-effects="true"] .supernovaRays,
-.scene[data-low-effects="true"] .supernovaFragments {
+.scene[data-low-effects="true"] .supernovaFragments,
+.scene[data-low-effects="true"] .deepNebula,
+.scene[data-low-effects="true"] .spaceMotes,
+.scene[data-low-effects="true"] .cosmicConstellationBurst {
   display: none;
 }
 
 .scene[data-low-effects="true"] .plasmaTongues i:nth-child(n + 7) {
   display: none;
+}
+
+.scene[data-low-effects="true"] .starTunnel i:nth-child(n + 17) {
+  display: none;
+}
+
+@keyframes spaceReveals {
+  from { opacity: 0; transform: scale(0.72); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes worldFallsBehind {
+  0% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+  48% { opacity: 1; transform: translate3d(0, 8%, 120px) scale(1.55); }
+  100% { opacity: 0; transform: translate3d(0, 22%, 460px) scale(5.8); }
+}
+
+@keyframes planetSkyFallsBehind {
+  0% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(2.4); }
+}
+
+@keyframes nebulaDrifts {
+  from { opacity: 0.3; transform: translate3d(-2%, 1%, -120px) scale(1.12) rotate(-2deg); }
+  to { opacity: 0.5; transform: translate3d(3%, -2%, -120px) scale(1.2) rotate(3deg); }
+}
+
+@keyframes farStarsBreathe {
+  from { filter: brightness(0.76); opacity: 0.68; }
+  to { filter: brightness(1.2); opacity: 1; }
+}
+
+@keyframes spaceMoteTwinkles {
+  from { opacity: 0.12; transform: scale(0.7); }
+  to { opacity: 0.72; transform: scale(1.28); }
+}
+
+@keyframes cameraAccelerates {
+  0% { filter: brightness(0.72); transform: scale(0.78); }
+  48% { filter: brightness(1.04); transform: scale(1); }
+  82% { filter: brightness(1.34); transform: scale(1.12); }
+  100% { filter: brightness(1.9); transform: scale(1.32); }
+}
+
+@keyframes starlightRush {
+  0% { opacity: 0; transform: rotate(var(--streak-angle)) translateX(1vmax) scaleX(0.06); }
+  14% { opacity: calc(var(--streak-opacity) * 0.45); }
+  55% { opacity: var(--streak-opacity); transform: rotate(var(--streak-angle)) translateX(var(--streak-radius)) scaleX(1.8); }
+  100% { opacity: 0; transform: rotate(var(--streak-angle)) translateX(86vmax) scaleX(11); }
+}
+
+@keyframes starfieldSurges {
+  0% { filter: brightness(0.72); opacity: 0.52; transform: translateZ(-60px) scale(1.08); }
+  58% { filter: brightness(1.16); opacity: 0.86; transform: translateZ(20px) scale(1.38); }
+  100% { filter: brightness(1.8); opacity: 0.18; transform: translateZ(260px) scale(4.2); }
+}
+
+@keyframes nebulaRush {
+  0% { filter: blur(22px); opacity: 0.3; transform: translateZ(-120px) scale(1.14); }
+  65% { filter: blur(17px); opacity: 0.5; transform: translateZ(10px) scale(1.7); }
+  100% { filter: blur(10px); opacity: 0; transform: translateZ(330px) scale(5); }
+}
+
+@keyframes destinationStarArrives {
+  0% { opacity: 0; filter: brightness(2.2) blur(3px); transform: translate3d(-50%, -50%, -240px) scale(0.04); }
+  64% { opacity: 1; filter: brightness(1.38) blur(0); transform: translate3d(-50%, -50%, 24px) scale(1.08); }
+  100% { opacity: 1; filter: brightness(1) blur(0); transform: translate3d(-50%, -50%, 0) scale(1); }
+}
+
+@keyframes destinationStarGrows {
+  from { transform: translate3d(-50%, -50%, 0) scale(0.98); }
+  to { transform: translate3d(-50%, -50%, 0) scale(1.12); }
+}
+
+@keyframes starRushesPast {
+  0% { opacity: 1; filter: brightness(1); transform: translate3d(-50%, -50%, 0) scale(1); }
+  18% { opacity: 1; filter: brightness(1.7); transform: translate3d(-50%, -50%, 110px) scale(1.85); }
+  38% { opacity: 0.92; filter: brightness(2.8) blur(1px); transform: translate3d(-50%, -50%, 420px) scale(6.5); }
+  58%, 100% { opacity: 0; filter: brightness(3.4) blur(7px); transform: translate3d(-50%, -50%, 760px) scale(15); }
+}
+
+@keyframes journeyStarCollapse {
+  0% { opacity: 1; filter: brightness(1); transform: translate3d(-50%, -50%, 0) scale(1.08); }
+  23% { opacity: 1; filter: brightness(1.35) saturate(1.35); transform: translate3d(-50%, -50%, 0) scale(calc(1.18 + var(--final-tier) * 0.025)); }
+  46% { opacity: 1; filter: brightness(2.7) saturate(0.54); transform: translate3d(-50%, -50%, 0) scale(calc(1.42 + var(--final-tier) * 0.065)); }
+  61% { opacity: 1; filter: brightness(4) saturate(0.18); transform: translate3d(-50%, -50%, 0) scale(calc(1.72 + var(--final-tier) * 0.08)); }
+  74% { opacity: 1; filter: brightness(5) saturate(0); transform: translate3d(-50%, -50%, 0) scale(0.38); }
+  88% { opacity: 1; filter: brightness(6) blur(1px); transform: translate3d(-50%, -50%, 0) scale(0.08); }
+  100% { opacity: 0; filter: brightness(7) blur(9px); transform: translate3d(-50%, -50%, 0) scale(0.006); }
+}
+
+@keyframes blackHoleDestinationArrives {
+  0% { opacity: 0; filter: blur(9px); transform: translate3d(-50%, -50%, -320px) scale(0.04); }
+  62% { opacity: 1; filter: blur(0); transform: translate3d(-50%, -50%, 32px) scale(1.08); }
+  100% { opacity: 1; transform: translate3d(-50%, -50%, 0) scale(1); }
+}
+
+@keyframes gravitationalLensBreath {
+  from { opacity: 0.42; transform: scale(0.94); }
+  to { opacity: 0.84; transform: scale(1.08); }
+}
+
+@keyframes accretionDiskTurns {
+  to { transform: rotateX(72deg) rotateZ(352deg); }
+}
+
+@keyframes singularityConsumes {
+  0% { opacity: 1; filter: brightness(1); transform: translate3d(-50%, -50%, 0) scale(1); }
+  35% { opacity: 1; filter: brightness(1.35); transform: translate3d(-50%, -50%, 0) scale(calc(1.12 + var(--final-tier) * 0.025)); }
+  62% { opacity: 1; filter: brightness(2.8); transform: translate3d(-50%, -50%, 0) scale(0.42); }
+  79% { opacity: 1; filter: brightness(4.4) blur(1px); transform: translate3d(-50%, -50%, 0) scale(0.08); }
+  100% { opacity: 0; filter: brightness(7) blur(12px); transform: translate3d(-50%, -50%, 0) scale(0.004); }
+}
+
+@keyframes singularityShockwave {
+  0% { opacity: 0; transform: scale(0.06) rotate(-8deg); }
+  42% { opacity: 1; transform: scale(calc(0.72 + var(--final-tier) * 0.07)) rotate(2deg); }
+  100% { opacity: 0; transform: scale(calc(1.8 + var(--final-tier) * 0.15)) rotate(12deg); }
+}
+
+@keyframes cosmicStageArrives {
+  from { opacity: 0; transform: translateY(15px) scale(0.9); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes mortalNebuTranscends {
+  0% { opacity: 1; filter: brightness(1) blur(0); transform: scale(1); }
+  42% { opacity: 1; filter: brightness(1.9) saturate(0.7); transform: translateY(-9%) scale(1.1); }
+  74% { opacity: 0.82; filter: brightness(4) saturate(0) blur(1px); transform: translateY(-13%) scale(0.72); }
+  100% { opacity: 0; filter: brightness(6) saturate(0) blur(7px); transform: translateY(-16%) scale(0.16); }
+}
+
+@keyframes cosmicNebuIsBorn {
+  0% { opacity: 0; filter: brightness(4) blur(8px); transform: translateY(-7%) scale(0.12) rotate(-8deg); }
+  48% { opacity: 1; filter: brightness(1.9) blur(0); transform: translateY(-14%) scale(1.14) rotate(2deg); }
+  72% { transform: translateY(-10%) scale(0.98) rotate(-1deg); }
+  100% { opacity: 1; filter: brightness(1.12); transform: translateY(-12%) scale(1.04) rotate(0); }
+}
+
+@keyframes transformationCoreIgnites {
+  0% { opacity: 0; transform: scale(0.06); }
+  45% { opacity: 1; transform: scale(1.1); }
+  74% { opacity: 0.92; transform: scale(2.2); }
+  100% { opacity: 0; transform: scale(4.6); }
+}
+
+@keyframes transformationRingExpands {
+  0% { opacity: 0; transform: scale(0.1) rotate(-18deg); }
+  35% { opacity: 1; transform: scale(0.72) rotate(0); }
+  100% { opacity: 0; transform: scale(2.8) rotate(28deg); }
+}
+
+@keyframes cosmicSkyBrightens {
+  0% { opacity: 0; }
+  42% { opacity: 0.14; }
+  72% { opacity: 0.48; }
+  90% { opacity: 0.86; }
+  100% { opacity: 1; }
+}
+
+@keyframes cosmicWhiteConsumes {
+  0% { opacity: 0; }
+  46% { opacity: 0.16; }
+  82% { opacity: 0.86; }
+  100% { opacity: 1; }
+}
+
+@keyframes cosmicConstellationOpens {
+  0% { opacity: 0; transform: scale(0.12) rotate(-18deg); }
+  42% { opacity: 0.82; transform: scale(0.72) rotate(0); }
+  100% { opacity: 0; transform: scale(1.84) rotate(17deg); }
+}
+
+@keyframes cosmicCaptionArrives {
+  0% { opacity: 0; filter: blur(5px); transform: translate(-50%, 8px) scale(0.92); }
+  44%, 78% { opacity: 1; filter: blur(0); transform: translate(-50%, 0) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -5px) scale(1.03); }
+}
+
+@keyframes cosmicSunOverexposes {
+  0% { filter: brightness(1); }
+  70% { filter: brightness(1.8) saturate(0.7); transform: translate3d(-50%, -155%, 0) scale(1.28); }
+  100% { filter: brightness(4.8) saturate(0); transform: translate3d(-50%, -155%, 0) scale(1.7); }
 }
 
 @keyframes sceneClears {
@@ -941,7 +1536,7 @@
 
   54% {
     opacity: 1;
-    transform: scale(1.68);
+    transform: scale(var(--corona-peak));
   }
 
   68% {
@@ -968,7 +1563,7 @@
 
   56% {
     opacity: 1;
-    transform: scale(1.42) rotate(5deg);
+    transform: scale(var(--ray-peak)) rotate(5deg);
   }
 
   76% {
@@ -1276,6 +1871,27 @@
     width: clamp(68px, 22vw, 128px);
   }
 
+  .journeyStar {
+    top: 39%;
+    width: clamp(132px, calc(34vw + var(--active-tier) * 1.8vw), 245px);
+  }
+
+  .destinationBlackHole {
+    top: 39%;
+    width: min(76vw, 330px);
+  }
+
+  .cosmicTransformation {
+    bottom: 8%;
+    left: 38%;
+    width: min(68vw, 320px);
+  }
+
+  .travelReadout,
+  .cosmicCaption {
+    top: max(4.1rem, calc(env(safe-area-inset-top) + 2.55rem));
+  }
+
   .heatCaption {
     top: max(4.1rem, calc(env(safe-area-inset-top) + 2.55rem));
     max-width: 74vw;
@@ -1346,10 +1962,40 @@
   .blackHoleRing,
   .blackHoleRingOuter,
   .cosmicFlightTrail,
+  .deepNebula,
+  .farStarField,
+  .spaceMotes i,
+  .starTunnel,
+  .starTunnel i,
+  .journeyStar,
+  .destinationBlackHole,
+  .gravitationalLens,
+  .accretionDiskRear,
+  .accretionDiskFront,
+  .mortalNebu,
+  .transformedNebu,
+  .transformationCore,
+  .transformationRing,
+  .cosmicSkyBloom,
+  .cosmicWhiteout,
+  .cosmicConstellationBurst,
   .scene[data-cosmic="true"] .pyramidWrap::before,
   .scene[data-cosmic="true"] .reactionStage::before,
   .scene[data-cosmic="true"] .reactionStage::after {
     animation: none;
+  }
+
+  .scene[data-left-world="true"] .world,
+  .scene[data-left-world="true"] .nightSky,
+  .scene[data-left-world="true"] .gradeLayer,
+  .scene[data-left-world="true"] > .skyStars {
+    opacity: 0;
+  }
+
+  .journeyStar,
+  .destinationBlackHole,
+  .transformedNebu {
+    opacity: 1;
   }
 
   .scene[data-cosmic="true"] .walkStage {

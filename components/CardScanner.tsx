@@ -175,19 +175,29 @@ type RecentAutoAdd = {
   message: string;
 };
 
+type QueuedScan = {
+  id: string;
+  session: number;
+  canvas: HTMLCanvasElement;
+  preview: string;
+  geometryConfidence: number | null;
+  quality: CardQuality | null;
+};
+
 type FrameSignature = FrameFingerprint;
 type SourceCrop = ScannerSourceCrop;
 
 const CARD_ASPECT_RATIO = 63 / 88;
-const AUTO_SAMPLE_MS = 180;
-const AUTO_CALIBRATION_FRAMES = 7;
-const AUTO_MIN_PRESENCE_THRESHOLD = 2.0;
-const AUTO_MAX_PRESENCE_THRESHOLD = 8.0;
-const AUTO_STABLE_FRAMES = 4;
-const AUTO_REMOVAL_FRAMES = 3;
-const AUTO_MIN_CHANGED_FRACTION = 0.10;
-const AUTO_GEOMETRY_CONFIDENCE = 0.47;
-const SCANNER_VERSION = "40.0-research";
+const AUTO_SAMPLE_MS = 120;
+const AUTO_CALIBRATION_FRAMES = 6;
+const AUTO_MIN_PRESENCE_THRESHOLD = 1.15;
+const AUTO_MAX_PRESENCE_THRESHOLD = 6.0;
+const AUTO_STABLE_FRAMES = 3;
+const AUTO_REMOVAL_FRAMES = 2;
+const AUTO_MIN_CHANGED_FRACTION = 0.055;
+const AUTO_GEOMETRY_CONFIDENCE = 0.36;
+const AUTO_MAX_CAPTURE_QUEUE = 12;
+const SCANNER_VERSION = "41.0-conveyor";
 
 const CARD_SELECT = `
   id,
@@ -1578,14 +1588,16 @@ function shouldAutoAdd(candidates: ScannerCandidate[], scan: ExtractedScan): boo
   const strongName = best.nameScore >= 0.90;
   const nameMargin = scan.nameHypotheses[0]?.margin ?? 0;
   const secondaryEvidence = [exactCollector, exactSet, exactHp, strongArtwork].filter(Boolean).length;
+  const exactIdentity = strongName && exactCollector && (exactSet || exactHp || strongArtwork);
+  const strongVisualIdentity = best.nameScore >= 0.94 && strongArtwork && (exactSet || exactHp);
 
   return (
-    strongName &&
-    nameMargin >= 0.045 &&
-    best.confidence >= 92 &&
-    margin >= 8 &&
-    secondaryEvidence >= 2 &&
-    best.evidenceCount >= 3 &&
+    (exactIdentity || strongVisualIdentity) &&
+    nameMargin >= 0.025 &&
+    best.confidence >= 86 &&
+    margin >= 5 &&
+    secondaryEvidence >= 1 &&
+    best.evidenceCount >= 2 &&
     best.hardRejectReasons.length === 0
   );
 }
@@ -1617,6 +1629,10 @@ export default function CardScanner({
 
   const autoPhaseRef = useRef<AutoPhase>("off");
   const autoBusyRef = useRef(false);
+  const recognitionBusyRef = useRef(false);
+  const captureQueueRef = useRef<QueuedScan[]>([]);
+  const queueHandsFreeCaptureRef = useRef<(canvas: HTMLCanvasElement) => boolean>(() => false);
+  const scanSessionRef = useRef(0);
   const baselineRef = useRef<FrameSignature | null>(null);
   const previousFrameRef = useRef<FrameSignature | null>(null);
   const calibrationFramesRef = useRef<FrameSignature[]>([]);
@@ -1642,6 +1658,7 @@ export default function CardScanner({
   const [recentAdds, setRecentAdds] = useState<RecentAutoAdd[]>([]);
   const [sessionAddedCount, setSessionAddedCount] = useState(0);
   const [reviewBusyId, setReviewBusyId] = useState<string | null>(null);
+  const [pendingScanCount, setPendingScanCount] = useState(0);
   const [progress, setProgress] = useState(0);
   const [status, setStatus] = useState("Ready to scan a card");
   const [error, setError] = useState("");
@@ -1701,6 +1718,7 @@ export default function CardScanner({
   }, []);
 
   const stopCamera = useCallback(() => {
+    scanSessionRef.current += 1;
     if (streamRef.current) {
       for (const track of streamRef.current.getTracks()) track.stop();
       streamRef.current = null;
@@ -1722,6 +1740,8 @@ export default function CardScanner({
     presenceThresholdRef.current = AUTO_MIN_PRESENCE_THRESHOLD;
     stableThresholdRef.current = 2.8;
     calibrationNoiseRef.current = [];
+    captureQueueRef.current = [];
+    setPendingScanCount(0);
     autoBusyRef.current = false;
   }, [setPhase]);
 
@@ -1737,7 +1757,8 @@ export default function CardScanner({
   }, [stopCamera]);
 
   useEffect(() => {
-    resetScanner();
+    const resetTimer = window.setTimeout(resetScanner, 0);
+    return () => window.clearTimeout(resetTimer);
   }, [resetKey, resetScanner]);
 
   useEffect(() => {
@@ -2122,9 +2143,16 @@ export default function CardScanner({
       .slice(0, 3);
   }
 
-  async function processCanvas(cardCanvas: HTMLCanvasElement) {
+  async function processCanvas(
+    cardCanvas: HTMLCanvasElement,
+    captureContext?: Pick<QueuedScan, "geometryConfidence" | "quality">,
+  ) {
     setError("");
     const scan = await recogniseCard(cardCanvas);
+    if (captureContext) {
+      scan.geometryConfidence = captureContext.geometryConfidence;
+      scan.quality = captureContext.quality;
+    }
     setScanDetails(scan);
     setState("matching");
     setProgress(82);
@@ -2176,9 +2204,9 @@ export default function CardScanner({
         audio: false,
         video: {
           facingMode: { ideal: "environment" },
-          width: { ideal: 1920 },
-          height: { ideal: 1080 },
-          frameRate: { ideal: 30, max: 60 },
+          width: { ideal: 2560 },
+          height: { ideal: 1440 },
+          frameRate: { ideal: 30 },
         },
       });
 
@@ -2186,6 +2214,7 @@ export default function CardScanner({
 
       const videoTrack = stream.getVideoTracks()[0];
       if (videoTrack) {
+        videoTrack.contentHint = "detail";
         try {
           const capabilities = videoTrack.getCapabilities?.() as MediaTrackCapabilities & {
             focusMode?: string[];
@@ -2258,37 +2287,37 @@ export default function CardScanner({
     }
   }
 
-  async function processHandsFreeCapture(canvas: HTMLCanvasElement) {
-    if (autoBusyRef.current) return;
-    autoBusyRef.current = true;
-    setPhase("processing");
-    const preview = createReviewPreview(canvas);
-    setCapturedImage(preview);
-
+  async function processQueuedHandsFreeScan(item: QueuedScan) {
+    const { canvas, preview } = item;
+    if (item.session !== scanSessionRef.current) return;
     try {
-      const { scan, matches } = await processCanvas(canvas);
+      const { scan, matches } = await processCanvas(canvas, item);
+      if (!mountedRef.current || item.session !== scanSessionRef.current) return;
       const best = matches[0];
 
       if (best && onAutoAdd && shouldAutoAdd(matches, scan)) {
         setStatus(`Adding ${best.card.name} to inventory`);
         const result = await onAutoAdd(best.card);
+        if (!mountedRef.current) return;
         setRecentAdds((current) => [
           { id: makeId("add"), card: best.card, message: result.message },
           ...current,
         ].slice(0, 8));
         setSessionAddedCount((current) => current + 1);
-        setStatus(`${best.card.name} added — remove the card`);
+        setStatus(`${best.card.name} added automatically`);
         signal("success");
       } else {
+        if (!mountedRef.current) return;
         setReviewQueue((current) => [
           ...current,
           { id: makeId("review"), preview, scan, candidates: matches },
         ].slice(-100));
-        setStatus(matches.length ? "Saved for review — remove the card" : "No match; saved for review — remove the card");
+        setStatus(matches.length ? "Uncertain match saved for review" : "Unreadable scan saved for review");
         signal("review");
       }
     } catch (scanError: unknown) {
       console.error("Hands-free scanner error:", scanError);
+      if (!mountedRef.current || item.session !== scanSessionRef.current) return;
       setReviewQueue((current) => [
         ...current,
         {
@@ -2307,22 +2336,61 @@ export default function CardScanner({
             printedTotals: [],
             nameHypotheses: [],
             fieldConfidence: { name: 0, hp: 0, collector: 0 },
-            geometryConfidence: lastGeometryRef.current?.confidence ?? null,
-            quality: lastQualityRef.current,
+            geometryConfidence: item.geometryConfidence,
+            quality: item.quality,
           },
           candidates: [],
         },
       ].slice(-100));
-      setStatus("Scan saved for review — remove the card");
+      setStatus("Scan saved for review");
       signal("review");
-    } finally {
-      autoBusyRef.current = false;
-      setState("camera");
-      setPhase("remove");
-      removalFramesRef.current = 0;
-      previousFrameRef.current = null;
     }
   }
+
+  async function drainHandsFreeQueue() {
+    if (recognitionBusyRef.current) return;
+    recognitionBusyRef.current = true;
+    try {
+      while (captureQueueRef.current.length && mountedRef.current) {
+        const item = captureQueueRef.current.shift();
+        if (!item) break;
+        setPendingScanCount(captureQueueRef.current.length + 1);
+        setCapturedImage(item.preview);
+        await processQueuedHandsFreeScan(item);
+        setPendingScanCount(captureQueueRef.current.length);
+      }
+    } finally {
+      recognitionBusyRef.current = false;
+      if (mountedRef.current && cameraOpen) setState("camera");
+      if (captureQueueRef.current.length && mountedRef.current) {
+        void drainHandsFreeQueue();
+      }
+    }
+  }
+
+  function queueHandsFreeCapture(canvas: HTMLCanvasElement): boolean {
+    if (captureQueueRef.current.length >= AUTO_MAX_CAPTURE_QUEUE) {
+      setStatus("Recognition queue full — pause the cards for a moment");
+      signal("review");
+      return false;
+    }
+    const item: QueuedScan = {
+      id: makeId("scan"),
+      session: scanSessionRef.current,
+      canvas,
+      preview: createReviewPreview(canvas),
+      geometryConfidence: lastGeometryRef.current?.confidence ?? null,
+      quality: lastQualityRef.current,
+    };
+    captureQueueRef.current.push(item);
+    setCapturedImage(item.preview);
+    setPendingScanCount(captureQueueRef.current.length + (recognitionBusyRef.current ? 1 : 0));
+    void drainHandsFreeQueue();
+    return true;
+  }
+  useEffect(() => {
+    queueHandsFreeCaptureRef.current = queueHandsFreeCapture;
+  });
 
   const recalibrateHandsFree = useCallback(() => {
     if (!cameraOpen || !handsFree) return;
@@ -2384,16 +2452,16 @@ export default function CardScanner({
           const averageNoise = noiseSamples.reduce((sum, value) => sum + value, 0) / Math.max(1, noiseSamples.length);
           presenceThresholdRef.current = Math.max(
             AUTO_MIN_PRESENCE_THRESHOLD,
-            Math.min(AUTO_MAX_PRESENCE_THRESHOLD, averageNoise * 4.2 + 1.15),
+            Math.min(AUTO_MAX_PRESENCE_THRESHOLD, averageNoise * 3.2 + 0.85),
           );
-          stableThresholdRef.current = Math.max(0.65, Math.min(3.4, averageNoise * 2.3 + 0.45));
+          stableThresholdRef.current = Math.max(0.65, Math.min(3.6, averageNoise * 2.7 + 0.5));
           calibrationFramesRef.current = [];
           calibrationNoiseRef.current = [];
           stableFramesRef.current = 0;
           presenceFramesRef.current = 0;
           previousFrameRef.current = current;
           previousGeometryRef.current = null;
-          baselineGeometryRef.current = geometry && geometry.aspectScore >= 0.58 ? geometry : null;
+          baselineGeometryRef.current = geometry && geometry.aspectScore >= 0.48 ? geometry : null;
           setPhase("ready");
           setStatus("Ready — place a card inside the guide");
           signal("ready");
@@ -2413,19 +2481,24 @@ export default function CardScanner({
         current,
         Math.max(0.045, Math.min(0.085, presenceThresholdRef.current / 100 + 0.025)),
       );
-      const geometryStrong = Boolean(geometry && geometry.confidence >= AUTO_GEOMETRY_CONFIDENCE && geometry.aspectScore >= 0.58);
+      const contrastRise = current.contrast - baseline.contrast;
+      const geometryStrong = Boolean(geometry && geometry.confidence >= AUTO_GEOMETRY_CONFIDENCE && geometry.aspectScore >= 0.48);
       const diagonal = Math.hypot(video.videoWidth, video.videoHeight);
       const backgroundGeometry = baselineGeometryRef.current;
       const geometryNovel = geometryStrong && Boolean(
         !backgroundGeometry ||
-        cornerJitter(backgroundGeometry, geometry, diagonal) >= 0.018 ||
-        changedFraction >= 0.055 ||
-        presenceDifference >= presenceThresholdRef.current * 0.42
+        cornerJitter(backgroundGeometry, geometry, diagonal) >= 0.012 ||
+        changedFraction >= 0.035 ||
+        presenceDifference >= presenceThresholdRef.current * 0.30
       );
       const changedStrong =
         changedFraction >= AUTO_MIN_CHANGED_FRACTION &&
-        presenceDifference >= presenceThresholdRef.current * 0.62;
-      const cardPresent = geometryNovel || changedStrong;
+        presenceDifference >= presenceThresholdRef.current * 0.42;
+      const changedModerate =
+        changedFraction >= 0.032 &&
+        presenceDifference >= presenceThresholdRef.current * 0.28;
+      const contrastStrong = contrastRise >= Math.max(2.5, baseline.contrast * 0.08);
+      const cardPresent = geometryNovel || changedStrong || (changedModerate && contrastStrong);
 
       if (phase === "ready" || phase === "settling") {
         if (!cardPresent) {
@@ -2433,7 +2506,12 @@ export default function CardScanner({
           presenceFramesRef.current = 0;
           previousGeometryRef.current = null;
           setPhase("ready");
-          setStatus("Ready — place a card inside the guide");
+          const queued = captureQueueRef.current.length + (recognitionBusyRef.current ? 1 : 0);
+          setStatus(
+            queued > 0
+              ? `Ready for next card · ${queued} processing`
+              : "Ready — pass a card through the guide",
+          );
 
           // Slowly follow ordinary exposure/white-balance drift only while the
           // guide is confidently empty.
@@ -2457,9 +2535,9 @@ export default function CardScanner({
         }
 
         setPhase("settling");
-        const geometryStable = geometryStrong && geometryMovement <= 0.012;
-        const fallbackStable = !geometryStrong && frameMovement <= stableThresholdRef.current;
-        const motionStable = frameMovement <= stableThresholdRef.current * 1.8;
+        const geometryStable = geometryStrong && geometryMovement <= 0.018;
+        const fallbackStable = !geometryStrong && frameMovement <= stableThresholdRef.current * 1.25;
+        const motionStable = frameMovement <= stableThresholdRef.current * 2.1;
 
         if ((geometryStable && motionStable) || fallbackStable) {
           stableFramesRef.current += 1;
@@ -2486,22 +2564,35 @@ export default function CardScanner({
             // Only reject genuinely unusable captures. Slight glare should lower
             // visual confidence later, not stop a fast bulk workflow.
             if (
-              quality.sharpness < 3.8 ||
-              quality.clippedRatio > 0.30 ||
-              quality.titleGlareRatio > 0.24
+              quality.sharpness < 2.2 ||
+              quality.clippedRatio > 0.44 ||
+              quality.titleGlareRatio > 0.38
             ) {
               setStatus(
-                quality.titleGlareRatio > 0.24
+                quality.titleGlareRatio > 0.38
                   ? "Too much reflection over the title — tilt the card slightly"
-                  : quality.sharpness < 3.8
+                  : quality.sharpness < 2.2
                     ? "Card is out of focus — hold it still a moment longer"
                     : "Exposure is too harsh — adjust the card or light",
               );
               previousGeometryRef.current = geometry;
               return;
             }
-            void processHandsFreeCapture(canvas);
+            autoBusyRef.current = true;
+            const accepted = queueHandsFreeCaptureRef.current(canvas);
+            autoBusyRef.current = false;
+            if (!accepted) {
+              setPhase("settling");
+              return;
+            }
+            removalFramesRef.current = 0;
+            previousFrameRef.current = current;
+            previousGeometryRef.current = geometry;
+            setState("camera");
+            setPhase("remove");
+            setStatus("Captured — pass the card out of the guide");
           } catch (captureError: unknown) {
+            autoBusyRef.current = false;
             console.error("Hands-free capture error:", captureError);
             setStatus("Could not flatten the card — hold it inside the guide and try again");
             setPhase("ready");
@@ -2512,9 +2603,9 @@ export default function CardScanner({
 
       if (phase === "remove") {
         const removed =
-          !geometryStrong &&
-          changedFraction < 0.09 &&
-          presenceDifference < Math.max(1.5, presenceThresholdRef.current * 0.64);
+          !cardPresent &&
+          changedFraction < 0.055 &&
+          presenceDifference < Math.max(1.0, presenceThresholdRef.current * 0.52);
         if (removed) removalFramesRef.current += 1;
         else removalFramesRef.current = 0;
 
@@ -2526,7 +2617,12 @@ export default function CardScanner({
           setCandidates([]);
           setScanDetails(null);
           setPhase("ready");
-          setStatus("Ready — place the next card inside the guide");
+          const queued = captureQueueRef.current.length + (recognitionBusyRef.current ? 1 : 0);
+          setStatus(
+            queued > 0
+              ? `Ready for next card · ${queued} processing`
+              : "Ready — pass the next card through the guide",
+          );
           signal("ready");
         }
       }
@@ -2601,7 +2697,7 @@ export default function CardScanner({
           <p className="text-sm font-black uppercase tracking-[0.2em] text-cyan-200/55">Camera intake</p>
           <h2 className="mt-2 text-3xl font-black tracking-tight text-white">ancientpulls Card Scanner</h2>
           <p className="mt-2 max-w-3xl text-sm font-medium leading-6 text-white/45">
-            Hands-free mode detects a card, waits for it to stop moving, scans it and rearms only after the card leaves the frame.
+            Pass cards through the guide. Capture rearms as soon as each card leaves while recognition continues in the background.
           </p>
         </div>
 
@@ -2630,12 +2726,14 @@ export default function CardScanner({
                     <p className="text-[0.6rem] font-black uppercase tracking-[0.16em] text-cyan-100/45">Hands-free intake</p>
                     <p className="mt-1 text-xs font-bold text-white/75">{autoIntakeLabel}</p>
                     <p className="mt-1 text-[0.68rem] font-semibold text-white/35">
-                      Auto-add only happens for strong matches. Anything uncertain goes to Review.
+                      {pendingScanCount > 0
+                        ? `${pendingScanCount} card${pendingScanCount === 1 ? "" : "s"} processing · keep passing cards`
+                        : "Strong matches auto-add. Anything uncertain goes to Review."}
                     </p>
                   </div>
                 ) : null}
 
-                {capturedImage && handsFree && autoPhase === "processing" ? (
+                {capturedImage && handsFree && pendingScanCount > 0 ? (
                   <div className="absolute right-4 top-4 h-36 w-24 overflow-hidden rounded-xl border border-cyan-100/25 bg-black/50 p-1 shadow-2xl">
                     <img src={capturedImage} alt="Current card scan" className="h-full w-full object-contain" />
                   </div>
@@ -2658,7 +2756,6 @@ export default function CardScanner({
                     <button
                       type="button"
                       onClick={recalibrateHandsFree}
-                      disabled={autoPhase === "processing"}
                       className="flex h-14 items-center justify-center rounded-2xl border border-cyan-100/20 bg-cyan-300/10 px-4 text-sm font-black text-cyan-50 backdrop-blur-xl disabled:opacity-40"
                     >
                       Recalibrate
@@ -2755,7 +2852,7 @@ export default function CardScanner({
                 <h3 className="mt-2 text-2xl font-black text-white">Hands-free session</h3>
               </div>
 
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-4 gap-2">
                 <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3">
                   <span className="text-[0.6rem] font-black uppercase tracking-[0.12em] text-white/30">Added</span>
                   <strong className="mt-1 block text-xl text-emerald-200">{sessionAddedCount}</strong>
@@ -2763,6 +2860,10 @@ export default function CardScanner({
                 <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3">
                   <span className="text-[0.6rem] font-black uppercase tracking-[0.12em] text-white/30">Review</span>
                   <strong className="mt-1 block text-xl text-amber-200">{reviewQueue.length}</strong>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3">
+                  <span className="text-[0.6rem] font-black uppercase tracking-[0.12em] text-white/30">Queue</span>
+                  <strong className="mt-1 block text-xl text-cyan-200">{pendingScanCount}</strong>
                 </div>
                 <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3">
                   <span className="text-[0.6rem] font-black uppercase tracking-[0.12em] text-white/30">Mode</span>

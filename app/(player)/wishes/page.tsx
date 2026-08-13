@@ -8,7 +8,11 @@ import NebuPortrait from "@/components/player/NebuPortrait";
 import WishDetailsDialog from "@/components/player/WishDetailsDialog";
 import { type WishRevealCard } from "@/components/player/WishCinematic";
 import { primeWishAudio } from "@/components/player/wishAudio";
-import { applyNebuSkin } from "@/lib/player/nebu";
+import {
+  applyNebuSkin,
+  readNebuSkin,
+  type NebuSkinKey,
+} from "@/lib/player/nebu";
 import { supabase } from "@/lib/supabase";
 
 const WishCinematic = dynamic(
@@ -78,6 +82,7 @@ type WishReveal = {
   marketValue: number;
   wishBalance: number;
   cosmicIssueNumber: number | null;
+  cosmicSourceSkin: NebuSkinKey | null;
 };
 
 type DashboardData = {
@@ -430,6 +435,7 @@ export default function WishesPage() {
             marketValue: latest.valueAtWish,
             wishBalance: nextDashboard.wishBalance,
             cosmicIssueNumber: null,
+            cosmicSourceSkin: null,
           });
         } else {
           setErrorMessage(
@@ -483,6 +489,7 @@ export default function WishesPage() {
       marketValue: latest.valueAtWish,
       wishBalance: dashboard.wishBalance,
       cosmicIssueNumber: null,
+      cosmicSourceSkin: null,
     });
   }, [dashboard.recentWishes, dashboard.wishBalance]);
 
@@ -515,6 +522,7 @@ export default function WishesPage() {
     setForceFullSequence(false);
     setMakingWish(true);
     setErrorMessage(null);
+    const nebuSkinBeforeWish = readNebuSkin();
 
     try {
       const { data, error } = await supabase.rpc("make_player_wish");
@@ -559,6 +567,7 @@ export default function WishesPage() {
         marketValue: toNumber(result.market_value),
         wishBalance: nextBalance,
         cosmicIssueNumber: cosmicIssueNumber > 0 ? cosmicIssueNumber : null,
+        cosmicSourceSkin: cosmicIssueNumber > 0 ? nebuSkinBeforeWish : null,
       });
 
       window.dispatchEvent(
@@ -735,6 +744,7 @@ export default function WishesPage() {
         busy={makingWish}
         forceFullSequence={forceFullSequence}
         cosmicIssueNumber={wishReveal?.cosmicIssueNumber}
+        cosmicSourceSkin={wishReveal?.cosmicSourceSkin}
         onClose={() => {
           setWishReveal(null);
           setForceFullSequence(false);

@@ -47,37 +47,6 @@ export type WishRevealConfig = {
 
 type RevealSeed = Omit<WishRevealConfig, "key" | "blackHole">;
 
-// This is the established Nebu pyramid ceremony rhythm. The new reveal layer
-// must sit on top of it, never shorten or replace it.
-export const WISH_WORLD_ESCALATION_START_MS = 2600;
-export const WISH_WORLD_STEP_DURATIONS_MS = [
-  2000,
-  2000,
-  3000,
-  4000,
-  4000,
-  4000,
-  4000,
-  4000,
-  4000,
-] as const;
-
-function getClassicCeremonyTiming(tier: number): WishRevealConfig["timings"] {
-  const cardAtMs = WISH_WORLD_ESCALATION_START_MS + WISH_WORLD_STEP_DURATIONS_MS
-    .slice(0, Math.max(1, tier))
-    .reduce((total, duration) => total + duration, 0);
-  const impactAtMs = Math.max(WISH_WORLD_ESCALATION_START_MS, cardAtMs - 520);
-  const infoAtMs = cardAtMs + 720;
-
-  return {
-    impactAtMs,
-    cardAtMs,
-    infoAtMs,
-    durationMs: infoAtMs + 720,
-    skipAfterMs: tier >= 3 ? Math.max(1800, cardAtMs - 3000) : null,
-  };
-}
-
 const REVEALS: Record<Exclude<WishRevealConfig["key"], "blackHole">, RevealSeed> = {
   common: {
     label: "Common",
@@ -274,14 +243,7 @@ export function getWishRevealConfig(
   if (Number(marketValue) > 500) return BLACK_HOLE;
 
   const key = identifyRevealKey(rarity);
-  const reveal = REVEALS[key];
-
-  return {
-    ...reveal,
-    key,
-    blackHole: false,
-    timings: getClassicCeremonyTiming(reveal.tier),
-  };
+  return { ...REVEALS[key], key, blackHole: false };
 }
 
 export function getWishRevealParticleCount(
