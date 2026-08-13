@@ -109,7 +109,7 @@ html[data-duat-open="true"] [data-player-nav] { display: none !important; }
 .material-badge > span { color:var(--material-accent); font:22px Georgia,serif; }.material-badge small,.material-badge b { display:block; }.material-badge small { color:#8e8492; font-size:6px; letter-spacing:.14em; }.material-badge b { margin-top:2px; color:#f8efdc; font-size:9px; }
 
 .nebu-digger { position: absolute; z-index:8; left: 50%; top: 54%; width: clamp(185px,27vw,310px); aspect-ratio: 1; transform: translate(-50%,-50%); pointer-events: none; filter: drop-shadow(0 22px 25px rgba(0,0,0,.5)); }
-.sand-nebu-rig { position:absolute; inset:0; z-index:3; transform-origin:50% 76%; transition:transform 41ms linear; will-change:transform; }
+.sand-nebu-rig { position:absolute; inset:0; z-index:3; transform:none; }
 .sand-nebu { position: absolute !important; inset: 0; width: 100% !important; height: 100% !important; image-rendering: pixelated; z-index: 3; }
 .dig-claw { position:absolute; z-index:5; left:25%; bottom:22%; width:48%; height:32%; border-bottom:5px solid var(--material-accent); border-radius:50%; opacity:0; filter:drop-shadow(0 0 7px color-mix(in srgb,var(--material-accent),transparent 32%)); transform:rotate(-18deg); }
 .sand-nebu-rig.dig-scoop .dig-claw,.sand-nebu-rig.dig-throw .dig-claw { opacity:.7; animation:claw-scoop .25s steps(6,end) both; }
@@ -163,6 +163,12 @@ html[data-duat-open="true"] [data-player-nav] { display: none !important; }
 .material-progress-card > .simple-meter { grid-column:1 / -1; margin-top:1px; }.material-progress-card > .simple-meter i { background:linear-gradient(90deg,var(--material-mid),var(--material-accent)); box-shadow:0 0 12px color-mix(in srgb,var(--material-accent),transparent 55%); }
 .material-progress-card footer { grid-column:1 / -1; display:grid; grid-template-columns:auto 1fr auto; align-items:center; gap:7px; padding-top:8px; border-top:1px solid rgba(255,255,255,.055); }.material-progress-card footer span { color:#766d79; font-size:6px; letter-spacing:.14em; }.material-progress-card footer b { color:#e8ddca; font-size:8px; }.material-progress-card footer small { color:#8d8290; font-size:7px; }
 .next-find-card p { margin: 10px 0 0; color: #847b88; font-size: 8px; line-height: 1.5; }
+.artifact-boost-total { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:12px; border:1px solid rgba(240,198,105,.13); border-radius:10px; padding:9px 10px; background:rgba(240,198,105,.045); }
+.artifact-boost-total small { color:#807684; font-size:6px; font-weight:800; letter-spacing:.11em; }
+.artifact-boost-total b { color:#f5cf78; font-size:11px; white-space:nowrap; }
+.artifact-boost-grid { display:grid; grid-template-columns:repeat(5,1fr); gap:4px; margin-top:7px; }
+.artifact-boost-grid span { border:1px solid rgba(255,255,255,.06); border-radius:7px; padding:6px 2px; color:#f4dcaa; background:rgba(255,255,255,.018); font-size:6px; font-weight:800; text-align:center; }
+.artifact-boost-grid .uncommon { color:#70e0be; }.artifact-boost-grid .rare { color:#6dbbff; }.artifact-boost-grid .epic { color:#b28aff; }.artifact-boost-grid .legendary { color:#ffd563; }
 
 .skin-bonus-card { display: grid !important; grid-template-columns: 48px 1fr auto; align-items: center; gap: 11px; }
 .skin-portrait { position: relative; width: 48px; height: 48px; border: 1px solid rgba(240,198,105,.24); border-radius: 12px; overflow: hidden; background: radial-gradient(circle,#6b431d,#171019); cursor: pointer; }

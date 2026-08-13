@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
 import NebuPerformanceSprite from "@/components/player/NebuPerformanceSprite";
-import NebuSprite, { type NebuPose } from "@/components/player/NebuSprite";
 import { getNebuHeatAssets, getNebuSkin } from "@/lib/player/nebu";
 import type { SkinId } from "@/lib/player/endless-duat-engine";
 
@@ -14,7 +13,7 @@ const FRAGMENT_SECONDS = 720;
 
 type Rarity = "common" | "uncommon" | "rare" | "epic" | "legendary";
 type UpgradeId = "claws" | "crew" | "charm" | "idol";
-type ArtifactFind = { id: string; name: string; icon: string; rarity: Rarity; reward: number; depth: number; foundAt: number };
+type ArtifactFind = { id: string; name: string; icon: string; rarity: Rarity; speedBoost: number; depth: number; foundAt: number };
 type SandfallState = {
   kind: typeof SAVE_KIND; version: 1; lastSeen: number; dayKey: string; depth: number; deepest: number;
   sand: number; totalSand: number; lastFindAt: number; nextFindAt: number; totalFinds: number;
@@ -36,6 +35,14 @@ type MaterialLayer = {
 };
 
 const RARITIES: Rarity[] = ["common", "uncommon", "rare", "epic", "legendary"];
+const ARTIFACT_CHANCE = 0.01;
+const ARTIFACT_SPEED_BONUS: Record<Rarity, number> = {
+  common: 0.01,
+  uncommon: 0.03,
+  rare: 0.07,
+  epic: 0.15,
+  legendary: 0.35,
+};
 const ARTIFACTS: Record<Rarity, Array<{ name: string; icon: string }>> = {
   common: [
     { name: "Painted Pottery Shard", icon: "◒" }, { name: "Traveller's Coin", icon: "◉" },
@@ -66,7 +73,7 @@ const SKIN_BONUSES: Record<SkinId, SkinBonus> = {
   scarab: { title: "Golden Instinct", detail: "+15% sand from finds", tap: 1, auto: 1, sand: 1.15, luck: 0 },
   sunstone: { title: "Solar Claws", detail: "+20% tap strength", tap: 1.2, auto: 1, sand: 1, luck: 0 },
   royal: { title: "Royal Tribute", detail: "+8% to all digging", tap: 1.08, auto: 1.08, sand: 1.08, luck: 0.05 },
-  pearl: { title: "Moon Sifter", detail: "Artifacts appear 10% sooner", tap: 1, auto: 1, sand: 1, luck: 0.1 },
+  pearl: { title: "Moon Sifter", detail: "+10% artifact rarity", tap: 1, auto: 1, sand: 1, luck: 0.1 },
   sherry: { title: "Shadow Paws", detail: "+12% artifact luck", tap: 1, auto: 1, sand: 1, luck: 0.12 },
   bubbles: { title: "Guardian's Patience", detail: "+12% passive digging", tap: 1, auto: 1.12, sand: 1, luck: 0 },
   cosmic_nebu: { title: "Event Horizon", detail: "+25% to everything", tap: 1.25, auto: 1.25, sand: 1.25, luck: 0.2 },
@@ -75,7 +82,7 @@ const SKIN_BONUSES: Record<SkinId, SkinBonus> = {
 const UPGRADES: Array<{ id: UpgradeId; icon: string; name: string; detail: string }> = [
   { id: "claws", icon: "⌁", name: "Stronger Paws", detail: "More depth every tap" },
   { id: "crew", icon: "◆", name: "Scarab Crew", detail: "Nebu digs while you rest" },
-  { id: "charm", icon: "◈", name: "Sifting Charm", detail: "Better finds, more often" },
+  { id: "charm", icon: "◈", name: "Sifting Charm", detail: "Improves artifact rarity" },
   { id: "idol", icon: "☼", name: "Golden Idol", detail: "Multiplies all progress" },
 ];
 
@@ -117,6 +124,9 @@ function upgradeCost(id: UpgradeId, level: number) {
   const growth = { claws: 1.58, crew: 1.7, charm: 1.9, idol: 2.12 }[id];
   return Math.floor(base * growth ** level);
 }
+function artifactSpeedMultiplier(collection: Record<Rarity, number>) {
+  return 1 + RARITIES.reduce((total, rarity) => total + (collection[rarity] || 0) * ARTIFACT_SPEED_BONUS[rarity], 0);
+}
 
 function initialState(selectedSkin: SkinId): SandfallState {
   return {
@@ -142,7 +152,7 @@ function readState(bootstrap: DuatBootstrap) {
   const base = isSandfallState(candidate) ? candidate : initialState(bootstrap.selectedSkin);
   const elapsed = Math.max(0, Math.min(8 * 60 * 60, (Date.now() - Number(base.lastSeen || Date.now())) / 1_000));
   const bonus = SKIN_BONUSES[bootstrap.selectedSkin];
-  const idleRate = (0.22 + base.upgrades.crew * 0.48) * (1 + base.upgrades.idol * 0.28) * bonus.auto;
+  const idleRate = (0.22 + base.upgrades.crew * 0.48) * (1 + base.upgrades.idol * 0.28) * bonus.auto * artifactSpeedMultiplier(base.collection);
   const offlineDepth = base.upgrades.crew > 0 ? elapsed * idleRate * 0.55 : 0;
   const offlineSand = offlineDepth * (1 + base.upgrades.idol * 0.25) * bonus.sand;
   return {
@@ -154,41 +164,25 @@ function readState(bootstrap: DuatBootstrap) {
   };
 }
 
-function rollRarity(charmLevel: number, skinLuck: number, sinceRare: number, depth: number): Rarity {
-  const luck = charmLevel * 0.13 + skinLuck;
-  const legendary = 0.28 + luck * 0.55 + Math.min(0.35, depth / 120_000);
-  const epic = 1.55 + luck * 3.1;
-  const rare = 6.8 + luck * 8.5 + Math.max(0, sinceRare - 17) * 0.85;
-  const uncommon = 24 + luck * 6;
-  const roll = Math.random() * 100;
-  if (roll < legendary) return "legendary";
-  if (roll < legendary + epic) return "epic";
-  if (roll < legendary + epic + rare) return "rare";
-  if (roll < legendary + epic + rare + uncommon) return "uncommon";
+function rollRarity(charmLevel: number, skinLuck: number): Rarity {
+  const luck = charmLevel * 0.08 + skinLuck;
+  const weights: Record<Rarity, number> = {
+    common: 65,
+    uncommon: 22 * (1 + luck * 0.35),
+    rare: 9 * (1 + luck * 0.9),
+    epic: 3 * (1 + luck * 1.5),
+    legendary: 1 * (1 + luck * 2.2),
+  };
+  const total = RARITIES.reduce((sum, rarity) => sum + weights[rarity], 0);
+  let roll = Math.random() * total;
+  for (const rarity of [...RARITIES].reverse()) {
+    roll -= weights[rarity];
+    if (roll <= 0) return rarity;
+  }
   return "common";
 }
-function rewardFor(rarity: Rarity, multiplier: number) {
-  const range: Record<Rarity, [number, number]> = { common: [12, 26], uncommon: [45, 95], rare: [170, 340], epic: [850, 1_650], legendary: [5_000, 9_000] };
-  const [minimum, maximum] = range[rarity];
-  return Math.round((minimum + Math.random() * (maximum - minimum)) * multiplier);
-}
-function nextArtifactGap(charmLevel: number, skinLuck: number) {
-  const reduction = Math.min(0.46, charmLevel * 0.035 + skinLuck * 0.32);
-  return (13 + Math.random() * 20) * (1 - reduction);
-}
 
-const DIG_POSES: NebuPose[] = [
-  "idle", "idle", "puffed", "puffed", "back", "back", "swipe", "swipe",
-  "swipe", "pounce", "pounce", "pounce", "leap", "leap", "swipe", "swipe",
-  "walk", "walk", "run", "run", "pounce", "idle", "idle", "idle",
-];
 const COSMIC_DIG_FRAMES = [0, 0, 5, 5, 3, 3, 4, 4, 4, 8, 8, 8, 7, 7, 4, 4, 2, 2, 3, 3, 4, 0, 0, 0];
-const DIG_TRANSFORMS = [
-  [-10, 0, 1], [-11, -1, 1], [-9, -2, .99], [-7, -3, .98], [-5, -4, .98], [-2, -5, .99],
-  [1, -4, 1.01], [3, -3, 1.03], [5, -2, 1.04], [6, 0, 1.05], [4, 2, 1.05], [1, 4, 1.04],
-  [-4, 5, 1.03], [-8, 5, 1.02], [-5, 4, 1.02], [0, 2, 1.01], [5, 0, 1], [10, -1, .99],
-  [15, -1, .98], [20, 0, .97], [24, 1, .97], [13, 1, .98], [2, 0, .99], [-7, 0, 1],
-] as const;
 
 function SandNebu({ skin, digging }: { skin: SkinId; digging: boolean }) {
   const [frame, setFrame] = useState(0);
@@ -210,19 +204,16 @@ function SandNebu({ skin, digging }: { skin: SkinId; digging: boolean }) {
     animationFrame = window.requestAnimationFrame(animate);
     return () => window.cancelAnimationFrame(animationFrame);
   }, [digging]);
-  const [translateY, rotate, scale] = DIG_TRANSFORMS[digging ? frame : 0];
-  const phase = frame < 6 ? "brace" : frame < 12 ? "scoop" : frame < 16 ? "throw" : frame < 21 ? "descend" : "settle";
-  const rigStyle = { transform: `translateY(${translateY}px) rotate(${rotate}deg) scale(${scale})` };
+  const phase = frame < 6 ? "brace" : frame < 12 ? "scoop" : frame < 18 ? "throw" : frame < 22 ? "scratch" : "settle";
   if (cosmic) {
-    return <span className={`sand-nebu-rig dig-${phase}`} data-dig-frame={frame} style={rigStyle}>
+    return <span className={`sand-nebu-rig dig-${phase}`} data-dig-frame={frame}>
       <NebuPerformanceSprite sheet={assets.reactionSheet} durationMs={900} staticFrame={digging ? COSMIC_DIG_FRAMES[frame] : 0}
         columns={assets.reactionColumns ?? 3} rows={assets.reactionRows ?? 3} className="sand-nebu" label="Cosmic Nebu digging" />
-      <i className="dig-claw" /><i className="dig-debris" />
     </span>;
   }
-  return <span className={`sand-nebu-rig dig-${phase}`} data-dig-frame={frame} style={rigStyle}>
-    <NebuSprite pose={digging ? DIG_POSES[frame] : "idle"} className="sand-nebu" label={`${getNebuSkin(skin).label} digging`} />
-    <i className="dig-claw" /><i className="dig-debris" />
+  return <span className={`sand-nebu-rig dig-${phase}`} data-dig-frame={frame}>
+    <NebuPerformanceSprite sheet="/ancient-pulls/nebu-digging-24frames-v2.png" durationMs={1_000}
+      staticFrame={digging ? frame : 0} columns={6} rows={4} className="sand-nebu" label={`${getNebuSkin(skin).label} digging`} />
   </span>;
 }
 
@@ -252,9 +243,10 @@ export default function EndlessDuatGame({ bootstrap, accessToken, onExit, onOpen
   const skin = getNebuSkin(state.selectedSkin);
   const skinBonus = SKIN_BONUSES[state.selectedSkin];
   const idolMultiplier = 1 + state.upgrades.idol * 0.28;
-  const tapPower = (1 + state.upgrades.claws * 1.28) * idolMultiplier * skinBonus.tap;
-  const passiveRate = (0.22 + state.upgrades.crew * 0.48) * idolMultiplier * skinBonus.auto;
-  const findProgress = Math.max(0, Math.min(100, ((state.depth - state.lastFindAt) / Math.max(1, state.nextFindAt - state.lastFindAt)) * 100));
+  const artifactMultiplier = artifactSpeedMultiplier(state.collection);
+  const artifactBoostPercent = Math.round((artifactMultiplier - 1) * 100);
+  const tapPower = (1 + state.upgrades.claws * 1.28) * idolMultiplier * skinBonus.tap * artifactMultiplier;
+  const passiveRate = (0.22 + state.upgrades.crew * 0.48) * idolMultiplier * skinBonus.auto * artifactMultiplier;
   const material = materialForDepth(state.depth);
   const materialProgress = Math.max(0, Math.min(100, ((state.depth - material.start) / Math.max(1, material.end - material.start)) * 100));
 
@@ -266,13 +258,42 @@ export default function EndlessDuatGame({ bootstrap, accessToken, onExit, onOpen
     } catch { /* The local copy protects progress until the next save. */ }
   }, [accessToken]);
 
+  const discoverArtifact = useCallback(() => {
+    if (Math.random() >= ARTIFACT_CHANCE) return;
+    const snapshot = stateRef.current;
+    const bonus = SKIN_BONUSES[snapshot.selectedSkin];
+    const rarity = rollRarity(snapshot.upgrades.charm, bonus.luck);
+    const pool = ARTIFACTS[rarity];
+    const artifact = pool[Math.floor(Math.random() * pool.length)];
+    const find: ArtifactFind = {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      name: artifact.name,
+      icon: artifact.icon,
+      rarity,
+      speedBoost: ARTIFACT_SPEED_BONUS[rarity],
+      depth: snapshot.depth,
+      foundAt: Date.now(),
+    };
+    setLatestFind(find);
+    if (findTimerRef.current) window.clearTimeout(findTimerRef.current);
+    findTimerRef.current = window.setTimeout(() => setLatestFind(null), rarity === "legendary" ? 7_500 : 4_200);
+    setState((current) => ({
+      ...current,
+      totalFinds: current.totalFinds + 1,
+      dailyFinds: current.dailyFinds + 1,
+      sinceRare: rarity === "rare" || rarity === "epic" || rarity === "legendary" ? 0 : current.sinceRare + 1,
+      collection: { ...current.collection, [rarity]: current.collection[rarity] + 1 },
+      recentFinds: [find, ...current.recentFinds].slice(0, 6),
+    }));
+  }, []);
+
   useEffect(() => {
     const timer = window.setInterval(() => {
       const rushMultiplier = 1 + rushRef.current / 55;
       setState((current) => {
         const bonus = SKIN_BONUSES[current.selectedSkin];
         const idol = 1 + current.upgrades.idol * 0.28;
-        const dug = (0.22 + current.upgrades.crew * 0.48) * idol * bonus.auto * rushMultiplier * 0.1;
+        const dug = (0.22 + current.upgrades.crew * 0.48) * idol * bonus.auto * artifactSpeedMultiplier(current.collection) * rushMultiplier * 0.1;
         const gathered = dug * (1 + current.upgrades.idol * 0.25) * bonus.sand;
         const nextDay = todayKey();
         return { ...current, dayKey: nextDay, dailyFinds: current.dayKey === nextDay ? current.dailyFinds : 0,
@@ -285,26 +306,9 @@ export default function EndlessDuatGame({ bootstrap, accessToken, onExit, onOpen
   }, []);
 
   useEffect(() => {
-    if (state.depth < state.nextFindAt) return;
-    setState((current) => {
-      if (current.depth < current.nextFindAt) return current;
-      const bonus = SKIN_BONUSES[current.selectedSkin];
-      const rarity = rollRarity(current.upgrades.charm, bonus.luck, current.sinceRare, current.depth);
-      const pool = ARTIFACTS[rarity];
-      const artifact = pool[Math.floor(Math.random() * pool.length)];
-      const reward = rewardFor(rarity, (1 + current.upgrades.idol * 0.25) * bonus.sand);
-      const find: ArtifactFind = { id: `${Date.now()}-${Math.random().toString(36).slice(2)}`, name: artifact.name,
-        icon: artifact.icon, rarity, reward, depth: current.depth, foundAt: Date.now() };
-      setLatestFind(find);
-      if (findTimerRef.current) window.clearTimeout(findTimerRef.current);
-      findTimerRef.current = window.setTimeout(() => setLatestFind(null), rarity === "legendary" ? 7_500 : 4_200);
-      return { ...current, sand: current.sand + reward, totalSand: current.totalSand + reward,
-        lastFindAt: current.nextFindAt, nextFindAt: current.nextFindAt + nextArtifactGap(current.upgrades.charm, bonus.luck),
-        totalFinds: current.totalFinds + 1, dailyFinds: current.dailyFinds + 1,
-        sinceRare: rarity === "rare" || rarity === "epic" || rarity === "legendary" ? 0 : current.sinceRare + 1,
-        collection: { ...current.collection, [rarity]: current.collection[rarity] + 1 }, recentFinds: [find, ...current.recentFinds].slice(0, 6) };
-    });
-  }, [state.depth, state.nextFindAt]);
+    const timer = window.setInterval(discoverArtifact, 1_000);
+    return () => window.clearInterval(timer);
+  }, [discoverArtifact]);
 
   useEffect(() => {
     const timer = window.setInterval(() => { saveTimerRef.current += 1; if (saveTimerRef.current % 10 === 0) void persist(stateRef.current); }, 1_000);
@@ -342,12 +346,13 @@ export default function EndlessDuatGame({ bootstrap, accessToken, onExit, onOpen
     setState((current) => {
       const bonus = SKIN_BONUSES[current.selectedSkin];
       const idol = 1 + current.upgrades.idol * 0.28;
-      const dug = (1 + current.upgrades.claws * 1.28) * idol * bonus.tap * (1 + Math.min(40, nextCombo) * 0.012);
+      const dug = (1 + current.upgrades.claws * 1.28) * idol * bonus.tap * artifactSpeedMultiplier(current.collection) * (1 + Math.min(40, nextCombo) * 0.012);
       const gathered = dug * (1 + current.upgrades.idol * 0.25) * bonus.sand;
       return { ...current, depth: current.depth + dug, deepest: Math.max(current.deepest, current.depth + dug),
         sand: current.sand + gathered, totalSand: current.totalSand + gathered,
         totalTaps: current.totalTaps + 1, bestCombo: Math.max(current.bestCombo, nextCombo) };
     });
+    discoverArtifact();
   };
 
   const buyUpgrade = (id: UpgradeId) => {
@@ -402,7 +407,6 @@ export default function EndlessDuatGame({ bootstrap, accessToken, onExit, onOpen
         <section className="dig-chamber">
           <button className="dig-zone" onPointerDown={dig} aria-label="Tap to make Nebu dig faster">
             <div className="sand-glow" /><div className="dug-tunnel" /><div className="sand-strata strata-back" />
-            <div className="buried-shape shape-one">◒</div><div className="buried-shape shape-two">◆</div><div className="buried-shape shape-three">☥</div>
             <div className="shaft-walls"><i /><i /></div><div className="depth-line"><span>{blockLabel(state.depth)}</span></div>
             <div className="material-badge"><span>{material.icon}</span><div><small>CURRENT LAYER</small><b>{material.name}</b></div></div>
             <div className={`nebu-digger ${digging ? "is-digging" : ""}`}><div className="nebu-aura" /><SandNebu skin={state.selectedSkin} digging={true} /><div className="sand-spray"><i /><i /><i /><i /><i /><i /></div><div className="dig-shadow" /></div>
@@ -411,12 +415,12 @@ export default function EndlessDuatGame({ bootstrap, accessToken, onExit, onOpen
             <div className="rush-meter"><span style={{ width: `${rush}%` }} /><div><b>PAW RUSH</b><small>{rush > 5 ? `×${(1 + rush / 55).toFixed(1)} speed · combo ${combo}` : "Keep tapping"}</small></div></div>
           </button>
 
-          {latestFind && <button className={`artifact-reveal rarity-${latestFind.rarity}`} onClick={() => setLatestFind(null)}><span className="artifact-rays" /><span className="artifact-icon">{latestFind.icon}</span><span className="artifact-rarity">{latestFind.rarity}</span><b>{latestFind.name}</b><small>Unearthed at {blockLabel(latestFind.depth)}</small><strong>+{compact(latestFind.reward)} Ancient Sand</strong></button>}
+          {latestFind && <button className={`artifact-reveal rarity-${latestFind.rarity}`} onClick={() => setLatestFind(null)}><span className="artifact-rays" /><span className="artifact-icon">{latestFind.icon}</span><span className="artifact-rarity">{latestFind.rarity}</span><b>{latestFind.name}</b><small>Unearthed at {blockLabel(latestFind.depth)}</small><strong>Permanent +{Math.round(latestFind.speedBoost * 100)}% dig speed</strong></button>}
         </section>
 
         <aside className="sandfall-panel">
           <section className="material-progress-card"><div className="material-progress-icon">{material.icon}</div><div className="material-progress-copy"><small>CURRENT LAYER</small><b>{material.name}</b><p>{blockLabel(state.depth)} / {compact(material.end)} blocks</p></div><div className="simple-meter"><i style={{ width: `${materialProgress}%` }} /></div><footer><span>NEXT</span><b>{nextMaterial(material)}</b><small>at {compact(material.end)} blocks</small></footer></section>
-          <section className="next-find-card"><div className="panel-heading"><div><small>NEXT ARTIFACT</small><b>{compact(Math.max(0, state.nextFindAt - state.depth))} blocks away</b></div><span>?</span></div><div className="simple-meter"><i style={{ width: `${findProgress}%` }} /></div><p>Nebu uncovers artifacts as he descends. Sifting Charms improve both rarity and frequency.</p></section>
+          <section className="next-find-card"><div className="panel-heading"><div><small>ARTIFACT CHANCE</small><b>1% per dig</b></div><span>✦</span></div><div className="artifact-boost-total"><small>PERMANENT ARTIFACT BOOST</small><b>+{artifactBoostPercent}% speed</b></div><div className="artifact-boost-grid">{RARITIES.map((rarity) => <span key={rarity} className={rarity}>{rarity.slice(0, 1).toUpperCase()} +{Math.round(ARTIFACT_SPEED_BONUS[rarity] * 100)}%</span>)}</div><p>Every tap and every completed 24-frame loop gets one independent 1% roll. A find boosts Nebu instantly and permanently.</p></section>
 
           <section className="skin-bonus-card"><button onClick={onOpenBadges} className="skin-portrait" aria-label="Open Nebu skins in Badges"><SandNebu skin={state.selectedSkin} digging={false} /></button><div><small>{skin.label.toUpperCase()}</small><b>{skinBonus.title}</b><p>{skinBonus.detail}</p></div><button onClick={onOpenBadges}>Change</button></section>
 
