@@ -8,11 +8,7 @@ import NebuPortrait from "@/components/player/NebuPortrait";
 import WishDetailsDialog from "@/components/player/WishDetailsDialog";
 import { type WishRevealCard } from "@/components/player/WishCinematic";
 import { primeWishAudio } from "@/components/player/wishAudio";
-import {
-  applyNebuSkin,
-  readNebuSkin,
-  type NebuSkinKey,
-} from "@/lib/player/nebu";
+import { applyNebuSkin } from "@/lib/player/nebu";
 import { supabase } from "@/lib/supabase";
 
 const WishCinematic = dynamic(
@@ -82,7 +78,12 @@ type WishReveal = {
   marketValue: number;
   wishBalance: number;
   cosmicIssueNumber: number | null;
-  cosmicSourceSkin: NebuSkinKey | null;
+  cosmicPreview?: boolean;
+};
+
+type NebuEntitlementsResponse = {
+  ok?: boolean;
+  cosmicPreviewAllowed?: boolean;
 };
 
 type DashboardData = {
@@ -186,6 +187,7 @@ export default function WishesPage() {
   const [wishReveal, setWishReveal] = useState<WishReveal | null>(null);
   const [forceFullSequence, setForceFullSequence] = useState(false);
   const [wishDetailsOpen, setWishDetailsOpen] = useState(false);
+  const [cosmicPreviewAllowed, setCosmicPreviewAllowed] = useState(false);
 
   const loadDashboard = useCallback(async (background = false) => {
     if (background) {
@@ -210,6 +212,34 @@ export default function WishesPage() {
         throw new Error("Your trainer session has expired. Sign in again.");
       }
 
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      const previewAccessPromise = session?.access_token
+        ? (async () => {
+          try {
+          const entitlementResponse = await fetch(
+            "/api/player/nebu-entitlements",
+            {
+              headers: {
+                Authorization: `Bearer ${session.access_token}`,
+              },
+              cache: "no-store",
+            },
+          );
+          const entitlementPayload =
+            (await entitlementResponse.json()) as NebuEntitlementsResponse;
+
+          return entitlementResponse.ok &&
+              entitlementPayload.ok === true &&
+              entitlementPayload.cosmicPreviewAllowed === true;
+          } catch {
+            return false;
+          }
+        })()
+        : Promise.resolve(false);
+
       const [
         walletResult,
         inventoryResult,
@@ -217,6 +247,7 @@ export default function WishesPage() {
         wishPurchaseOrdersResult,
         wishesResult,
         shippingSettingsResult,
+        previewAccess,
       ] = await Promise.all([
         supabase
           .from("player_wallets")
@@ -255,7 +286,11 @@ export default function WishesPage() {
           .select("free_shipping_card_threshold")
           .eq("id", 1)
           .maybeSingle(),
+
+        previewAccessPromise,
       ]);
+
+      setCosmicPreviewAllowed(previewAccess);
 
       if (walletResult.error) {
         throw walletResult.error;
@@ -435,7 +470,6 @@ export default function WishesPage() {
             marketValue: latest.valueAtWish,
             wishBalance: nextDashboard.wishBalance,
             cosmicIssueNumber: null,
-            cosmicSourceSkin: null,
           });
         } else {
           setErrorMessage(
@@ -489,9 +523,35 @@ export default function WishesPage() {
       marketValue: latest.valueAtWish,
       wishBalance: dashboard.wishBalance,
       cosmicIssueNumber: null,
-      cosmicSourceSkin: null,
     });
   }, [dashboard.recentWishes, dashboard.wishBalance]);
+
+  const previewCosmicNebuPull = useCallback(() => {
+    if (!cosmicPreviewAllowed) {
+      return;
+    }
+
+    const latest = dashboard.recentWishes[0];
+
+    void primeWishAudio();
+    window.dispatchEvent(new Event("unown-pulls:close-more"));
+    setWishDetailsOpen(false);
+    setErrorMessage(null);
+    setForceFullSequence(true);
+    setWishReveal({
+      wishId: "cosmic-nebu-founder-preview",
+      cardId: latest?.cardId || "cosmic-nebu-preview",
+      cardName: latest?.cardName || "Cosmic Nebu Awakening",
+      setName: latest?.setName || "Ancient Pulls Founder Preview",
+      cardNumber: latest?.cardNumber || "✦",
+      rarity: latest?.rarity || "Crown Rare",
+      imageUrl: latest?.imageUrl || null,
+      marketValue: latest?.valueAtWish || 0,
+      wishBalance: dashboard.wishBalance,
+      cosmicIssueNumber: null,
+      cosmicPreview: true,
+    });
+  }, [cosmicPreviewAllowed, dashboard.recentWishes, dashboard.wishBalance]);
 
   useEffect(() => {
     const handleReplayLatestWish = () => replayLatestWish();
@@ -522,7 +582,6 @@ export default function WishesPage() {
     setForceFullSequence(false);
     setMakingWish(true);
     setErrorMessage(null);
-    const nebuSkinBeforeWish = readNebuSkin();
 
     try {
       const { data, error } = await supabase.rpc("make_player_wish");
@@ -567,7 +626,6 @@ export default function WishesPage() {
         marketValue: toNumber(result.market_value),
         wishBalance: nextBalance,
         cosmicIssueNumber: cosmicIssueNumber > 0 ? cosmicIssueNumber : null,
-        cosmicSourceSkin: cosmicIssueNumber > 0 ? nebuSkinBeforeWish : null,
       });
 
       window.dispatchEvent(
@@ -707,6 +765,8 @@ export default function WishesPage() {
           makingWish={makingWish}
           onMakeWish={() => void makeWish()}
           onShowDetails={() => setWishDetailsOpen(true)}
+          cosmicPreviewAllowed={cosmicPreviewAllowed}
+          onPreviewCosmicNebu={previewCosmicNebuPull}
         />
 
         <ShippingProgress
@@ -744,7 +804,12 @@ export default function WishesPage() {
         busy={makingWish}
         forceFullSequence={forceFullSequence}
         cosmicIssueNumber={wishReveal?.cosmicIssueNumber}
-        cosmicSourceSkin={wishReveal?.cosmicSourceSkin}
+        cosmicPreview={wishReveal?.cosmicPreview === true}
+        cosmicSourceSkin={
+          wishReveal?.cosmicPreview
+            ? "cosmic_nebu"
+            : undefined
+        }
         onClose={() => {
           setWishReveal(null);
           setForceFullSequence(false);
@@ -798,12 +863,16 @@ function WishChamber({
   makingWish,
   onMakeWish,
   onShowDetails,
+  cosmicPreviewAllowed,
+  onPreviewCosmicNebu,
 }: {
   wishBalance: number;
   totalWishes: number;
   makingWish: boolean;
   onMakeWish: () => void;
   onShowDetails: () => void;
+  cosmicPreviewAllowed: boolean;
+  onPreviewCosmicNebu: () => void;
 }) {
   const hasWishes = wishBalance > 0;
 
@@ -884,6 +953,17 @@ function WishChamber({
               {hasWishes ? "Wish Shop" : "Browse the catalogue"}
             </Link>
           </div>
+
+          {cosmicPreviewAllowed ? (
+            <button
+              type="button"
+              onClick={onPreviewCosmicNebu}
+              className="group relative mt-3 flex min-h-12 w-full items-center justify-center overflow-hidden rounded-xl border border-violet-200/25 bg-gradient-to-r from-violet-400/[0.16] via-cyan-300/[0.12] to-yellow-200/[0.12] px-5 text-sm font-black text-violet-50 transition hover:border-violet-100/45 hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-200"
+            >
+              <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/10 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
+              <span className="relative">✦ Preview Cosmic Nebu Pull</span>
+            </button>
+          ) : null}
 
           <p className="mt-4 text-xs font-semibold text-white/25">
             Lifetime wishes completed: {formatWholeNumber(totalWishes)}

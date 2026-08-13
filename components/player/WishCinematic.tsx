@@ -58,6 +58,7 @@ type WishCinematicProps = {
   respectPreferences?: boolean;
   cosmicIssueNumber?: number | null;
   cosmicSourceSkin?: NebuSkinKey | null;
+  cosmicPreview?: boolean;
 };
 
 const IMAGE_PRELOAD_TIMEOUT_MS = 2600;
@@ -170,6 +171,7 @@ export default function WishCinematic({
   respectPreferences = true,
   cosmicIssueNumber = null,
   cosmicSourceSkin = null,
+  cosmicPreview = false,
 }: WishCinematicProps) {
   const preloadTimerRef = useRef<number | null>(null);
   const completionTimerRef = useRef<number | null>(null);
@@ -189,16 +191,22 @@ export default function WishCinematic({
   const [nebuSkin, setNebuSkin] = useState<NebuSkinKey>(DEFAULT_NEBU_SKIN);
 
   const config = useMemo(
-    () => getWishRevealConfig(card?.rarity, card?.marketValue),
-    [card?.marketValue, card?.rarity],
+    () =>
+      getWishRevealConfig(
+        card?.rarity,
+        cosmicIssueNumber || cosmicPreview
+          ? 501
+          : card?.marketValue,
+      ),
+    [card?.marketValue, card?.rarity, cosmicIssueNumber, cosmicPreview],
   );
   const timeline = useMemo(() => buildRevealTimeline(config), [config]);
   const cinematicNebuSkin = useMemo(
     () =>
-      cosmicIssueNumber && isNebuSkinKey(cosmicSourceSkin)
+      (cosmicIssueNumber || cosmicPreview) && isNebuSkinKey(cosmicSourceSkin)
         ? cosmicSourceSkin
         : nebuSkin,
-    [cosmicIssueNumber, cosmicSourceSkin, nebuSkin],
+    [cosmicIssueNumber, cosmicPreview, cosmicSourceSkin, nebuSkin],
   );
   const nebuHeatAssets = useMemo(
     () => getNebuHeatAssets(cinematicNebuSkin),
@@ -582,10 +590,18 @@ export default function WishCinematic({
           </div>
 
           <div className={styles.cardInfo} data-share-ready="true">
-            {cosmicIssueNumber ? (
+            {cosmicIssueNumber || cosmicPreview ? (
               <div className={styles.cosmicDiscoveryBadge}>
-                <span>✦ Permanent legendary form discovered</span>
-                <strong>COSMIC NEBU #{String(cosmicIssueNumber).padStart(6, "0")}</strong>
+                <span>
+                  {cosmicPreview
+                    ? "✦ Founder cinematic preview · no reward granted"
+                    : "✦ Permanent legendary form discovered"}
+                </span>
+                <strong>
+                  {cosmicPreview
+                    ? "COSMIC NEBU PREVIEW"
+                    : `COSMIC NEBU #${String(cosmicIssueNumber).padStart(6, "0")}`}
+                </strong>
               </div>
             ) : null}
             <p className={styles.rarity}>{config.label}</p>
