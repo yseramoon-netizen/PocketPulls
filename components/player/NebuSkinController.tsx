@@ -48,7 +48,10 @@ function activatePersonalisedCopy(name: string): () => void {
     if (parentTag === "SCRIPT" || parentTag === "STYLE" || parentTag === "NOSCRIPT") return;
 
     const current = node.data;
-    if (containsNebu(current)) {
+    // "Cosmic Nebu" still contains the word "Nebu". Without this guard the
+    // MutationObserver sees its own edit and repeatedly creates
+    // "Cosmic Cosmic Nebu", locking the browser's main thread.
+    if (containsNebu(current) && !containsMascotName(current, name)) {
       if (!originalText.has(node)) originalText.set(node, current);
       node.data = personaliseNebuName(current, name);
     } else if (originalText.has(node) && !containsMascotName(current, name)) {
@@ -60,7 +63,11 @@ function activatePersonalisedCopy(name: string): () => void {
     let originals = originalAttributes.get(element);
     for (const attribute of COPY_ATTRIBUTES) {
       const current = element.getAttribute(attribute);
-      if (current && containsNebu(current)) {
+      if (
+        current &&
+        containsNebu(current) &&
+        !containsMascotName(current, name)
+      ) {
         if (!originals) {
           originals = new Map<string, string>();
           originalAttributes.set(element, originals);
