@@ -106,6 +106,11 @@ const MORE_ITEMS: NavItem[] = [
     label: "Help",
     glyph: "?",
   },
+  {
+    href: "/duat",
+    label: "Endless Duat",
+    glyph: "∞",
+  },
 ];
 
 const PROFILE_ITEM: NavItem = {
@@ -144,6 +149,7 @@ const DRAWER_GROUPS: NavGroup[] = [
       MORE_ITEMS[0],
       MORE_ITEMS[1],
       MORE_ITEMS[2],
+      MORE_ITEMS[7],
     ],
   },
   {
