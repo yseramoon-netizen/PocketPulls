@@ -65,6 +65,7 @@ export default function NebuPortrait(props: NebuPortraitProps) {
       {...imageProps}
       src={source}
       alt={alt}
+      data-nebu-skin={skin}
       className={`nebu-portrait-themed ${className}`.trim()}
     />
   );

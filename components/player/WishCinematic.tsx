@@ -202,10 +202,10 @@ export default function WishCinematic({
   );
   const timeline = useMemo(() => buildRevealTimeline(config), [config]);
   const cinematicNebuSkin = useMemo(
-    () =>
-      (cosmicIssueNumber || cosmicPreview) && isNebuSkinKey(cosmicSourceSkin)
-        ? cosmicSourceSkin
-        : nebuSkin,
+    () => {
+      if (cosmicIssueNumber || cosmicPreview) return "cosmic_nebu";
+      return isNebuSkinKey(cosmicSourceSkin) ? cosmicSourceSkin : nebuSkin;
+    },
     [cosmicIssueNumber, cosmicPreview, cosmicSourceSkin, nebuSkin],
   );
   const nebuHeatAssets = useMemo(
@@ -487,6 +487,7 @@ export default function WishCinematic({
       data-family={config.family}
       data-sun-sequence={isolatedSunSequence ? "true" : "false"}
       data-low-effects={lowEffects ? "true" : "false"}
+      data-cosmic-nebu={cosmicNebu ? "true" : "false"}
       role="dialog"
       aria-modal="true"
       aria-label={`Wish reveal for ${card.name}`}
@@ -536,10 +537,21 @@ export default function WishCinematic({
                 reactionSheet={nebuHeatAssets.reactionSheet}
                 reactionColumns={nebuHeatAssets.reactionColumns}
                 reactionRows={nebuHeatAssets.reactionRows}
+                flightSheet={nebuHeatAssets.walkSheet}
+                flightColumns={nebuHeatAssets.walkColumns}
+                flightRows={nebuHeatAssets.walkRows}
                 cosmic={cosmicNebu}
                 blackHole={config.blackHole}
                 lowEffects={lowEffects}
               />
+            </div>
+          ) : null}
+
+          {cosmicNebu && !skipped ? (
+            <div className={styles.cosmicCinematicSignature} aria-hidden="true">
+              <span className={styles.cosmicGravityWave} />
+              <span className={styles.cosmicConstellationCrown}><i /><i /><i /><i /><i /></span>
+              <span className={styles.cosmicFallingStar} />
             </div>
           ) : null}
 

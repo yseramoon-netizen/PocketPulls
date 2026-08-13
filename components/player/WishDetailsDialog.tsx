@@ -203,7 +203,7 @@ export default function WishDetailsDialog({ open, onClose }: WishDetailsDialogPr
           <article className={styles.cosmicPrize}>
             <div className={styles.cosmicGlow} aria-hidden="true" />
             <img
-              src="/ancient-pulls/skins/cosmic-nebu/portrait.webp"
+              src="/ancient-pulls/skins/cosmic-nebu-v2/portrait.webp"
               alt="Cosmic Nebu, the ultimate Ancient Pulls discovery"
               draggable={false}
             />
@@ -212,9 +212,16 @@ export default function WishDetailsDialog({ open, onClose }: WishDetailsDialogPr
               <h3>Cosmic Nebu</h3>
               <strong>1 in 100,000 · 0.001% per completed wish</strong>
               <span>
-                An independent permanent cosmetic discovery. Cosmic Nebu is awarded alongside
-                your card, receives a chronological issue number, and never changes card odds.
+                A permanent numbered celestial entity, awarded alongside your card without
+                changing its odds. Its stellar body, site ambience, camera escort and twelve
+                rarity reactions belong only to the trainer who discovers it.
               </span>
+              <div className={styles.cosmicFeatures}>
+                <i>Living plasma form</i>
+                <i>3D camera escort</i>
+                <i>Owner-only ambience</i>
+                <i>12 unique states</i>
+              </div>
               {cosmicIssueNumber ? (
                 <div className={styles.ownedBadge}>
                   Discovered · #{String(cosmicIssueNumber).padStart(6, "0")}

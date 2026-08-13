@@ -333,6 +333,11 @@
   filter: drop-shadow(0 0 12px rgba(34, 211, 238, 0.62)) drop-shadow(0 0 30px rgba(124, 58, 237, 0.45));
 }
 
+.cosmicPyramidFlight {
+  width: 100%;
+  filter: drop-shadow(0 0 14px rgba(103, 232, 249, 0.65)) drop-shadow(0 0 28px rgba(168, 85, 247, 0.34));
+}
+
 .routeStage {
   z-index: 12;
   overflow: hidden;
@@ -367,6 +372,82 @@
   width: 100%;
   height: 100%;
   transform: translateZ(0);
+}
+
+.cosmicEscort {
+  position: absolute;
+  z-index: 8;
+  top: 62%;
+  left: 76%;
+  width: clamp(150px, 24vw, 310px);
+  aspect-ratio: 1;
+  transform: translate3d(-50%, -50%, 0);
+  will-change: transform, opacity;
+}
+
+.cosmicFlightSprite,
+.cosmicReactionSprite {
+  position: relative;
+  z-index: 3;
+  width: 100%;
+  filter:
+    drop-shadow(0 0 8px rgba(103, 232, 249, 0.82))
+    drop-shadow(0 0 24px rgba(124, 58, 237, 0.52));
+}
+
+.cosmicWake {
+  position: absolute;
+  z-index: 1;
+  top: 47%;
+  right: 68%;
+  width: min(42vw, 32rem);
+  height: 3px;
+  opacity: 0.22;
+  border-radius: 50%;
+  background: linear-gradient(90deg, transparent, #7c3aed 40%, #22d3ee 76%, #fff7c2);
+  filter: drop-shadow(0 0 7px rgba(34, 211, 238, 0.78));
+  transform-origin: right center;
+}
+
+.cosmicWake i {
+  position: absolute;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #fff7c2;
+  box-shadow: 0 0 10px rgba(253, 230, 138, 0.9);
+}
+
+.cosmicWake i:nth-child(1) { top: -11px; right: 14%; }
+.cosmicWake i:nth-child(2) { top: 8px; right: 32%; background: #67e8f9; }
+.cosmicWake i:nth-child(3) { top: -5px; right: 50%; background: #c4b5fd; }
+
+.cosmicLensArc {
+  position: absolute;
+  z-index: 0;
+  inset: 8%;
+  border: 1px solid rgba(103, 232, 249, 0.26);
+  border-right-color: rgba(253, 230, 138, 0.58);
+  border-radius: 50%;
+  box-shadow: 0 0 18px rgba(124, 58, 237, 0.15), inset 0 0 18px rgba(34, 211, 238, 0.08);
+  animation: cosmicLensTurns 7s linear infinite;
+}
+
+.routeStage[data-travelling="true"] .cosmicEscort {
+  animation: cosmicEscortCrosses 4s cubic-bezier(0.42, 0.02, 0.2, 1) both;
+}
+
+.routeStage[data-travelling="false"] .cosmicWake {
+  width: 11rem;
+  opacity: 0.1;
+  transform: rotate(-8deg) scaleX(0.62);
+}
+
+.cosmicEscort[data-finale="true"] {
+  top: 50%;
+  left: 50%;
+  width: clamp(210px, 35vw, 440px);
+  animation: cosmicFinalAscension var(--collapse-duration) ease-out both;
 }
 
 .routeStar,
@@ -644,6 +725,22 @@
 
 @keyframes blackHoleTurns { to { transform: rotateX(64deg) rotate(360deg); } }
 
+@keyframes cosmicLensTurns { to { transform: rotate(360deg); } }
+
+@keyframes cosmicEscortCrosses {
+  0% { opacity: 0; transform: translate3d(-130vw, 38vh, 0) rotate(-10deg) scale(0.48); }
+  12% { opacity: 1; }
+  44% { transform: translate3d(-78vw, -34vh, 0) rotate(8deg) scale(0.74); }
+  72% { transform: translate3d(-28vw, -18vh, 0) rotate(-4deg) scale(0.9); }
+  100% { opacity: 1; transform: translate3d(-50%, -50%, 0) rotate(0) scale(1); }
+}
+
+@keyframes cosmicFinalAscension {
+  0% { opacity: 1; transform: translate3d(-50%, -50%, 0) scale(0.84); }
+  50% { opacity: 1; transform: translate3d(-50%, -54%, 0) scale(1.08); filter: brightness(1.2); }
+  100% { opacity: 0; transform: translate3d(-50%, -60%, 0) scale(1.48); filter: brightness(1.8); }
+}
+
 @keyframes glimmerAppears {
   0%, 58% { opacity: 0; transform: translate(-50%, -50%) scale(0.08) rotate(-28deg); }
   78% { opacity: 1; transform: translate(-50%, -50%) scale(1.18) rotate(0); }
@@ -664,6 +761,8 @@
   .worldSun { bottom: 24%; width: clamp(68px, 22vw, 128px); }
   .routeStar { width: clamp(112px, 32vw, 168px); }
   .routeBlackHole { width: min(59vw, 270px); }
+  .cosmicEscort { top: 69%; left: 72%; width: min(48vw, 235px); }
+  .cosmicWake { width: 42vw; }
   .routeNebula { animation: none; }
   .routeStar .solarSparks,
   .routeStar .surfaceFireSecondary,
@@ -691,7 +790,11 @@
   .solarSparks i,
   .routeNebula,
   .blackHoleAccretion,
-  .blackHoleLens {
+  .blackHoleLens,
+  .cosmicEscort,
+  .cosmicLensArc {
     animation: none;
   }
+
+  .cosmicWake { display: none; }
 }

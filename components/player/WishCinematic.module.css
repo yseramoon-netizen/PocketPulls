@@ -211,6 +211,95 @@
 
 .catScene { position: absolute; z-index: 12; inset: 0; }
 
+.cosmicCinematicSignature {
+  position: absolute;
+  z-index: 16;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  contain: paint;
+}
+
+.cosmicGravityWave {
+  position: absolute;
+  top: 42%;
+  left: 50%;
+  width: min(30vw, 260px);
+  aspect-ratio: 1;
+  border: 1px solid rgba(103, 232, 249, 0.7);
+  border-radius: 50%;
+  opacity: 0;
+  box-shadow: 0 0 0 18px rgba(168, 85, 247, 0.08), 0 0 0 42px rgba(103, 232, 249, 0.05), inset 0 0 34px rgba(103, 232, 249, 0.16), 0 0 60px rgba(168, 85, 247, 0.18);
+  transform: translate3d(-50%, -50%, 0) scale(0.14);
+  animation: cosmicGravityBreak 1.5s var(--impact-at) cubic-bezier(0.12, 0.72, 0.2, 1) both;
+}
+
+.cosmicConstellationCrown {
+  position: absolute;
+  top: 9%;
+  left: 50%;
+  width: min(46vw, 380px);
+  height: 112px;
+  opacity: 0;
+  transform: translate3d(-50%, -12px, 0);
+  animation: cosmicCrownAwakens 1.8s calc(var(--impact-at) - 1.15s) ease-out both;
+}
+
+.cosmicConstellationCrown::before,
+.cosmicConstellationCrown::after {
+  position: absolute;
+  right: 8%;
+  left: 8%;
+  height: 1px;
+  content: "";
+  background: linear-gradient(90deg, transparent, rgba(103, 232, 249, 0.72), rgba(250, 204, 21, 0.72), transparent);
+  transform-origin: center;
+}
+
+.cosmicConstellationCrown::before { top: 49px; transform: rotate(8deg); }
+.cosmicConstellationCrown::after { top: 68px; transform: rotate(-7deg); }
+
+.cosmicConstellationCrown i {
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #ecfeff;
+  box-shadow: 0 0 7px #fff, 0 0 18px #67e8f9, 0 0 30px rgba(168, 85, 247, 0.72);
+}
+
+.cosmicConstellationCrown i:nth-child(1) { top: 59px; left: 7%; }
+.cosmicConstellationCrown i:nth-child(2) { top: 34px; left: 27%; }
+.cosmicConstellationCrown i:nth-child(3) { top: 56px; left: 49%; width: 10px; height: 10px; background: #fef08a; }
+.cosmicConstellationCrown i:nth-child(4) { top: 31px; left: 70%; }
+.cosmicConstellationCrown i:nth-child(5) { top: 63px; left: 91%; }
+
+.cosmicFallingStar {
+  position: absolute;
+  top: 10%;
+  left: 78%;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  opacity: 0;
+  background: #fff7c2;
+  box-shadow: 0 0 12px #fff, 0 0 25px #67e8f9;
+  animation: cosmicStarFall 1.35s calc(var(--card-at) + 260ms) ease-in-out both;
+}
+
+.cosmicFallingStar::after {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 100px;
+  height: 2px;
+  border-radius: 999px;
+  content: "";
+  background: linear-gradient(90deg, transparent, rgba(168, 85, 247, 0.5), #67e8f9, #fff7c2);
+  transform-origin: right;
+  transform: rotate(-24deg);
+}
+
 .darkening {
   position: absolute;
   z-index: 18;
@@ -357,6 +446,15 @@
 
 .cardGlow { position: absolute; inset: -28%; border-radius: 50%; opacity: calc(0.42 + var(--tier) * 0.05); background: radial-gradient(circle, var(--wish-glow), transparent 68%); filter: blur(27px); animation: gentlePulse 1.5s ease-in-out infinite alternate; }
 .cardFrame { position: relative; width: 100%; height: 100%; overflow: hidden; border: 2px solid var(--wish-primary); border-radius: 1.25rem; background: #07051a; box-shadow: 0 0 0 1px rgba(244, 202, 114, 0.18), 0 0 0 calc(var(--tier) * 0.45px) color-mix(in srgb, var(--wish-primary) 5%, transparent), 0 0 calc(22px + var(--tier) * 4px) var(--wish-glow), 0 28px 75px rgba(0, 0, 0, 0.7); transform: translateZ(0); backface-visibility: hidden; }
+.overlay[data-cosmic-nebu="true"] .cardGlow {
+  opacity: 0.95;
+  background: conic-gradient(from 30deg, rgba(103, 232, 249, 0.5), rgba(168, 85, 247, 0.5), rgba(250, 204, 21, 0.42), rgba(103, 232, 249, 0.5));
+  filter: blur(34px);
+}
+.overlay[data-cosmic-nebu="true"] .cardFrame {
+  border-color: rgba(207, 250, 254, 0.92);
+  box-shadow: 0 0 0 1px rgba(250, 204, 21, 0.72), 0 0 0 5px rgba(103, 232, 249, 0.08), 0 0 34px rgba(103, 232, 249, 0.56), 0 0 80px rgba(168, 85, 247, 0.35), 0 30px 82px rgba(0, 0, 0, 0.76);
+}
 .cardFrame img { display: block; width: 100%; height: 100%; background: #050713; object-fit: contain; transform: translateZ(0); backface-visibility: hidden; }
 .cardFallback { display: flex; width: 100%; height: 100%; flex-direction: column; align-items: center; justify-content: center; gap: 1rem; padding: 1rem; text-align: center; }
 .cardFallback span { color: var(--wish-primary); font-size: 5rem; filter: drop-shadow(0 0 24px var(--wish-glow)); }
@@ -432,7 +530,8 @@
 .sequenceSkipped .relicSeal,
 .sequenceSkipped .glyphOrbit,
 .sequenceSkipped .cardSilhouette,
-.sequenceSkipped .impact { display: none; }
+.sequenceSkipped .impact,
+.sequenceSkipped .cosmicCinematicSignature { display: none; }
 .sequenceSkipped .cardScene { opacity: 1; animation: none; transform: translate3d(-50%, -50%, 0) scale(1) rotateY(0); }
 .sequenceSkipped .cardInfo { opacity: 1; animation: none; transform: none; }
 .blackHoleSequence .impact { display: none; }
@@ -471,6 +570,9 @@
 @keyframes premiumShineIn { to { opacity: .72; } }
 @keyframes legendaryStillness { from,to { filter: saturate(.68) brightness(.68); } }
 @keyframes sequenceShake { 0%,100% { transform: translate3d(0,0,0); } 14% { transform: translate3d(calc(var(--shake-distance) * -.7),calc(var(--shake-distance) * .2),0); } 28% { transform: translate3d(var(--shake-distance),calc(var(--shake-distance) * -.28),0); } 44% { transform: translate3d(calc(var(--shake-distance) * -.76),calc(var(--shake-distance) * .24),0); } 62% { transform: translate3d(calc(var(--shake-distance) * .55),calc(var(--shake-distance) * -.16),0); } 78% { transform: translate3d(calc(var(--shake-distance) * -.24),0,0); } }
+@keyframes cosmicGravityBreak { 0% { opacity: 0; transform: translate3d(-50%,-50%,0) scale(.14); } 12% { opacity: .9; } 70% { opacity: .45; } 100% { opacity: 0; transform: translate3d(-50%,-50%,0) scale(5.2); } }
+@keyframes cosmicCrownAwakens { 0% { opacity: 0; filter: blur(7px); transform: translate3d(-50%,-12px,0) scale(.8); } 45%,78% { opacity: .9; filter: blur(0); transform: translate3d(-50%,0,0) scale(1); } 100% { opacity: 0; transform: translate3d(-50%,-8px,0) scale(1.06); } }
+@keyframes cosmicStarFall { 0% { opacity: 0; transform: translate3d(120px,-55px,0) scale(.4); } 14%,64% { opacity: 1; } 100% { opacity: 0; transform: translate3d(-60vw,48vh,0) scale(1.4); } }
 
 @media (max-width: 700px) {
   .ancientGlyphBandTop,
@@ -487,6 +589,8 @@
   .glyphOrbit span { transform: rotate(var(--glyph-angle)) translateX(calc(56px + var(--tier) * 7px)) rotate(var(--glyph-counter-angle)); }
   .cardScene { top: 34%; width: min(54vw, 205px); }
   .cardFrame { border-radius: .95rem; }
+  .cosmicGravityWave { top: 35%; width: min(45vw, 210px); }
+  .cosmicConstellationCrown { top: 8%; width: min(74vw, 320px); }
   .cardInfo { bottom: max(.6rem, env(safe-area-inset-bottom)); }
   .cardInfo h2 { font-size: clamp(1.35rem, 6vw, 1.75rem); }
   .meta { margin-top: .38rem; font-size: .7rem; }
@@ -511,7 +615,9 @@
 .overlay[data-low-effects="true"] .holoDust,
 .overlay[data-low-effects="true"] .glyphOrbit,
 .overlay[data-low-effects="true"] .impactRays,
-.overlay[data-low-effects="true"] .premiumCardShine { display: none; }
+.overlay[data-low-effects="true"] .premiumCardShine,
+.overlay[data-low-effects="true"] .cosmicConstellationCrown,
+.overlay[data-low-effects="true"] .cosmicFallingStar { display: none; }
 
 @media (prefers-reduced-motion: reduce) {
   .stars,
@@ -520,5 +626,12 @@
   .preparing img,
   .cardGlow,
   .cardShine,
-  .premiumCardShine { animation: none !important; }
+  .premiumCardShine,
+  .cosmicGravityWave,
+  .cosmicConstellationCrown,
+  .cosmicFallingStar { animation: none !important; }
+
+  .cosmicGravityWave,
+  .cosmicConstellationCrown,
+  .cosmicFallingStar { display: none; }
 }

@@ -26,13 +26,14 @@ type NebuWardrobeProps = {
   loading: boolean;
   exclusiveSkins: NebuSkinKey[];
   exclusiveSkinsLoading: boolean;
+  cosmicIssueNumber?: number | null;
 };
 
 function skinUnlockCopy(skin: NebuSkin, unlocked: boolean, loading: boolean) {
   if (skin.cosmicOwnershipRequired) {
     if (loading) return "Reading the oldest stars...";
     return unlocked
-      ? "Permanent legendary form · numbered discovery"
+      ? "Ultra-premium numbered celestial entity"
       : "Undiscovered · independent 1 in 100,000 chance per wish";
   }
 
@@ -58,6 +59,7 @@ export default function NebuWardrobe({
   loading,
   exclusiveSkins,
   exclusiveSkinsLoading,
+  cosmicIssueNumber = null,
 }: NebuWardrobeProps) {
   const [selected, setSelected] = useState<NebuSkinKey>("midnight");
   const [message, setMessage] = useState<string | null>(null);
@@ -173,7 +175,11 @@ export default function NebuWardrobe({
   const selectedSkin = getNebuSkin(selected);
 
   return (
-    <PlayerPanel className="relative mt-6 overflow-hidden p-5 sm:p-7">
+    <PlayerPanel className={`relative mt-6 overflow-hidden p-5 sm:p-7 ${
+      selected === "cosmic_nebu"
+        ? "border-cyan-100/30 shadow-[0_0_60px_rgba(34,211,238,0.09)]"
+        : ""
+    }`}>
       <div className="pointer-events-none absolute -left-24 top-10 h-56 w-56 rounded-full bg-cyan-300/10 blur-[90px]" />
       <div className="pointer-events-none absolute -right-24 bottom-0 h-56 w-56 rounded-full bg-yellow-200/10 blur-[90px]" />
 
@@ -194,7 +200,17 @@ export default function NebuWardrobe({
         </div>
 
         <div className="mt-7 grid gap-6 lg:grid-cols-[17rem_minmax(0,1fr)] lg:items-center">
-            <div className="rounded-[1.8rem] border border-yellow-100/20 bg-black/25 p-5 text-center">
+            <div className={`relative overflow-hidden rounded-[1.8rem] border p-5 text-center ${
+              selected === "cosmic_nebu"
+                ? "border-cyan-100/30 bg-[radial-gradient(circle_at_50%_44%,rgba(34,211,238,0.17),transparent_42%),linear-gradient(145deg,rgba(20,12,60,0.8),rgba(2,6,28,0.82))] shadow-[inset_0_0_50px_rgba(124,58,237,0.08)]"
+                : "border-yellow-100/20 bg-black/25"
+            }`}>
+              {selected === "cosmic_nebu" ? (
+                <>
+                  <span className="pointer-events-none absolute inset-[8%] animate-spin rounded-full border border-cyan-100/15 [animation-duration:18s]" />
+                  <span className="pointer-events-none absolute inset-[17%] animate-spin rounded-full border border-dashed border-violet-100/15 [animation-direction:reverse] [animation-duration:12s]" />
+                </>
+              ) : null}
               <p className="text-[0.65rem] font-black uppercase tracking-[0.2em] text-yellow-100/80">
                 Equipped coat
               </p>
@@ -203,7 +219,7 @@ export default function NebuWardrobe({
                   src={selectedSkin.heatAssets.portrait}
                   alt={`Nebu wearing the ${selectedSkin.label} colours`}
                   draggable={false}
-                  className="mx-auto mt-2 aspect-square w-48 object-contain [image-rendering:pixelated] sm:w-52"
+                  className="relative mx-auto mt-2 aspect-square w-48 object-contain [image-rendering:pixelated] sm:w-52"
                 />
               ) : (
                 <NebuSprite
@@ -237,9 +253,13 @@ export default function NebuWardrobe({
                     aria-disabled={!unlocked || saving}
                     className={`group min-h-24 rounded-2xl border p-3 text-left transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-200 ${
                       active
-                        ? "border-yellow-100/45 bg-yellow-100/12 shadow-[0_0_26px_rgba(253,230,138,0.1)]"
+                        ? skin.key === "cosmic_nebu"
+                          ? "border-cyan-100/45 bg-gradient-to-br from-cyan-100/[0.13] via-violet-200/[0.12] to-yellow-100/[0.08] shadow-[0_0_32px_rgba(34,211,238,0.15)]"
+                          : "border-yellow-100/45 bg-yellow-100/12 shadow-[0_0_26px_rgba(253,230,138,0.1)]"
                         : unlocked
-                          ? "border-white/15 bg-white/[0.06] hover:border-cyan-100/35 hover:bg-cyan-100/[0.09]"
+                          ? skin.key === "cosmic_nebu"
+                            ? "border-violet-100/30 bg-violet-100/[0.09] hover:border-cyan-100/45 hover:bg-cyan-100/[0.12]"
+                            : "border-white/15 bg-white/[0.06] hover:border-cyan-100/35 hover:bg-cyan-100/[0.09]"
                           : "cursor-not-allowed border-white/10 bg-black/20 opacity-55"
                     }`}
                   >
@@ -280,6 +300,51 @@ export default function NebuWardrobe({
               })}
             </div>
         </div>
+
+        {exclusiveSkinKeys.has("cosmic_nebu") ? (
+          <section className="relative mt-7 overflow-hidden rounded-[1.65rem] border border-cyan-100/20 bg-[radial-gradient(circle_at_10%_20%,rgba(34,211,238,0.13),transparent_28%),radial-gradient(circle_at_88%_82%,rgba(168,85,247,0.15),transparent_30%),rgba(3,6,28,0.72)] p-5 sm:p-6">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <p className="text-[0.62rem] font-black uppercase tracking-[0.2em] text-cyan-100/60">
+                  Numbered celestial entity
+                </p>
+                <h3 className="mt-2 text-2xl font-black text-white">
+                  Cosmic Dominion
+                </h3>
+                <p className="mt-2 max-w-2xl text-sm font-semibold leading-6 text-white/52">
+                  Cosmic Nebu is a complete legendary experience: a living-plasma
+                  body, gravitational heart, owner ambience and a unique reaction
+                  at every stop in the wish constellation.
+                </p>
+              </div>
+
+              {cosmicIssueNumber ? (
+                <span className="w-fit rounded-full border border-yellow-100/25 bg-yellow-100/[0.08] px-4 py-2 text-xs font-black tracking-[0.12em] text-yellow-50 shadow-[0_0_24px_rgba(253,230,138,0.09)]">
+                  ISSUE #{String(cosmicIssueNumber).padStart(6, "0")}
+                </span>
+              ) : null}
+            </div>
+
+            <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              {[
+                ["Event-horizon tail", "A black-hole spiral replaces Nebu’s ordinary tail."],
+                ["Celestial escort", "Flies beside the 3D camera and leaves a constellation wake."],
+                ["Twelve cosmic states", "Every rarity, black hole and supernova has a unique pose."],
+                ["Living archive", "Equipping the skin bends the site ambience around its owner."],
+              ].map(([title, copy]) => (
+                <div key={title} className="rounded-2xl border border-white/10 bg-white/[0.045] p-4">
+                  <span className="text-lg text-cyan-100">✦</span>
+                  <strong className="mt-2 block text-sm font-black text-white">
+                    {title}
+                  </strong>
+                  <p className="mt-2 text-xs font-semibold leading-5 text-white/42">
+                    {copy}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </section>
+        ) : null}
 
         <p
           className={`mt-5 min-h-5 text-xs font-black ${

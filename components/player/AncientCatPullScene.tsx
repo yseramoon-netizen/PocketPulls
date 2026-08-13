@@ -25,6 +25,9 @@ type AncientCatPullSceneProps = {
   reactionSheet?: string;
   reactionColumns?: number;
   reactionRows?: number;
+  flightSheet?: string;
+  flightColumns?: number;
+  flightRows?: number;
   cosmic?: boolean;
   blackHole?: boolean;
   lowEffects?: boolean;
@@ -81,12 +84,23 @@ type PrebuiltSpaceRouteProps = {
   blackHole: boolean;
   finaleStarted: boolean;
   lowEffects: boolean;
+  cosmic: boolean;
+  activeTier: number;
+  travelling: boolean;
+  blackHoleReached: boolean;
+  reactionSheet: string;
+  reactionColumns: number;
+  reactionRows: number;
+  flightSheet: string;
+  flightColumns: number;
+  flightRows: number;
   onArrive: (tier: number) => void;
   onBlackHoleReached: () => void;
   onTravelStateChange: (travelling: boolean) => void;
 };
 
 const DEFAULT_REACTION_SHEET = "/ancient-pulls/scene/nebu-heat-reactions-v1.webp";
+const DEFAULT_FLIGHT_SHEET = "/ancient-pulls/scene/nebu-pyramid-exit-v1.webp";
 const CAMERA_STAR_DISTANCE = 76;
 
 const GRADES: readonly Grade[] = [
@@ -268,6 +282,16 @@ function PrebuiltSpaceRoute({
   blackHole,
   finaleStarted,
   lowEffects,
+  cosmic,
+  activeTier,
+  travelling,
+  blackHoleReached,
+  reactionSheet,
+  reactionColumns,
+  reactionRows,
+  flightSheet,
+  flightColumns,
+  flightRows,
   onArrive,
   onBlackHoleReached,
   onTravelStateChange,
@@ -572,9 +596,36 @@ function PrebuiltSpaceRoute({
   }, [active, lowEffects, onArrive, onBlackHoleReached, onTravelStateChange, phases]);
 
   return (
-    <div ref={stageRef} className={styles.routeStage} data-active={active ? "true" : "false"} aria-hidden="true">
+    <div ref={stageRef} className={styles.routeStage} data-active={active ? "true" : "false"} data-cosmic={cosmic ? "true" : "false"} data-travelling={travelling ? "true" : "false"} aria-hidden="true">
       <div className={styles.routeNebula} />
       <canvas ref={canvasRef} className={styles.routeCanvas} />
+
+      {cosmic ? (
+        <div className={styles.cosmicEscort} data-finale={finaleStarted ? "true" : "false"}>
+          <span className={styles.cosmicWake}><i /><i /><i /></span>
+          <span className={styles.cosmicLensArc} />
+          {travelling ? (
+            <NebuPerformanceSprite
+              key={`cosmic-flight-${activeTier}`}
+              sheet={flightSheet}
+              durationMs={Math.max(2200, stepDurationsMs[activeTier] ?? 4000)}
+              columns={flightColumns}
+              rows={flightRows}
+              className={styles.cosmicFlightSprite}
+            />
+          ) : (
+            <NebuPerformanceSprite
+              key={`cosmic-reaction-${activeTier}-${blackHoleReached}-${finaleStarted}`}
+              sheet={reactionSheet}
+              durationMs={1200}
+              staticFrame={finaleStarted ? 10 : blackHoleReached ? 9 : activeTier - 1}
+              columns={reactionColumns}
+              rows={reactionRows}
+              className={styles.cosmicReactionSprite}
+            />
+          )}
+        </div>
+      ) : null}
 
       {ROUTE_NODES.slice(1, 9).map((node) => {
         const nodeTier = node.tier ?? 9;
@@ -614,6 +665,9 @@ export default function AncientCatPullScene({
   reactionSheet = DEFAULT_REACTION_SHEET,
   reactionColumns = 4,
   reactionRows = 4,
+  flightSheet = DEFAULT_FLIGHT_SHEET,
+  flightColumns = 4,
+  flightRows = 4,
   cosmic = false,
   blackHole = false,
   lowEffects = false,
@@ -677,7 +731,24 @@ export default function AncientCatPullScene({
           <img src="/ancient-pulls/scene/pyramid-right-v1.webp" alt="" draggable={false} className={styles.pyramid} />
         </div>
         <div className={styles.watchingNebu}>
-          <NebuPerformanceSprite sheet={reactionSheet} durationMs={1000} staticFrame={cosmic ? 0 : 1} columns={reactionColumns} rows={reactionRows} className={styles.reactionSprite} />
+          {cosmic ? (
+            <NebuPerformanceSprite
+              sheet={flightSheet}
+              durationMs={Math.max(2200, escalationStartMs)}
+              columns={flightColumns}
+              rows={flightRows}
+              className={styles.cosmicPyramidFlight}
+            />
+          ) : (
+            <NebuPerformanceSprite
+              sheet={reactionSheet}
+              durationMs={1000}
+              staticFrame={1}
+              columns={reactionColumns}
+              rows={reactionRows}
+              className={styles.reactionSprite}
+            />
+          )}
         </div>
       </div>
 
@@ -690,6 +761,16 @@ export default function AncientCatPullScene({
         blackHole={blackHole}
         finaleStarted={finaleStarted}
         lowEffects={lowEffects}
+        cosmic={cosmic}
+        activeTier={activeTier}
+        travelling={travelling}
+        blackHoleReached={blackHoleReached}
+        reactionSheet={reactionSheet}
+        reactionColumns={reactionColumns}
+        reactionRows={reactionRows}
+        flightSheet={flightSheet}
+        flightColumns={flightColumns}
+        flightRows={flightRows}
         onArrive={handleArrive}
         onBlackHoleReached={handleBlackHoleReached}
         onTravelStateChange={handleTravelStateChange}
