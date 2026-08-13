@@ -97,6 +97,7 @@ type WishRevealTimeline = {
 
 const SUN_RISE_DELAY_MS = 260;
 const SUN_RISE_DURATION_MS = 2000;
+const SUPERNOVA_DURATION_MS = 1500;
 const WORLD_RARITY_STAGE_DURATIONS_MS = [
   2000,
   3000,
@@ -135,7 +136,7 @@ function buildRevealTimeline(config: WishRevealConfig): WishRevealTimeline {
       .slice(0, config.tier)
       .reduce((total, duration) => total + duration, 0);
   const collapseAtMs = finalRarityCompletedAtMs + 720;
-  const cardAtMs = collapseAtMs + 680;
+  const cardAtMs = collapseAtMs + SUPERNOVA_DURATION_MS;
   const infoAtMs = cardAtMs + 560;
 
   return {

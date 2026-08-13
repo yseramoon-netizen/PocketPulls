@@ -129,6 +129,7 @@ const TIER_LABELS = [
 ] as const;
 
 const EMBERS = Array.from({ length: 18 }, (_, index) => index);
+const SUPERNOVA_FRAGMENTS = Array.from({ length: 16 }, (_, index) => index);
 
 function clampTier(tier: number): number {
   return Math.max(1, Math.min(GRADES.length, Math.round(tier)));
@@ -219,6 +220,7 @@ export default function AncientCatPullScene({
     "--escalation-start": `${escalationStartMs}ms`,
     "--sun-rise-duration": `${Math.max(700, escalationStartMs - 260)}ms`,
     "--sun-collapse-at": `${collapseAtMs}ms`,
+    "--supernova-duration": `${Math.max(680, cardRevealAtMs - collapseAtMs)}ms`,
     "--scene-clear-at": `${cardRevealAtMs}ms`,
     "--walk-duration": `${walkDurationMs}ms`,
     "--heat-level": String(heatLevel),
@@ -268,6 +270,25 @@ export default function AncientCatPullScene({
         <div className={styles.sun}>
           <span className={styles.sunCore} />
           <span className={styles.sunHalo} />
+          <span className={styles.supernovaCorona} />
+          <span className={styles.supernovaRays} />
+          <span className={styles.supernovaFragments}>
+            {SUPERNOVA_FRAGMENTS.map((index) => (
+              <i
+                key={index}
+                style={
+                  {
+                    "--fragment-angle": `${index * 22.5 + (index % 3) * 4}deg`,
+                    "--fragment-near": `${Math.round((76 + (index % 5) * 19) * 0.32)}px`,
+                    "--fragment-distance": `${76 + (index % 5) * 19}px`,
+                    "--fragment-far": `${Math.round((76 + (index % 5) * 19) * 1.2)}px`,
+                    "--fragment-delay": `${(index % 4) * 18}ms`,
+                    "--fragment-size": `${2 + (index % 4) * 1.15}px`,
+                  } as CSSProperties
+                }
+              />
+            ))}
+          </span>
         </div>
 
         <img
