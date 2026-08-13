@@ -3,10 +3,12 @@
 import {
   type CSSProperties,
   useEffect,
+  useId,
   useMemo,
   useState,
 } from "react";
 
+import CinematicSpaceCanvas from "./CinematicSpaceCanvas";
 import NebuPerformanceSprite from "./NebuPerformanceSprite";
 import styles from "./AncientCatPullScene.module.css";
 
@@ -137,9 +139,10 @@ const TIER_LABELS = [
 ] as const;
 
 const EMBERS = Array.from({ length: 18 }, (_, index) => index);
-const SOLAR_TONGUES = Array.from({ length: 14 }, (_, index) => index);
-const SOLAR_SPARKS = Array.from({ length: 12 }, (_, index) => index);
-const SUPERNOVA_FRAGMENTS = Array.from({ length: 16 }, (_, index) => index);
+const SOLAR_TONGUES = Array.from({ length: 22 }, (_, index) => index);
+const SOLAR_SPARKS = Array.from({ length: 24 }, (_, index) => index);
+const MAGNETIC_ARCS = Array.from({ length: 8 }, (_, index) => index);
+const SUPERNOVA_FRAGMENTS = Array.from({ length: 36 }, (_, index) => index);
 const SPACE_STREAKS = Array.from({ length: 48 }, (_, index) => index);
 const SPACE_MOTES = Array.from({ length: 22 }, (_, index) => index);
 
@@ -154,10 +157,94 @@ function BurningStarLayers({
   heatLevel: number;
   explosionPower: number;
 }) {
+  const starId = useId().replace(/:/g, "");
+  const photosphereId = `photosphere-${starId}`;
+  const stellarNoiseId = `stellar-noise-${starId}`;
+  const stellarGlowId = `stellar-glow-${starId}`;
+
   return (
     <>
       <span className={styles.sunHalo} />
       <span className={styles.chromosphere} />
+      <svg
+        className={styles.stellarEngine}
+        viewBox="0 0 512 512"
+        preserveAspectRatio="xMidYMid meet"
+        focusable="false"
+        aria-hidden="true"
+      >
+        <defs>
+          <radialGradient id={photosphereId} cx="34%" cy="29%" r="73%">
+            <stop offset="0" stopColor="#ffffff" />
+            <stop offset="0.12" stopColor="#fffbd8" />
+            <stop offset="0.38" style={{ stopColor: "var(--active-accent)" }} />
+            <stop offset="0.72" style={{ stopColor: "color-mix(in srgb, var(--active-accent) 72%, #f97316)" }} />
+            <stop offset="1" stopColor="#6b1b08" />
+          </radialGradient>
+          <filter id={stellarNoiseId} x="-35%" y="-35%" width="170%" height="170%" colorInterpolationFilters="sRGB">
+            <feTurbulence
+              type="fractalNoise"
+              baseFrequency="0.012 0.019"
+              numOctaves="4"
+              seed="17"
+              result="noise"
+            >
+              <animate
+                attributeName="baseFrequency"
+                dur={`${Math.max(5.2, 8.4 - heatLevel * 2.8)}s`}
+                values="0.012 0.019;0.018 0.012;0.012 0.019"
+                repeatCount="indefinite"
+              />
+            </feTurbulence>
+            <feDisplacementMap
+              in="SourceGraphic"
+              in2="noise"
+              scale={18 + heatLevel * 13}
+              xChannelSelector="R"
+              yChannelSelector="B"
+            />
+          </filter>
+          <filter id={stellarGlowId} x="-100%" y="-100%" width="300%" height="300%">
+            <feGaussianBlur stdDeviation="7" result="blur" />
+            <feMerge>
+              <feMergeNode in="blur" />
+              <feMergeNode in="blur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+          <clipPath id={`stellar-clip-${starId}`}>
+            <circle cx="256" cy="256" r="137" />
+          </clipPath>
+        </defs>
+
+        <g className={styles.prominenceGroup} filter={`url(#${stellarGlowId})`}>
+          <path className={styles.prominenceBack} d="M129 272 C68 151 181 76 245 164 C287 222 198 249 167 206 C139 167 199 111 264 127" />
+          <path className={styles.prominenceBack} d="M359 293 C456 215 414 114 322 143 C255 165 275 248 335 231 C379 218 378 171 350 151" />
+          <path className={styles.prominenceFront} d="M159 332 C112 288 117 221 169 202 C211 187 233 221 213 250 C195 276 159 260 160 233" />
+          <path className={styles.prominenceFront} d="M344 347 C397 318 415 250 374 218 C342 193 304 213 308 250 C312 283 353 291 369 267" />
+        </g>
+
+        <circle className={styles.stellarLimb} cx="256" cy="256" r="151" />
+        <circle
+          className={styles.stellarSurface}
+          cx="256"
+          cy="256"
+          r="137"
+          fill={`url(#${photosphereId})`}
+          filter={`url(#${stellarNoiseId})`}
+        />
+        <g clipPath={`url(#stellar-clip-${starId})`} className={styles.stellarGranules}>
+          <path d="M104 246 C160 209 182 281 235 238 S326 183 408 230" />
+          <path d="M112 294 C172 257 206 335 267 282 S348 236 401 275" />
+          <path d="M151 181 C194 219 231 156 278 196 S343 226 380 184" />
+          <path d="M179 374 C210 326 254 385 298 342 S350 315 381 340" />
+        </g>
+        <g className={styles.stellarVortex} clipPath={`url(#stellar-clip-${starId})`}>
+          <ellipse cx="211" cy="206" rx="82" ry="31" />
+          <ellipse cx="309" cy="309" rx="69" ry="24" />
+        </g>
+        <circle className={styles.stellarHotspot} cx="214" cy="197" r="18" filter={`url(#${stellarGlowId})`} />
+      </svg>
       <span className={styles.plasmaTongues}>
         {SOLAR_TONGUES.map((index) => (
           <i
@@ -192,12 +279,29 @@ function BurningStarLayers({
           />
         ))}
       </span>
+      <span className={styles.magneticArcs}>
+        {MAGNETIC_ARCS.map((index) => (
+          <i
+            key={index}
+            style={
+              {
+                "--arc-angle": `${index * 45 + (index % 2) * 11}deg`,
+                "--arc-size": `${46 + (index % 4) * 12}px`,
+                "--arc-delay": `${index * -317}ms`,
+                "--arc-duration": `${2200 + (index % 3) * 430}ms`,
+              } as CSSProperties
+            }
+          />
+        ))}
+      </span>
       <span className={styles.sunCore}>
         <i className={styles.surfaceFire} />
         <i className={styles.surfaceFireSecondary} />
       </span>
       <span className={styles.supernovaCorona} />
       <span className={styles.supernovaRays} />
+      <span className={styles.supernovaShells}><i /><i /><i /></span>
+      <span className={styles.gravitationalWave} />
       <span className={styles.supernovaFragments}>
         {SUPERNOVA_FRAGMENTS.map((index) => {
           const fragmentDistance = Math.round(
@@ -455,6 +559,14 @@ export default function AncientCatPullScene({
           <div className={styles.deepSpace} />
           <div className={styles.deepNebula} />
           <div className={styles.farStarField} />
+          <CinematicSpaceCanvas
+            accent={destinationGrade.accent}
+            className={styles.spaceCanvas}
+            lowEffects={lowEffects}
+            travelling={travelling}
+            travelDurationMs={travelDurationMs}
+            travelSerial={travelSerial}
+          />
 
           {travelling ? (
             <div key={`tunnel-${travelSerial}`} className={styles.starTunnel}>
@@ -633,6 +745,8 @@ export default function AncientCatPullScene({
       {cosmicDiscovery ? (
         <>
           <div className={styles.cosmicSkyBloom} />
+          <div className={styles.cosmicAscensionRings}><i /><i /><i /><i /></div>
+          <div className={styles.cosmicEnergyPillars}><i /><i /><i /></div>
           <div className={styles.cosmicWhiteout} />
           <div className={styles.cosmicConstellationBurst} />
           <div className={styles.cosmicCaption}>

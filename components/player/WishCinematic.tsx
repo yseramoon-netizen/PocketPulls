@@ -681,9 +681,13 @@ export default function WishCinematic({
           {!cosmicDiscovery ? (
             <div className={styles.impact} aria-hidden="true">
               <div className={styles.impactFlash} />
+              <div className={styles.impactChromatic} />
+              <div className={styles.impactCore} />
+              <div className={styles.impactLens} />
               <div className={styles.impactRing} />
               <div className={styles.impactRingSecond} />
               {config.tier >= 5 ? <div className={styles.impactRingThird} /> : null}
+              <div className={styles.impactEchoes}><i /><i /><i /></div>
               <div className={styles.impactRays}>
                 {Array.from({ length: config.rayCount }, (_, index) => (
                   <span key={index} style={{ "--ray-angle": `${(360 / config.rayCount) * index}deg`, "--ray-length": `${65 + config.tier * 10 + (index % 6) * 13}px`, "--ray-delay": `${(index % 5) * 10}ms` } as CSSProperties} />
