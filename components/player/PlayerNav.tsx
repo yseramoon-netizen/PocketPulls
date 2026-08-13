@@ -108,7 +108,7 @@ const MORE_ITEMS: NavItem[] = [
   },
   {
     href: "/duat",
-    label: "Endless Duat",
+    label: "Nebu Sandfall",
     glyph: "☥",
   },
 ];

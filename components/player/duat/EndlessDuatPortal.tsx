@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 
 import { supabase } from "@/lib/supabase";
 import EndlessDuatGame, { type DuatBootstrap } from "@/components/player/duat/EndlessDuatGame";
-import DuatConstellationBackdrop from "@/components/player/duat/DuatConstellationBackdrop";
 
 export default function EndlessDuatPortal() {
   const router = useRouter();
@@ -25,7 +24,7 @@ export default function EndlessDuatPortal() {
           cache: "no-store",
         });
         const payload = await response.json();
-        if (!response.ok) throw new Error(payload.error || "The Duat gate would not open.");
+        if (!response.ok) throw new Error(payload.error || "Nebu could not reach the dig site.");
         const ownedSkins = Array.isArray(payload.ownedSkins) ? payload.ownedSkins : ["midnight"];
         const localSkin = window.localStorage.getItem("pocketpulls:nebu-skin-v1");
         if (localSkin && ownedSkins.includes(localSkin)) payload.selectedSkin = localSkin;
@@ -34,7 +33,7 @@ export default function EndlessDuatPortal() {
           setBootstrap(payload as DuatBootstrap);
         }
       } catch (caught) {
-        if (!cancelled) setError(caught instanceof Error ? caught.message : "The Duat gate would not open.");
+        if (!cancelled) setError(caught instanceof Error ? caught.message : "Nebu could not reach the dig site.");
       }
     })();
     return () => { cancelled = true; };
@@ -51,16 +50,13 @@ export default function EndlessDuatPortal() {
   return (
     <div className="endless-duat-portal">
       {bootstrap && accessToken ? (
-        <>
-          <DuatConstellationBackdrop constellation={bootstrap.constellation} />
-          <EndlessDuatGame bootstrap={bootstrap} accessToken={accessToken} onExit={exit} onOpenBadges={openBadges} />
-        </>
+        <EndlessDuatGame bootstrap={bootstrap} accessToken={accessToken} onExit={exit} onOpenBadges={openBadges} />
       ) : (
         <main className="duat-gate">
           <div className="duat-gate-star">✦</div>
           <span>ANCIENT PULLS</span>
-          <h1>{error ? "The gate is resting" : "Opening the Endless Duat…"}</h1>
-          <p>{error || "Nebu is gathering your wardrobe, relics and constellation."}</p>
+          <h1>{error ? "The sands are resting" : "Nebu is finding the perfect spot…"}</h1>
+          <p>{error || "Loading your Nebu skin, digging progress and wish fragments."}</p>
           {error && <button onClick={exit}>Return to HQ</button>}
         </main>
       )}

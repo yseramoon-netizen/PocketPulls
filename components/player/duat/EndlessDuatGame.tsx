@@ -1,1252 +1,364 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import type { CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
 import NebuPerformanceSprite from "@/components/player/NebuPerformanceSprite";
 import NebuSprite, { type NebuPose } from "@/components/player/NebuSprite";
-import { getNebuHeatAssets } from "@/lib/player/nebu";
-import type { DuatConstellation } from "@/components/player/duat/DuatConstellationBackdrop";
-import {
-  attackPower,
-  biomeFor,
-  BOONS,
-  BoonId,
-  BUILDINGS,
-  discoverRelic,
-  emptyBoons,
-  GameState,
-  getOath,
-  getSkin,
-  initialState,
-  makeBoonChoices,
-  makeChoices,
-  makeEnemy,
-  maxVitality,
-  OATHS,
-  OathId,
-  productionPerMinute,
-  RELICS,
-  relicDustMultiplier,
-  RouteChoice,
-  safeLoad,
-  SKINS,
-  SkinId,
-  Tab,
-  upgradeCost,
-} from "@/lib/player/endless-duat-engine";
+import { getNebuHeatAssets, getNebuSkin } from "@/lib/player/nebu";
+import type { SkinId } from "@/lib/player/endless-duat-engine";
 
-const STORAGE_KEY = "ancient-pulls-endless-duat-v1";
-const FRAGMENT_RECIPE = { dust: 400, glyphs: 4, flames: 1 };
+const STORAGE_KEY = "ancient-pulls-nebu-sandfall-v1";
+const SAVE_KIND = "nebu-sandfall";
 const WISH_FRAGMENTS = 10;
+const FRAGMENT_SECONDS = 720;
+
+type Rarity = "common" | "uncommon" | "rare" | "epic" | "legendary";
+type UpgradeId = "claws" | "crew" | "charm" | "idol";
+type ArtifactFind = { id: string; name: string; icon: string; rarity: Rarity; reward: number; depth: number; foundAt: number };
+type SandfallState = {
+  kind: typeof SAVE_KIND; version: 1; lastSeen: number; dayKey: string; depth: number; deepest: number;
+  sand: number; totalSand: number; lastFindAt: number; nextFindAt: number; totalFinds: number;
+  dailyFinds: number; sinceRare: number; totalTaps: number; bestCombo: number;
+  upgrades: Record<UpgradeId, number>; collection: Record<Rarity, number>;
+  recentFinds: ArtifactFind[]; selectedSkin: SkinId;
+};
 
 export type DuatBootstrap = {
-  state: GameState | null;
-  ownedSkins: SkinId[];
-  selectedSkin: SkinId;
-  fragments: number;
-  wishBalance: number;
-  activeSeconds: number;
-  constellation: DuatConstellation;
+  state: unknown; ownedSkins: SkinId[]; selectedSkin: SkinId; fragments: number;
+  wishBalance: number; activeSeconds: number;
 };
 
-type DuatGameProps = {
-  bootstrap: DuatBootstrap;
-  accessToken: string;
-  onExit: () => void;
-  onOpenBadges: () => void;
+type Props = { bootstrap: DuatBootstrap; accessToken: string; onExit: () => void; onOpenBadges: () => void };
+type SkinBonus = { title: string; detail: string; tap: number; auto: number; sand: number; luck: number };
+
+const RARITIES: Rarity[] = ["common", "uncommon", "rare", "epic", "legendary"];
+const ARTIFACTS: Record<Rarity, Array<{ name: string; icon: string }>> = {
+  common: [
+    { name: "Painted Pottery Shard", icon: "◒" }, { name: "Traveller's Coin", icon: "◉" },
+    { name: "Cat-shaped Pebble", icon: "⌁" }, { name: "Sun-baked Scarab Bead", icon: "◆" },
+  ],
+  uncommon: [
+    { name: "Bronze Ankh", icon: "☥" }, { name: "Lapis Eye", icon: "◈" },
+    { name: "Scribe's Seal", icon: "⌘" }, { name: "Lotus Amulet", icon: "❀" },
+  ],
+  rare: [
+    { name: "Moonstone Ushabti", icon: "☾" }, { name: "Bastet's Bell", icon: "♢" },
+    { name: "Golden Lotus", icon: "✦" }, { name: "Scarab of Blue Fire", icon: "◇" },
+  ],
+  epic: [
+    { name: "Pharaoh's Star Map", icon: "✧" }, { name: "Crown of the Sand Sea", icon: "♛" },
+    { name: "Jar of Comet Dust", icon: "☄" }, { name: "Tablet of Nine Lives", icon: "▱" },
+  ],
+  legendary: [
+    { name: "Nebu's Lost Crown", icon: "♛" }, { name: "Heart of the First Pyramid", icon: "⟁" },
+    { name: "Sun Disk of Ra", icon: "☼" }, { name: "Tear of the Endless Duat", icon: "◉" },
+  ],
 };
 
-type Notice = { id: number; title: string; body: string; tone?: "gold" | "violet" | "red" };
-type OfflineReport = { minutes: number; dust: number; glyphs: number } | null;
-type NebuAction = "idle" | "travel" | "attack" | "pounce" | "ward" | "technique" | "hurt" | "victory" | "defeat";
+const SKIN_BONUSES: Record<SkinId, SkinBonus> = {
+  midnight: { title: "Curious Paws", detail: "+8% artifact luck", tap: 1, auto: 1, sand: 1, luck: 0.08 },
+  nile: { title: "River Current", detail: "+15% passive digging", tap: 1, auto: 1.15, sand: 1, luck: 0 },
+  lotus: { title: "Bloom Finder", detail: "+14% artifact luck", tap: 1, auto: 1, sand: 1, luck: 0.14 },
+  scarab: { title: "Golden Instinct", detail: "+15% sand from finds", tap: 1, auto: 1, sand: 1.15, luck: 0 },
+  sunstone: { title: "Solar Claws", detail: "+20% tap strength", tap: 1.2, auto: 1, sand: 1, luck: 0 },
+  royal: { title: "Royal Tribute", detail: "+8% to all digging", tap: 1.08, auto: 1.08, sand: 1.08, luck: 0.05 },
+  pearl: { title: "Moon Sifter", detail: "Artifacts appear 10% sooner", tap: 1, auto: 1, sand: 1, luck: 0.1 },
+  sherry: { title: "Shadow Paws", detail: "+12% artifact luck", tap: 1, auto: 1, sand: 1, luck: 0.12 },
+  bubbles: { title: "Guardian's Patience", detail: "+12% passive digging", tap: 1, auto: 1.12, sand: 1, luck: 0 },
+  cosmic_nebu: { title: "Event Horizon", detail: "+25% to everything", tap: 1.25, auto: 1.25, sand: 1.25, luck: 0.2 },
+};
 
-const NAV: Array<{ id: Tab; label: string; icon: string }> = [
-  { id: "adventure", label: "Play", icon: "✦" },
-  { id: "kingdom", label: "Kingdom", icon: "△" },
-  { id: "relics", label: "Relics", icon: "◆" },
-  { id: "skins", label: "Nebu", icon: "♛" },
-  { id: "forge", label: "Forge", icon: "◉" },
+const UPGRADES: Array<{ id: UpgradeId; icon: string; name: string; detail: string }> = [
+  { id: "claws", icon: "⌁", name: "Stronger Paws", detail: "More depth every tap" },
+  { id: "crew", icon: "◆", name: "Scarab Crew", detail: "Nebu digs while you rest" },
+  { id: "charm", icon: "◈", name: "Sifting Charm", detail: "Better finds, more often" },
+  { id: "idol", icon: "☼", name: "Golden Idol", detail: "Multiplies all progress" },
 ];
 
-const HIDDEN_DUAT_SKINS = new Set<SkinId>(["sherry", "bubbles"]);
-const VISIBLE_SKINS = SKINS.filter((skin) => !HIDDEN_DUAT_SKINS.has(skin.id));
-
-function visibleSkinOrMidnight(value: SkinId): SkinId {
-  return HIDDEN_DUAT_SKINS.has(value) ? "midnight" : value;
-}
-
-const EVENT_COPY: Record<string, { icon: string; eyebrow: string; title: string; body: string; bold: string; wise: string; boldHint: string; wiseHint: string }> = {
-  sarcophagus: { icon: "♛", eyebrow: "Something inside is singing", title: "The Sarcophagus of Two Voices", body: "One voice promises a relic. The other calmly describes the creature waiting beneath it.", bold: "Break the golden seals", wise: "Translate the warning", boldHint: "Relic or elite ambush", wiseHint: "+2 Glyphs and healing" },
-  "star-door": { icon: "◉", eyebrow: "No constellation contains it", title: "The Door Without Stars", body: "The black stone drinks every light that touches it. A flame might satisfy it—or Nebu could force a way through.", bold: "Force the door", wise: "Offer celestial fire", boldHint: "Lose vitality, gain treasure", wiseHint: "Spend 1 Flame for a relic" },
-  "lost-spirit": { icon: "◇", eyebrow: "A memory asks for company", title: "The Last Astronomer", body: "A translucent figure has waited centuries for someone to notice that he is still looking upward.", bold: "Share your Stardust", wise: "Follow his direction", boldHint: "Full heal and a Flame", wiseHint: "+2 Glyphs and combo" },
-};
-
+function todayKey() { return new Date().toISOString().slice(0, 10); }
 function compact(value: number) {
-  return new Intl.NumberFormat("en-GB", { maximumFractionDigits: value < 100 ? 1 : 0 }).format(Math.floor(value));
+  return new Intl.NumberFormat("en-GB", { notation: value >= 10_000 ? "compact" : "standard", maximumFractionDigits: value < 100 ? 1 : 0 }).format(Math.max(0, value));
+}
+function depthLabel(value: number) { return value < 1_000 ? `${compact(value)} m` : `${compact(value / 1_000)} km`; }
+function upgradeCost(id: UpgradeId, level: number) {
+  const base = { claws: 24, crew: 70, charm: 240, idol: 1_100 }[id];
+  const growth = { claws: 1.58, crew: 1.7, charm: 1.9, idol: 2.12 }[id];
+  return Math.floor(base * growth ** level);
 }
 
-function cloneState(state: GameState): GameState {
+function initialState(selectedSkin: SkinId): SandfallState {
   return {
-    ...state,
-    resources: { ...state.resources },
-    buildings: { ...state.buildings },
-    relics: [...state.relics],
-    propheciesClaimed: [...state.propheciesClaimed],
-    skinMastery: { ...state.skinMastery },
-    run: {
-      ...state.run,
-      enemy: state.run.enemy ? { ...state.run.enemy } : null,
-      choices: [...state.run.choices],
-      boons: { ...state.run.boons },
-      pendingBoons: [...state.run.pendingBoons],
-      history: [...state.run.history],
-    },
+    kind: SAVE_KIND, version: 1, lastSeen: Date.now(), dayKey: todayKey(), depth: 0, deepest: 0,
+    sand: 0, totalSand: 0, lastFindAt: 0, nextFindAt: 8, totalFinds: 0, dailyFinds: 0,
+    sinceRare: 0, totalTaps: 0, bestCombo: 0, upgrades: { claws: 0, crew: 0, charm: 0, idol: 0 },
+    collection: { common: 0, uncommon: 0, rare: 0, epic: 0, legendary: 0 },
+    recentFinds: [], selectedSkin,
   };
 }
-
-const MASTER_SEQUENCE: Record<NebuAction, readonly NebuPose[]> = {
-  idle: ["idle", "idle", "wiggle", "idle"],
-  travel: ["walk", "run", "walk", "run"],
-  attack: ["idle", "swipe", "pounce", "swipe", "idle"],
-  pounce: ["puffed", "pounce", "leap", "pounce", "idle"],
-  ward: ["puffed", "sacred", "sacred", "idle"],
-  technique: ["sacred", "leap", "crown", "sacred", "idle"],
-  hurt: ["idle", "puffed", "back", "puffed", "idle"],
-  victory: ["smug", "crown", "smug", "crown"],
-  defeat: ["puffed", "back", "catnip", "catnip"],
-};
-
-const COMPANION_SEQUENCE: Record<NebuAction, readonly number[]> = {
-  idle: [14, 15, 14, 15],
-  travel: [1, 2, 3, 4],
-  attack: [14, 12, 14, 12, 15],
-  pounce: [14, 12, 13, 12, 15],
-  ward: [14, 13, 13, 14],
-  technique: [14, 12, 15, 12, 14],
-  hurt: [14, 12, 13, 14],
-  victory: [14, 15, 14, 15],
-  defeat: [12, 13, 2, 2],
-};
-
-const COSMIC_SEQUENCE: Record<NebuAction, readonly number[]> = {
-  idle: [0, 1, 0, 1],
-  travel: [0, 1, 2, 3],
-  attack: [0, 3, 4, 3, 0],
-  pounce: [0, 3, 4, 8, 0],
-  ward: [0, 6, 6, 0],
-  technique: [0, 6, 8, 7, 0],
-  hurt: [0, 5, 2, 0],
-  victory: [0, 7, 8, 7],
-  defeat: [5, 2, 2, 2],
-};
-
-const ACTION_FRAME_MS: Record<NebuAction, number> = {
-  idle: 520,
-  travel: 130,
-  attack: 92,
-  pounce: 118,
-  ward: 180,
-  technique: 150,
-  hurt: 105,
-  victory: 220,
-  defeat: 240,
-};
-
-function DuatNebu({ skin = "midnight", action = "idle", compact = false }: { skin?: SkinId; action?: NebuAction; compact?: boolean }) {
-  const assets = getNebuHeatAssets(skin);
-  const isCompanion = skin === "sherry" || skin === "bubbles";
-  const isCosmic = skin === "cosmic_nebu";
-  const className = `duat-nebu-sprite action-${action} ${compact ? "is-compact" : ""}`;
-  const sequenceLength = isCosmic
-    ? COSMIC_SEQUENCE[action].length
-    : isCompanion
-      ? COMPANION_SEQUENCE[action].length
-      : MASTER_SEQUENCE[action].length;
-  const [sequenceFrame, setSequenceFrame] = useState(0);
-  const safeSequenceFrame = sequenceFrame % sequenceLength;
-
-  useEffect(() => {
-    if (compact || sequenceLength <= 1) return;
-    const timer = window.setInterval(() => {
-      setSequenceFrame((current) => {
-        if (action === "defeat" && current >= sequenceLength - 1) return current;
-        return (current + 1) % sequenceLength;
-      });
-    }, ACTION_FRAME_MS[action]);
-    return () => window.clearInterval(timer);
-  }, [action, compact, sequenceLength, skin]);
-
-  if (isCosmic && action === "travel") {
-    return <NebuPerformanceSprite sheet={assets.walkSheet} durationMs={1450} columns={assets.walkColumns ?? 4} rows={assets.walkRows ?? 4} className={className} label="Cosmic Nebu flying" />;
-  }
-  if (isCosmic) {
-    return <NebuPerformanceSprite sheet={assets.reactionSheet} durationMs={900} staticFrame={COSMIC_SEQUENCE[action][safeSequenceFrame]} columns={assets.reactionColumns ?? 3} rows={assets.reactionRows ?? 3} className={className} label={`Cosmic Nebu ${action}`} />;
-  }
-  if (isCompanion && action === "travel") {
-    return <NebuPerformanceSprite sheet={assets.walkSheet} durationMs={1450} columns={assets.walkColumns ?? 4} rows={assets.walkRows ?? 4} className={className} label={`${getSkin(skin).name} travelling`} />;
-  }
-  if (isCompanion) {
-    return <NebuPerformanceSprite sheet={assets.reactionSheet} durationMs={900} staticFrame={COMPANION_SEQUENCE[action][safeSequenceFrame]} columns={assets.reactionColumns ?? 4} rows={assets.reactionRows ?? 4} className={className} label={`${getSkin(skin).name} ${action}`} />;
-  }
-  return <NebuSprite pose={MASTER_SEQUENCE[action][safeSequenceFrame]} className={className} label={`${getSkin(skin).name} ${action}`} />;
+function isSandfallState(value: unknown): value is SandfallState {
+  return Boolean(value && typeof value === "object" && (value as { kind?: string }).kind === SAVE_KIND);
 }
-
-function ResourcePill({ icon, label, value, accent }: { icon: string; label: string; value: number; accent?: string }) {
-  return (
-    <div className={`resource-pill ${accent ?? ""}`} title={label}>
-      <span>{icon}</span>
-      <div>
-        <b>{compact(value)}</b>
-        <small>{label}</small>
-      </div>
-    </div>
-  );
-}
-
-function ProgressBar({ value, max, danger = false }: { value: number; max: number; danger?: boolean }) {
-  const percentage = Math.max(0, Math.min(100, (value / Math.max(1, max)) * 100));
-  return (
-    <div className={`meter ${danger ? "danger" : ""}`}>
-      <span style={{ width: `${percentage}%` }} />
-    </div>
-  );
-}
-
-function stateFromBootstrap(bootstrap: DuatBootstrap): GameState {
-  const base = bootstrap.state ? safeLoad(JSON.stringify(bootstrap.state)) : null;
-  const next = cloneState(base || initialState());
-  next.ownedSkins = bootstrap.ownedSkins.filter((skin) => !HIDDEN_DUAT_SKINS.has(skin));
-  next.selectedSkin = next.ownedSkins.includes(bootstrap.selectedSkin) && !HIDDEN_DUAT_SKINS.has(bootstrap.selectedSkin)
-    ? bootstrap.selectedSkin
-    : "midnight";
-  next.resources.fragments = bootstrap.fragments;
-  next.resources.wishes = bootstrap.wishBalance;
-  return next;
-}
-
-export default function EndlessDuatGame({ bootstrap, accessToken, onExit, onOpenBadges }: DuatGameProps) {
-  const [state, setState] = useState<GameState>(() => stateFromBootstrap(bootstrap));
-  const [tab, setTab] = useState<Tab>("adventure");
-  const [hydrated] = useState(true);
-  const [networkBusy, setNetworkBusy] = useState(false);
-  const [attunementSeconds, setAttunementSeconds] = useState(bootstrap.activeSeconds);
-  const [now, setNow] = useState(() => Date.now());
-  const [notices, setNotices] = useState<Notice[]>([]);
-  const [offlineReport, setOfflineReport] = useState<OfflineReport>(null);
-  const [adOpen, setAdOpen] = useState(false);
-  const [adSeconds, setAdSeconds] = useState(5);
-  const [nebuAction, setNebuAction] = useState<NebuAction>("idle");
-  const [activeAccountSkin, setActiveAccountSkin] = useState<SkinId>(() => visibleSkinOrMidnight(bootstrap.selectedSkin));
-  const noticeId = useRef(0);
-  const nebuActionTimer = useRef<number | null>(null);
-  const previousHp = useRef(state.run.hp);
-  const previousDefeats = useRef(state.enemiesDefeated);
-
-  const playNebuAction = useCallback((action: NebuAction, duration = 720) => {
-    if (nebuActionTimer.current) window.clearTimeout(nebuActionTimer.current);
-    setNebuAction(action);
-    if (action !== "defeat") {
-      nebuActionTimer.current = window.setTimeout(() => setNebuAction("idle"), duration);
+function readState(bootstrap: DuatBootstrap) {
+  let candidate: unknown = bootstrap.state;
+  try {
+    const local = window.localStorage.getItem(STORAGE_KEY);
+    if (local) {
+      const parsed = JSON.parse(local) as unknown;
+      if (isSandfallState(parsed) && (!isSandfallState(candidate) || parsed.lastSeen > candidate.lastSeen)) candidate = parsed;
     }
-  }, []);
-
-  const notify = (title: string, body: string, tone: Notice["tone"] = "gold") => {
-    const id = ++noticeId.current;
-    setNotices((items) => [...items.slice(-2), { id, title, body, tone }]);
-    window.setTimeout(() => setNotices((items) => items.filter((item) => item.id !== id)), 3600);
+  } catch { /* Server progress remains the fallback. */ }
+  const base = isSandfallState(candidate) ? candidate : initialState(bootstrap.selectedSkin);
+  const elapsed = Math.max(0, Math.min(8 * 60 * 60, (Date.now() - Number(base.lastSeen || Date.now())) / 1_000));
+  const bonus = SKIN_BONUSES[bootstrap.selectedSkin];
+  const idleRate = (0.22 + base.upgrades.crew * 0.48) * (1 + base.upgrades.idol * 0.28) * bonus.auto;
+  const offlineDepth = base.upgrades.crew > 0 ? elapsed * idleRate * 0.55 : 0;
+  const offlineSand = offlineDepth * (1 + base.upgrades.idol * 0.25) * bonus.sand;
+  return {
+    state: { ...base, selectedSkin: bootstrap.selectedSkin, depth: base.depth + offlineDepth,
+      deepest: Math.max(base.deepest, base.depth + offlineDepth), sand: base.sand + offlineSand,
+      totalSand: base.totalSand + offlineSand, dailyFinds: base.dayKey === todayKey() ? base.dailyFinds : 0,
+      dayKey: todayKey(), lastSeen: Date.now() },
+    offline: { seconds: elapsed, sand: offlineSand, depth: offlineDepth },
   };
+}
 
-  useEffect(() => () => {
-    if (nebuActionTimer.current) window.clearTimeout(nebuActionTimer.current);
-  }, []);
+function rollRarity(charmLevel: number, skinLuck: number, sinceRare: number, depth: number): Rarity {
+  const luck = charmLevel * 0.13 + skinLuck;
+  const legendary = 0.28 + luck * 0.55 + Math.min(0.35, depth / 120_000);
+  const epic = 1.55 + luck * 3.1;
+  const rare = 6.8 + luck * 8.5 + Math.max(0, sinceRare - 17) * 0.85;
+  const uncommon = 24 + luck * 6;
+  const roll = Math.random() * 100;
+  if (roll < legendary) return "legendary";
+  if (roll < legendary + epic) return "epic";
+  if (roll < legendary + epic + rare) return "rare";
+  if (roll < legendary + epic + rare + uncommon) return "uncommon";
+  return "common";
+}
+function rewardFor(rarity: Rarity, multiplier: number) {
+  const range: Record<Rarity, [number, number]> = { common: [12, 26], uncommon: [45, 95], rare: [170, 340], epic: [850, 1_650], legendary: [5_000, 9_000] };
+  const [minimum, maximum] = range[rarity];
+  return Math.round((minimum + Math.random() * (maximum - minimum)) * multiplier);
+}
+function nextArtifactGap(charmLevel: number, skinLuck: number) {
+  const reduction = Math.min(0.46, charmLevel * 0.035 + skinLuck * 0.32);
+  return (13 + Math.random() * 20) * (1 - reduction);
+}
 
+function SandNebu({ skin, digging }: { skin: SkinId; digging: boolean }) {
+  const [frame, setFrame] = useState(0);
+  const assets = getNebuHeatAssets(skin);
+  const cosmic = skin === "cosmic_nebu";
   useEffect(() => {
-    const lostVitality = state.run.hp < previousHp.current;
-    const wonBattle = state.enemiesDefeated > previousDefeats.current;
-    previousHp.current = state.run.hp;
-    previousDefeats.current = state.enemiesDefeated;
-    const action = state.run.phase === "defeat" ? "defeat" : wonBattle ? "victory" : lostVitality ? "hurt" : null;
-    if (!action) return;
-    const timer = window.setTimeout(() => playNebuAction(action, action === "victory" ? 1200 : 620), 0);
-    return () => window.clearTimeout(timer);
-  }, [playNebuAction, state.enemiesDefeated, state.run.hp, state.run.phase]);
+    if (!digging) return;
+    const timer = window.setInterval(() => setFrame((value) => (value + 1) % 2), 145);
+    return () => window.clearInterval(timer);
+  }, [digging]);
+  if (cosmic) {
+    return <NebuPerformanceSprite sheet={assets.reactionSheet} durationMs={900} staticFrame={digging ? (frame ? 3 : 4) : 0}
+      columns={assets.reactionColumns ?? 3} rows={assets.reactionRows ?? 3} className="sand-nebu" label="Cosmic Nebu digging" />;
+  }
+  const pose: NebuPose = digging ? (frame ? "swipe" : "pounce") : "idle";
+  return <NebuSprite pose={pose} className="sand-nebu" label={`${getNebuSkin(skin).label} digging`} />;
+}
 
-  useEffect(() => {
-    const syncAncientPullsSkin = (event: Event) => {
-      const key = (event as CustomEvent<{ key?: SkinId }>).detail?.key;
-      if (!key || HIDDEN_DUAT_SKINS.has(key) || !VISIBLE_SKINS.some((skin) => skin.id === key)) return;
-      setActiveAccountSkin(key);
-      setState((current) => {
-        if (!current.ownedSkins.includes(key)) return current;
-        if (current.run.depth !== 0 || current.run.phase !== "choice") return current;
-        return { ...current, selectedSkin: key };
-      });
-    };
-    window.addEventListener("pocketpulls:nebu-skin-changed", syncAncientPullsSkin);
-    return () => window.removeEventListener("pocketpulls:nebu-skin-changed", syncAncientPullsSkin);
-  }, []);
+export default function EndlessDuatGame({ bootstrap, accessToken, onExit, onOpenBadges }: Props) {
+  const boot = useRef<ReturnType<typeof readState> | null>(null);
+  if (!boot.current) boot.current = readState(bootstrap);
+  const [state, setState] = useState<SandfallState>(boot.current.state);
+  const [fragments, setFragments] = useState(bootstrap.fragments);
+  const [wishBalance, setWishBalance] = useState(bootstrap.wishBalance);
+  const [activeSeconds, setActiveSeconds] = useState(bootstrap.activeSeconds);
+  const [rush, setRush] = useState(0);
+  const [combo, setCombo] = useState(0);
+  const [latestFind, setLatestFind] = useState<ArtifactFind | null>(null);
+  const [digging, setDigging] = useState(false);
+  const [notice, setNotice] = useState(boot.current.offline.sand > 1 ? `While away, Nebu dug ${depthLabel(boot.current.offline.depth)} and gathered ${compact(boot.current.offline.sand)} sand.` : "");
+  const [networkBusy, setNetworkBusy] = useState(false);
+  const [tapBursts, setTapBursts] = useState<Array<{ id: number; x: number; y: number }>>([]);
+  const stateRef = useRef(state);
+  const rushRef = useRef(rush);
+  const lastTapRef = useRef(0);
+  const digTimerRef = useRef<number | null>(null);
+  const saveTimerRef = useRef(0);
+  const findTimerRef = useRef<number | null>(null);
+  stateRef.current = state;
+  rushRef.current = rush;
 
-  useEffect(() => {
-    if (!hydrated) return;
-    const toSave = { ...state, lastSeen: Date.now() };
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
-  }, [state, hydrated]);
+  const skin = getNebuSkin(state.selectedSkin);
+  const skinBonus = SKIN_BONUSES[state.selectedSkin];
+  const idolMultiplier = 1 + state.upgrades.idol * 0.28;
+  const tapPower = (1 + state.upgrades.claws * 1.28) * idolMultiplier * skinBonus.tap;
+  const passiveRate = (0.22 + state.upgrades.crew * 0.48) * idolMultiplier * skinBonus.auto;
+  const findProgress = Math.max(0, Math.min(100, ((state.depth - state.lastFindAt) / Math.max(1, state.nextFindAt - state.lastFindAt)) * 100));
 
-  useEffect(() => {
-    if (!hydrated) return;
-    const saveTimer = window.setTimeout(() => {
-      void fetch("/api/player/duat/progress", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
-        body: JSON.stringify({ state: { ...state, lastSeen: Date.now() } }),
-      });
-    }, 1800);
-    return () => window.clearTimeout(saveTimer);
-  }, [accessToken, hydrated, state]);
-
-  useEffect(() => {
-    const heartbeat = async () => {
-      if (document.visibilityState !== "visible") return;
-      try {
-        const response = await fetch("/api/player/duat/heartbeat", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
-          body: JSON.stringify({ elapsedSeconds: 30 }),
-        });
-        const payload = await response.json();
-        if (response.ok) setAttunementSeconds(Number(payload.activeSeconds) || 0);
-      } catch {
-        // A missed heartbeat simply grants no server-side forge time.
-      }
-    };
-    const interval = window.setInterval(() => void heartbeat(), 30_000);
-    return () => window.clearInterval(interval);
+  const persist = useCallback(async (snapshot: SandfallState) => {
+    const saved = { ...snapshot, lastSeen: Date.now() };
+    try { window.localStorage.setItem(STORAGE_KEY, JSON.stringify(saved)); } catch { /* Server save still runs. */ }
+    try {
+      await fetch("/api/player/duat/progress", { method: "PUT", headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" }, body: JSON.stringify({ state: saved }) });
+    } catch { /* The local copy protects progress until the next save. */ }
   }, [accessToken]);
 
   useEffect(() => {
-    const clock = window.setInterval(() => setNow(Date.now()), 250);
-    return () => window.clearInterval(clock);
+    const timer = window.setInterval(() => {
+      const rushMultiplier = 1 + rushRef.current / 55;
+      setState((current) => {
+        const bonus = SKIN_BONUSES[current.selectedSkin];
+        const idol = 1 + current.upgrades.idol * 0.28;
+        const dug = (0.22 + current.upgrades.crew * 0.48) * idol * bonus.auto * rushMultiplier * 0.1;
+        const gathered = dug * (1 + current.upgrades.idol * 0.25) * bonus.sand;
+        const nextDay = todayKey();
+        return { ...current, dayKey: nextDay, dailyFinds: current.dayKey === nextDay ? current.dailyFinds : 0,
+          depth: current.depth + dug, deepest: Math.max(current.deepest, current.depth + dug),
+          sand: current.sand + gathered, totalSand: current.totalSand + gathered };
+      });
+      setRush((value) => Math.max(0, value - 1.35));
+    }, 100);
+    return () => window.clearInterval(timer);
   }, []);
 
   useEffect(() => {
-    if (!hydrated) return;
-    const production = window.setInterval(() => {
-      setState((current) => {
-        const gain = productionPerMinute(current) / 12;
-        if (gain <= 0) return current;
-        const next = cloneState(current);
-        next.resources.dust += gain;
-        next.lastSeen = Date.now();
-        return next;
-      });
-    }, 5000);
-    return () => window.clearInterval(production);
-  }, [hydrated]);
+    if (state.depth < state.nextFindAt) return;
+    setState((current) => {
+      if (current.depth < current.nextFindAt) return current;
+      const bonus = SKIN_BONUSES[current.selectedSkin];
+      const rarity = rollRarity(current.upgrades.charm, bonus.luck, current.sinceRare, current.depth);
+      const pool = ARTIFACTS[rarity];
+      const artifact = pool[Math.floor(Math.random() * pool.length)];
+      const reward = rewardFor(rarity, (1 + current.upgrades.idol * 0.25) * bonus.sand);
+      const find: ArtifactFind = { id: `${Date.now()}-${Math.random().toString(36).slice(2)}`, name: artifact.name,
+        icon: artifact.icon, rarity, reward, depth: current.depth, foundAt: Date.now() };
+      setLatestFind(find);
+      if (findTimerRef.current) window.clearTimeout(findTimerRef.current);
+      findTimerRef.current = window.setTimeout(() => setLatestFind(null), rarity === "legendary" ? 7_500 : 4_200);
+      return { ...current, sand: current.sand + reward, totalSand: current.totalSand + reward,
+        lastFindAt: current.nextFindAt, nextFindAt: current.nextFindAt + nextArtifactGap(current.upgrades.charm, bonus.luck),
+        totalFinds: current.totalFinds + 1, dailyFinds: current.dailyFinds + 1,
+        sinceRare: rarity === "rare" || rarity === "epic" || rarity === "legendary" ? 0 : current.sinceRare + 1,
+        collection: { ...current.collection, [rarity]: current.collection[rarity] + 1 }, recentFinds: [find, ...current.recentFinds].slice(0, 6) };
+    });
+  }, [state.depth, state.nextFindAt]);
 
   useEffect(() => {
-    if (state.run.phase !== "combat") return;
-    const battle = window.setInterval(() => {
-      playNebuAction("attack", 480);
-      setState((current) => {
-        if (current.run.phase !== "combat" || !current.run.enemy) return current;
-        const next = cloneState(current);
-        const enemy = next.run.enemy!;
-        const criticalBonus = next.selectedSkin === "scarab" ? 0.1 : next.selectedSkin === "sherry" ? 0.08 : 0;
-        const critical = Math.random() < 0.12 + criticalBonus;
-        const boonAttack = 1 + next.run.boons["solar-claws"] * 0.2;
-        const basicSkinPower = next.selectedSkin === "cosmic_nebu" ? 0.8 : next.selectedSkin === "nile" || next.selectedSkin === "pearl" ? 0.9 : 1;
-        const traitGuard = enemy.trait === "armoured" ? 0.8 : 1;
-        const damage = Math.max(1, Math.round(next.run.attack * boonAttack * basicSkinPower * traitGuard * (0.84 + Math.random() * 0.32) * (critical ? 1.85 : 1)));
-        enemy.hp -= damage;
-        next.run.combo = Math.min(3, next.run.combo + (critical ? 2 : 1));
-
-        if (enemy.hp <= 0) {
-          const depth = next.run.depth;
-          const oath = getOath(next.run.oath);
-          const boonDust = 1 + next.run.boons["gold-whiskers"] * 0.15 + (next.selectedSkin === "royal" ? 0.25 : 0);
-          const chainMultiplier = 1 + Math.min(0.3, next.run.chain * 0.03);
-          const dust = Math.round((32 + depth * 7) * (enemy.boss ? 4.5 : enemy.elite ? 2.3 : 1) * boonDust * chainMultiplier * oath.rewardMultiplier * relicDustMultiplier(next.relics));
-          next.resources.dust += dust;
-          const glyphChance = 0.25 + next.buildings.scarabWorks * 0.08 + Math.min(0.2, (oath.rewardMultiplier - 1) * 0.25);
-          const glyphs = Math.random() < glyphChance ? (enemy.elite ? 2 : 1) : 0;
-          next.resources.glyphs += glyphs;
-          if (next.selectedSkin === "royal" && enemy.elite && glyphs === 0) next.resources.glyphs += 1;
-          if (enemy.elite && (next.relics.includes("pharaoh-eye") || enemy.boss || Math.random() < 0.72)) next.resources.flames += enemy.boss ? 2 : 1;
-          const relicChance = (enemy.boss ? 1 : enemy.elite ? 0.32 : 0.055) + next.run.boons["pharaoh-curiosity"] * 0.05 + (next.selectedSkin === "midnight" ? 0.08 : 0);
-          const found = Math.random() < relicChance ? discoverRelic(next.relics, enemy.elite) : null;
-          if (found) {
-            next.relics.push(found.id);
-            next.run.discovery = found.id;
-          }
-          next.enemiesDefeated += 1;
-          next.roomsCleared += 1;
-          next.skinMastery[next.selectedSkin] += enemy.boss ? 5 : enemy.elite ? 3 : 1;
-          const fateBase = enemy.boss ? 50 : enemy.elite ? 30 : 14;
-          const fateBonus = next.selectedSkin === "scarab" && enemy.elite ? 15 : 0;
-          next.run.fate += Math.round((fateBase + fateBonus) * (next.selectedSkin === "lotus" ? 1.2 : 1));
-          if (next.run.fate >= 100) {
-            next.run.fate -= 100;
-            next.run.fateSurge = true;
-          }
-          next.run.chain = next.run.hp / next.run.maxHp >= 0.7 ? next.run.chain + 1 : 0;
-          next.run.bestChain = Math.max(next.run.bestChain, next.run.chain);
-          const newDepth = depth + 1;
-          next.run.depth = newDepth;
-          next.run.maxDepth = Math.max(next.run.maxDepth, newDepth);
-          const earnedBoon = enemy.boss || enemy.elite || newDepth % 3 === 0;
-          next.run.phase = earnedBoon ? "reward" : "choice";
-          next.run.pendingBoons = earnedBoon ? makeBoonChoices(next.run.boons) : [];
-          next.run.enemy = null;
-          next.run.choices = makeChoices(newDepth);
-          const postBattleHeal = next.run.boons["life-thread"] * 8 + (next.selectedSkin === "lotus" ? 10 : 0);
-          next.run.hp = Math.min(next.run.maxHp, next.run.hp + Math.round(postBattleHeal * (next.selectedSkin === "nile" ? 1.3 : 1)));
-          next.run.guard = 0;
-          next.run.history = [`Defeated ${enemy.name} at depth ${depth}.`, ...next.run.history].slice(0, 4);
-          if (next.relics.includes("star-bell") && next.roomsCleared % 5 === 0) next.resources.glyphs += 1;
-          return next;
-        }
-
-        if (enemy.boss && !enemy.enraged && enemy.hp <= enemy.maxHp * 0.5) {
-          enemy.enraged = true;
-          enemy.attack = Math.round(enemy.attack * 1.35);
-        }
-        if (enemy.stunned > 0) {
-          enemy.stunned -= 1;
-          return next;
-        }
-        const wardArmor = next.run.boons["moon-ward"] * 2 + (next.selectedSkin === "pearl" ? 2 : 0);
-        const blocked = next.run.guard > 0;
-        const enemyPower = enemy.weakened ? 0.7 : 1;
-        const received = blocked ? Math.max(1, Math.floor(enemy.attack * enemyPower * 0.18)) : Math.max(1, Math.round(enemy.attack * enemyPower) - next.run.armor - wardArmor);
-        if (blocked) next.run.guard -= 1;
-        next.run.hp -= received;
-        if (enemy.trait === "leeching") enemy.hp = Math.min(enemy.maxHp, enemy.hp + Math.max(1, Math.round(received * 0.45)));
-        if (next.run.hp <= 0) {
-          next.run.hp = 0;
-          next.run.phase = "defeat";
-          next.run.combo = 0;
-        }
-        return next;
-      });
-    }, 820);
-    return () => window.clearInterval(battle);
-  }, [playNebuAction, state.run.phase]);
+    const timer = window.setInterval(() => { saveTimerRef.current += 1; if (saveTimerRef.current % 10 === 0) void persist(stateRef.current); }, 1_000);
+    const beforeUnload = () => { try { window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...stateRef.current, lastSeen: Date.now() })); } catch { /* Best effort. */ } };
+    window.addEventListener("beforeunload", beforeUnload);
+    return () => { window.clearInterval(timer); window.removeEventListener("beforeunload", beforeUnload); beforeUnload(); };
+  }, [persist]);
 
   useEffect(() => {
-    if (!adOpen) return;
-    const timer = window.setInterval(() => setAdSeconds((seconds) => Math.max(0, seconds - 1)), 1000);
-    return () => window.clearInterval(timer);
-  }, [adOpen]);
+    let cancelled = false;
+    const heartbeat = async () => {
+      try {
+        const response = await fetch("/api/player/duat/heartbeat", { method: "POST", headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" }, body: JSON.stringify({ elapsedSeconds: 30 }) });
+        const payload = await response.json();
+        if (response.ok && !cancelled) { setActiveSeconds(Number(payload.activeSeconds) || 0); setFragments(Number(payload.fragments) || 0); }
+      } catch { /* A missed heartbeat grants no verified time. */ }
+    };
+    const first = window.setTimeout(() => void heartbeat(), 30_000);
+    const interval = window.setInterval(() => void heartbeat(), 30_000);
+    return () => { cancelled = true; window.clearTimeout(first); window.clearInterval(interval); };
+  }, [accessToken]);
 
-  const biome = biomeFor(state.run.depth);
-  const activeSkin = getSkin(state.selectedSkin);
-  const activeOath = getOath(state.run.oath);
-  const masteryXp = state.skinMastery[state.selectedSkin] ?? 0;
-  const masteryLevel = Math.min(10, Math.floor(masteryXp / 12));
-  const masteryProgress = masteryLevel >= 10 ? 100 : ((masteryXp % 12) / 12) * 100;
-  const quickness = Math.max(0.4, 1 - state.run.boons["quick-paws"] * 0.12);
-  const skillCooldown = (state.relics.includes("bastet-thread") ? 4500 : 6000) * quickness;
-  const skillRemaining = Math.max(0, state.run.skillReadyAt - now);
-  const guardRemaining = Math.max(0, state.run.guardReadyAt - now);
-  const skinRemaining = Math.max(0, state.run.skinReadyAt - now);
-  const displayedAttack = Math.round(state.run.attack * (1 + state.run.boons["solar-claws"] * 0.2));
-  const production = productionPerMinute(state);
-  const nextEclipseDepth = 30;
+  useEffect(() => () => { if (digTimerRef.current) window.clearTimeout(digTimerRef.current); if (findTimerRef.current) window.clearTimeout(findTimerRef.current); }, []);
 
-  const enterRoute = (route: RouteChoice) => {
-    playNebuAction("travel", 900);
+  const dig = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    const now = Date.now();
+    const nextCombo = now - lastTapRef.current < 650 ? Math.min(99, combo + 1) : 1;
+    lastTapRef.current = now; setCombo(nextCombo); setRush((value) => Math.min(100, value + 7.5)); setDigging(true);
+    if (digTimerRef.current) window.clearTimeout(digTimerRef.current);
+    digTimerRef.current = window.setTimeout(() => setDigging(false), 180);
+    const rect = event.currentTarget.getBoundingClientRect();
+    const burst = { id: now + Math.random(), x: event.clientX - rect.left, y: event.clientY - rect.top };
+    setTapBursts((items) => [...items.slice(-7), burst]);
+    window.setTimeout(() => setTapBursts((items) => items.filter((item) => item.id !== burst.id)), 650);
     setState((current) => {
-      if (current.run.phase !== "choice") return current;
-      const next = cloneState(current);
-      const oath = getOath(next.run.oath);
-      if (route.kind === "battle" || route.kind === "elite" || route.kind === "boss") {
-        next.run.enemy = makeEnemy(next.run.depth, next.eclipse, route.kind === "elite", route.kind === "boss", oath.enemyMultiplier, next.selectedSkin);
-        next.run.phase = "combat";
-        if (route.kind === "boss" && next.selectedSkin === "cosmic_nebu") next.run.combo = Math.max(1, next.run.combo);
-        next.run.history = [`Entered ${route.title}.`, ...next.run.history].slice(0, 4);
-        return next;
-      }
-
-      const completeRoom = () => {
-        const newDepth = next.run.depth + 1;
-        next.run.depth = newDepth;
-        next.run.maxDepth = Math.max(next.run.maxDepth, newDepth);
-        next.roomsCleared += 1;
-        next.skinMastery[next.selectedSkin] += 1;
-        next.run.fate += next.selectedSkin === "lotus" ? 12 : 10;
-        if (next.run.fate >= 100) {
-          next.run.fate -= 100;
-          next.run.fateSurge = true;
-        }
-        next.run.choices = makeChoices(newDepth);
-        if (next.relics.includes("star-bell") && next.roomsCleared % 5 === 0) next.resources.glyphs += 1;
-      };
-
-      if (route.kind === "vault") {
-        const found = discoverRelic(next.relics, true);
-        next.resources.dust += Math.round((90 + next.run.depth * 11) * (next.selectedSkin === "midnight" ? 1.2 : 1) * oath.rewardMultiplier * relicDustMultiplier(next.relics));
-        if (found) {
-          next.relics.push(found.id);
-          next.run.discovery = found.id;
-        } else {
-          next.resources.flames += 1;
-        }
-        completeRoom();
-      } else if (route.kind === "spring") {
-        if (next.selectedSkin === "sherry") next.run.hp += Math.round((next.run.maxHp - next.run.hp) * 0.7);
-        else next.run.hp = next.run.maxHp;
-        if (next.selectedSkin === "nile") next.resources.glyphs += 1;
-        next.resources.dust += 35;
-        completeRoom();
-      } else if (route.kind === "altar") {
-        if (next.resources.dust >= 50) {
-          next.resources.dust -= 50;
-          if (Math.random() < 0.36 + next.buildings.sunTemple * 0.04 + (next.selectedSkin === "sunstone" ? 0.25 : 0)) next.resources.flames += 1;
-          else next.resources.glyphs += 2;
-          next.run.hp = Math.min(next.run.maxHp, next.run.hp + 24);
-          completeRoom();
-        } else {
-          next.run.enemy = makeEnemy(next.run.depth + 1, next.eclipse, true, false, oath.enemyMultiplier, next.selectedSkin);
-          next.run.phase = "combat";
-        }
-      } else {
-        const events = ["sarcophagus", "star-door", "lost-spirit"];
-        next.run.eventId = events[Math.floor(Math.random() * events.length)];
-        next.run.phase = "event";
-      }
-      return next;
+      const bonus = SKIN_BONUSES[current.selectedSkin];
+      const idol = 1 + current.upgrades.idol * 0.28;
+      const dug = (1 + current.upgrades.claws * 1.28) * idol * bonus.tap * (1 + Math.min(40, nextCombo) * 0.012);
+      const gathered = dug * (1 + current.upgrades.idol * 0.25) * bonus.sand;
+      return { ...current, depth: current.depth + dug, deepest: Math.max(current.deepest, current.depth + dug),
+        sand: current.sand + gathered, totalSand: current.totalSand + gathered,
+        totalTaps: current.totalTaps + 1, bestCombo: Math.max(current.bestCombo, nextCombo) };
     });
   };
 
-  const solarPounce = () => {
-    if (state.run.phase !== "combat" || skillRemaining > 0) return;
-    playNebuAction("pounce", 760);
+  const buyUpgrade = (id: UpgradeId) => {
     setState((current) => {
-      if (!current.run.enemy || current.run.skillReadyAt > Date.now()) return current;
-      const next = cloneState(current);
-      const skinPower = next.selectedSkin === "sunstone" ? 0.7 : 0;
-      const cosmicPower = next.selectedSkin === "cosmic_nebu" ? 1.25 : 1;
-      const bubblesPower = next.selectedSkin === "bubbles" ? 0.85 : 1;
-      next.run.enemy!.hp -= Math.round(next.run.attack * (3.4 + skinPower + next.run.boons["star-roar"] * 0.45) * cosmicPower * bubblesPower);
-      next.run.skillReadyAt = Date.now() + skillCooldown;
-      next.run.combo = Math.min(3, next.run.combo + 1);
-      return next;
+      const cost = upgradeCost(id, current.upgrades[id]);
+      if (current.sand < cost) return current;
+      setNotice(`${UPGRADES.find((upgrade) => upgrade.id === id)?.name} upgraded.`);
+      return { ...current, sand: current.sand - cost, upgrades: { ...current.upgrades, [id]: current.upgrades[id] + 1 } };
     });
-    notify("Solar Pounce", "Nebu tears through the veil for massive damage.", "violet");
-  };
-
-  const moonGuard = () => {
-    if (state.run.phase !== "combat" || guardRemaining > 0) return;
-    playNebuAction("ward", 900);
-    setState((current) => {
-      if (!current.run.enemy || current.run.guardReadyAt > Date.now()) return current;
-      const next = cloneState(current);
-      next.run.guard = next.selectedSkin === "bubbles" || next.selectedSkin === "pearl" ? 3 : 2;
-      next.run.guardReadyAt = Date.now() + 8500 * quickness * (next.selectedSkin === "sunstone" ? 1.2 : 1);
-      const healing = 6 + next.run.boons["moon-ward"] * 3 + (next.selectedSkin === "bubbles" ? 12 : 0);
-      next.run.hp = Math.min(next.run.maxHp, next.run.hp + Math.round(healing * (next.selectedSkin === "nile" ? 1.3 : 1)));
-      return next;
-    });
-    notify("Moon Ward", state.selectedSkin === "bubbles" ? "Bubbles blocks three attacks and restores extra vitality." : state.selectedSkin === "pearl" ? "Celestial Pearl raises a three-layer lunar shell." : "The next two attacks are reduced and Nebu restores vitality.", "violet");
-  };
-
-  const novaBurst = () => {
-    if (state.run.phase !== "combat" || state.run.combo < 3) return;
-    playNebuAction("technique", 820);
-    setState((current) => {
-      if (!current.run.enemy || current.run.combo < 3) return current;
-      const next = cloneState(current);
-      next.run.enemy!.hp -= Math.round(next.run.attack * (2.4 + next.run.combo * 0.38) * (next.selectedSkin === "cosmic_nebu" ? 1.25 : 1));
-      next.run.combo = 0;
-      return next;
-    });
-    notify("Constellation Burst", "Stored starlight detonates around the guardian.", "violet");
-  };
-
-  const useSkinTechnique = () => {
-    if (state.run.phase !== "combat" || skinRemaining > 0) return;
-    playNebuAction("technique", 980);
-    setState((current) => {
-      if (!current.run.enemy || current.run.skinReadyAt > Date.now()) return current;
-      const next = cloneState(current);
-      const enemy = next.run.enemy!;
-      let damage = 0;
-      switch (next.selectedSkin) {
-        case "midnight":
-          damage = next.run.attack * 2.4;
-          next.run.combo = Math.min(3, next.run.combo + 2);
-          break;
-        case "nile":
-          next.run.hp = Math.min(next.run.maxHp, next.run.hp + Math.round(next.run.maxHp * 0.28 * 1.3));
-          enemy.stunned += 1;
-          break;
-        case "lotus":
-          damage = next.run.attack * 2.2;
-          next.run.hp = Math.min(next.run.maxHp, next.run.hp + Math.round(damage * 0.5));
-          break;
-        case "scarab":
-          damage = next.run.attack * (enemy.elite ? 5.2 : 2.6);
-          break;
-        case "sunstone":
-          damage = next.run.attack * 4.8;
-          next.run.hp = Math.max(1, next.run.hp - Math.round(next.run.maxHp * 0.05));
-          break;
-        case "royal":
-          damage = next.run.attack * 2.2;
-          enemy.weakened = true;
-          break;
-        case "pearl":
-          damage = enemy.attack * 2;
-          next.run.guard = Math.max(4, next.run.guard);
-          break;
-        case "sherry":
-          damage = enemy.hp / enemy.maxHp <= 0.3 && enemy.weakened ? enemy.hp : next.run.attack * 3.3;
-          break;
-        case "bubbles":
-          next.run.hp = Math.min(next.run.maxHp, next.run.hp + Math.round(next.run.maxHp * 0.25));
-          next.run.guard = Math.max(3, next.run.guard);
-          enemy.stunned += 1;
-          break;
-        case "cosmic_nebu":
-          damage = next.run.attack * 6.5;
-          next.run.hp = Math.max(1, next.run.hp - Math.round(next.run.maxHp * 0.07));
-          break;
-      }
-      enemy.hp -= Math.round(damage);
-      next.run.skinReadyAt = Date.now() + 14_000 * quickness;
-      return next;
-    });
-    notify(activeSkin.techniqueName, activeSkin.technique, activeSkin.rarity === "legendary" ? "violet" : "gold");
-  };
-
-  const chooseBoon = (boonId: BoonId) => {
-    const boon = BOONS.find((item) => item.id === boonId);
-    if (!boon) return;
-    setState((current) => {
-      if (current.run.phase !== "reward" || !current.run.pendingBoons.includes(boonId)) return current;
-      const next = cloneState(current);
-      next.run.boons[boonId] = Math.min(5, next.run.boons[boonId] + (current.run.fateSurge ? 2 : 1));
-      if (boonId === "comet-heart") {
-        next.run.maxHp += 14;
-        next.run.hp = Math.min(next.run.maxHp, next.run.hp + 22);
-      }
-      next.run.armor = 1 + next.run.boons["moon-ward"] * 2;
-      next.run.pendingBoons = [];
-      next.run.fateSurge = false;
-      next.run.phase = "choice";
-      next.run.history = [`Accepted ${boon.name}.`, ...next.run.history].slice(0, 4);
-      return next;
-    });
-    notify(`${boon.name} awakened`, boon.perLevel, boon.family === "cosmic" ? "violet" : "gold");
-  };
-
-  const resolveEvent = (option: "bold" | "wise") => {
-    setState((current) => {
-      if (current.run.phase !== "event" || !current.run.eventId) return current;
-      const next = cloneState(current);
-      const eventId = next.run.eventId;
-      const complete = (message: string) => {
-        const newDepth = next.run.depth + 1;
-        next.run.depth = newDepth;
-        next.run.maxDepth = Math.max(next.run.maxDepth, newDepth);
-        next.roomsCleared += 1;
-        next.run.phase = "choice";
-        next.run.eventId = null;
-        next.run.choices = makeChoices(newDepth);
-        next.run.history = [message, ...next.run.history].slice(0, 4);
-      };
-
-      if (eventId === "sarcophagus") {
-        if (option === "bold" && Math.random() < 0.72) {
-          const found = discoverRelic(next.relics, true);
-          if (found) { next.relics.push(found.id); next.run.discovery = found.id; }
-          else next.resources.flames += 2;
-          complete("Opened the singing sarcophagus.");
-        } else if (option === "bold") {
-          next.run.enemy = makeEnemy(next.run.depth + 2, next.eclipse, true, false, getOath(next.run.oath).enemyMultiplier, next.selectedSkin);
-          if (next.selectedSkin === "sherry") {
-            next.run.enemy.hp = Math.round(next.run.enemy.hp * 0.65);
-            next.run.enemy.maxHp = next.run.enemy.hp;
-            next.run.enemy.weakened = true;
-          }
-          next.run.phase = "combat";
-          next.run.eventId = null;
-        } else {
-          next.resources.glyphs += 2;
-          next.run.hp = Math.min(next.run.maxHp, next.run.hp + 18);
-          complete("Translated the sarcophagus warning.");
-        }
-      } else if (eventId === "star-door") {
-        if (option === "bold") {
-          next.run.hp = Math.max(1, next.run.hp - Math.round(next.run.maxHp * 0.22));
-          next.resources.dust += Math.round(280 * relicDustMultiplier(next.relics));
-          next.resources.flames += Math.random() < .4 ? 1 : 0;
-          complete("Forced open the starless door.");
-        } else if (next.resources.flames >= 1) {
-          next.resources.flames -= 1;
-          const found = discoverRelic(next.relics, true);
-          if (found) { next.relics.push(found.id); next.run.discovery = found.id; }
-          else next.resources.fragments += 1;
-          complete("Fed a flame to the starless door.");
-        } else {
-          next.resources.glyphs += 1;
-          complete("Mapped the starless door for another age.");
-        }
-      } else {
-        if (option === "bold") {
-          next.resources.dust = Math.max(0, next.resources.dust - 80);
-          next.resources.flames += 1;
-          next.run.hp = next.run.maxHp;
-          complete("Gave comfort to a nameless spirit.");
-        } else {
-          next.resources.glyphs += 2;
-          next.run.combo = Math.min(3, next.run.combo + 2);
-          complete("Followed the spirit's silent direction.");
-        }
-      }
-      return next;
-    });
-  };
-
-  const revive = () => {
-    setState((current) => {
-      const next = cloneState(current);
-      next.run.boons = emptyBoons();
-      next.run.pendingBoons = [];
-      next.run.guard = 0;
-      next.run.fate = 0;
-      next.run.fateSurge = false;
-      next.run.chain = 0;
-      next.run.skinReadyAt = 0;
-      next.run.armor = 1;
-      next.run.depth = 0;
-      next.run.maxHp = maxVitality(next.buildings, next.relics, next.eclipse);
-      next.run.hp = next.run.maxHp;
-      next.run.phase = "choice";
-      next.run.enemy = null;
-      next.run.choices = makeChoices(0);
-      next.run.history = ["Nebu returned with memories of the fallen expedition."];
-      return next;
-    });
-    notify("The Duat releases Nebu", "Your kingdom and discoveries remain. A new path has appeared.");
-  };
-
-  const returnToOasis = () => {
-    setState((current) => {
-      if (current.run.phase === "combat") return current;
-      const next = cloneState(current);
-      next.run.boons = emptyBoons();
-      next.run.pendingBoons = [];
-      next.run.guard = 0;
-      next.run.fate = 0;
-      next.run.fateSurge = false;
-      next.run.chain = 0;
-      next.run.skinReadyAt = 0;
-      next.run.armor = 1;
-      next.run.depth = 0;
-      next.run.maxHp = maxVitality(next.buildings, next.relics, next.eclipse);
-      next.run.hp = next.run.maxHp;
-      next.run.choices = makeChoices(0);
-      next.run.history = ["Nebu rested beneath the oasis palms."];
-      return next;
-    });
-    notify("Rested at the oasis", "Nebu is restored. Your deepest path remains recorded.");
-  };
-
-  const upgradeBuilding = (buildingId: (typeof BUILDINGS)[number]["id"]) => {
-    const level = state.buildings[buildingId];
-    const cost = upgradeCost(buildingId, level);
-    if (state.resources.dust < cost.dust || state.resources.glyphs < cost.glyphs) {
-      notify("More materials required", `You need ${compact(cost.dust)} Stardust${cost.glyphs ? ` and ${cost.glyphs} Glyphs` : ""}.`, "red");
-      return;
-    }
-    setState((current) => {
-      const next = cloneState(current);
-      next.resources.dust -= cost.dust;
-      next.resources.glyphs -= cost.glyphs;
-      next.buildings[buildingId] += 1;
-      next.run.maxHp = maxVitality(next.buildings, next.relics, next.eclipse);
-      next.run.hp = Math.min(next.run.maxHp, next.run.hp + (next.run.maxHp - current.run.maxHp));
-      next.run.attack = attackPower(next.buildings, next.relics, next.eclipse);
-      return next;
-    });
-    notify("Kingdom strengthened", `${BUILDINGS.find((item) => item.id === buildingId)?.name} reached level ${level + 1}.`);
   };
 
   const forgeFragment = async () => {
-    if (
-      state.resources.dust < FRAGMENT_RECIPE.dust ||
-      state.resources.glyphs < FRAGMENT_RECIPE.glyphs ||
-      state.resources.flames < FRAGMENT_RECIPE.flames
-    ) {
-      notify("The forge is incomplete", "Collect every ingredient to shape a Wish Fragment.", "red");
-      return;
-    }
-    if (networkBusy) return;
     setNetworkBusy(true);
     try {
-      const response = await fetch("/api/player/duat/forge", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${accessToken}` },
-      });
+      const response = await fetch("/api/player/duat/forge", { method: "POST", headers: { Authorization: `Bearer ${accessToken}` } });
       const payload = await response.json();
-      if (!response.ok) throw new Error(payload.error || "The forge did not answer.");
-      setAttunementSeconds(Number(payload.activeSeconds) || 0);
-      setState((current) => {
-        const next = cloneState(current);
-        next.resources.dust -= FRAGMENT_RECIPE.dust;
-        next.resources.glyphs -= FRAGMENT_RECIPE.glyphs;
-        next.resources.flames -= FRAGMENT_RECIPE.flames;
-        next.resources.fragments = Number(payload.fragments) || 0;
-        return next;
-      });
-      notify("Wish Fragment forged", "A server-verified point of light joins the celestial ring.", "violet");
-    } catch (error) {
-      notify("The forge is still attuning", error instanceof Error ? error.message : "Stay active in the Duat a little longer.", "red");
-    } finally {
-      setNetworkBusy(false);
-    }
+      if (!response.ok) throw new Error(payload.error || "The buried starlight has not formed yet.");
+      setFragments(Number(payload.fragments) || 0); setActiveSeconds(Number(payload.activeSeconds) || 0); setNotice("Nebu uncovered a Wish Fragment.");
+    } catch (error) { setNotice(error instanceof Error ? error.message : "Keep digging a little longer."); }
+    finally { setNetworkBusy(false); }
   };
-
-  const formWish = async () => {
-    if (state.resources.fragments < WISH_FRAGMENTS) return;
-    if (networkBusy) return;
+  const claimWish = async () => {
     setNetworkBusy(true);
     try {
-      const response = await fetch("/api/player/duat/claim-wish", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
-        body: JSON.stringify({ idempotencyKey: crypto.randomUUID() }),
-      });
+      const response = await fetch("/api/player/duat/claim-wish", { method: "POST", headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" }, body: JSON.stringify({ idempotencyKey: crypto.randomUUID() }) });
       const payload = await response.json();
-      if (!response.ok) throw new Error(payload.error || "The wish could not be formed.");
-      setState((current) => ({
-        ...current,
-        resources: { ...current.resources, fragments: Number(payload.fragments) || 0, wishes: Number(payload.wishBalance) || 0 },
-      }));
-      window.dispatchEvent(new CustomEvent("pocketpulls:wish-balance", { detail: { wishBalance: Number(payload.wishBalance) || 0 } }));
-      notify("A free wish is yours", "It is now in your real Ancient Pulls balance.", "violet");
-    } catch (error) {
-      notify("The constellation held", error instanceof Error ? error.message : "Please try again.", "red");
-    } finally {
-      setNetworkBusy(false);
-    }
+      if (!response.ok) throw new Error(payload.error || "The wish cannot form yet.");
+      setFragments(Number(payload.fragments) || 0); setWishBalance(Number(payload.wishBalance) || 0); setNotice("One free wish was added to your Ancient Pulls balance.");
+    } catch (error) { setNotice(error instanceof Error ? error.message : "The wish cannot form yet."); }
+    finally { setNetworkBusy(false); }
   };
 
-  const claimAdReward = () => {
-    if (adSeconds > 0) return;
-    setState((current) => {
-      const next = cloneState(current);
-      next.resources.dust += 500 * relicDustMultiplier(next.relics);
-      next.resources.glyphs += 1;
-      next.nextAdAt = Date.now() + 2 * 60 * 60 * 1000;
-      return next;
-    });
-    setAdOpen(false);
-    window.dispatchEvent(new CustomEvent("ancientpulls:rewarded-ad-complete", { detail: { placement: "solar-caravan" } }));
-    notify("Solar blessing received", "+500 Stardust and +1 Ancient Glyph.");
-  };
-
-  const openRewardedAd = () => {
-    if (!canAd) return;
-    setAdSeconds(5);
-    setAdOpen(true);
-  };
-
-  const doEclipse = () => {
-    if (state.run.maxDepth < nextEclipseDepth) return;
-    setState((current) => {
-      const next = cloneState(current);
-      next.eclipse += 1;
-      next.buildings = { observatory: 1, scarabWorks: 0, moonGarden: 0, sunTemple: 0, sanctuary: 0, pyramidGate: 0 };
-      next.resources.dust = 250;
-      next.resources.glyphs += 3;
-      next.resources.flames += 2;
-      next.run.depth = 0;
-      next.run.maxDepth = 0;
-      next.run.maxHp = maxVitality(next.buildings, next.relics, next.eclipse);
-      next.run.hp = next.run.maxHp;
-      next.run.attack = attackPower(next.buildings, next.relics, next.eclipse);
-      next.run.phase = "choice";
-      next.run.enemy = null;
-      next.run.choices = makeChoices(0);
-      next.run.boons = emptyBoons();
-      next.run.pendingBoons = [];
-      next.run.guard = 0;
-      next.run.fate = 0;
-      next.run.fateSurge = false;
-      next.run.chain = 0;
-      next.run.bestChain = 0;
-      next.run.skinReadyAt = 0;
-      next.run.armor = 1;
-      next.run.history = [`Eclipse ${next.eclipse + 1} began beneath a changed sky.`];
-      return next;
-    });
-    setTab("adventure");
-    notify("The Eclipse begins", "The kingdom is buried, but Nebu carries its power into a stranger age.", "violet");
-  };
-
-  const prophecies = [
-    { id: "rooms-10", title: "Walk ten hidden rooms", progress: state.roomsCleared, goal: 10, reward: "+220 Stardust" },
-    { id: "enemies-8", title: "Defeat eight guardians", progress: state.enemiesDefeated, goal: 8, reward: "+4 Ancient Glyphs" },
-    { id: "depth-12", title: "Reach depth twelve", progress: state.run.maxDepth, goal: 12, reward: "+1 Celestial Flame" },
-  ];
-
-  const claimProphecy = (id: string) => {
-    const prophecy = prophecies.find((item) => item.id === id);
-    if (!prophecy || prophecy.progress < prophecy.goal || state.propheciesClaimed.includes(id)) return;
-    setState((current) => {
-      const next = cloneState(current);
-      next.propheciesClaimed.push(id);
-      if (id === "rooms-10") next.resources.dust += 220;
-      if (id === "enemies-8") next.resources.glyphs += 4;
-      if (id === "depth-12") next.resources.flames += 1;
-      return next;
-    });
-    notify("Prophecy fulfilled", prophecy.reward);
-  };
-
-  const selectOath = (oathId: OathId) => {
-    if (state.run.depth !== 0 || state.run.phase !== "choice") return;
-    const oath = getOath(oathId);
-    setState((current) => ({ ...current, run: { ...current.run, oath: oathId } }));
-    notify(`${oath.name} sworn`, oath.description, oathId === "voidbound" ? "violet" : "gold");
-  };
-
-  const discoveredRelic = state.run.discovery ? RELICS.find((relic) => relic.id === state.run.discovery) : null;
-  const activeEvent = state.run.eventId ? EVENT_COPY[state.run.eventId] : null;
-  const activeBoons = BOONS.filter((boon) => state.run.boons[boon.id] > 0);
-  const wishProgress = Math.min(100, (state.resources.fragments / WISH_FRAGMENTS) * 100);
-  const canAd = now >= state.nextAdAt;
-  const displayedNebuAction: NebuAction = state.run.phase === "defeat" ? "defeat" : nebuAction;
-  const badgeSkinWaiting = activeAccountSkin !== state.selectedSkin;
+  const wishReady = fragments >= WISH_FRAGMENTS;
+  const fragmentReady = activeSeconds >= FRAGMENT_SECONDS && fragments < WISH_FRAGMENTS;
+  const fragmentProgress = wishReady ? 100 : Math.min(100, (activeSeconds / FRAGMENT_SECONDS) * 100);
+  const shaftStyle = { "--shaft-shift": `${state.depth % 260}px`, "--skin-accent": skin.swatch } as CSSProperties;
+  const paceLabel = useMemo(() => `${compact(passiveRate * (1 + rush / 55))} m/s`, [passiveRate, rush]);
 
   return (
-    <main className="game-shell">
-      <div className="ambient-stars" aria-hidden="true" />
-      <header className="topbar">
-        <button className="brand" onClick={onExit} aria-label="Return to Ancient Pulls HQ">
-          <span className="brand-star">☥</span>
-          <span><b>ENDLESS DUAT</b><small>An Ancient Pulls game</small></span>
-        </button>
-        <div className="resource-row">
-          <ResourcePill icon="✦" label="Stardust" value={state.resources.dust} />
-          <ResourcePill icon="⌘" label="Glyphs" value={state.resources.glyphs} />
-          <ResourcePill icon="☼" label="Flames" value={state.resources.flames} accent="flame" />
-          <ResourcePill icon="◉" label="Wish balance" value={state.resources.wishes} accent="wish" />
-          <button className="duat-exit" onClick={onExit}><span>←</span> Ancient Pulls</button>
-        </div>
+    <main className={`sandfall-shell ${latestFind ? `finding-${latestFind.rarity}` : ""}`} style={shaftStyle}>
+      <header className="sandfall-topbar">
+        <button className="sandfall-brand" onClick={onExit} aria-label="Return to Ancient Pulls"><span>←</span><div><b>NEBU SANDFALL</b><small>Ancient Pulls</small></div></button>
+        <div className="sandfall-stats"><div><small>DEPTH</small><b>{depthLabel(state.depth)}</b></div><div><small>ANCIENT SAND</small><b>✦ {compact(state.sand)}</b></div><div><small>WISHES</small><b>◉ {wishBalance}</b></div></div>
+        <button className="sandfall-exit" onClick={onExit}>Ancient Pulls</button>
       </header>
 
-      <div className="game-layout">
-        <aside className="sidebar">
-          <button className="player-seal" onClick={() => setTab("skins")} aria-label="Change Nebu skin">
-            <div className="seal-avatar"><DuatNebu skin={state.selectedSkin} action="idle" compact /></div>
-            <div><small>ACTIVE NEBU</small><b>{activeSkin.name}</b></div>
-            <span className="seal-level">E{state.eclipse + 1}</span>
+      <div className="sandfall-layout">
+        <section className="dig-chamber">
+          <button className="dig-zone" onPointerDown={dig} aria-label="Tap to make Nebu dig faster">
+            <div className="sand-glow" /><div className="sand-strata strata-back" />
+            <div className="buried-shape shape-one">◒</div><div className="buried-shape shape-two">◆</div><div className="buried-shape shape-three">☥</div>
+            <div className="shaft-walls"><i /><i /></div><div className="depth-line"><span>{depthLabel(state.depth)}</span></div>
+            <div className={`nebu-digger ${digging ? "is-digging" : ""}`}><div className="nebu-aura" /><SandNebu skin={state.selectedSkin} digging={digging || rush > 20} /><div className="sand-spray"><i /><i /><i /><i /><i /><i /></div><div className="dig-shadow" /></div>
+            {tapBursts.map((burst) => <span key={burst.id} className="tap-burst" style={{ left: burst.x, top: burst.y }}>+{compact(tapPower)}</span>)}
+            <div className="tap-callout"><b>TAP TO DIG</b><small>Rapid taps build Paw Rush</small></div>
+            <div className="rush-meter"><span style={{ width: `${rush}%` }} /><div><b>PAW RUSH</b><small>{rush > 5 ? `×${(1 + rush / 55).toFixed(1)} speed · combo ${combo}` : "Keep tapping"}</small></div></div>
           </button>
-          <nav aria-label="Game sections">
-            {NAV.map((item) => (
-              <button key={item.id} className={tab === item.id ? "active" : ""} onClick={() => setTab(item.id)}>
-                <span>{item.icon}</span>{item.label}
-                {item.id === "forge" && state.resources.fragments > 0 && <i>{state.resources.fragments}</i>}
-              </button>
-            ))}
-          </nav>
 
-          <section className="prophecy-panel">
-            <div className="section-kicker"><span>Prophecies</span><small>{state.propheciesClaimed.length}/3</small></div>
-            {prophecies.map((prophecy) => {
-              const claimed = state.propheciesClaimed.includes(prophecy.id);
-              const complete = prophecy.progress >= prophecy.goal;
-              return (
-                <button key={prophecy.id} className={`prophecy ${complete ? "complete" : ""}`} disabled={!complete || claimed} onClick={() => claimProphecy(prophecy.id)}>
-                  <span>{claimed ? "✓" : complete ? "!" : "○"}</span>
-                  <div><b>{prophecy.title}</b><small>{claimed ? "Claimed" : complete ? `Claim ${prophecy.reward}` : `${Math.min(prophecy.progress, prophecy.goal)}/${prophecy.goal}`}</small></div>
-                </button>
-              );
-            })}
-          </section>
-
-          <div className="sidebar-bottom">
-            <div><small>Kingdom output</small><b>{compact(production)} ✦ / min</b></div>
-            <div><small>Deepest path</small><b>{state.run.maxDepth} rooms</b></div>
-          </div>
-        </aside>
-
-        <section className="content">
-          {tab === "adventure" && (
-            <div className="adventure-view">
-            <div className="view-heading">
-                <div><span className="eyebrow">Depth {state.run.depth}</span><h1>{biome.name}</h1><p>{biome.subtitle}</p></div>
-                <button className="quiet-button" onClick={returnToOasis} disabled={state.run.phase !== "choice"}>↩ Return to oasis</button>
-              </div>
-              {badgeSkinWaiting && <div className="badge-skin-sync"><span>♛</span><div><b>{getSkin(activeAccountSkin).name} equipped from Badges</b><small>Finish or leave this expedition and the Duat will change Nebu safely at the oasis.</small></div></div>}
-
-              <section className={`duat-stage phase-${state.run.phase}`}>
-                <div className="stage-moon" />
-                <div className="stage-pyramid pyramid-one" />
-                <div className="stage-pyramid pyramid-two" />
-                <div className="stage-dunes" />
-                <div className="constellation-lines"><i /><i /><i /><i /><i /></div>
-
-                <div className="fighter nebu-fighter">
-                  <div className="fighter-label"><b>{activeSkin.name}</b><span>ATK {displayedAttack} · ARM {state.run.armor}</span></div>
-                  <ProgressBar value={state.run.hp} max={state.run.maxHp} />
-                  <small>{Math.max(0, Math.round(state.run.hp))} / {state.run.maxHp} vitality</small>
-                  <DuatNebu key={`${state.selectedSkin}-${displayedNebuAction}`} skin={state.selectedSkin} action={displayedNebuAction} />
-                </div>
-
-                {state.run.enemy && (
-                  <div className="fighter enemy-fighter">
-                    <div className="fighter-label"><b>{state.run.enemy.name}</b><span>ATK {state.run.enemy.attack}</span></div>
-                    <ProgressBar value={state.run.enemy.hp} max={state.run.enemy.maxHp} danger />
-                    <small>{Math.max(0, Math.round(state.run.enemy.hp))} / {state.run.enemy.maxHp} essence</small>
-                    {state.run.enemy.traitName && <span className={`enemy-trait ${state.run.enemy.enraged ? "enraged" : ""}`} title={state.run.enemy.traitDescription ?? ""}>{state.run.enemy.enraged ? "ENRAGED · " : ""}{state.run.enemy.weakened ? "WEAKENED · " : ""}{state.run.enemy.traitName}</span>}
-                    <div className={`enemy-avatar ${state.run.enemy.elite ? "elite" : ""} ${state.run.enemy.boss ? "boss" : ""}`}><span>{state.run.enemy.icon}</span></div>
-                  </div>
-                )}
-
-                {state.run.phase === "choice" && (
-                  <div className="stage-message"><span>{state.run.choices.length === 1 ? "THE FIFTH GATE AWAKENS" : "THE PATH DIVIDES"}</span><b>{state.run.choices.length === 1 ? "Something ancient bars the path" : "Choose what Nebu discovers next"}</b></div>
-                )}
-                {state.run.phase === "combat" && (
-                  <div className="battle-controls">
-                    <button className="power-button solar" onClick={solarPounce} disabled={skillRemaining > 0}>
-                      <span className="power-icon">✦</span>
-                      <span><b>{skillRemaining > 0 ? `${(skillRemaining / 1000).toFixed(1)}s` : "Solar Pounce"}</b><small>{skillRemaining > 0 ? "Gathering sunlight" : "Explosive single strike"}</small></span>
-                    </button>
-                    <button className="power-button lunar" onClick={moonGuard} disabled={guardRemaining > 0}>
-                      <span className="power-icon">☾</span>
-                      <span><b>{guardRemaining > 0 ? `${(guardRemaining / 1000).toFixed(1)}s` : state.run.guard > 0 ? `Ward ×${state.run.guard}` : "Moon Ward"}</b><small>{state.selectedSkin === "bubbles" ? "Block three hits and recover more" : state.selectedSkin === "pearl" ? "Block three hits with extra armour" : "Block two hits and recover"}</small></span>
-                    </button>
-                    <button className="power-button nova" onClick={novaBurst} disabled={state.run.combo < 3}>
-                      <span className="power-icon">✺</span>
-                      <span><b>Starburst · {state.run.combo}/3</b><small>Spend combo for scaling damage</small></span>
-                    </button>
-                    <button className="power-button skin-technique" style={{ "--skin-accent": activeSkin.accent } as CSSProperties} onClick={useSkinTechnique} disabled={skinRemaining > 0}>
-                      <span className="power-icon">{activeSkin.icon}</span>
-                      <span><b>{skinRemaining > 0 ? `${(skinRemaining / 1000).toFixed(1)}s` : activeSkin.techniqueName}</b><small>{activeSkin.technique}</small></span>
-                    </button>
-                    <div className="auto-label"><i /> Basic attacks charge Starburst</div>
-                  </div>
-                )}
-                {state.run.phase === "reward" && (
-                  <div className="reward-overlay">
-                    <span className="eyebrow">{state.run.fateSurge ? "Fate surge · double awakening" : "The constellation answers"}</span><h2>{state.run.fateSurge ? "Choose a power and gain two levels" : "Choose one power for this expedition"}</h2><p>Run boons stack up to five times and vanish only when Nebu returns to the oasis.</p>
-                    <div className="boon-choice-grid">
-                      {state.run.pendingBoons.map((boonId) => {
-                        const boon = BOONS.find((item) => item.id === boonId)!;
-                        return <button key={boon.id} className={`boon-choice ${boon.family}`} onClick={() => chooseBoon(boon.id)}><span>{boon.icon}</span><small>{boon.family} · level {Math.min(5, state.run.boons[boon.id] + (state.run.fateSurge ? 2 : 1))}</small><b>{boon.name}</b><p>{boon.description}</p><strong>{boon.perLevel}</strong></button>;
-                      })}
-                    </div>
-                  </div>
-                )}
-                {state.run.phase === "event" && activeEvent && (
-                  <div className="event-overlay">
-                    <span className="event-icon">{activeEvent.icon}</span><span className="eyebrow">{activeEvent.eyebrow}</span><h2>{activeEvent.title}</h2><p>{activeEvent.body}</p>
-                    <div><button onClick={() => resolveEvent("bold")}><b>{activeEvent.bold}</b><small>{activeEvent.boldHint}</small></button><button onClick={() => resolveEvent("wise")}><b>{activeEvent.wise}</b><small>{activeEvent.wiseHint}</small></button></div>
-                  </div>
-                )}
-                {state.run.phase === "defeat" && (
-                  <div className="defeat-card"><span>THE DUAT CLOSES</span><h2>Every ending reveals another entrance.</h2><p>Your relics, kingdom and resources remain. Nebu will remember this path.</p><button className="primary-button" onClick={revive}>Begin a new expedition</button></div>
-                )}
-              </section>
-
-              {state.run.phase === "choice" && (
-                <section className="routes-section">
-                  {state.run.depth === 0 && (
-                    <div className="oath-selector">
-                      <div><span className="eyebrow">Risk shapes the reward</span><h3>Swear an expedition oath</h3><p>Higher oaths create stronger guardians, enemy traits and richer spoils. Change only at the oasis.</p></div>
-                      <div className="oath-options">{OATHS.map((oath) => <button key={oath.id} className={state.run.oath === oath.id ? "active" : ""} onClick={() => selectOath(oath.id)}><span>{oath.icon}</span><b>{oath.name}</b><small>{oath.description}</small></button>)}</div>
-                    </div>
-                  )}
-                  <div className="section-title"><div><span className="eyebrow">{state.run.choices.length === 1 ? "Fifth gate · no way around" : "Three doors · one decision"}</span><h2>{state.run.choices.length === 1 ? "A guardian blocks the path" : "Choose the next chamber"}</h2></div><span className="depth-marker">∞ THE DUAT HAS NO END</span></div>
-                  <div className={`route-grid ${state.run.choices.length === 1 ? "boss-gate" : ""}`}>
-                    {state.run.choices.map((route, index) => (
-                      <button key={route.id} className={`route-card route-${route.kind}`} onClick={() => enterRoute(route)}>
-                        <span className="route-number">0{index + 1}</span>
-                        <span className="route-symbol">{route.kind === "boss" ? "☍" : route.kind === "elite" ? "◉" : route.kind === "battle" ? "♜" : route.kind === "spring" ? "☾" : route.kind === "vault" ? "◆" : route.kind === "altar" ? "☼" : "?"}</span>
-                        <span className="eyebrow">{route.eyebrow}</span>
-                        <b>{route.title}</b>
-                        <p>{route.description}</p>
-                        <span className="route-meta"><small>Danger {"✦".repeat(Math.min(5, Math.round(route.danger * activeOath.enemyMultiplier)))}{"·".repeat(Math.max(0, 5 - Math.round(route.danger * activeOath.enemyMultiplier)))}</small><small>{route.reward}</small></span>
-                        <span className="enter-route">Enter chamber <i>→</i></span>
-                      </button>
-                    ))}
-                  </div>
-                </section>
-              )}
-              <section className="run-dashboard">
-                <div className="run-boons"><span className="eyebrow">Current expedition build</span><div><span className="skin-run-passive" style={{ "--skin-accent": activeSkin.accent } as CSSProperties} title={activeSkin.passive}><i>{activeSkin.icon}</i><b>{activeSkin.passiveName}</b></span>{activeBoons.length ? activeBoons.map((boon) => <span className={`mini-boon ${boon.family}`} key={boon.id} title={`${boon.name}: ${boon.perLevel}`}><i>{boon.icon}</i><b>{state.run.boons[boon.id]}</b></span>) : <small>No boons yet.</small>}</div></div>
-                <div className={`fate-card ${state.run.fateSurge ? "surging" : ""}`}><span className="eyebrow">Duat Fate · {activeOath.name}</span><div><ProgressBar value={state.run.fateSurge ? 100 : state.run.fate} max={100} /><small>{state.run.fateSurge ? "DOUBLE BOON READY" : `${state.run.fate} / 100 · flawless chain ×${state.run.chain}`}</small></div></div>
-                <div className="run-history"><span className="eyebrow">Nebu remembers</span><p>{state.run.history[0]}</p></div>
-                <div className="next-gate"><span className="eyebrow">Next named guardian</span><b>{5 - (state.run.depth % 5)} {5 - (state.run.depth % 5) === 1 ? "room" : "rooms"}</b></div>
-              </section>
-            </div>
-          )}
-
-          {tab === "kingdom" && (
-            <div className="kingdom-view">
-              <div className="view-heading"><div><span className="eyebrow">The city remembers</span><h1>Kingdom Beneath the Stars</h1><p>Every monument changes Nebu&apos;s expedition and continues working while you are gone.</p></div><div className="output-badge"><small>Total output</small><b>{compact(production)} ✦ / min</b></div></div>
-              <section className="kingdom-scene">
-                <div className="kingdom-sky"><i /><i /><i /><i /><i /></div>
-                <div className="kingdom-moon" />
-                <div className="city-building city-pyramid"><span>⟁</span></div>
-                <div className="city-building city-temple"><span>☼</span></div>
-                <div className="city-building city-observatory"><span>◒</span></div>
-                <div className="city-ground" />
-                <div className="kingdom-caption"><span>ECLIPSE AGE {state.eclipse + 1}</span><b>{state.eclipse === 0 ? "A kingdom newly awakened" : "A kingdom rebuilt from celestial memory"}</b></div>
-              </section>
-              <div className="building-grid">
-                {BUILDINGS.map((building) => {
-                  const level = state.buildings[building.id];
-                  const cost = upgradeCost(building.id, level);
-                  const affordable = state.resources.dust >= cost.dust && state.resources.glyphs >= cost.glyphs;
-                  return (
-                    <article className="building-card" key={building.id}>
-                      <span className="building-icon">{building.icon}</span>
-                      <div className="building-copy"><span className="eyebrow">Level {level}</span><h3>{building.name}</h3><p>{building.description}</p><b>{building.effect(level)}</b></div>
-                      <button className={affordable ? "can-buy" : ""} onClick={() => upgradeBuilding(building.id)}>
-                        <span>{level === 0 ? "Restore" : "Upgrade"}</span><small>{compact(cost.dust)} ✦ {cost.glyphs > 0 ? `· ${cost.glyphs} ⌘` : ""}</small>
-                      </button>
-                    </article>
-                  );
-                })}
-              </div>
-              <section className={`eclipse-panel ${state.run.maxDepth >= nextEclipseDepth ? "ready" : ""}`}>
-                <div className="eclipse-orb"><span /></div>
-                <div><span className="eyebrow">Permanent ascension</span><h2>Begin the next Eclipse</h2><p>Bury the current kingdom and enter a transformed age. Relics, wishes and permanent Eclipse power survive.</p><div className="eclipse-progress"><ProgressBar value={state.run.maxDepth} max={nextEclipseDepth} /><small>{state.run.maxDepth} / {nextEclipseDepth} depth reached</small></div></div>
-                <button className="primary-button" disabled={state.run.maxDepth < nextEclipseDepth} onClick={doEclipse}>Enter Eclipse {state.eclipse + 2}</button>
-              </section>
-            </div>
-          )}
-
-          {tab === "relics" && (
-            <div className="relics-view">
-              <div className="view-heading"><div><span className="eyebrow">The impossible museum</span><h1>Relics of the Endless Duat</h1><p>Every discovery permanently alters the expedition. Find all nine, then search for their echoes in later ages.</p></div><div className="collection-count"><b>{state.relics.length}</b><small>of {RELICS.length} discovered</small></div></div>
-              <div className="relic-grid">
-                {RELICS.map((relic) => {
-                  const owned = state.relics.includes(relic.id);
-                  return (
-                    <article key={relic.id} className={`relic-card rarity-${relic.rarity} ${owned ? "owned" : "locked"}`}>
-                      <span className="relic-glow" />
-                      <span className="relic-icon">{owned ? relic.icon : "?"}</span>
-                      <span className="eyebrow">{owned ? relic.rarity : "Undiscovered"}</span>
-                      <h3>{owned ? relic.name : "Unknown relic"}</h3>
-                      <p>{owned ? relic.description : "Its shape has not yet returned to memory."}</p>
-                      <small>{owned ? "POWER ACTIVE" : "FOUND IN VAULTS & ELITES"}</small>
-                    </article>
-                  );
-                })}
-              </div>
-              <section className="museum-note"><span>◇</span><div><b>The museum is only the beginning.</b><p>After every Eclipse, discovered relics remain active while rarer echoes begin appearing deeper in the Duat.</p></div></section>
-            </div>
-          )}
-
-          {tab === "skins" && (
-            <div className="skins-view">
-              <div className="view-heading">
-                <div><span className="eyebrow">Synced with Ancient Pulls Badges</span><h1>Nebu</h1><p>Your equipped badge coat follows Nebu into every Duat action.</p></div>
-                <div className="skin-rule"><span>◇</span><div><b>Sidegrades, not shortcuts</b><small>Every strength carries a burden; forge recipes never change</small></div></div>
-              </div>
-              <section className={`active-skin-hero theme-${activeSkin.id}`} style={{ "--skin-accent": activeSkin.accent } as CSSProperties}>
-                <div className="skin-stage"><div className="skin-orbit"><i /><i /></div><DuatNebu skin={state.selectedSkin} action="victory" /></div>
-                <div className="active-skin-copy"><span className="eyebrow">Currently equipped · {activeSkin.rarity}</span><h2>{activeSkin.name}</h2><strong>{activeSkin.title}</strong><p>{activeSkin.description}</p><div className="passive-callout"><span>{activeSkin.icon}</span><div><small>UNIQUE PASSIVE</small><b>{activeSkin.passiveName}</b><p>{activeSkin.passive}</p><em>{activeSkin.burden}</em></div></div><div className="technique-callout"><small>SKIN TECHNIQUE</small><b>{activeSkin.techniqueName}</b><p>{activeSkin.technique}</p></div></div>
-                <div className="skin-family"><small>PLAYSTYLE</small><b>{activeSkin.family}</b><div className="mastery-block"><small>MASTERY {masteryLevel} / 10</small><div><span style={{ width: `${masteryProgress}%` }} /></div><em>{masteryXp} resonance points</em></div><span>Coat selection is controlled by the Ancient Pulls Badges wardrobe.</span><button className="badge-wardrobe-button" onClick={onOpenBadges}>Open Badges wardrobe</button></div>
-              </section>
-              <div className="skin-grid">
-                {VISIBLE_SKINS.map((skin) => {
-                  const owned = state.ownedSkins.includes(skin.id);
-                  const selected = state.selectedSkin === skin.id;
-                  const skinMasteryLevel = Math.min(10, Math.floor((state.skinMastery[skin.id] ?? 0) / 12));
-                  return (
-                    <article className={`skin-card theme-${skin.id} ${selected ? "selected" : ""} ${owned ? "owned" : "locked"}`} style={{ "--skin-accent": skin.accent } as CSSProperties} key={skin.id}>
-                      <div className="skin-card-visual"><span className="skin-halo" /><DuatNebu skin={skin.id} action="idle" /><i className="skin-swatch" style={{ background: skin.swatch }} /></div>
-                      <div className="skin-card-copy"><span className="eyebrow">{skin.rarity} · {skin.family}</span><h3>{skin.name}</h3><small>{skin.title}</small><span className="skin-unlock">{skin.unlock}</span><div className="mini-passive"><span>{skin.icon}</span><div><b>{skin.passiveName}</b><p>{skin.passive}</p><em>{skin.burden}</em></div></div><div className="mini-technique"><small>ACTIVE · MASTERY {skinMasteryLevel}</small><b>{skin.techniqueName}</b></div></div>
-                      <button disabled={!owned || selected} onClick={onOpenBadges}>{selected ? "Equipped in Badges" : owned ? "Equip from Badges" : "Not unlocked"}</button>
-                    </article>
-                  );
-                })}
-              </div>
-              <section className="skin-integration-note"><span>⌘</span><div><b>One wardrobe everywhere</b><p>The coat equipped in Ancient Pulls Badges is the coat used in the Duat.</p></div></section>
-            </div>
-          )}
-
-          {tab === "forge" && (
-            <div className="forge-view">
-              <div className="view-heading"><div><span className="eyebrow">A reward with real purpose</span><h1>The Wish Forge</h1><p>Adventure, kingdom growth and prophecy converge here. Ten fragments become one free Ancient Pulls wish.</p></div><div className="wish-total"><span>◉</span><div><b>{state.resources.wishes}</b><small>Ancient Pulls balance</small></div></div></div>
-              <div className="forge-layout">
-                <section className="forge-core">
-                  <div className="forge-rings"><i /><i /><i /><i /><span>{state.resources.fragments}</span></div>
-                  <span className="eyebrow">Celestial convergence</span>
-                  <h2>{state.resources.fragments < WISH_FRAGMENTS ? "Forge the next fragment" : "Your wish is complete"}</h2>
-                  <p>{state.resources.fragments < WISH_FRAGMENTS ? `${WISH_FRAGMENTS - state.resources.fragments} fragments remain before the star answers.` : "The fragments are aligned. Claim the wish whenever you are ready."}</p>
-                  <div className="wish-meter"><span style={{ width: `${wishProgress}%` }} /><b>{state.resources.fragments} / {WISH_FRAGMENTS}</b></div>
-                  {state.resources.fragments < WISH_FRAGMENTS ? (
-                    <button className="forge-button" disabled={networkBusy} onClick={() => void forgeFragment()}><span>✦</span><div><b>Forge one fragment</b><small>{FRAGMENT_RECIPE.dust} Stardust · {FRAGMENT_RECIPE.glyphs} Glyphs · {FRAGMENT_RECIPE.flames} Flame · {Math.floor(attunementSeconds / 60)}/12 active min</small></div></button>
-                  ) : (
-                    <button className="forge-button claim" disabled={networkBusy} onClick={() => void formWish()}><span>◉</span><div><b>Form one free wish</b><small>Send it to your Ancient Pulls balance</small></div></button>
-                  )}
-                </section>
-                <div className="forge-side">
-                  <section className="ingredient-panel">
-                    <span className="eyebrow">Fragment ingredients</span>
-                    <h3>Three kinds of progress</h3>
-                    <div className="ingredient"><span>✦</span><div><b>Stardust</b><small>Kingdom and every expedition</small></div><strong>{compact(state.resources.dust)} / {FRAGMENT_RECIPE.dust}</strong></div>
-                    <div className="ingredient"><span>⌘</span><div><b>Ancient Glyphs</b><small>Guardians and active choices</small></div><strong>{state.resources.glyphs} / {FRAGMENT_RECIPE.glyphs}</strong></div>
-                    <div className="ingredient"><span>☼</span><div><b>Celestial Flames</b><small>Elites, prophecies and altars</small></div><strong>{state.resources.flames} / {FRAGMENT_RECIPE.flames}</strong></div>
-                  </section>
-                  <section className="sponsor-panel">
-                    <div className="caravan-icon">☼</div><span className="eyebrow">Optional reward</span><h3>The Solar Caravan</h3><p>Receive a sponsor blessing. Never interrupts an expedition and never removes progress.</p>
-                    <button onClick={openRewardedAd} disabled={!canAd}>{canAd ? "Receive blessing" : `Returns in ${Math.ceil((state.nextAdAt - now) / 3_600_000)}h`}<small>+500 Stardust · +1 Glyph</small></button>
-                  </section>
-                </div>
-              </div>
-            </div>
-          )}
+          {latestFind && <button className={`artifact-reveal rarity-${latestFind.rarity}`} onClick={() => setLatestFind(null)}><span className="artifact-rays" /><span className="artifact-icon">{latestFind.icon}</span><span className="artifact-rarity">{latestFind.rarity}</span><b>{latestFind.name}</b><small>Unearthed at {depthLabel(latestFind.depth)}</small><strong>+{compact(latestFind.reward)} Ancient Sand</strong></button>}
         </section>
+
+        <aside className="sandfall-panel">
+          <section className="next-find-card"><div className="panel-heading"><div><small>NEXT FIND</small><b>{compact(Math.max(0, state.nextFindAt - state.depth))} m away</b></div><span>?</span></div><div className="simple-meter"><i style={{ width: `${findProgress}%` }} /></div><p>Nebu finds something every few metres. Better charms improve both rarity and frequency.</p></section>
+
+          <section className="skin-bonus-card"><button onClick={onOpenBadges} className="skin-portrait" aria-label="Open Nebu skins in Badges"><SandNebu skin={state.selectedSkin} digging={false} /></button><div><small>{skin.label.toUpperCase()}</small><b>{skinBonus.title}</b><p>{skinBonus.detail}</p></div><button onClick={onOpenBadges}>Change</button></section>
+
+          <section className="upgrade-section"><div className="panel-title"><div><small>SPEND SAND</small><b>Help Nebu dig deeper</b></div><span>{paceLabel}</span></div><div className="upgrade-list">
+            {UPGRADES.map((upgrade) => { const level = state.upgrades[upgrade.id]; const cost = upgradeCost(upgrade.id, level); return <button key={upgrade.id} className={state.sand >= cost ? "can-buy" : ""} onClick={() => buyUpgrade(upgrade.id)} disabled={state.sand < cost}><span>{upgrade.icon}</span><div><small>LEVEL {level}</small><b>{upgrade.name}</b><p>{upgrade.detail}</p></div><strong>✦ {compact(cost)}</strong></button>; })}
+          </div></section>
+
+          <section className="wish-path-card"><div className="panel-heading"><div><small>FREE WISH</small><b>{fragments} / {WISH_FRAGMENTS} fragments</b></div><span>◉</span></div><div className="fragment-pips">{Array.from({ length: WISH_FRAGMENTS }, (_, index) => <i key={index} className={index < fragments ? "filled" : ""} />)}</div>{!wishReady && <div className="simple-meter wish-meter"><i style={{ width: `${fragmentProgress}%` }} /></div>}<button disabled={networkBusy || (!wishReady && !fragmentReady)} onClick={() => void (wishReady ? claimWish() : forgeFragment())}>{wishReady ? "Claim free wish" : fragmentReady ? "Unearth fragment" : `${Math.max(0, 12 - Math.floor(activeSeconds / 60))} min of digging to fragment`}</button></section>
+
+          <section className="collection-card"><div className="panel-title"><div><small>TODAY</small><b>{state.dailyFinds} artifacts found</b></div><span>{state.totalFinds} total</span></div><div className="rarity-row">{RARITIES.map((rarity) => <div key={rarity} className={rarity}><i /><span>{rarity.slice(0, 1).toUpperCase()}</span><b>{state.collection[rarity]}</b></div>)}</div>{state.recentFinds.length > 0 && <div className="recent-find"><span className={state.recentFinds[0].rarity}>{state.recentFinds[0].icon}</span><div><small>LATEST FIND</small><b>{state.recentFinds[0].name}</b></div></div>}</section>
+        </aside>
       </div>
 
-      <nav className="mobile-nav" aria-label="Game sections">
-        {NAV.map((item) => <button key={item.id} className={tab === item.id ? "active" : ""} onClick={() => setTab(item.id)}><span>{item.icon}</span><small>{item.label}</small></button>)}
-      </nav>
-
-      <div className="toast-stack" aria-live="polite">
-        {notices.map((notice) => <div className={`toast ${notice.tone}`} key={notice.id}><span>{notice.tone === "red" ? "!" : "✦"}</span><div><b>{notice.title}</b><small>{notice.body}</small></div></div>)}
-      </div>
-
-      {offlineReport && (
-        <div className="modal-backdrop">
-          <section className="offline-modal">
-            <button className="modal-close" onClick={() => setOfflineReport(null)} aria-label="Close">×</button>
-            <div className="offline-sun">☼</div><span className="eyebrow">Nebu kept exploring</span><h2>The kingdom moved while you were away.</h2><p>During {offlineReport.minutes} minutes, the observatory charted new stars and the scarabs searched the ruins.</p>
-            <div className="offline-loot"><div><span>✦</span><b>+{compact(offlineReport.dust)}</b><small>Stardust</small></div><div><span>⌘</span><b>+{offlineReport.glyphs}</b><small>Glyphs</small></div></div>
-            <button className="primary-button" onClick={() => setOfflineReport(null)}>Continue the journey</button>
-          </section>
-        </div>
-      )}
-
-      {discoveredRelic && (
-        <div className="modal-backdrop">
-          <section className={`relic-modal rarity-${discoveredRelic.rarity}`}>
-            <span className="reveal-rays" /><button className="modal-close" onClick={() => setState((current) => ({ ...current, run: { ...current.run, discovery: null } }))} aria-label="Close">×</button>
-            <span className="eyebrow">Relic remembered · {discoveredRelic.rarity}</span><div className="reveal-relic">{discoveredRelic.icon}</div><h2>{discoveredRelic.name}</h2><p>{discoveredRelic.description}</p><small>ITS POWER IS NOW PERMANENTLY ACTIVE</small>
-            <button className="primary-button" onClick={() => setState((current) => ({ ...current, run: { ...current.run, discovery: null } }))}>Carry it into the Duat</button>
-          </section>
-        </div>
-      )}
-
-      {adOpen && (
-        <div className="modal-backdrop">
-          <section className="ad-modal">
-            <button className="modal-close" onClick={() => setAdOpen(false)} aria-label="Close">×</button>
-            <span className="eyebrow">Rewarded placement</span><div className="ad-slot"><span>YOUR AD PARTNER</span><b>Celestial sponsor placement</b><small>This slot is ready for your rewarded-video provider.</small></div>
-            <button className="primary-button" disabled={adSeconds > 0} onClick={claimAdReward}>{adSeconds > 0 ? `Reward unlocks in ${adSeconds}s` : "Claim solar blessing"}</button>
-            <p className="ad-disclosure">Optional sponsor rewards are capped and never interrupt play.</p>
-          </section>
-        </div>
-      )}
+      {notice && <button className="sandfall-notice" onClick={() => setNotice("")}>{notice}<span>×</span></button>}
     </main>
   );
 }

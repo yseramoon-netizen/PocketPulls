@@ -1,455 +1,200 @@
 .endless-duat-portal {
+  --ink: #08060b;
+  --sand-1: #d99c3c;
+  --sand-2: #a85f20;
+  --gold: #f0c669;
+  --cream: #fff1ca;
+  --line: rgba(240, 198, 105, .2);
   position: fixed;
   inset: 0;
   z-index: 200;
   overflow: auto;
+  color: #f8efd8;
   color-scheme: dark;
-  --ink: #070711;
-  --panel: rgba(17, 15, 31, 0.86);
-  --line: rgba(235, 196, 99, 0.2);
-  --gold: #edc66a;
-  --gold-bright: #ffe9a1;
-  --violet: #9d7cff;
-  --text: #f8f1dd;
+  background: #08060b;
+  font-family: var(--font-geist-sans), Inter, sans-serif;
 }
 
 .endless-duat-portal * { box-sizing: border-box; }
-.endless-duat-portal { background: var(--ink); }
-.endless-duat-portal .duat-player-constellation { position: fixed; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; background: radial-gradient(circle at 62% 45%, rgba(77, 51, 110, .19), transparent 35%), #05050c; }
-.endless-duat-portal .duat-player-constellation canvas { width: 100%; height: 100%; display: block; opacity: .86; }
-.endless-duat-portal { margin: 0; background: var(--ink); color: var(--text); font-family: var(--font-geist-sans), Inter, sans-serif; }
 .endless-duat-portal button { color: inherit; font: inherit; }
-.endless-duat-portal button:focus-visible { outline: 2px solid var(--gold-bright); outline-offset: 3px; }
-.endless-duat-portal button:disabled { cursor: not-allowed; }
-.endless-duat-portal .duat-exit { border: 1px solid rgba(237,198,106,.28); background: rgba(237,198,106,.07); border-radius: 9px; padding: 9px 12px; color: var(--gold-bright); cursor: pointer; font-size: 9px; white-space: nowrap; }
-.endless-duat-portal .duat-exit span { margin-right: 5px; font-size: 13px; }
+.endless-duat-portal button:focus-visible { outline: 2px solid #ffe49a; outline-offset: 3px; }
 html[data-duat-open="true"] [data-player-nav] { display: none !important; }
-.endless-duat-portal .duat-gate { min-height: 100vh; display: grid; place-content: center; justify-items: center; gap: 12px; padding: 28px; text-align: center; background: radial-gradient(circle at 50% 35%, rgba(116,75,190,.28), transparent 28%), #070711; }
-.endless-duat-portal .duat-gate-star { font-size: 56px; color: var(--gold); filter: drop-shadow(0 0 22px rgba(237,198,106,.7)); animation: gate-pulse 1.8s ease-in-out infinite; }
-.endless-duat-portal .duat-gate > span { color: var(--gold); font-size: 9px; letter-spacing: .24em; }
-.endless-duat-portal .duat-gate h1 { margin: 0; font: 38px Georgia, serif; color: #fff6df; }
-.endless-duat-portal .duat-gate p { max-width: 480px; color: #a69daf; font: italic 12px/1.6 Georgia, serif; }
-.endless-duat-portal .duat-gate button { border: 1px solid var(--gold); border-radius: 9px; background: rgba(237,198,106,.12); color: var(--gold-bright); padding: 11px 17px; cursor: pointer; }
-@keyframes gate-pulse { 50% { transform: scale(1.12) rotate(7deg); opacity: .75; } }
-@media (max-width: 600px) {
-  .endless-duat-portal .brand > span:last-child { display: none; }
-  .endless-duat-portal .duat-exit { padding: 8px; font-size: 0; }
-  .endless-duat-portal .duat-exit::after { content: "HQ"; font-size: 8px; }
-}
 
-.endless-duat-portal .game-shell {
+.duat-gate {
   min-height: 100vh;
-  background: linear-gradient(145deg, rgba(5,5,12,.82), rgba(11,9,21,.76) 50%, rgba(5,5,12,.84));
-  overflow-x: hidden; position: relative; z-index: 1;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 12px;
+  padding: 28px;
+  text-align: center;
+  background: radial-gradient(circle at 50% 36%, rgba(205, 135, 47, .22), transparent 28%), #08060b;
 }
-.endless-duat-portal .ambient-stars { display: none; }
+.duat-gate-star { color: var(--gold); font-size: 54px; filter: drop-shadow(0 0 22px rgba(240,198,105,.55)); animation: sandfall-pulse 1.8s ease-in-out infinite; }
+.duat-gate > span { color: var(--gold); font-size: 9px; letter-spacing: .24em; }
+.duat-gate h1 { margin: 0; color: var(--cream); font: 38px Georgia, serif; }
+.duat-gate p { max-width: 440px; margin: 0; color: #aaa0ae; font: italic 12px/1.6 Georgia, serif; }
+.duat-gate button { margin-top: 10px; border: 1px solid var(--gold); border-radius: 10px; padding: 11px 16px; background: rgba(240,198,105,.1); cursor: pointer; }
+@keyframes sandfall-pulse { 50% { opacity: .7; transform: translateY(5px) scale(1.08); } }
 
-.endless-duat-portal .topbar { height: 78px; border-bottom: 1px solid var(--line); background: rgba(6, 6, 14, .88); backdrop-filter: blur(20px); display: flex; align-items: center; justify-content: space-between; padding: 0 28px; position: sticky; top: 0; z-index: 30; }
-.endless-duat-portal .brand { background: none; border: 0; display: flex; align-items: center; gap: 13px; text-align: left; cursor: pointer; }
-.endless-duat-portal .brand-star { display: grid; place-items: center; width: 42px; height: 42px; color: #291c07; font-size: 21px; background: radial-gradient(circle, #fff4b1 0 20%, #e9b951 47%, #5d3309 100%); clip-path: polygon(50% 0,62% 33%,98% 35%,70% 57%,79% 94%,50% 72%,20% 94%,29% 58%,1% 35%,38% 33%); filter: drop-shadow(0 0 12px rgba(239,190,78,.55)); }
-.endless-duat-portal .brand b { display: block; color: var(--gold-bright); font-family: Georgia, serif; letter-spacing: .15em; font-size: 15px; }
-.endless-duat-portal .brand small { display: block; color: #868092; font-size: 10px; letter-spacing: .08em; margin-top: 3px; }
-.endless-duat-portal .resource-row { display: flex; align-items: center; gap: 8px; }
-.endless-duat-portal .resource-pill { display: flex; align-items: center; min-width: 101px; gap: 9px; padding: 8px 12px; border: 1px solid rgba(237,198,106,.15); border-radius: 12px; background: rgba(255,255,255,.025); }
-.endless-duat-portal .resource-pill > span { color: var(--gold); font-size: 16px; }
-.endless-duat-portal .resource-pill b, .endless-duat-portal .resource-pill small { display: block; line-height: 1; }
-.endless-duat-portal .resource-pill b { font-size: 13px; }
-.endless-duat-portal .resource-pill small { margin-top: 5px; font-size: 8px; color: #898394; text-transform: uppercase; letter-spacing: .12em; }
-.endless-duat-portal .resource-pill.flame > span { color: #ff874a; }
-.endless-duat-portal .resource-pill.wish { border-color: rgba(157,124,255,.28); background: rgba(113,72,205,.09); }
-.endless-duat-portal .resource-pill.wish > span { color: #b89bff; }
+.sandfall-shell {
+  min-height: 100vh;
+  background: #08060b;
+  overflow-x: hidden;
+  --artifact-colour: #f4dcaa;
+}
+.sandfall-shell.finding-uncommon { --artifact-colour: #70e0be; }
+.sandfall-shell.finding-rare { --artifact-colour: #6dbbff; }
+.sandfall-shell.finding-epic { --artifact-colour: #b28aff; }
+.sandfall-shell.finding-legendary { --artifact-colour: #ffd563; animation: legendary-screen 1.2s ease both; }
+@keyframes legendary-screen { 0%,100% { filter: none; } 22% { filter: brightness(1.35) saturate(1.2); } }
 
-.endless-duat-portal .game-layout { display: grid; grid-template-columns: 244px minmax(0, 1fr); min-height: calc(100vh - 78px); position: relative; z-index: 1; }
-.endless-duat-portal .sidebar { border-right: 1px solid var(--line); background: rgba(8,7,16,.72); backdrop-filter: blur(15px); padding: 23px 15px; display: flex; flex-direction: column; min-height: calc(100vh - 78px); position: sticky; top: 78px; height: calc(100vh - 78px); }
-.endless-duat-portal .player-seal { width:100%; display: grid; grid-template-columns: 38px 1fr auto; align-items: center; gap: 10px; border:0; border-bottom: 1px solid rgba(255,255,255,.07); padding: 0 6px 18px; background:none; text-align:left; cursor:pointer; }
-.endless-duat-portal .seal-avatar { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 50%; border: 1px solid var(--gold); background: radial-gradient(circle at 50% 35%, #6b4a1e, #17111f 60%); color: var(--gold-bright); font-family: Georgia, serif; }
-.endless-duat-portal .duat-nebu-sprite { display:block; width:160px; height:160px; margin:0 auto; image-rendering:pixelated; transform-origin:50% 85%; filter:var(--nebu-scene-filter,var(--nebu-image-filter)); transition:filter .2s ease; }
-.endless-duat-portal .duat-nebu-sprite.is-compact { width:46px; height:46px; transform:scale(1.22); }
-.endless-duat-portal .duat-nebu-sprite.action-idle { animation:duat-nebu-breathe 2.5s ease-in-out infinite; }
-.endless-duat-portal .duat-nebu-sprite.action-travel { animation:duat-nebu-travel .9s ease both; }
-.endless-duat-portal .duat-nebu-sprite.action-attack { animation:duat-nebu-swipe .46s ease both; }
-.endless-duat-portal .duat-nebu-sprite.action-pounce { animation:duat-nebu-pounce .72s cubic-bezier(.2,.8,.2,1) both; filter:var(--nebu-scene-filter,var(--nebu-image-filter)) drop-shadow(0 0 14px rgba(255,192,64,.7)); }
-.endless-duat-portal .duat-nebu-sprite.action-ward { animation:duat-nebu-ward .86s ease both; filter:var(--nebu-scene-filter,var(--nebu-image-filter)) drop-shadow(0 0 16px rgba(127,198,255,.8)); }
-.endless-duat-portal .duat-nebu-sprite.action-technique { animation:duat-nebu-technique .92s ease both; filter:var(--nebu-scene-filter,var(--nebu-image-filter)) drop-shadow(0 0 18px var(--nebu-performance-accent)); }
-.endless-duat-portal .duat-nebu-sprite.action-hurt { animation:duat-nebu-hurt .58s ease both; filter:var(--nebu-scene-filter,var(--nebu-image-filter)) brightness(.8) saturate(.75); }
-.endless-duat-portal .duat-nebu-sprite.action-victory { animation:duat-nebu-victory 1.15s ease both; }
-.endless-duat-portal .duat-nebu-sprite.action-defeat { transform:translateY(12px) rotate(-4deg); filter:var(--nebu-scene-filter,var(--nebu-image-filter)) grayscale(.45) brightness(.67); }
-.endless-duat-portal .badge-skin-sync { display:flex; align-items:center; gap:10px; margin:-8px 0 15px; padding:10px 13px; border:1px solid rgba(157,124,255,.32); border-radius:10px; background:rgba(157,124,255,.08); }
-.endless-duat-portal .badge-skin-sync > span { color:#c8afff; font-size:20px; }
-.endless-duat-portal .badge-skin-sync b,.endless-duat-portal .badge-skin-sync small { display:block; }
-.endless-duat-portal .badge-skin-sync b { color:#eee4ff; font-size:9px; }
-.endless-duat-portal .badge-skin-sync small { margin-top:3px; color:#968ca2; font-size:7px; }
-.endless-duat-portal .badge-wardrobe-button { width:100%; margin-top:13px; padding:9px 10px; border:1px solid color-mix(in srgb,var(--skin-accent),transparent 52%); border-radius:8px; background:color-mix(in srgb,var(--skin-accent),transparent 90%); color:var(--skin-accent); font-size:8px; font-weight:700; cursor:pointer; }
-@keyframes duat-nebu-breathe { 50% { transform:translateY(-4px); } }
-@keyframes duat-nebu-travel { 0% { opacity:.25; transform:translateX(-42px) scale(.88); } 70% { opacity:1; transform:translateX(8px) scale(1.04); } 100% { transform:none; } }
-@keyframes duat-nebu-swipe { 0%,100% { transform:none; } 46% { transform:translateX(24px) rotate(3deg) scale(1.08); } }
-@keyframes duat-nebu-pounce { 0% { transform:translate(-8px,5px) scale(.93); } 42% { transform:translate(42px,-22px) rotate(-7deg) scale(1.13); } 100% { transform:none; } }
-@keyframes duat-nebu-ward { 0%,100% { transform:none; } 48% { transform:scale(.92); opacity:.86; } }
-@keyframes duat-nebu-technique { 0%,100% { transform:none; } 45% { transform:translateY(-13px) scale(1.12); } }
-@keyframes duat-nebu-hurt { 25% { transform:translateX(-11px) rotate(-5deg); } 55% { transform:translateX(7px) rotate(3deg); } }
-@keyframes duat-nebu-victory { 50% { transform:translateY(-10px) scale(1.08); } }
-.endless-duat-portal .player-seal small, .endless-duat-portal .player-seal b { display: block; }
-.endless-duat-portal .player-seal small { color: #8d8298; font-size: 7px; letter-spacing: .15em; }
-.endless-duat-portal .player-seal b { font-size: 10px; margin-top: 3px; font-weight: 500; }
-.endless-duat-portal .seal-level { border: 1px solid rgba(157,124,255,.35); color: #c4adff; padding: 4px 6px; border-radius: 6px; font-size: 9px; }
-.endless-duat-portal .sidebar nav { display: grid; gap: 5px; margin: 18px 0; }
-.endless-duat-portal .sidebar nav button { height: 43px; border: 1px solid transparent; background: transparent; display: flex; align-items: center; gap: 12px; border-radius: 9px; color: #9992a6; cursor: pointer; padding: 0 13px; font-size: 12px; text-align: left; position: relative; }
-.endless-duat-portal .sidebar nav button > span { width: 20px; color: #746b80; text-align: center; }
-.endless-duat-portal .sidebar nav button.active { color: var(--gold-bright); background: linear-gradient(90deg, rgba(237,198,106,.13), rgba(237,198,106,.025)); border-color: rgba(237,198,106,.19); }
-.endless-duat-portal .sidebar nav button.active > span { color: var(--gold); filter: drop-shadow(0 0 7px rgba(237,198,106,.6)); }
-.endless-duat-portal .sidebar nav button i { margin-left: auto; font-style: normal; width: 18px; height: 18px; display: grid; place-items: center; border-radius: 50%; background: #7355d2; font-size: 8px; }
-.endless-duat-portal .prophecy-panel { border-top: 1px solid rgba(255,255,255,.06); padding-top: 17px; }
-.endless-duat-portal .section-kicker { display: flex; justify-content: space-between; align-items: center; margin: 0 5px 10px; }
-.endless-duat-portal .section-kicker span { font-family: Georgia, serif; color: #d4c7ac; font-size: 11px; }
-.endless-duat-portal .section-kicker small { color: #6d6674; font-size: 8px; }
-.endless-duat-portal .prophecy { width: 100%; display: flex; gap: 9px; align-items: center; background: none; border: 0; padding: 8px 5px; text-align: left; opacity: .7; }
-.endless-duat-portal .prophecy > span { width: 20px; height: 20px; display: grid; place-items: center; border: 1px solid #4c4657; border-radius: 50%; color: #706a78; font-size: 9px; }
-.endless-duat-portal .prophecy b, .endless-duat-portal .prophecy small { display: block; }
-.endless-duat-portal .prophecy b { font-size: 9px; font-weight: 500; color: #aaa3b1; }
-.endless-duat-portal .prophecy small { font-size: 8px; margin-top: 3px; color: #625c69; }
-.endless-duat-portal .prophecy.complete:not(:disabled) { cursor: pointer; opacity: 1; }
-.endless-duat-portal .prophecy.complete > span { color: #1b1303; background: var(--gold); border-color: var(--gold); box-shadow: 0 0 12px rgba(237,198,106,.35); }
-.endless-duat-portal .prophecy.complete small { color: var(--gold); }
-.endless-duat-portal .sidebar-bottom { margin-top: auto; border-top: 1px solid rgba(255,255,255,.07); padding: 15px 5px 0; display: grid; gap: 9px; }
-.endless-duat-portal .sidebar-bottom div { display: flex; justify-content: space-between; }
-.endless-duat-portal .sidebar-bottom small { color: #696370; font-size: 8px; }
-.endless-duat-portal .sidebar-bottom b { font-size: 8px; color: #b7adbd; font-weight: 500; }
+.sandfall-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  min-height: 72px;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 18px;
+  padding: 10px 22px;
+  border-bottom: 1px solid var(--line);
+  background: rgba(8,6,11,.94);
+  backdrop-filter: blur(18px);
+}
+.sandfall-brand { justify-self: start; display: flex; align-items: center; gap: 11px; border: 0; padding: 7px; background: none; cursor: pointer; text-align: left; }
+.sandfall-brand > span { display: grid; place-items: center; width: 34px; height: 34px; border: 1px solid rgba(240,198,105,.3); border-radius: 9px; color: var(--gold); background: rgba(240,198,105,.06); font-size: 17px; }
+.sandfall-brand b, .sandfall-brand small { display: block; }
+.sandfall-brand b { color: var(--cream); font-family: Georgia, serif; font-size: 13px; letter-spacing: .12em; }
+.sandfall-brand small { margin-top: 3px; color: #807783; font-size: 8px; letter-spacing: .15em; text-transform: uppercase; }
+.sandfall-stats { display: flex; align-items: stretch; border: 1px solid rgba(255,255,255,.06); border-radius: 13px; background: rgba(255,255,255,.025); }
+.sandfall-stats > div { min-width: 112px; padding: 8px 15px; text-align: center; }
+.sandfall-stats > div + div { border-left: 1px solid rgba(255,255,255,.07); }
+.sandfall-stats small, .sandfall-stats b { display: block; }
+.sandfall-stats small { color: #817987; font-size: 7px; letter-spacing: .14em; }
+.sandfall-stats b { margin-top: 4px; color: #fff3d0; font-size: 13px; }
+.sandfall-stats > div:nth-child(2) b { color: var(--gold); }
+.sandfall-stats > div:nth-child(3) b { color: #bba1ff; }
+.sandfall-exit { justify-self: end; border: 1px solid rgba(240,198,105,.3); border-radius: 9px; padding: 10px 13px; background: rgba(240,198,105,.07); color: #ffe49a !important; font-size: 9px !important; font-weight: 700; cursor: pointer; }
 
-.endless-duat-portal .content { min-width: 0; padding: 30px clamp(18px, 3vw, 47px) 60px; }
-.endless-duat-portal .adventure-view, .endless-duat-portal .kingdom-view, .endless-duat-portal .relics-view, .endless-duat-portal .skins-view, .endless-duat-portal .forge-view { width: min(1320px, 100%); margin: 0 auto; animation: view-in .35s ease both; }
-@keyframes view-in { from { opacity: 0; transform: translateY(8px); } }
-.endless-duat-portal .view-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; margin-bottom: 23px; }
-.endless-duat-portal .eyebrow { display: block; color: var(--gold); font-size: 8px; text-transform: uppercase; letter-spacing: .21em; font-weight: 700; }
-.endless-duat-portal .view-heading h1 { margin: 6px 0 3px; font: 400 clamp(28px, 3.3vw, 44px)/1 Georgia, serif; letter-spacing: -.025em; color: #fff6df; }
-.endless-duat-portal .view-heading p { color: #898291; font: italic 12px Georgia, serif; margin: 8px 0 0; }
-.endless-duat-portal .quiet-button { border: 1px solid rgba(237,198,106,.17); background: rgba(255,255,255,.025); padding: 9px 13px; border-radius: 8px; color: #aaa0af; font-size: 9px; cursor: pointer; }
-.endless-duat-portal .quiet-button:disabled { opacity: .35; }
+.sandfall-layout { display: grid; grid-template-columns: minmax(0, 1fr) 365px; min-height: calc(100vh - 72px); }
+.dig-chamber { position: sticky; top: 72px; height: calc(100vh - 72px); min-height: 560px; overflow: hidden; border-right: 1px solid var(--line); background: #211109; }
+.dig-zone { position: absolute; inset: 0; width: 100%; border: 0; padding: 0; overflow: hidden; cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32'%3E%3Ctext y='25' font-size='25'%3E%E2%9B%8F%3C/text%3E%3C/svg%3E") 5 25, pointer; touch-action: manipulation; user-select: none; background: linear-gradient(90deg,#2a150b 0 12%,#68391b 12% 18%,#b56f2c 18% 82%,#68391b 82% 88%,#2a150b 88%); }
+.sand-glow { position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 45%, rgba(255,217,125,.18), transparent 42%), linear-gradient(rgba(41,20,9,.05), rgba(24,11,7,.45)); pointer-events: none; }
+.sand-strata { position: absolute; inset: -300px 0; transform: translateY(var(--shaft-shift)); background:
+  radial-gradient(ellipse at 33% 13%, rgba(85,39,13,.4) 0 3px, transparent 4px),
+  radial-gradient(ellipse at 64% 27%, rgba(255,220,146,.15) 0 2px, transparent 3px),
+  radial-gradient(ellipse at 47% 46%, rgba(78,33,11,.38) 0 4px, transparent 5px),
+  repeating-linear-gradient(178deg, transparent 0 39px, rgba(87,39,12,.22) 40px 42px, transparent 44px 83px),
+  linear-gradient(90deg, rgba(84,38,14,.3), transparent 28% 72%, rgba(84,38,14,.3));
+  background-size: 120px 140px, 160px 180px, 190px 210px, auto, auto;
+  animation: strata-drift 2.2s linear infinite;
+  pointer-events: none;
+}
+@keyframes strata-drift { to { transform: translateY(calc(var(--shaft-shift) + 120px)); } }
+.shaft-walls { position: absolute; inset: 0; pointer-events: none; }
+.shaft-walls i { position: absolute; top: 0; bottom: 0; width: 18%; background: repeating-linear-gradient(78deg, rgba(24,10,6,.72) 0 13px, rgba(73,34,14,.68) 14px 29px, rgba(39,17,8,.73) 30px 45px); box-shadow: inset 0 0 35px #120705; }
+.shaft-walls i:first-child { left: 0; clip-path: polygon(0 0,100% 0,75% 14%,100% 28%,68% 44%,93% 62%,72% 76%,100% 89%,82% 100%,0 100%); }
+.shaft-walls i:last-child { right: 0; clip-path: polygon(0 0,100% 0,100% 100%,17% 100%,0 88%,28% 74%,7% 60%,33% 42%,4% 26%,24% 12%); }
+.buried-shape { position: absolute; color: rgba(75,37,13,.38); font-family: Georgia, serif; text-shadow: 0 1px rgba(255,221,152,.1); pointer-events: none; animation: buried-scroll 5.3s linear infinite; }
+.shape-one { left: 24%; top: 14%; font-size: 33px; animation-delay: -1.6s; }
+.shape-two { right: 22%; top: 52%; font-size: 25px; animation-delay: -4.1s; }
+.shape-three { left: 31%; top: 78%; font-size: 38px; animation-delay: -2.7s; }
+@keyframes buried-scroll { from { transform: translateY(-100px) rotate(-8deg); } to { transform: translateY(740px) rotate(12deg); } }
+.depth-line { position: absolute; left: calc(18% + 13px); top: 50%; width: 86px; border-top: 1px solid rgba(255,230,164,.3); pointer-events: none; }
+.depth-line span { position: absolute; top: -18px; left: 0; color: rgba(255,235,181,.7); font-size: 8px; font-weight: 800; letter-spacing: .12em; }
 
-.endless-duat-portal .duat-stage { height: min(52vh, 490px); min-height: 390px; border: 1px solid rgba(237,198,106,.21); border-radius: 17px; overflow: hidden; position: relative; background: radial-gradient(circle at 50% 25%, rgba(110,73,164,.32), transparent 29%), linear-gradient(#100c20, #171023 54%, #2a1716 100%); box-shadow: inset 0 0 80px rgba(0,0,0,.55), 0 24px 60px rgba(0,0,0,.24); }
-.endless-duat-portal .duat-stage::before { content: ""; position: absolute; inset: 0; opacity: .6; background-image: radial-gradient(circle, #fff 0 1px, transparent 1.2px); background-size: 73px 73px; mask-image: linear-gradient(#000, transparent 72%); }
-.endless-duat-portal .stage-moon { position: absolute; width: 78px; height: 78px; border-radius: 50%; background: radial-gradient(circle at 42% 38%, #fff3c9 0 6%, #ddbf7a 35%, #8d5d37 74%, transparent 75%); left: 50%; top: 38px; transform: translateX(-50%); box-shadow: 0 0 25px rgba(242,205,123,.7), 0 0 90px rgba(184,112,69,.37); }
-.endless-duat-portal .stage-moon::after { content: ""; position: absolute; inset: 9px 14px 17px 8px; border-radius: 50%; box-shadow: inset 7px 1px rgba(101,66,51,.24), inset -5px -2px rgba(255,244,204,.17); }
-.endless-duat-portal .stage-pyramid { position: absolute; bottom: 58px; width: 280px; height: 175px; clip-path: polygon(50% 0,100% 100%,0 100%); background: linear-gradient(115deg, #1b1020 48%, #0b0911 49%); opacity: .88; }
-.endless-duat-portal .pyramid-one { left: -20px; transform: scale(.8); transform-origin: bottom; }
-.endless-duat-portal .pyramid-two { right: -50px; transform: scale(.62); transform-origin: bottom; }
-.endless-duat-portal .stage-dunes { position: absolute; height: 130px; left: -5%; right: -5%; bottom: -28px; background: radial-gradient(ellipse at 15% 100%, #7d4a27 0 33%, transparent 34%), radial-gradient(ellipse at 55% 100%, #5d371e 0 42%, transparent 43%), radial-gradient(ellipse at 90% 100%, #8a4e27 0 36%, transparent 37%); filter: drop-shadow(0 -12px 18px rgba(231,130,60,.08)); }
-.endless-duat-portal .constellation-lines { position: absolute; inset: 0; opacity: .38; }
-.endless-duat-portal .constellation-lines i { position: absolute; height: 1px; transform-origin: left; background: linear-gradient(90deg, rgba(164,129,255,.12), rgba(209,185,255,.8), rgba(164,129,255,.1)); }
-.endless-duat-portal .constellation-lines i::after { content:""; position:absolute; right:0; top:-2px; width:5px; height:5px; background:#e4d4ff; border-radius:50%; box-shadow:0 0 9px #a276ff; }
-.endless-duat-portal .constellation-lines i:nth-child(1){width:190px;left:13%;top:24%;transform:rotate(13deg)}
-.endless-duat-portal .constellation-lines i:nth-child(2){width:150px;left:28%;top:30%;transform:rotate(-18deg)}
-.endless-duat-portal .constellation-lines i:nth-child(3){width:180px;right:12%;top:19%;transform:rotate(28deg)}
-.endless-duat-portal .constellation-lines i:nth-child(4){width:110px;right:19%;top:36%;transform:rotate(-33deg)}
-.endless-duat-portal .constellation-lines i:nth-child(5){width:130px;left:43%;top:15%;transform:rotate(70deg)}
-.endless-duat-portal .fighter { position: absolute; z-index: 6; width: 220px; bottom: 65px; }
-.endless-duat-portal .nebu-fighter { left: 11%; }
-.endless-duat-portal .enemy-fighter { right: 11%; }
-.endless-duat-portal .fighter-label { display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;text-shadow:0 2px 3px #000; }
-.endless-duat-portal .fighter-label b { font: 15px Georgia, serif; }
-.endless-duat-portal .fighter-label span, .endless-duat-portal .fighter > small { font-size:8px;color:#b8adbc; }
-.endless-duat-portal .fighter > small { display:block;margin-top:5px;text-align:right; }
-.endless-duat-portal .meter { height:7px;border:1px solid rgba(255,255,255,.19);background:#15121a;border-radius:10px;overflow:hidden;box-shadow:inset 0 1px 3px #000; }
-.endless-duat-portal .meter span { display:block;height:100%;background:linear-gradient(90deg,#7f4dca,#cda9ff);box-shadow:0 0 10px #a874ff;transition:width .3s ease; }
-.endless-duat-portal .meter.danger span { background:linear-gradient(90deg,#a9393f,#ef856d);box-shadow:0 0 10px #e24d4d; }
-.endless-duat-portal .nebu { width: 150px; height: 135px; margin: 21px auto 0; position: relative; filter: drop-shadow(0 17px 11px rgba(0,0,0,.52)); animation: nebu-breathe 2.4s ease-in-out infinite; }
-.endless-duat-portal .nebu-aura { position:absolute;width:120px;height:65px;left:19px;bottom:2px;border-radius:50%;background:radial-gradient(ellipse,rgba(163,114,255,.3),transparent 67%);filter:blur(8px); }
-.endless-duat-portal .nebu-body { position:absolute;width:90px;height:57px;left:36px;bottom:25px;border-radius:48% 54% 40% 44%;background:radial-gradient(circle at 57% 40%,#4e347b 0 2%,transparent 3%),radial-gradient(circle at 30% 64%,#8b64cc 0 2%,transparent 3%),linear-gradient(135deg,#33234f,#181424 60%,#4d2a67);box-shadow:inset 8px 5px 13px rgba(180,128,255,.15),0 0 13px rgba(133,81,210,.22); }
-.endless-duat-portal .nebu-head { position:absolute;width:62px;height:58px;left:18px;bottom:47px;border-radius:43% 43% 48% 48%;background:linear-gradient(145deg,#442b66,#171421 63%,#3a2255);box-shadow:inset 6px 5px 9px rgba(181,141,241,.14);z-index:2; }
-.endless-duat-portal .ear { position:absolute;width:25px;height:31px;top:-17px;background:linear-gradient(145deg,#533175,#1b1526);clip-path:polygon(50% 0,100% 100%,0 80%); }
-.endless-duat-portal .ear-left{left:2px;transform:rotate(-13deg)}.endless-duat-portal .ear-right{right:1px;transform:rotate(15deg) scaleX(-1)}
-.endless-duat-portal .eye { position:absolute;top:23px;width:7px;height:11px;border-radius:50%;background:#f5d86f;box-shadow:0 0 9px #dcae38; }
-.endless-duat-portal .eye::after{content:"";position:absolute;width:2px;height:9px;left:3px;top:1px;background:#1a1020;border-radius:50%}.endless-duat-portal .eye-left{left:15px}.endless-duat-portal .eye-right{right:15px}
-.endless-duat-portal .nebu-mark{position:absolute;left:26px;top:5px;color:#c39af3;font-style:normal;font-size:10px;text-shadow:0 0 8px #a96dff}.endless-duat-portal .nebu-tail{position:absolute;width:75px;height:56px;right:-3px;bottom:45px;border:12px solid #2b1a40;border-left-color:transparent;border-bottom-color:transparent;border-radius:50%;transform:rotate(18deg);animation:tail-swish 2.5s ease-in-out infinite;transform-origin:left bottom}.endless-duat-portal .nebu-paw{position:absolute;width:23px;height:34px;bottom:10px;border-radius:0 0 12px 12px;background:linear-gradient(#2e1d44,#16131d)}.endless-duat-portal .paw-one{left:51px}.endless-duat-portal .paw-two{left:96px}
-@keyframes nebu-breathe{50%{transform:translateY(-4px)}}@keyframes tail-swish{50%{transform:rotate(3deg)}}
-.endless-duat-portal .nebu.is-fighting { animation: nebu-attack .82s ease-in-out infinite; }
-@keyframes nebu-attack { 0%, 100%{transform:translateX(0)} 45%{transform:translateX(28px) translateY(-4px)} }
-.endless-duat-portal .nebu.is-defeated { animation:none;transform:rotate(-7deg) translateY(12px);filter:grayscale(.6) brightness(.6); }
-.endless-duat-portal .nebu.skin-cosmic_nebu{filter:drop-shadow(0 0 12px #8e5cff) drop-shadow(0 17px 11px rgba(0,0,0,.52))}.endless-duat-portal .nebu.skin-cosmic_nebu .nebu-body,.endless-duat-portal .nebu.skin-cosmic_nebu .nebu-head{background:radial-gradient(circle at 68% 28%,#fff 0 1px,transparent 2px),radial-gradient(circle at 32% 58%,#e8c8ff 0 1px,transparent 2px),radial-gradient(circle at 74% 72%,#8be8ff 0 1px,transparent 2px),linear-gradient(135deg,#7648bf,#172c57 50%,#5c237c);box-shadow:inset 8px 5px 14px rgba(255,255,255,.2),0 0 18px #7246cc}.endless-duat-portal .nebu.skin-cosmic_nebu .nebu-tail,.endless-duat-portal .nebu.skin-cosmic_nebu .nebu-paw{border-color:#543382;border-left-color:transparent;border-bottom-color:transparent;background:linear-gradient(#66419c,#192553)}.endless-duat-portal .nebu.skin-cosmic_nebu .nebu-aura{background:radial-gradient(ellipse,rgba(102,194,255,.55),rgba(155,81,255,.28),transparent 70%)}.endless-duat-portal .nebu.skin-cosmic_nebu .nebu-mark{font-size:16px;color:white}.endless-duat-portal .nebu.skin-cosmic_nebu .eye{background:#bdf5ff;box-shadow:0 0 11px #68ddff}
-.endless-duat-portal .nebu.skin-pharaoh .nebu-body,.endless-duat-portal .nebu.skin-pharaoh .nebu-head{background:linear-gradient(135deg,#d99f34,#3d2853 32%,#15121d 62%,#bf792d);box-shadow:inset 7px 5px 12px rgba(255,224,127,.2)}.endless-duat-portal .nebu.skin-pharaoh .nebu-head::after{content:"";position:absolute;left:7px;right:7px;top:-12px;height:18px;background:linear-gradient(90deg,#3976a6,#f0bf52,#3976a6);clip-path:polygon(0 25%,43% 25%,50% 0,57% 25%,100% 25%,88% 100%,12% 100%)}.endless-duat-portal .nebu.skin-pharaoh .nebu-tail{border-color:#986025;border-left-color:transparent;border-bottom-color:transparent}.endless-duat-portal .nebu.skin-pharaoh .nebu-mark{color:#ffe59b;text-shadow:0 0 8px #f1b83d}
-.endless-duat-portal .nebu.skin-sun-god{filter:drop-shadow(0 0 13px rgba(255,126,38,.8)) drop-shadow(0 17px 11px rgba(0,0,0,.52))}.endless-duat-portal .nebu.skin-sun-god .nebu-body,.endless-duat-portal .nebu.skin-sun-god .nebu-head{background:radial-gradient(circle at 60% 35%,#fff0a3,#ec8b27 28%,#9f3023 62%,#351524);box-shadow:inset 5px 4px 12px rgba(255,244,155,.55),0 0 17px #df5728}.endless-duat-portal .nebu.skin-sun-god .nebu-tail{border-color:#e05c29;border-left-color:transparent;border-bottom-color:transparent}.endless-duat-portal .nebu.skin-sun-god .nebu-aura{background:radial-gradient(ellipse,rgba(255,188,62,.7),rgba(255,63,26,.3),transparent 70%)}.endless-duat-portal .nebu.skin-sun-god .eye{background:white;box-shadow:0 0 11px white}.endless-duat-portal .nebu.skin-sun-god .nebu-mark{color:#fff;text-shadow:0 0 9px white}
-.endless-duat-portal .nebu.skin-bubbles .nebu-body,.endless-duat-portal .nebu.skin-bubbles .nebu-head{background:linear-gradient(145deg,#fffaf0 0 34%,#221b17 35% 58%,#c87924 59% 80%,#4a3325 81%);box-shadow:inset 7px 5px 10px rgba(255,255,255,.16)}.endless-duat-portal .nebu.skin-bubbles .nebu-tail{border-color:#111319;border-left-color:transparent;border-bottom-color:transparent}.endless-duat-portal .nebu.skin-bubbles .eye{background:#779b38;box-shadow:0 0 10px #9fbd52}.endless-duat-portal .nebu.skin-bubbles .nebu-mark{color:#d3aa5c;text-shadow:0 0 8px #d3aa5c}.endless-duat-portal .nebu.skin-bubbles .nebu-aura{background:radial-gradient(ellipse,rgba(119,155,56,.34),transparent 67%)}
-.endless-duat-portal .nebu.skin-sherry .nebu-body,.endless-duat-portal .nebu.skin-sherry .nebu-head{background:linear-gradient(145deg,#161719,#060708 62%,#16231e);box-shadow:inset 7px 4px 10px rgba(67,125,98,.18),0 0 12px rgba(40,118,80,.18)}.endless-duat-portal .nebu.skin-sherry .nebu-tail{border-color:#090b0b;border-left-color:transparent;border-bottom-color:transparent}.endless-duat-portal .nebu.skin-sherry .eye{background:#2bd27d;box-shadow:0 0 12px #17a95e}.endless-duat-portal .nebu.skin-sherry .nebu-mark{color:#3ba878;text-shadow:0 0 8px #257851}.endless-duat-portal .nebu.skin-sherry .nebu-aura{background:radial-gradient(ellipse,rgba(38,150,94,.35),transparent 67%)}
-.endless-duat-portal .enemy-avatar { width: 125px; height: 125px; display:grid;place-items:center;margin:12px auto 0;border-radius:48% 52% 44% 54%;background:radial-gradient(circle,rgba(185,69,76,.42),rgba(29,10,17,.92) 65%);border:1px solid rgba(229,92,99,.27);box-shadow:0 0 35px rgba(187,47,65,.2);font-size:58px;color:#b24a55;text-shadow:0 0 18px #dd5961;animation:enemy-pulse 1.7s ease-in-out infinite; }
-.endless-duat-portal .enemy-avatar.elite { color:#ff8b5f;border-color:#f7b04d;box-shadow:0 0 45px rgba(255,93,54,.32); }
-.endless-duat-portal .enemy-avatar.boss{width:148px;height:148px;font-size:68px;color:#ffd07c;border:2px solid #dc8a43;background:radial-gradient(circle,rgba(221,84,49,.58),rgba(31,8,18,.95) 68%);box-shadow:0 0 25px #b8453d,0 0 70px rgba(184,63,69,.45);animation:boss-pulse 1.15s ease-in-out infinite}
-@keyframes boss-pulse{50%{transform:scale(1.06) rotate(2deg);filter:brightness(1.3)}}
-@keyframes enemy-pulse{50%{transform:scale(1.04);filter:brightness(1.18)}}
-.endless-duat-portal .stage-message { position:absolute;left:50%;top:51%;transform:translate(-50%,-50%);text-align:center;z-index:8;text-shadow:0 2px 18px #000; }
-.endless-duat-portal .stage-message span,.endless-duat-portal .stage-message b{display:block}.endless-duat-portal .stage-message span{font-size:8px;letter-spacing:.3em;color:var(--gold)}.endless-duat-portal .stage-message b{font:21px Georgia,serif;margin-top:7px;color:#fff2d4}
-.endless-duat-portal .battle-controls { position:absolute;left:50%;bottom:21px;transform:translateX(-50%);z-index:9;text-align:center;display:flex;gap:7px; }
-.endless-duat-portal .power-button { min-width:165px;display:flex;gap:9px;align-items:center;text-align:left;border:1px solid rgba(194,158,255,.48);background:linear-gradient(135deg,rgba(75,45,122,.9),rgba(27,19,45,.94));border-radius:12px;padding:9px 11px;cursor:pointer;box-shadow:0 0 22px rgba(127,74,210,.25); }
-.endless-duat-portal .power-button:disabled{opacity:.48}.endless-duat-portal .power-icon{width:28px;height:28px;display:grid;place-items:center;border-radius:50%;color:#f7e3ff;background:#7a4abb;box-shadow:0 0 13px #955ce4}.endless-duat-portal .power-button b,.endless-duat-portal .power-button small{display:block}.endless-duat-portal .power-button b{font-size:11px}.endless-duat-portal .power-button small{font-size:8px;color:#ada0bb;margin-top:3px}.endless-duat-portal .auto-label{font-size:7px;color:#77707c;margin-top:7px}.endless-duat-portal .auto-label i{display:inline-block;width:5px;height:5px;background:#67d59b;border-radius:50%;box-shadow:0 0 6px #67d59b;margin-right:4px}
-.endless-duat-portal .power-button.lunar{border-color:rgba(112,166,255,.43);background:linear-gradient(135deg,rgba(36,67,121,.92),rgba(17,20,38,.95))}.endless-duat-portal .power-button.lunar .power-icon{background:#416da9;box-shadow:0 0 13px #5f9ff1}.endless-duat-portal .power-button.nova{border-color:rgba(237,198,106,.42);background:linear-gradient(135deg,rgba(111,70,20,.9),rgba(31,22,24,.95))}.endless-duat-portal .power-button.nova .power-icon{background:#a56c25;box-shadow:0 0 13px #e9a84e}.endless-duat-portal .battle-controls .auto-label{position:absolute;top:100%;left:0;right:0}
-.endless-duat-portal .defeat-card { position:absolute;z-index:12;left:50%;top:50%;transform:translate(-50%,-50%);width:min(460px,85%);padding:28px;text-align:center;border:1px solid rgba(237,198,106,.27);border-radius:15px;background:rgba(10,8,17,.92);box-shadow:0 20px 60px #000; }
-.endless-duat-portal .defeat-card>span{font-size:8px;letter-spacing:.23em;color:#b6635d}.endless-duat-portal .defeat-card h2{font:23px Georgia,serif;margin:8px 0}.endless-duat-portal .defeat-card p{font:italic 11px Georgia,serif;line-height:1.65;color:#948b98;max-width:340px;margin:0 auto 17px}
-.endless-duat-portal .primary-button { border:1px solid #eac86f;background:linear-gradient(135deg,#ddae4f,#7c4c1c);color:#1c1105;border-radius:9px;padding:11px 18px;font-weight:700;font-size:10px;cursor:pointer;box-shadow:0 0 18px rgba(223,169,65,.22); }
-.endless-duat-portal .primary-button:disabled{filter:grayscale(1);opacity:.38}
+.nebu-digger { position: absolute; left: 50%; top: 44%; width: clamp(185px,27vw,310px); aspect-ratio: 1; transform: translate(-50%,-50%); pointer-events: none; filter: drop-shadow(0 22px 25px rgba(31,13,6,.5)); }
+.sand-nebu { position: absolute !important; inset: 0; width: 100% !important; height: 100% !important; image-rendering: pixelated; z-index: 3; }
+.nebu-digger.is-digging { animation: nebu-dig-jolt .18s ease both; }
+@keyframes nebu-dig-jolt { 45% { transform: translate(-50%,-47%) scale(1.05) rotate(-2deg); } }
+.nebu-aura { position: absolute; inset: 18%; border-radius: 50%; background: radial-gradient(circle, rgba(255,225,141,.22), transparent 68%); filter: blur(12px); }
+.dig-shadow { position: absolute; left: 21%; right: 21%; bottom: 12%; height: 13%; border-radius: 50%; background: rgba(38,15,5,.5); filter: blur(9px); z-index: 1; }
+.sand-spray { position: absolute; left: 25%; right: 25%; bottom: 12%; height: 30%; z-index: 4; }
+.sand-spray i { position: absolute; bottom: 0; width: 7px; height: 7px; border-radius: 50%; background: #f1bd62; opacity: .8; animation: spray 1.2s ease-out infinite; }
+.sand-spray i:nth-child(1) { left: 5%; animation-delay: -.2s; }.sand-spray i:nth-child(2) { left: 25%; animation-delay: -.7s; }.sand-spray i:nth-child(3) { left: 43%; animation-delay: -.45s; }.sand-spray i:nth-child(4) { right: 32%; animation-delay: -.92s; }.sand-spray i:nth-child(5) { right: 15%; animation-delay: -.12s; }.sand-spray i:nth-child(6) { right: 2%; animation-delay: -.58s; }
+@keyframes spray { from { opacity: .8; transform: translateY(0) scale(1); } to { opacity: 0; transform: translateY(-80px) translateX(var(--spray-x,18px)) scale(.25); } }
+.tap-callout { position: absolute; left: 50%; bottom: 110px; transform: translateX(-50%); text-align: center; pointer-events: none; text-shadow: 0 2px 12px #4c250d; }
+.tap-callout b, .tap-callout small { display: block; }
+.tap-callout b { color: #fff1c8; font-size: 13px; letter-spacing: .18em; }
+.tap-callout small { margin-top: 6px; color: rgba(255,236,189,.68); font-size: 9px; }
+.rush-meter { position: absolute; left: 50%; bottom: 44px; width: min(360px,66%); height: 43px; transform: translateX(-50%); overflow: hidden; border: 1px solid rgba(255,226,157,.3); border-radius: 12px; background: rgba(45,20,7,.64); box-shadow: 0 12px 38px rgba(25,10,5,.35); pointer-events: none; }
+.rush-meter > span { position: absolute; inset: 0 auto 0 0; background: linear-gradient(90deg,rgba(236,147,40,.25),rgba(255,212,104,.6)); box-shadow: 0 0 22px rgba(255,196,70,.35); transition: width .08s linear; }
+.rush-meter > div { position: absolute; inset: 0; display: flex; justify-content: space-between; align-items: center; padding: 0 14px; }
+.rush-meter b { color: #fff1c9; font-size: 8px; letter-spacing: .15em; }.rush-meter small { color: #f7d58d; font-size: 8px; }
+.tap-burst { position: absolute; z-index: 8; color: #fff2c7; font-size: 11px; font-weight: 900; pointer-events: none; text-shadow: 0 1px 6px #6b310f; animation: tap-float .65s ease-out both; }
+@keyframes tap-float { to { opacity: 0; transform: translateY(-70px) scale(1.35); } }
 
-.endless-duat-portal .routes-section { margin-top:27px; }
-.endless-duat-portal .section-title { display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:13px}.endless-duat-portal .section-title h2{font:23px Georgia,serif;margin:5px 0 0}.endless-duat-portal .depth-marker{font-size:7px;letter-spacing:.2em;color:#68616f}
-.endless-duat-portal .route-grid { display:grid;grid-template-columns:repeat(3,1fr);gap:12px; }
-.endless-duat-portal .route-card { min-height:192px;position:relative;overflow:hidden;text-align:left;padding:23px 20px 17px;border:1px solid rgba(237,198,106,.16);border-radius:12px;background:linear-gradient(145deg,rgba(31,25,42,.88),rgba(11,10,19,.93));cursor:pointer;transition:.22s ease; }
-.endless-duat-portal .route-card::before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 85% 20%,rgba(237,198,106,.08),transparent 35%);opacity:0;transition:.2s}.endless-duat-portal .route-card:hover{transform:translateY(-4px);border-color:rgba(237,198,106,.48);box-shadow:0 16px 35px rgba(0,0,0,.32)}.endless-duat-portal .route-card:hover::before{opacity:1}.endless-duat-portal .route-number{position:absolute;right:13px;top:10px;font:25px Georgia,serif;color:rgba(255,255,255,.035)}.endless-duat-portal .route-symbol{display:grid;place-items:center;width:36px;height:36px;border:1px solid rgba(237,198,106,.24);border-radius:50%;color:var(--gold);margin-bottom:12px;background:rgba(237,198,106,.05)}.endless-duat-portal .route-card>b{display:block;font:18px Georgia,serif;margin-top:5px}.endless-duat-portal .route-card p{font:italic 10px/1.55 Georgia,serif;color:#8f8795;margin:7px 0 13px}.endless-duat-portal .route-meta{display:flex;justify-content:space-between;gap:10px;border-top:1px solid rgba(255,255,255,.06);padding-top:9px}.endless-duat-portal .route-meta small{font-size:7px;color:#796f7e}.endless-duat-portal .route-meta small:first-child{color:#bc8d55}.endless-duat-portal .enter-route{display:flex;justify-content:space-between;margin-top:12px;font-size:8px;text-transform:uppercase;letter-spacing:.13em;color:#a79da9}.endless-duat-portal .enter-route i{font-style:normal;color:var(--gold);font-size:13px}.endless-duat-portal .route-elite{border-color:rgba(231,90,71,.27);background:linear-gradient(145deg,rgba(53,19,27,.65),rgba(13,9,18,.95))}.endless-duat-portal .route-elite .route-symbol{color:#ff8b64;border-color:rgba(255,104,72,.34)}.endless-duat-portal .route-mystery .route-symbol{color:#c4a8ff;border-color:rgba(157,124,255,.36)}
+.artifact-reveal { position: absolute; z-index: 20; top: 50%; left: 50%; width: min(350px,78%); min-height: 365px; transform: translate(-50%,-53%); display: flex; flex-direction: column; align-items: center; justify-content: center; border: 1px solid color-mix(in srgb,var(--artifact-colour),transparent 42%); border-radius: 24px; padding: 30px; overflow: hidden; background: radial-gradient(circle at 50% 30%,color-mix(in srgb,var(--artifact-colour),transparent 74%),transparent 45%),rgba(12,8,12,.94); box-shadow: 0 25px 90px rgba(0,0,0,.58),0 0 70px color-mix(in srgb,var(--artifact-colour),transparent 75%); cursor: pointer; animation: artifact-arrive .55s cubic-bezier(.2,.9,.2,1.15) both; }
+@keyframes artifact-arrive { from { opacity: 0; transform: translate(-50%,-45%) scale(.62); } }
+.artifact-rays { position: absolute; width: 310px; height: 310px; background: repeating-conic-gradient(from 0deg,color-mix(in srgb,var(--artifact-colour),transparent 78%) 0 4deg,transparent 5deg 20deg); border-radius: 50%; animation: rays-spin 15s linear infinite; mask-image: radial-gradient(circle,black,transparent 70%); }
+@keyframes rays-spin { to { transform: rotate(360deg); } }
+.artifact-icon { position: relative; display: grid; place-items: center; width: 112px; height: 112px; border: 1px solid color-mix(in srgb,var(--artifact-colour),transparent 30%); border-radius: 50%; color: var(--artifact-colour); background: rgba(0,0,0,.35); box-shadow: inset 0 0 30px color-mix(in srgb,var(--artifact-colour),transparent 82%),0 0 36px color-mix(in srgb,var(--artifact-colour),transparent 52%); font: 56px Georgia,serif; }
+.artifact-rarity { position: relative; margin-top: 23px; color: var(--artifact-colour); font-size: 8px; font-weight: 900; letter-spacing: .24em; text-transform: uppercase; }
+.artifact-reveal > b { position: relative; margin-top: 8px; color: #fff5dc; font: 24px/1.15 Georgia,serif; text-align: center; }
+.artifact-reveal > small { position: relative; margin-top: 8px; color: #9a909c; font-size: 9px; }.artifact-reveal > strong { position: relative; margin-top: 20px; color: var(--artifact-colour); font-size: 10px; letter-spacing: .08em; }
+.rarity-common { --artifact-colour: #f4dcaa; }.rarity-uncommon { --artifact-colour: #70e0be; }.rarity-rare { --artifact-colour: #6dbbff; }.rarity-epic { --artifact-colour: #b28aff; }.rarity-legendary { --artifact-colour: #ffd563; }
+.rarity-legendary .artifact-icon { animation: legendary-icon 1.2s ease-in-out infinite alternate; }
+@keyframes legendary-icon { to { transform: scale(1.06); box-shadow: inset 0 0 40px rgba(255,213,99,.25),0 0 62px rgba(255,213,99,.8); } }
 
-.endless-duat-portal .output-badge,.endless-duat-portal .collection-count,.endless-duat-portal .wish-total{border:1px solid var(--line);border-radius:11px;padding:11px 15px;text-align:right;background:rgba(255,255,255,.025)}.endless-duat-portal .output-badge small,.endless-duat-portal .output-badge b,.endless-duat-portal .collection-count small,.endless-duat-portal .collection-count b{display:block}.endless-duat-portal .output-badge small,.endless-duat-portal .collection-count small{font-size:8px;color:#7f7785}.endless-duat-portal .output-badge b{font-size:12px;color:var(--gold);margin-top:4px}.endless-duat-portal .collection-count b{font:25px Georgia,serif;color:var(--gold-bright)}
-.endless-duat-portal .kingdom-scene{height:300px;border:1px solid var(--line);border-radius:16px;position:relative;overflow:hidden;background:linear-gradient(#100b21,#1c1230 60%,#5a3022);box-shadow:inset 0 -60px 80px rgba(0,0,0,.4);margin-bottom:18px}.endless-duat-portal .kingdom-sky{position:absolute;inset:0;background-image:radial-gradient(circle,#fff 0 1px,transparent 1.2px);background-size:81px 81px;opacity:.35}.endless-duat-portal .kingdom-sky i{position:absolute;width:3px;height:3px;background:var(--gold-bright);border-radius:50%;box-shadow:0 0 9px #ffd468}.endless-duat-portal .kingdom-sky i:nth-child(1){left:13%;top:25%}.endless-duat-portal .kingdom-sky i:nth-child(2){left:29%;top:16%}.endless-duat-portal .kingdom-sky i:nth-child(3){right:26%;top:22%}.endless-duat-portal .kingdom-sky i:nth-child(4){right:12%;top:37%}.endless-duat-portal .kingdom-sky i:nth-child(5){left:58%;top:12%}.endless-duat-portal .kingdom-moon{position:absolute;left:50%;top:40px;transform:translateX(-50%);width:73px;height:73px;border-radius:50%;background:#efce83;box-shadow:0 0 30px #d88b4c,0 0 90px rgba(208,101,62,.45)}.endless-duat-portal .city-ground{position:absolute;bottom:-20px;left:-5%;right:-5%;height:100px;background:#35201a;border-radius:50% 50% 0 0;box-shadow:0 -8px 30px rgba(219,109,48,.13)}.endless-duat-portal .city-building{position:absolute;z-index:3;bottom:45px;display:grid;place-items:center;color:var(--gold);text-shadow:0 0 12px #e9aa45}.endless-duat-portal .city-building span{position:absolute;z-index:2}.endless-duat-portal .city-pyramid{left:35%;width:220px;height:150px;background:linear-gradient(105deg,#48301f 49%,#241721 50%);clip-path:polygon(50% 0,100% 100%,0 100%);font-size:25px}.endless-duat-portal .city-temple{left:17%;width:130px;height:85px;border:14px solid #38251f;border-top-width:22px;font-size:20px}.endless-duat-portal .city-observatory{right:16%;width:95px;height:110px;background:#2b1e24;border-radius:48px 48px 0 0;font-size:23px}.endless-duat-portal .kingdom-caption{position:absolute;z-index:4;bottom:17px;left:22px}.endless-duat-portal .kingdom-caption span,.endless-duat-portal .kingdom-caption b{display:block}.endless-duat-portal .kingdom-caption span{font-size:7px;letter-spacing:.2em;color:var(--gold)}.endless-duat-portal .kingdom-caption b{font:15px Georgia,serif;margin-top:4px}.endless-duat-portal .building-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:11px}.endless-duat-portal .building-card{display:grid;grid-template-columns:50px 1fr auto;gap:15px;align-items:center;min-height:125px;border:1px solid rgba(255,255,255,.08);border-radius:12px;background:rgba(20,17,31,.75);padding:16px}.endless-duat-portal .building-icon{width:48px;height:48px;border:1px solid rgba(237,198,106,.22);border-radius:50%;display:grid;place-items:center;color:var(--gold);font-size:20px;background:radial-gradient(circle,rgba(237,198,106,.1),transparent 70%)}.endless-duat-portal .building-copy h3{font:16px Georgia,serif;margin:3px 0}.endless-duat-portal .building-copy p{font:italic 9px/1.4 Georgia,serif;color:#837b88;margin:0 0 7px}.endless-duat-portal .building-copy>b{font-size:8px;color:#b8aee0}.endless-duat-portal .building-card>button{min-width:91px;border:1px solid rgba(237,198,106,.17);background:#15121d;border-radius:8px;padding:9px 10px;color:#837b87}.endless-duat-portal .building-card>button.can-buy{border-color:rgba(237,198,106,.46);color:var(--gold-bright);cursor:pointer;background:rgba(117,77,25,.18)}.endless-duat-portal .building-card>button span,.endless-duat-portal .building-card>button small{display:block}.endless-duat-portal .building-card>button span{font-size:9px;font-weight:700}.endless-duat-portal .building-card>button small{font-size:7px;margin-top:4px}.endless-duat-portal .eclipse-panel{display:grid;grid-template-columns:90px 1fr auto;align-items:center;gap:22px;margin-top:18px;padding:22px;border:1px solid rgba(157,124,255,.19);border-radius:14px;background:linear-gradient(120deg,rgba(65,39,104,.22),rgba(15,12,24,.83))}.endless-duat-portal .eclipse-orb{width:72px;height:72px;border-radius:50%;background:#05050b;box-shadow:0 0 0 4px #7a4ea5,0 0 25px #9e67d7;position:relative}.endless-duat-portal .eclipse-orb span{position:absolute;inset:-8px;border:1px solid rgba(209,168,255,.36);border-radius:50%;clip-path:polygon(0 0,60% 0,45% 100%,0 100%);animation:eclipse-spin 6s linear infinite}@keyframes eclipse-spin{to{transform:rotate(360deg)}}.endless-duat-portal .eclipse-panel h2{font:20px Georgia,serif;margin:4px 0}.endless-duat-portal .eclipse-panel p{font:italic 10px/1.5 Georgia,serif;color:#8c8294;margin:0}.endless-duat-portal .eclipse-progress{margin-top:10px;max-width:300px}.endless-duat-portal .eclipse-progress small{display:block;font-size:7px;color:#736b79;margin-top:4px}.endless-duat-portal .eclipse-panel.ready{border-color:rgba(237,198,106,.38);box-shadow:0 0 30px rgba(125,76,204,.12)}
+.sandfall-panel { display: flex; flex-direction: column; gap: 12px; padding: 16px; background: linear-gradient(180deg,#0d0a10,#09070b); }
+.sandfall-panel section { border: 1px solid rgba(240,198,105,.14); border-radius: 15px; padding: 15px; background: rgba(255,255,255,.025); }
+.panel-heading,.panel-title { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.panel-heading small,.panel-heading b,.panel-title small,.panel-title b { display: block; }
+.panel-heading small,.panel-title small { color: #786f7c; font-size: 7px; font-weight: 800; letter-spacing: .17em; }
+.panel-heading b,.panel-title b { margin-top: 4px; color: #f8edda; font-size: 11px; }
+.panel-heading > span { display: grid; place-items: center; width: 31px; height: 31px; border-radius: 9px; color: var(--gold); background: rgba(240,198,105,.08); font: 17px Georgia,serif; }
+.panel-title > span { color: #bdb0c2; font-size: 8px; }
+.simple-meter { height: 5px; margin-top: 13px; overflow: hidden; border-radius: 10px; background: rgba(255,255,255,.07); }
+.simple-meter i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg,#ad6c2e,#f4cd75); box-shadow: 0 0 10px rgba(240,198,105,.4); transition: width .2s linear; }
+.next-find-card p { margin: 10px 0 0; color: #847b88; font-size: 8px; line-height: 1.5; }
 
-.endless-duat-portal .relic-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:13px}.endless-duat-portal .relic-card{height:230px;position:relative;overflow:hidden;border:1px solid rgba(255,255,255,.08);border-radius:13px;background:linear-gradient(145deg,#191522,#0e0c14);padding:24px;text-align:center}.endless-duat-portal .relic-glow{position:absolute;width:130px;height:130px;left:50%;top:20px;transform:translateX(-50%);border-radius:50%;background:radial-gradient(circle,rgba(237,198,106,.18),transparent 65%);filter:blur(4px)}.endless-duat-portal .relic-icon{height:76px;position:relative;display:grid;place-items:center;font-size:48px;color:var(--gold);text-shadow:0 0 17px rgba(237,198,106,.48)}.endless-duat-portal .relic-card h3{font:17px Georgia,serif;margin:5px}.endless-duat-portal .relic-card p{font:italic 9px/1.5 Georgia,serif;color:#867e8b;margin:0 auto;max-width:220px}.endless-duat-portal .relic-card>small{display:block;font-size:7px;letter-spacing:.17em;color:#6c6570;margin-top:14px}.endless-duat-portal .relic-card.locked{filter:saturate(.25);opacity:.52}.endless-duat-portal .relic-card.locked .relic-icon{color:#645d69;text-shadow:none}.endless-duat-portal .rarity-uncommon.owned{border-color:rgba(88,197,157,.27)}.endless-duat-portal .rarity-rare.owned{border-color:rgba(94,149,255,.34)}.endless-duat-portal .rarity-epic.owned{border-color:rgba(167,100,255,.4);box-shadow:inset 0 0 25px rgba(130,68,225,.06)}.endless-duat-portal .rarity-legendary.owned{border-color:rgba(255,190,68,.55);box-shadow:inset 0 0 40px rgba(242,158,44,.12)}.endless-duat-portal .museum-note{display:flex;align-items:center;gap:16px;margin-top:17px;border:1px solid var(--line);border-radius:11px;padding:16px;background:rgba(237,198,106,.035)}.endless-duat-portal .museum-note>span{font-size:27px;color:var(--gold)}.endless-duat-portal .museum-note b{font:14px Georgia,serif}.endless-duat-portal .museum-note p{font:italic 9px Georgia,serif;color:#857d8a;margin:4px 0 0}
+.skin-bonus-card { display: grid !important; grid-template-columns: 48px 1fr auto; align-items: center; gap: 11px; }
+.skin-portrait { position: relative; width: 48px; height: 48px; border: 1px solid rgba(240,198,105,.24); border-radius: 12px; overflow: hidden; background: radial-gradient(circle,#6b431d,#171019); cursor: pointer; }
+.skin-portrait .sand-nebu { transform: scale(1.35); }
+.skin-bonus-card small,.skin-bonus-card b,.skin-bonus-card p { display: block; margin: 0; }.skin-bonus-card small { color: #857b88; font-size: 7px; letter-spacing: .08em; }.skin-bonus-card b { margin-top: 3px; color: #f6e9d2; font-size: 10px; }.skin-bonus-card p { margin-top: 3px; color: var(--gold); font-size: 8px; }
+.skin-bonus-card > button:last-child { border: 0; background: none; color: #aa91e8; font-size: 8px; cursor: pointer; }
 
-.endless-duat-portal .skin-rule{display:flex;align-items:center;gap:10px;border:1px solid rgba(237,198,106,.19);border-radius:11px;padding:10px 13px;background:rgba(237,198,106,.035)}.endless-duat-portal .skin-rule>span{color:var(--gold);font-size:20px}.endless-duat-portal .skin-rule b,.endless-duat-portal .skin-rule small{display:block}.endless-duat-portal .skin-rule b{font-size:9px}.endless-duat-portal .skin-rule small{font-size:7px;color:#817886;margin-top:3px}.endless-duat-portal .active-skin-hero{--skin-accent:#a97aff;min-height:310px;display:grid;grid-template-columns:270px 1fr 190px;align-items:center;gap:26px;position:relative;overflow:hidden;border:1px solid color-mix(in srgb,var(--skin-accent),transparent 58%);border-radius:16px;background:radial-gradient(circle at 18% 44%,color-mix(in srgb,var(--skin-accent),transparent 72%),transparent 27%),linear-gradient(135deg,rgba(27,21,44,.96),rgba(10,9,16,.97));padding:26px 34px;margin-bottom:16px;box-shadow:inset 0 0 70px rgba(0,0,0,.3)}.endless-duat-portal .active-skin-hero::after{content:"";position:absolute;inset:0;background-image:radial-gradient(circle,#fff 0 1px,transparent 1.2px);background-size:67px 67px;opacity:.1;pointer-events:none}.endless-duat-portal .skin-stage{height:245px;position:relative;display:grid;place-items:center;z-index:1}.endless-duat-portal .skin-stage>.duat-nebu-sprite{width:220px;height:220px;margin:0;position:relative;z-index:2}.endless-duat-portal .skin-orbit{position:absolute;width:210px;height:210px;border:1px solid color-mix(in srgb,var(--skin-accent),transparent 55%);border-radius:50%;animation:ring-spin 11s linear infinite}.endless-duat-portal .skin-orbit i{position:absolute;width:7px;height:7px;border-radius:50%;background:var(--skin-accent);box-shadow:0 0 11px var(--skin-accent)}.endless-duat-portal .skin-orbit i:first-child{left:19px;top:28px}.endless-duat-portal .skin-orbit i:last-child{right:12px;bottom:52px}.endless-duat-portal .active-skin-copy{position:relative;z-index:1}.endless-duat-portal .active-skin-copy h2{font:35px Georgia,serif;margin:6px 0 1px}.endless-duat-portal .active-skin-copy>strong{font:italic 12px Georgia,serif;color:var(--skin-accent)}.endless-duat-portal .active-skin-copy>p{font:italic 10px/1.55 Georgia,serif;color:#918894;max-width:520px}.endless-duat-portal .passive-callout{display:flex;gap:12px;align-items:center;border:1px solid color-mix(in srgb,var(--skin-accent),transparent 67%);border-radius:11px;background:color-mix(in srgb,var(--skin-accent),transparent 92%);padding:12px 14px;margin-top:16px;max-width:580px}.endless-duat-portal .passive-callout>span{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;background:color-mix(in srgb,var(--skin-accent),transparent 80%);color:var(--skin-accent);font-size:19px;box-shadow:0 0 14px color-mix(in srgb,var(--skin-accent),transparent 75%)}.endless-duat-portal .passive-callout small,.endless-duat-portal .passive-callout b{display:block}.endless-duat-portal .passive-callout small{font-size:6px;letter-spacing:.18em;color:#817789}.endless-duat-portal .passive-callout b{font:14px Georgia,serif;margin:3px 0}.endless-duat-portal .passive-callout p{font-size:8px;color:#a49aa7;margin:0;line-height:1.4}.endless-duat-portal .skin-family{position:relative;z-index:1;text-align:right;border-left:1px solid rgba(255,255,255,.07);padding-left:22px}.endless-duat-portal .skin-family small,.endless-duat-portal .skin-family b,.endless-duat-portal .skin-family span{display:block}.endless-duat-portal .skin-family small{font-size:7px;letter-spacing:.17em;color:#766e7a}.endless-duat-portal .skin-family b{font:17px Georgia,serif;color:var(--skin-accent);margin:6px 0 14px}.endless-duat-portal .skin-family span{font:italic 8px/1.45 Georgia,serif;color:#776f7c}.endless-duat-portal .skin-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.endless-duat-portal .skin-card{--skin-accent:#a97aff;position:relative;overflow:hidden;border:1px solid color-mix(in srgb,var(--skin-accent),transparent 76%);border-radius:13px;background:linear-gradient(150deg,color-mix(in srgb,var(--skin-accent),transparent 93%),rgba(13,11,19,.96));min-height:390px;padding:0 18px 17px}.endless-duat-portal .skin-card.selected{border-color:var(--skin-accent);box-shadow:0 0 28px color-mix(in srgb,var(--skin-accent),transparent 82%)}.endless-duat-portal .skin-card.selected::after{content:"EQUIPPED";position:absolute;right:10px;top:10px;border:1px solid var(--skin-accent);border-radius:20px;padding:4px 7px;color:var(--skin-accent);font-size:6px;letter-spacing:.15em;background:#0c0a12}.endless-duat-portal .skin-card-visual{height:175px;display:grid;place-items:center;position:relative}.endless-duat-portal .skin-card-visual>.duat-nebu-sprite{width:145px;height:145px;margin:0;position:relative;z-index:2}.endless-duat-portal .skin-halo{position:absolute;width:130px;height:130px;border-radius:50%;background:radial-gradient(circle,color-mix(in srgb,var(--skin-accent),transparent 75%),transparent 68%);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--skin-accent),transparent 83%)}.endless-duat-portal .skin-card-copy{min-height:146px}.endless-duat-portal .skin-card-copy h3{font:20px Georgia,serif;margin:5px 0 2px}.endless-duat-portal .skin-card-copy>small{font:italic 8px Georgia,serif;color:var(--skin-accent)}.endless-duat-portal .mini-passive{display:grid;grid-template-columns:29px 1fr;gap:9px;margin-top:13px;padding-top:12px;border-top:1px solid rgba(255,255,255,.07)}.endless-duat-portal .mini-passive>span{width:28px;height:28px;display:grid;place-items:center;border-radius:50%;background:color-mix(in srgb,var(--skin-accent),transparent 86%);color:var(--skin-accent)}.endless-duat-portal .mini-passive b{display:block;font-size:8px;color:#d9cfda}.endless-duat-portal .mini-passive p{font:italic 7px/1.4 Georgia,serif;color:#817986;margin:3px 0 0}.endless-duat-portal .skin-card>button{width:100%;height:36px;border:1px solid color-mix(in srgb,var(--skin-accent),transparent 56%);border-radius:8px;background:color-mix(in srgb,var(--skin-accent),transparent 88%);color:var(--skin-accent);font-size:8px;font-weight:700;cursor:pointer}.endless-duat-portal .skin-card>button:disabled{opacity:.45}.endless-duat-portal .skin-card.selected>button{opacity:1;color:#0c0910;background:var(--skin-accent)}.endless-duat-portal .skin-integration-note{display:flex;align-items:center;gap:14px;margin-top:15px;border:1px dashed rgba(157,124,255,.28);border-radius:11px;padding:14px 16px;background:rgba(157,124,255,.04)}.endless-duat-portal .skin-integration-note>span{font-size:22px;color:#b99aff}.endless-duat-portal .skin-integration-note b{font:13px Georgia,serif}.endless-duat-portal .skin-integration-note p{font:italic 8px Georgia,serif;color:#7f7686;margin:4px 0 0}
+.upgrade-section { padding: 0 !important; overflow: hidden; }.upgrade-section > .panel-title { padding: 14px 15px 11px; }
+.upgrade-list { display: grid; }
+.upgrade-list > button { display: grid; grid-template-columns: 38px 1fr auto; align-items: center; gap: 10px; min-height: 61px; border: 0; border-top: 1px solid rgba(255,255,255,.055); padding: 8px 13px; background: transparent; text-align: left; cursor: not-allowed; opacity: .54; }
+.upgrade-list > button.can-buy { cursor: pointer; opacity: 1; background: linear-gradient(90deg,rgba(240,198,105,.04),transparent); }
+.upgrade-list > button.can-buy:hover { background: rgba(240,198,105,.08); }
+.upgrade-list > button > span { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; color: var(--gold); background: rgba(240,198,105,.08); font: 18px Georgia,serif; }
+.upgrade-list small,.upgrade-list b,.upgrade-list p { display: block; margin: 0; }.upgrade-list small { color: #766e79; font-size: 6px; letter-spacing: .12em; }.upgrade-list b { margin-top: 2px; color: #f1e7d5; font-size: 9px; }.upgrade-list p { margin-top: 2px; color: #827986; font-size: 7px; }.upgrade-list strong { color: #bfb1c4; font-size: 8px; white-space: nowrap; }.upgrade-list .can-buy strong { color: var(--gold); }
 
-.endless-duat-portal .wish-total{display:flex;gap:9px;align-items:center;text-align:left}.endless-duat-portal .wish-total>span{font-size:23px;color:#b99bff}.endless-duat-portal .wish-total b,.endless-duat-portal .wish-total small{display:block}.endless-duat-portal .wish-total b{font:22px Georgia,serif}.endless-duat-portal .wish-total small{font-size:8px;color:#807887}.endless-duat-portal .forge-layout{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(300px,.65fr);gap:16px}.endless-duat-portal .forge-core{min-height:570px;border:1px solid rgba(157,124,255,.28);border-radius:16px;background:radial-gradient(circle at 50% 32%,rgba(115,67,187,.22),transparent 33%),linear-gradient(160deg,rgba(30,22,48,.88),rgba(11,9,18,.95));display:flex;align-items:center;flex-direction:column;text-align:center;padding:57px 30px;position:relative;overflow:hidden}.endless-duat-portal .forge-core::before{content:"";position:absolute;inset:0;background-image:radial-gradient(circle,#dfcdff 0 1px,transparent 1.2px);background-size:59px 59px;opacity:.12}.endless-duat-portal .forge-rings{width:190px;height:190px;position:relative;display:grid;place-items:center;margin-bottom:26px}.endless-duat-portal .forge-rings i{position:absolute;border-radius:50%;border:1px solid rgba(196,157,255,.35);inset:0;animation:ring-spin 8s linear infinite}.endless-duat-portal .forge-rings i:nth-child(2){inset:18px;border-color:rgba(237,198,106,.4);animation-direction:reverse;clip-path:polygon(0 0,70% 0,40% 100%,0 100%)}.endless-duat-portal .forge-rings i:nth-child(3){inset:38px;border-style:dashed;animation-duration:13s}.endless-duat-portal .forge-rings i:nth-child(4){inset:58px;background:radial-gradient(circle,#f7e9b0,#ac70f0 24%,#1f1432 48%,transparent 50%);box-shadow:0 0 35px rgba(159,91,239,.5);border:0}.endless-duat-portal .forge-rings span{position:relative;z-index:2;font:29px Georgia,serif;color:white;text-shadow:0 0 13px #fff}@keyframes ring-spin{to{transform:rotate(360deg)}}.endless-duat-portal .forge-core h2{font:28px Georgia,serif;margin:7px 0}.endless-duat-portal .forge-core>p{font:italic 11px/1.5 Georgia,serif;color:#978c9f;margin:0 auto 19px;max-width:430px}.endless-duat-portal .wish-meter{height:28px;width:min(420px,100%);border:1px solid rgba(157,124,255,.3);background:#0d0a15;border-radius:20px;position:relative;overflow:hidden;margin-bottom:18px}.endless-duat-portal .wish-meter>span{display:block;height:100%;background:linear-gradient(90deg,#6c3cb7,#d2a1ff);box-shadow:0 0 20px #9c57e8;transition:width .5s}.endless-duat-portal .wish-meter b{position:absolute;inset:0;display:grid;place-items:center;font-size:8px;letter-spacing:.15em}.endless-duat-portal .forge-button{width:min(420px,100%);display:flex;align-items:center;justify-content:center;gap:12px;border:1px solid rgba(237,198,106,.56);border-radius:11px;background:linear-gradient(140deg,#9a681e,#402717);padding:13px;color:#fff2cb;cursor:pointer;position:relative}.endless-duat-portal .forge-button>span{font-size:22px}.endless-duat-portal .forge-button b,.endless-duat-portal .forge-button small{display:block;text-align:left}.endless-duat-portal .forge-button b{font-size:11px}.endless-duat-portal .forge-button small{font-size:7px;color:#c9b98f;margin-top:4px}.endless-duat-portal .forge-button.claim{background:linear-gradient(140deg,#8553d0,#33204e);border-color:#c69eff;box-shadow:0 0 25px rgba(166,99,242,.32)}.endless-duat-portal .forge-side{display:grid;grid-template-rows:1fr auto;gap:16px}.endless-duat-portal .ingredient-panel,.endless-duat-portal .sponsor-panel{border:1px solid rgba(255,255,255,.09);border-radius:14px;background:rgba(18,15,29,.82);padding:23px}.endless-duat-portal .ingredient-panel h3,.endless-duat-portal .sponsor-panel h3{font:20px Georgia,serif;margin:5px 0 18px}.endless-duat-portal .ingredient{display:grid;grid-template-columns:34px 1fr auto;align-items:center;gap:10px;padding:13px 0;border-top:1px solid rgba(255,255,255,.065)}.endless-duat-portal .ingredient>span{width:31px;height:31px;display:grid;place-items:center;border-radius:50%;background:rgba(237,198,106,.07);color:var(--gold)}.endless-duat-portal .ingredient b,.endless-duat-portal .ingredient small{display:block}.endless-duat-portal .ingredient b{font-size:9px}.endless-duat-portal .ingredient small{font-size:7px;color:#77707c;margin-top:4px}.endless-duat-portal .ingredient strong{font-size:9px;color:#bcb2c1}.endless-duat-portal .sponsor-panel{text-align:center;background:radial-gradient(circle at 50% 0,rgba(237,151,65,.14),transparent 45%),rgba(18,15,29,.82)}.endless-duat-portal .caravan-icon{font-size:45px;color:#f0b15b;text-shadow:0 0 18px #e27b3c;margin:3px 0 13px}.endless-duat-portal .sponsor-panel p{font:italic 9px/1.5 Georgia,serif;color:#857d89}.endless-duat-portal .sponsor-panel button{width:100%;border:1px solid rgba(237,198,106,.3);background:rgba(237,198,106,.08);border-radius:9px;padding:10px;color:var(--gold-bright);font-size:9px;cursor:pointer}.endless-duat-portal .sponsor-panel button small{display:block;color:#80766c;font-size:7px;margin-top:4px}.endless-duat-portal .sponsor-panel button:disabled{opacity:.5}
+.wish-path-card { background: radial-gradient(circle at 90% 10%,rgba(133,90,225,.11),transparent 34%),rgba(255,255,255,.025) !important; }
+.fragment-pips { display: flex; gap: 5px; margin: 13px 0 11px; }.fragment-pips i { flex: 1; height: 5px; border-radius: 5px; background: rgba(255,255,255,.08); }.fragment-pips i.filled { background: #aa87ff; box-shadow: 0 0 8px rgba(170,135,255,.62); }
+.wish-meter i { background: linear-gradient(90deg,#7755c9,#b89aff); }
+.wish-path-card > button { width: 100%; margin-top: 11px; border: 1px solid rgba(170,135,255,.28); border-radius: 9px; padding: 9px; color: #d9c9ff; background: rgba(133,90,225,.09); font-size: 8px; font-weight: 800; cursor: pointer; }
+.wish-path-card > button:disabled { color: #746b78; border-color: rgba(255,255,255,.08); background: rgba(255,255,255,.02); cursor: not-allowed; }
 
-.endless-duat-portal .phase-reward .fighter,.endless-duat-portal .phase-event .fighter{opacity:.13;filter:blur(1px);transition:.25s}.endless-duat-portal .reward-overlay,.endless-duat-portal .event-overlay{position:absolute;z-index:14;inset:18px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;border:1px solid rgba(157,124,255,.25);border-radius:13px;background:radial-gradient(circle at 50% 25%,rgba(115,73,182,.28),transparent 34%),rgba(8,7,14,.88);backdrop-filter:blur(7px);padding:22px}.endless-duat-portal .reward-overlay h2,.endless-duat-portal .event-overlay h2{font:25px Georgia,serif;margin:6px 0}.endless-duat-portal .reward-overlay>p,.endless-duat-portal .event-overlay>p{font:italic 10px/1.55 Georgia,serif;color:#918795;max-width:560px;margin:0 0 17px}.endless-duat-portal .boon-choice-grid{display:grid;grid-template-columns:repeat(3,minmax(0,210px));gap:10px;width:100%;justify-content:center}.endless-duat-portal .boon-choice{min-height:178px;border:1px solid rgba(237,198,106,.25);border-radius:11px;background:linear-gradient(150deg,rgba(90,55,24,.39),rgba(17,13,22,.96));padding:17px 13px;text-align:center;cursor:pointer;transition:.2s}.endless-duat-portal .boon-choice:hover{transform:translateY(-4px);border-color:var(--gold);box-shadow:0 15px 30px rgba(0,0,0,.35)}.endless-duat-portal .boon-choice>span{display:grid;place-items:center;width:42px;height:42px;margin:0 auto 9px;border-radius:50%;background:rgba(237,198,106,.12);color:var(--gold);font-size:21px;box-shadow:0 0 17px rgba(237,198,106,.12)}.endless-duat-portal .boon-choice>small,.endless-duat-portal .boon-choice>b,.endless-duat-portal .boon-choice>strong{display:block}.endless-duat-portal .boon-choice>small{font-size:7px;text-transform:uppercase;letter-spacing:.15em;color:#9a8b73}.endless-duat-portal .boon-choice>b{font:15px Georgia,serif;margin:5px 0}.endless-duat-portal .boon-choice>p{font:italic 8px/1.4 Georgia,serif;color:#807783;margin:0 0 9px}.endless-duat-portal .boon-choice>strong{font-size:8px;color:var(--gold-bright)}.endless-duat-portal .boon-choice.lunar{border-color:rgba(98,154,244,.3);background:linear-gradient(150deg,rgba(27,55,98,.46),rgba(15,14,25,.97))}.endless-duat-portal .boon-choice.lunar>span{color:#9fc6ff;background:rgba(72,124,206,.14)}.endless-duat-portal .boon-choice.cosmic{border-color:rgba(172,111,255,.35);background:linear-gradient(150deg,rgba(70,38,111,.48),rgba(14,11,23,.97))}.endless-duat-portal .boon-choice.cosmic>span{color:#d5b2ff;background:rgba(140,78,218,.15)}.endless-duat-portal .event-icon{font-size:53px;color:var(--gold);text-shadow:0 0 26px rgba(237,198,106,.5);margin-bottom:10px}.endless-duat-portal .event-overlay>div{display:grid;grid-template-columns:1fr 1fr;gap:10px;width:min(530px,100%)}.endless-duat-portal .event-overlay button{border:1px solid rgba(237,198,106,.27);border-radius:10px;background:rgba(237,198,106,.07);padding:13px;cursor:pointer}.endless-duat-portal .event-overlay button:last-child{border-color:rgba(157,124,255,.35);background:rgba(157,124,255,.08)}.endless-duat-portal .event-overlay button b,.endless-duat-portal .event-overlay button small{display:block}.endless-duat-portal .event-overlay button b{font:14px Georgia,serif}.endless-duat-portal .event-overlay button small{font-size:7px;color:#8c828e;margin-top:5px}.endless-duat-portal .route-grid.boss-gate{grid-template-columns:minmax(0,690px);justify-content:center}.endless-duat-portal .route-boss{min-height:220px!important;border-color:rgba(237,107,72,.53)!important;background:radial-gradient(circle at 80% 20%,rgba(235,75,65,.16),transparent 31%),linear-gradient(145deg,rgba(65,21,29,.89),rgba(12,9,18,.98))!important;box-shadow:0 0 35px rgba(190,49,56,.13)}.endless-duat-portal .route-boss .route-symbol{width:49px;height:49px;color:#ffb06e;border-color:#ee764d;box-shadow:0 0 20px rgba(226,76,60,.25)}.endless-duat-portal .run-dashboard{display:grid;grid-template-columns:1.35fr 1fr auto;gap:10px;margin-top:13px}.endless-duat-portal .run-dashboard>div{min-height:68px;border:1px solid rgba(255,255,255,.07);border-radius:10px;background:rgba(16,14,25,.67);padding:12px 14px}.endless-duat-portal .run-boons>div{display:flex;gap:6px;align-items:center;margin-top:8px}.endless-duat-portal .run-boons small{font:italic 8px Georgia,serif;color:#756e7a}.endless-duat-portal .mini-boon{width:29px;height:29px;border:1px solid rgba(237,198,106,.25);border-radius:50%;display:grid;place-items:center;position:relative;color:var(--gold)}.endless-duat-portal .mini-boon i{font-style:normal;font-size:13px}.endless-duat-portal .mini-boon b{position:absolute;right:-3px;bottom:-3px;width:13px;height:13px;display:grid;place-items:center;border-radius:50%;background:#c99439;color:#150e05;font-size:7px}.endless-duat-portal .mini-boon.lunar{color:#9fc6ff;border-color:rgba(98,154,244,.35)}.endless-duat-portal .mini-boon.cosmic{color:#d0aaff;border-color:rgba(172,111,255,.42)}.endless-duat-portal .run-history p{font:italic 9px/1.45 Georgia,serif;color:#a096a3;margin:8px 0 0}.endless-duat-portal .next-gate{text-align:right}.endless-duat-portal .next-gate b{display:block;font:20px Georgia,serif;color:#ffb16d;margin-top:7px}.endless-duat-portal .mobile-nav{display:none}.endless-duat-portal .toast-stack{position:fixed;z-index:80;right:18px;bottom:18px;display:grid;gap:9px;width:min(350px,calc(100vw - 36px))}.endless-duat-portal .toast{border:1px solid rgba(237,198,106,.34);border-radius:10px;background:rgba(16,13,24,.96);box-shadow:0 15px 40px #000;display:flex;gap:10px;align-items:center;padding:12px;animation:toast-in .25s ease}.endless-duat-portal .toast>span{width:27px;height:27px;display:grid;place-items:center;border-radius:50%;background:rgba(237,198,106,.13);color:var(--gold)}.endless-duat-portal .toast b,.endless-duat-portal .toast small{display:block}.endless-duat-portal .toast b{font-size:10px}.endless-duat-portal .toast small{font-size:8px;color:#918895;margin-top:4px;line-height:1.35}.endless-duat-portal .toast.violet{border-color:rgba(157,124,255,.44)}.endless-duat-portal .toast.violet>span{background:rgba(157,124,255,.13);color:#c8aaff}.endless-duat-portal .toast.red{border-color:rgba(236,88,85,.42)}.endless-duat-portal .toast.red>span{background:rgba(236,88,85,.13);color:#ff8079}@keyframes toast-in{from{opacity:0;transform:translateX(15px)}}
-.endless-duat-portal .modal-backdrop{position:fixed;inset:0;z-index:100;background:rgba(3,2,7,.83);backdrop-filter:blur(9px);display:grid;place-items:center;padding:20px;animation:fade-in .25s}@keyframes fade-in{from{opacity:0}}.endless-duat-portal .offline-modal,.endless-duat-portal .relic-modal,.endless-duat-portal .ad-modal{width:min(470px,100%);border:1px solid rgba(237,198,106,.35);border-radius:16px;background:radial-gradient(circle at 50% 0,rgba(139,85,192,.16),transparent 39%),#12101c;padding:32px;text-align:center;position:relative;box-shadow:0 30px 90px #000;animation:modal-in .35s ease}@keyframes modal-in{from{transform:translateY(18px) scale(.97);opacity:0}}.endless-duat-portal .modal-close{position:absolute;right:12px;top:10px;border:0;background:none;color:#877e8d;font-size:22px;cursor:pointer}.endless-duat-portal .offline-sun{font-size:55px;color:var(--gold);text-shadow:0 0 24px #d47b33;margin-bottom:12px}.endless-duat-portal .offline-modal h2,.endless-duat-portal .relic-modal h2{font:26px Georgia,serif;margin:7px}.endless-duat-portal .offline-modal>p,.endless-duat-portal .relic-modal>p{font:italic 10px/1.6 Georgia,serif;color:#908694;max-width:350px;margin:0 auto 18px}.endless-duat-portal .offline-loot{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:17px 0}.endless-duat-portal .offline-loot div{border:1px solid rgba(237,198,106,.15);border-radius:10px;padding:13px;background:rgba(255,255,255,.025)}.endless-duat-portal .offline-loot span,.endless-duat-portal .offline-loot b,.endless-duat-portal .offline-loot small{display:block}.endless-duat-portal .offline-loot span{color:var(--gold)}.endless-duat-portal .offline-loot b{font:20px Georgia,serif;margin:5px}.endless-duat-portal .offline-loot small{font-size:7px;color:#7e7682}.endless-duat-portal .relic-modal{overflow:hidden}.endless-duat-portal .reveal-rays{position:absolute;left:50%;top:35%;width:380px;height:380px;transform:translate(-50%,-50%);background:repeating-conic-gradient(from 0deg,rgba(237,198,106,.08) 0 6deg,transparent 6deg 15deg);animation:ring-spin 18s linear infinite}.endless-duat-portal .reveal-relic{position:relative;font-size:75px;color:var(--gold);text-shadow:0 0 25px #d79d3f;margin:26px auto 15px}.endless-duat-portal .relic-modal>small{display:block;font-size:7px;letter-spacing:.15em;color:var(--gold);margin-bottom:16px}.endless-duat-portal .relic-modal.rarity-epic,.endless-duat-portal .relic-modal.rarity-legendary{border-color:#bd8aff;box-shadow:0 0 80px rgba(143,73,235,.25)}.endless-duat-portal .ad-slot{height:180px;margin:18px 0;border:1px dashed rgba(237,198,106,.32);border-radius:11px;background:linear-gradient(145deg,rgba(237,198,106,.06),rgba(157,124,255,.05));display:flex;flex-direction:column;align-items:center;justify-content:center}.endless-duat-portal .ad-slot span,.endless-duat-portal .ad-slot b,.endless-duat-portal .ad-slot small{display:block}.endless-duat-portal .ad-slot span{font-size:7px;letter-spacing:.2em;color:var(--gold)}.endless-duat-portal .ad-slot b{font:18px Georgia,serif;margin:7px}.endless-duat-portal .ad-slot small{font-size:8px;color:#7d7581}.endless-duat-portal .ad-modal .primary-button{width:100%}.endless-duat-portal .ad-disclosure{font-size:7px;color:#6e6872;margin:11px 0 0}
+.rarity-row { display: grid; grid-template-columns: repeat(5,1fr); gap: 5px; margin-top: 12px; }
+.rarity-row > div { display: grid; grid-template-columns: 5px auto; justify-content: center; align-items: center; column-gap: 4px; border: 1px solid rgba(255,255,255,.055); border-radius: 8px; padding: 7px 3px; background: rgba(255,255,255,.018); }
+.rarity-row i { width: 5px; height: 5px; border-radius: 50%; background: #f4dcaa; }.rarity-row span { color: #8d838f; font-size: 6px; }.rarity-row b { grid-column: 1 / -1; margin-top: 3px; color: #e9dfcd; font-size: 8px; text-align: center; }
+.rarity-row .uncommon i { background:#70e0be; }.rarity-row .rare i { background:#6dbbff; }.rarity-row .epic i { background:#b28aff; }.rarity-row .legendary i { background:#ffd563; }
+.recent-find { display: flex; align-items: center; gap: 9px; margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,.055); }.recent-find > span { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 9px; color: #f4dcaa; background: rgba(255,255,255,.04); font: 16px Georgia,serif; }.recent-find > span.uncommon { color:#70e0be; }.recent-find > span.rare { color:#6dbbff; }.recent-find > span.epic { color:#b28aff; }.recent-find > span.legendary { color:#ffd563; }.recent-find small,.recent-find b { display: block; }.recent-find small { color: #746b77; font-size: 6px; letter-spacing: .13em; }.recent-find b { margin-top: 3px; color: #eee3d1; font-size: 8px; }
 
-@media (max-width: 1050px) {
-  .endless-duat-portal .resource-pill { min-width: 0; }
-  .endless-duat-portal .resource-pill small { display:none; }
-  .endless-duat-portal .game-layout { grid-template-columns: 204px minmax(0,1fr); }
-  .endless-duat-portal .fighter { width:190px }.endless-duat-portal .nebu-fighter{left:6%}.endless-duat-portal .enemy-fighter{right:6%}
-  .endless-duat-portal .route-grid{grid-template-columns:1fr 1fr}.endless-duat-portal .route-card:last-child{grid-column:span 2}.endless-duat-portal .relic-grid,.endless-duat-portal .skin-grid{grid-template-columns:repeat(2,1fr)}
+.sandfall-notice { position: fixed; z-index: 80; left: 50%; bottom: 20px; transform: translateX(-50%); max-width: min(520px,calc(100% - 32px)); display: flex; align-items: center; gap: 15px; border: 1px solid rgba(240,198,105,.28); border-radius: 12px; padding: 12px 14px; color: #eee2ce !important; background: rgba(18,13,19,.96); box-shadow: 0 18px 55px rgba(0,0,0,.5); font-size: 9px !important; cursor: pointer; }.sandfall-notice span { color: #8d818f; font-size: 14px; }
+
+@media (max-width: 980px) {
+  .sandfall-layout { grid-template-columns: minmax(0,1fr) 320px; }
+  .sandfall-stats > div { min-width: 92px; padding-inline: 10px; }
 }
 
 @media (max-width: 760px) {
-  .endless-duat-portal .topbar{height:65px;padding:0 13px}.endless-duat-portal .brand-star{width:35px;height:35px}.endless-duat-portal .brand b{font-size:12px}.endless-duat-portal .brand small{display:none}.endless-duat-portal .resource-row{gap:4px}.endless-duat-portal .resource-pill{padding:7px 8px;min-width:auto}.endless-duat-portal .resource-pill>div{display:none}.endless-duat-portal .game-layout{display:block;min-height:calc(100vh - 65px)}.endless-duat-portal .sidebar{display:none}.endless-duat-portal .content{padding:20px 12px 94px}.endless-duat-portal .view-heading{align-items:flex-start}.endless-duat-portal .view-heading h1{font-size:30px}.endless-duat-portal .view-heading p{font-size:10px;line-height:1.4}.endless-duat-portal .quiet-button{font-size:0;padding:8px}.endless-duat-portal .quiet-button::after{content:"↩";font-size:15px}.endless-duat-portal .duat-stage{height:500px;min-height:500px}.endless-duat-portal .stage-pyramid{opacity:.55}.endless-duat-portal .stage-message{top:29%;width:80%}.endless-duat-portal .stage-message b{font-size:17px}.endless-duat-portal .fighter{width:160px;bottom:77px}.endless-duat-portal .nebu-fighter{left:3%}.endless-duat-portal .enemy-fighter{right:3%}.endless-duat-portal .fighter-label b{font-size:11px}.endless-duat-portal .nebu-fighter>.duat-nebu-sprite{width:140px;height:140px}@keyframes nebu-attack-mobile{0%,100%{transform:scale(.84) translateX(0)}45%{transform:scale(.84) translateX(19px) translateY(-3px)}}.endless-duat-portal .enemy-avatar{width:103px;height:103px;font-size:47px}.endless-duat-portal .battle-controls{bottom:14px}.endless-duat-portal .power-button{min-width:190px}.endless-duat-portal .routes-section{margin-top:18px}.endless-duat-portal .section-title h2{font-size:19px}.endless-duat-portal .depth-marker{display:none}.endless-duat-portal .route-grid{grid-template-columns:1fr;gap:9px}.endless-duat-portal .route-card,.endless-duat-portal .route-card:last-child{grid-column:auto;min-height:166px;padding:18px}.endless-duat-portal .route-symbol{position:absolute;right:16px;top:20px}.endless-duat-portal .route-meta{padding-right:0}.endless-duat-portal .mobile-nav{position:fixed;z-index:60;bottom:0;left:0;right:0;height:72px;border-top:1px solid var(--line);background:rgba(8,7,15,.95);backdrop-filter:blur(16px);display:grid;grid-template-columns:repeat(5,1fr);padding-bottom:max(3px,env(safe-area-inset-bottom))}.endless-duat-portal .mobile-nav button{border:0;background:transparent;color:#77707d;display:flex;flex-direction:column;gap:4px;align-items:center;justify-content:center}.endless-duat-portal .mobile-nav button span{font-size:17px}.endless-duat-portal .mobile-nav button small{font-size:7px}.endless-duat-portal .mobile-nav button.active{color:var(--gold)}.endless-duat-portal .kingdom-scene{height:245px}.endless-duat-portal .city-pyramid{left:28%;transform:scale(.78);transform-origin:bottom}.endless-duat-portal .city-temple{left:4%;transform:scale(.7);transform-origin:bottom}.endless-duat-portal .city-observatory{right:4%;transform:scale(.75);transform-origin:bottom}.endless-duat-portal .building-grid{grid-template-columns:1fr}.endless-duat-portal .building-card{grid-template-columns:42px 1fr auto;gap:9px;padding:13px}.endless-duat-portal .building-icon{width:40px;height:40px}.endless-duat-portal .building-card>button{min-width:78px}.endless-duat-portal .eclipse-panel{grid-template-columns:65px 1fr;padding:16px}.endless-duat-portal .eclipse-orb{width:58px;height:58px}.endless-duat-portal .eclipse-panel>.primary-button{grid-column:span 2}.endless-duat-portal .relic-grid{grid-template-columns:1fr 1fr;gap:8px}.endless-duat-portal .relic-card{height:215px;padding:16px 10px}.endless-duat-portal .forge-layout{grid-template-columns:1fr}.endless-duat-portal .forge-core{min-height:520px;padding:42px 18px}.endless-duat-portal .forge-rings{width:165px;height:165px}.endless-duat-portal .forge-side{grid-template-rows:auto}.endless-duat-portal .output-badge{display:none}.endless-duat-portal .toast-stack{bottom:83px}.endless-duat-portal .offline-modal,.endless-duat-portal .relic-modal,.endless-duat-portal .ad-modal{padding:27px 20px}.endless-duat-portal .skin-rule{display:none}.endless-duat-portal .active-skin-hero{grid-template-columns:1fr;gap:7px;padding:16px;text-align:center}.endless-duat-portal .skin-stage{height:190px}.endless-duat-portal .skin-stage>.duat-nebu-sprite{width:180px;height:180px}.endless-duat-portal .skin-orbit{width:170px;height:170px}.endless-duat-portal .active-skin-copy h2{font-size:28px}.endless-duat-portal .passive-callout{text-align:left;margin:12px auto}.endless-duat-portal .skin-family{text-align:center;border-left:0;border-top:1px solid rgba(255,255,255,.07);padding:12px 0 0}.endless-duat-portal .skin-family b{margin-bottom:5px}.endless-duat-portal .skin-grid{grid-template-columns:1fr}.endless-duat-portal .skin-card{min-height:365px}.endless-duat-portal .skin-card-visual{height:155px}
-}
-
-@media (max-width: 410px) {
-  .endless-duat-portal .fighter{width:145px}.endless-duat-portal .nebu-fighter{left:1%}.endless-duat-portal .enemy-fighter{right:1%}.endless-duat-portal .fighter>small{font-size:7px}.endless-duat-portal .relic-grid{grid-template-columns:1fr}.endless-duat-portal .relic-card{height:205px}.endless-duat-portal .view-heading h1{font-size:27px}.endless-duat-portal .collection-count{padding:8px 10px}.endless-duat-portal .collection-count b{font-size:20px}.endless-duat-portal .building-copy p{display:none}
-}
-
-@media (max-width: 760px) {
-  .endless-duat-portal .battle-controls{left:10px;right:10px;bottom:13px;transform:none;display:grid;grid-template-columns:repeat(3,1fr);gap:5px}
-  .endless-duat-portal .power-button{min-width:0!important;padding:7px 5px;justify-content:center;text-align:center;display:grid;gap:3px}
-  .endless-duat-portal .power-button .power-icon{width:24px;height:24px;margin:auto}
-  .endless-duat-portal .power-button small{display:none}.endless-duat-portal .power-button b{font-size:8px;white-space:nowrap}
-  .endless-duat-portal .battle-controls .auto-label{top:auto;bottom:-11px}
-  .endless-duat-portal .enemy-avatar.boss{width:115px;height:115px;font-size:52px}
-  .endless-duat-portal .reward-overlay,.endless-duat-portal .event-overlay{inset:8px;padding:14px 10px}
-  .endless-duat-portal .reward-overlay h2,.endless-duat-portal .event-overlay h2{font-size:19px}
-  .endless-duat-portal .reward-overlay>p{display:none}
-  .endless-duat-portal .boon-choice-grid{gap:5px}.endless-duat-portal .boon-choice{min-height:174px;padding:12px 6px}.endless-duat-portal .boon-choice>span{width:34px;height:34px;font-size:17px}.endless-duat-portal .boon-choice>b{font-size:11px}.endless-duat-portal .boon-choice>p{font-size:7px}.endless-duat-portal .boon-choice>strong{font-size:7px}
-  .endless-duat-portal .event-overlay>p{font-size:9px}.endless-duat-portal .event-overlay>div{grid-template-columns:1fr}.endless-duat-portal .event-overlay button{padding:10px}.endless-duat-portal .event-icon{font-size:40px;margin-bottom:5px}
-  .endless-duat-portal .run-dashboard{grid-template-columns:1fr 1fr}.endless-duat-portal .run-boons{grid-column:span 2}.endless-duat-portal .next-gate{text-align:left}
+  .sandfall-topbar { grid-template-columns: 1fr auto; min-height: 62px; padding: 8px 10px; }
+  .sandfall-brand b { font-size: 11px; }.sandfall-brand small,.sandfall-exit { display: none; }
+  .sandfall-stats { border: 0; background: none; }.sandfall-stats > div { min-width: auto; padding: 5px 8px; }.sandfall-stats > div:nth-child(3) { display: none; }.sandfall-stats small { font-size: 6px; }.sandfall-stats b { font-size: 10px; }
+  .sandfall-layout { display: block; }
+  .dig-chamber { position: relative; top: auto; height: 65vh; min-height: 490px; border-right: 0; border-bottom: 1px solid var(--line); }
+  .sandfall-panel { padding: 11px; gap: 9px; }
+  .tap-callout { bottom: 96px; }.rush-meter { bottom: 31px; width: 74%; }
+  .nebu-digger { width: min(270px,66vw); }
+  .artifact-reveal { min-height: 330px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .endless-duat-portal *,.endless-duat-portal *::before,.endless-duat-portal *::after{animation-duration:.001ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important}
-}
-
-.endless-duat-portal .skin-run-passive{--skin-accent:#a97aff;height:29px;display:flex;align-items:center;gap:6px;border:1px solid color-mix(in srgb,var(--skin-accent),transparent 60%);border-radius:20px;padding:0 9px 0 5px;color:var(--skin-accent);background:color-mix(in srgb,var(--skin-accent),transparent 91%)}
-.endless-duat-portal .skin-run-passive i{width:19px;height:19px;display:grid;place-items:center;border-radius:50%;background:color-mix(in srgb,var(--skin-accent),transparent 80%);font-style:normal;font-size:9px}
-.endless-duat-portal .skin-run-passive b{font-size:7px;white-space:nowrap}
-
-/* Ancient Pulls wardrobe palettes */
-.endless-duat-portal .nebu.skin-midnight .nebu-body,.endless-duat-portal .nebu.skin-midnight .nebu-head{background:linear-gradient(145deg,#172a5b 0 55%,#d79b28 56% 72%,#15315a 73%);box-shadow:inset 7px 5px 11px rgba(69,215,200,.2),0 0 15px rgba(69,215,200,.18)}
-.endless-duat-portal .nebu.skin-midnight .nebu-tail{border-color:#172a5b;border-left-color:transparent;border-bottom-color:transparent}.endless-duat-portal .nebu.skin-midnight .nebu-paw{background:linear-gradient(#d79b28,#172a5b)}.endless-duat-portal .nebu.skin-midnight .eye{background:#45d7c8;box-shadow:0 0 10px #45d7c8}.endless-duat-portal .nebu.skin-midnight .nebu-mark{color:#f2b638;text-shadow:0 0 8px #f2b638}
-.endless-duat-portal .nebu.skin-nile .nebu-body,.endless-duat-portal .nebu.skin-nile .nebu-head{background:linear-gradient(145deg,#0b7f91 0 55%,#f08aa4 56% 70%,#165f77 71%);box-shadow:inset 7px 5px 11px rgba(185,255,244,.28)}.endless-duat-portal .nebu.skin-nile .nebu-tail{border-color:#0b7187;border-left-color:transparent;border-bottom-color:transparent}.endless-duat-portal .nebu.skin-nile .nebu-paw{background:linear-gradient(#f08aa4,#0b7187)}.endless-duat-portal .nebu.skin-nile .eye{background:#b9fff4;box-shadow:0 0 11px #b9fff4}.endless-duat-portal .nebu.skin-nile .nebu-mark{color:#ffd0dc;text-shadow:0 0 8px #f08aa4}.endless-duat-portal .nebu.skin-nile .nebu-aura{background:radial-gradient(ellipse,rgba(69,215,200,.42),rgba(240,138,164,.18),transparent 68%)}
-.endless-duat-portal .nebu.skin-lotus .nebu-body,.endless-duat-portal .nebu.skin-lotus .nebu-head{background:linear-gradient(145deg,#b52f76,#7b51d9 58%,#295b50);box-shadow:inset 7px 5px 11px rgba(255,170,216,.22)}.endless-duat-portal .nebu.skin-lotus .nebu-tail{border-color:#7b51d9;border-left-color:transparent;border-bottom-color:transparent}.endless-duat-portal .nebu.skin-lotus .nebu-paw{background:linear-gradient(#b52f76,#56369d)}.endless-duat-portal .nebu.skin-lotus .eye{background:#65e0a3;box-shadow:0 0 11px #65e0a3}.endless-duat-portal .nebu.skin-lotus .nebu-mark{color:#ffb5da;text-shadow:0 0 8px #e86aae}.endless-duat-portal .nebu.skin-lotus .nebu-aura{background:radial-gradient(ellipse,rgba(232,106,174,.43),rgba(101,224,163,.14),transparent 69%)}
-.endless-duat-portal .nebu.skin-scarab .nebu-body,.endless-duat-portal .nebu.skin-scarab .nebu-head{background:linear-gradient(145deg,#065e52,#0a8b73 55%,#7f2839);box-shadow:inset 7px 5px 11px rgba(85,234,216,.32),0 0 14px rgba(85,234,216,.2)}.endless-duat-portal .nebu.skin-scarab .nebu-tail{border-color:#087d69;border-left-color:transparent;border-bottom-color:transparent}.endless-duat-portal .nebu.skin-scarab .nebu-paw{background:linear-gradient(#f05d74,#087d69)}.endless-duat-portal .nebu.skin-scarab .eye{background:#55ead8;box-shadow:0 0 12px #55ead8}.endless-duat-portal .nebu.skin-scarab .nebu-mark{color:#f05d74;text-shadow:0 0 8px #f05d74}.endless-duat-portal .nebu.skin-scarab .nebu-aura{background:radial-gradient(ellipse,rgba(85,234,216,.5),rgba(240,93,116,.14),transparent 68%)}
-.endless-duat-portal .nebu.skin-sunstone{filter:drop-shadow(0 0 10px rgba(255,181,47,.5)) drop-shadow(0 17px 11px rgba(0,0,0,.52))}.endless-duat-portal .nebu.skin-sunstone .nebu-body,.endless-duat-portal .nebu.skin-sunstone .nebu-head{background:linear-gradient(145deg,#9d471f,#ff9d26 56%,#5e2b1d);box-shadow:inset 7px 5px 12px rgba(255,241,184,.34),0 0 14px rgba(255,155,37,.26)}.endless-duat-portal .nebu.skin-sunstone .nebu-tail{border-color:#9d471f;border-left-color:transparent;border-bottom-color:transparent}.endless-duat-portal .nebu.skin-sunstone .nebu-paw{background:linear-gradient(#ffb52f,#843818)}.endless-duat-portal .nebu.skin-sunstone .eye{background:#fff1b8;box-shadow:0 0 12px #fff1b8}.endless-duat-portal .nebu.skin-sunstone .nebu-mark{color:#fff1b8;text-shadow:0 0 10px #fff}.endless-duat-portal .nebu.skin-sunstone .nebu-aura{background:radial-gradient(ellipse,rgba(255,181,47,.55),rgba(255,92,36,.16),transparent 69%)}
-.endless-duat-portal .nebu.skin-royal .nebu-body,.endless-duat-portal .nebu.skin-royal .nebu-head{background:linear-gradient(145deg,#4e278f,#25205d 58%,#34684e);box-shadow:inset 7px 5px 12px rgba(138,105,239,.28),0 0 15px rgba(138,105,239,.22)}.endless-duat-portal .nebu.skin-royal .nebu-tail{border-color:#4e278f;border-left-color:transparent;border-bottom-color:transparent}.endless-duat-portal .nebu.skin-royal .nebu-paw{background:linear-gradient(#8a69ef,#332063)}.endless-duat-portal .nebu.skin-royal .eye{background:#9ee9b4;box-shadow:0 0 11px #9ee9b4}.endless-duat-portal .nebu.skin-royal .nebu-mark{color:#d7c7ff;text-shadow:0 0 9px #8a69ef}.endless-duat-portal .nebu.skin-royal .nebu-aura{background:radial-gradient(ellipse,rgba(138,105,239,.48),rgba(158,233,180,.12),transparent 68%)}
-.endless-duat-portal .nebu.skin-pearl .nebu-body,.endless-duat-portal .nebu.skin-pearl .nebu-head{background:linear-gradient(145deg,#f4f7ff,#aebbd2 55%,#697892);box-shadow:inset 7px 5px 12px rgba(255,255,255,.62),0 0 16px rgba(165,243,252,.3)}.endless-duat-portal .nebu.skin-pearl .nebu-tail{border-color:#aebbd2;border-left-color:transparent;border-bottom-color:transparent}.endless-duat-portal .nebu.skin-pearl .nebu-paw{background:linear-gradient(#eef2ff,#77839e)}.endless-duat-portal .nebu.skin-pearl .eye{background:#67e8f9;box-shadow:0 0 12px #67e8f9}.endless-duat-portal .nebu.skin-pearl .nebu-mark{color:#66748c;text-shadow:0 0 8px #a5f3fc}.endless-duat-portal .nebu.skin-pearl .nebu-aura{background:radial-gradient(ellipse,rgba(165,243,252,.5),rgba(238,242,255,.2),transparent 69%)}
-
-.endless-duat-portal .enemy-trait{position:absolute;z-index:3;right:0;top:42px;max-width:180px;padding:4px 7px;border:1px solid rgba(239,181,91,.3);border-radius:12px;background:rgba(15,10,17,.88);color:#e2b774;font-size:6px;letter-spacing:.11em;text-transform:uppercase}.endless-duat-portal .enemy-trait.enraged{border-color:rgba(255,87,74,.55);color:#ff8278;box-shadow:0 0 13px rgba(255,65,57,.2)}
-.endless-duat-portal .power-button.skin-technique{border-color:color-mix(in srgb,var(--skin-accent),transparent 45%);background:linear-gradient(135deg,color-mix(in srgb,var(--skin-accent),#21152e 72%),#15111d)}.endless-duat-portal .power-button.skin-technique .power-icon{background:color-mix(in srgb,var(--skin-accent),#29163b 58%);box-shadow:0 0 14px color-mix(in srgb,var(--skin-accent),transparent 30%)}
-.endless-duat-portal .oath-selector{display:grid;grid-template-columns:minmax(220px,.75fr) 1.65fr;gap:18px;align-items:center;margin-bottom:18px;padding:18px;border:1px solid rgba(157,124,255,.2);border-radius:14px;background:radial-gradient(circle at 10% 50%,rgba(157,124,255,.12),transparent 32%),rgba(15,12,24,.72)}.endless-duat-portal .oath-selector h3{font:19px Georgia,serif;margin:4px 0}.endless-duat-portal .oath-selector p{font:italic 9px/1.45 Georgia,serif;color:#827a87;margin:0}.endless-duat-portal .oath-options{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.endless-duat-portal .oath-options button{min-height:88px;display:grid;grid-template-columns:28px 1fr;grid-template-rows:auto auto;column-gap:8px;text-align:left;align-items:center;border:1px solid rgba(255,255,255,.09);border-radius:10px;background:rgba(255,255,255,.025);padding:10px;color:#8e8594;cursor:pointer}.endless-duat-portal .oath-options button>span{grid-row:span 2;width:27px;height:27px;display:grid;place-items:center;border-radius:50%;background:rgba(157,124,255,.1);color:#b996ff}.endless-duat-portal .oath-options button b{font-size:9px;color:#cbc1d0}.endless-duat-portal .oath-options button small{font-size:7px;line-height:1.35}.endless-duat-portal .oath-options button.active{border-color:rgba(237,198,106,.48);background:rgba(237,198,106,.08);box-shadow:0 0 19px rgba(237,198,106,.08)}.endless-duat-portal .oath-options button.active>span{color:#1c1206;background:var(--gold)}
-.endless-duat-portal .run-dashboard{grid-template-columns:1.35fr 1fr 1fr auto}.endless-duat-portal .fate-card>div{margin-top:9px}.endless-duat-portal .fate-card small{display:block;margin-top:5px;font-size:7px;color:#8c8293}.endless-duat-portal .fate-card.surging{border-color:rgba(198,158,255,.42);box-shadow:inset 0 0 24px rgba(143,82,220,.12)}.endless-duat-portal .fate-card.surging .meter span{background:linear-gradient(90deg,#7547c4,#f1c96a)}
-.endless-duat-portal .passive-callout em,.endless-duat-portal .mini-passive em{display:block;margin-top:5px;color:#c78375;font:italic 7px/1.35 Georgia,serif}.endless-duat-portal .technique-callout{margin-top:10px;padding:10px 13px;border-left:2px solid var(--skin-accent);background:color-mix(in srgb,var(--skin-accent),transparent 94%)}.endless-duat-portal .technique-callout small,.endless-duat-portal .technique-callout b{display:block}.endless-duat-portal .technique-callout small{font-size:6px;letter-spacing:.15em;color:var(--skin-accent)}.endless-duat-portal .technique-callout b{font:13px Georgia,serif;margin:3px 0}.endless-duat-portal .technique-callout p{font:italic 8px/1.4 Georgia,serif;color:#8d8491;margin:0}.endless-duat-portal .mastery-block{margin:17px 0}.endless-duat-portal .mastery-block>small,.endless-duat-portal .mastery-block>em{display:block}.endless-duat-portal .mastery-block>small{font-size:6px;color:#847b88}.endless-duat-portal .mastery-block>div{height:5px;margin:5px 0;border-radius:7px;background:#0c0a11;overflow:hidden}.endless-duat-portal .mastery-block>div span{display:block;height:100%;background:var(--skin-accent);box-shadow:0 0 8px var(--skin-accent)}.endless-duat-portal .mastery-block>em{font:italic 7px Georgia,serif;color:#756d79}.endless-duat-portal .skin-card{min-height:485px}.endless-duat-portal .skin-card-copy{min-height:235px}.endless-duat-portal .skin-swatch{position:absolute;right:13px;bottom:10px;width:42px;height:9px;border-radius:8px;border:1px solid rgba(255,255,255,.18)}.endless-duat-portal .skin-unlock{display:block;margin-top:7px;font-size:6px;letter-spacing:.08em;color:var(--skin-accent);text-transform:uppercase}.endless-duat-portal .mini-technique{margin-top:9px;padding:7px 9px;border-radius:7px;background:color-mix(in srgb,var(--skin-accent),transparent 93%)}.endless-duat-portal .mini-technique small,.endless-duat-portal .mini-technique b{display:block}.endless-duat-portal .mini-technique small{font-size:6px;color:#807788}.endless-duat-portal .mini-technique b{font:10px Georgia,serif;color:var(--skin-accent);margin-top:2px}
-
-@media (max-width:1050px){.endless-duat-portal .run-dashboard{grid-template-columns:1fr 1fr}.endless-duat-portal .run-boons{grid-column:span 2}.endless-duat-portal .oath-selector{grid-template-columns:1fr}.endless-duat-portal .skin-card{min-height:465px}}
-@media (max-width:760px){.endless-duat-portal .battle-controls{grid-template-columns:repeat(4,1fr)}.endless-duat-portal .power-button.skin-technique .power-icon{font-size:11px}.endless-duat-portal .oath-options{grid-template-columns:1fr}.endless-duat-portal .oath-options button{min-height:64px}.endless-duat-portal .run-dashboard{grid-template-columns:1fr 1fr}.endless-duat-portal .skin-card{min-height:455px}.endless-duat-portal .skin-card-copy{min-height:245px}.endless-duat-portal .enemy-trait{top:39px;right:4px;font-size:5px}.endless-duat-portal .active-skin-hero{min-height:650px}}
-
-/* Simplified, high-legibility Duat interface */
-.endless-duat-portal {
-  --panel: rgba(15, 14, 25, .96);
-  --line: rgba(238, 204, 119, .24);
-  --muted: #b8b1c0;
-  font-size: 16px;
-}
-.endless-duat-portal .ambient-stars { opacity: .08; }
-.endless-duat-portal .constellation-lines,
-.endless-duat-portal .player-seal,
-.endless-duat-portal .prophecy-panel,
-.endless-duat-portal .sidebar-bottom,
-.endless-duat-portal .oath-selector,
-.endless-duat-portal .skin-rule,
-.endless-duat-portal .skin-integration-note,
-.endless-duat-portal .museum-note,
-.endless-duat-portal .run-history,
-.endless-duat-portal .next-gate,
-.endless-duat-portal .auto-label { display: none !important; }
-
-.endless-duat-portal .topbar {
-  height: 74px;
-  padding: 0 clamp(16px, 3vw, 36px);
-  background: #090812;
-}
-.endless-duat-portal .brand-star {
-  width: 42px;
-  height: 42px;
-  clip-path: none;
-  border: 1px solid rgba(237,198,106,.55);
-  border-radius: 12px;
-  background: #181321;
-  color: var(--gold-bright);
-  font-size: 25px;
-  filter: none;
-}
-.endless-duat-portal .brand b { font: 700 16px/1.1 Georgia,serif; letter-spacing: .09em; }
-.endless-duat-portal .brand small { margin-top: 4px; color: var(--muted); font-size: 11px; letter-spacing: .04em; }
-.endless-duat-portal .resource-row { gap: 8px; }
-.endless-duat-portal .resource-pill { min-width: 104px; padding: 9px 11px; border-radius: 9px; }
-.endless-duat-portal .resource-pill b { font-size: 15px; }
-.endless-duat-portal .resource-pill small { margin-top: 4px; color: var(--muted); font-size: 10px; letter-spacing: .05em; }
-.endless-duat-portal .duat-exit { min-height: 40px; padding: 9px 14px; font-size: 12px; font-weight: 700; }
-
-.endless-duat-portal .game-layout { display: block; min-height: calc(100vh - 74px); }
-.endless-duat-portal .sidebar {
-  position: sticky;
-  top: 74px;
-  z-index: 25;
-  display: block;
-  width: 100%;
-  height: auto;
-  min-height: 0;
-  padding: 9px 16px;
-  border-right: 0;
-  border-bottom: 1px solid var(--line);
-  background: rgba(9,8,18,.96);
-}
-.endless-duat-portal .sidebar nav { display: flex; justify-content: center; gap: 7px; margin: 0; }
-.endless-duat-portal .sidebar nav button {
-  width: auto;
-  min-width: 118px;
-  height: 44px;
-  justify-content: center;
-  padding: 0 16px;
-  border-radius: 8px;
-  color: var(--muted);
-  font-size: 13px;
-  font-weight: 700;
-}
-.endless-duat-portal .sidebar nav button > span { width: auto; font-size: 16px; }
-.endless-duat-portal .sidebar nav button i { position: absolute; right: 5px; top: 5px; }
-.endless-duat-portal .content { width: min(1220px, 100%); margin: 0 auto; padding: 32px clamp(18px, 4vw, 48px) 72px; }
-
-.endless-duat-portal .eyebrow { font-size: 11px; letter-spacing: .12em; }
-.endless-duat-portal .view-heading { align-items: center; margin-bottom: 20px; }
-.endless-duat-portal .view-heading h1 { margin-top: 7px; font-size: clamp(30px, 4vw, 44px); }
-.endless-duat-portal .view-heading p { margin-top: 7px; color: var(--muted); font-size: 14px; line-height: 1.5; }
-.endless-duat-portal .quiet-button { padding: 11px 14px; color: #ddd4e2; font-size: 12px; }
-.endless-duat-portal .badge-skin-sync b { font-size: 13px; }
-.endless-duat-portal .badge-skin-sync small { font-size: 11px; line-height: 1.45; }
-
-.endless-duat-portal .duat-stage { height: 500px; min-height: 500px; border-radius: 15px; }
-.endless-duat-portal .fighter-label b { font-size: 14px; }
-.endless-duat-portal .fighter-label span,
-.endless-duat-portal .fighter > small { color: #d0c8d4; font-size: 11px; }
-.endless-duat-portal .stage-message span { font-size: 10px; letter-spacing: .12em; }
-.endless-duat-portal .stage-message b { margin-top: 7px; font-size: 22px; }
-.endless-duat-portal .enemy-trait { top: 43px; padding: 5px 8px; font-size: 9px; letter-spacing: .05em; }
-.endless-duat-portal .battle-controls { gap: 8px; }
-.endless-duat-portal .power-button { min-width: 0; min-height: 60px; padding: 9px 12px; border-radius: 10px; }
-.endless-duat-portal .power-button b { font-size: 11px; }
-.endless-duat-portal .power-button small { margin-top: 3px; color: #c2b9c7; font-size: 9px; line-height: 1.25; }
-
-.endless-duat-portal .section-title h2 { font-size: 23px; }
-.endless-duat-portal .section-title p { color: var(--muted); font-size: 12px; }
-.endless-duat-portal .route-grid { grid-template-columns: repeat(auto-fit,minmax(235px,1fr)); gap: 11px; }
-.endless-duat-portal .route-card { min-height: 190px; padding: 20px; border-radius: 12px; }
-.endless-duat-portal .route-card h3 { font-size: 19px; }
-.endless-duat-portal .route-card p { color: var(--muted); font-size: 12px; line-height: 1.5; }
-.endless-duat-portal .route-card small,
-.endless-duat-portal .route-meta { font-size: 10px; }
-.endless-duat-portal .run-dashboard { grid-template-columns: 1.35fr 1fr; gap: 10px; }
-.endless-duat-portal .run-dashboard > div { min-height: 78px; padding: 14px; }
-.endless-duat-portal .run-boons small,
-.endless-duat-portal .fate-card small { color: var(--muted); font-size: 10px; }
-.endless-duat-portal .skin-run-passive { height: 36px; padding: 0 11px 0 6px; }
-.endless-duat-portal .skin-run-passive b { font-size: 10px; }
-
-.endless-duat-portal .reward-overlay h2,
-.endless-duat-portal .event-overlay h2 { font-size: 25px; }
-.endless-duat-portal .reward-overlay > p,
-.endless-duat-portal .event-overlay > p { color: var(--muted); font-size: 12px; }
-.endless-duat-portal .boon-choice { min-height: 190px; padding: 17px 13px; }
-.endless-duat-portal .boon-choice > small { font-size: 9px; }
-.endless-duat-portal .boon-choice > b { font-size: 15px; }
-.endless-duat-portal .boon-choice > p { color: var(--muted); font-size: 11px; }
-.endless-duat-portal .boon-choice > strong { font-size: 10px; }
-.endless-duat-portal .event-overlay button b { font-size: 15px; }
-.endless-duat-portal .event-overlay button small { color: var(--muted); font-size: 10px; }
-
-.endless-duat-portal .building-copy h3,
-.endless-duat-portal .ingredient-panel h3,
-.endless-duat-portal .sponsor-panel h3 { font-size: 18px; }
-.endless-duat-portal .building-copy p,
-.endless-duat-portal .ingredient small,
-.endless-duat-portal .sponsor-panel p { color: var(--muted); font-size: 11px; line-height: 1.45; }
-.endless-duat-portal .building-copy b,
-.endless-duat-portal .building-card > button,
-.endless-duat-portal .ingredient strong { font-size: 11px; }
-.endless-duat-portal .relic-grid { grid-template-columns: repeat(auto-fit,minmax(220px,1fr)); }
-.endless-duat-portal .relic-card h3 { font-size: 18px; }
-.endless-duat-portal .relic-card p { color: var(--muted); font-size: 11px; line-height: 1.45; }
-.endless-duat-portal .relic-card small { font-size: 9px; }
-
-.endless-duat-portal .active-skin-hero { grid-template-columns: 240px 1fr 210px; gap: 22px; padding: 24px; }
-.endless-duat-portal .active-skin-copy > p { color: var(--muted); font-size: 12px; }
-.endless-duat-portal .passive-callout small,
-.endless-duat-portal .technique-callout small,
-.endless-duat-portal .mastery-block > small { font-size: 9px; }
-.endless-duat-portal .passive-callout b,
-.endless-duat-portal .technique-callout b { font-size: 14px; }
-.endless-duat-portal .passive-callout p,
-.endless-duat-portal .technique-callout p,
-.endless-duat-portal .passive-callout em,
-.endless-duat-portal .mastery-block > em,
-.endless-duat-portal .skin-family span { color: var(--muted); font-size: 10px; line-height: 1.4; }
-.endless-duat-portal .badge-wardrobe-button { min-height: 40px; font-size: 11px; }
-.endless-duat-portal .skin-grid { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 14px; }
-.endless-duat-portal .skin-card { min-height: 460px; padding: 0 18px 18px; }
-.endless-duat-portal .skin-card-copy { min-height: 220px; }
-.endless-duat-portal .skin-card-copy h3 { font-size: 22px; }
-.endless-duat-portal .skin-card-copy > small,
-.endless-duat-portal .skin-unlock { font-size: 10px; }
-.endless-duat-portal .mini-passive b,
-.endless-duat-portal .mini-technique b { font-size: 12px; }
-.endless-duat-portal .mini-passive p,
-.endless-duat-portal .mini-passive em,
-.endless-duat-portal .mini-technique small { color: var(--muted); font-size: 10px; }
-.endless-duat-portal .skin-card > button { height: 42px; font-size: 11px; }
-
-.endless-duat-portal .forge-core h2 { font-size: 28px; }
-.endless-duat-portal .forge-core > p { color: var(--muted); font-size: 13px; line-height: 1.5; }
-.endless-duat-portal .forge-button b { font-size: 14px; }
-.endless-duat-portal .forge-button small { font-size: 10px; line-height: 1.4; }
-
-@media (max-width: 760px) {
-  .endless-duat-portal .topbar { height: auto; min-height: 112px; flex-direction: column; justify-content: center; gap: 9px; padding: 10px 12px; }
-  .endless-duat-portal .brand { align-self: flex-start; }
-  .endless-duat-portal .brand-star { width: 34px; height: 34px; font-size: 20px; }
-  .endless-duat-portal .brand b { font-size: 14px; }
-  .endless-duat-portal .resource-row { display: grid; grid-template-columns: repeat(5,minmax(0,1fr)); width: 100%; gap: 5px; }
-  .endless-duat-portal .resource-pill { min-width: 0; justify-content: center; padding: 7px 4px; }
-  .endless-duat-portal .resource-pill > div { display: block !important; }
-  .endless-duat-portal .resource-pill b { font-size: 11px; }
-  .endless-duat-portal .resource-pill small { display: none; }
-  .endless-duat-portal .duat-exit { min-width: 0; padding: 7px 4px; }
-  .endless-duat-portal .content { padding: 22px 12px 94px; }
-  .endless-duat-portal .view-heading h1 { font-size: 29px; }
-  .endless-duat-portal .view-heading p { font-size: 12px; }
-  .endless-duat-portal .duat-stage { height: 520px; min-height: 520px; }
-  .endless-duat-portal .power-button { min-height: 68px; padding: 8px 4px; }
-  .endless-duat-portal .power-button b { font-size: 9px; }
-  .endless-duat-portal .route-card { min-height: 175px; }
-  .endless-duat-portal .run-dashboard { grid-template-columns: 1fr; }
-  .endless-duat-portal .run-boons { grid-column: auto; }
-  .endless-duat-portal .boon-choice > p { display: none; }
-  .endless-duat-portal .skin-grid { grid-template-columns: 1fr; }
-  .endless-duat-portal .active-skin-hero { grid-template-columns: 1fr; min-height: 0; }
-  .endless-duat-portal .skin-card { min-height: 430px; }
-  .endless-duat-portal .skin-card-copy { min-height: 200px; }
+  .sandfall-shell *, .sandfall-shell *::before, .sandfall-shell *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; }
 }
