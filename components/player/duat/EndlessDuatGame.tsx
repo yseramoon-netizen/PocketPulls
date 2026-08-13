@@ -30,6 +30,10 @@ export type DuatBootstrap = {
 
 type Props = { bootstrap: DuatBootstrap; accessToken: string; onExit: () => void; onOpenBadges: () => void };
 type SkinBonus = { title: string; detail: string; tap: number; auto: number; sand: number; luck: number };
+type MaterialLayer = {
+  id: string; name: string; icon: string; start: number; end: number;
+  light: string; mid: string; dark: string; accent: string;
+};
 
 const RARITIES: Rarity[] = ["common", "uncommon", "rare", "epic", "legendary"];
 const ARTIFACTS: Record<Rarity, Array<{ name: string; icon: string }>> = {
@@ -75,11 +79,39 @@ const UPGRADES: Array<{ id: UpgradeId; icon: string; name: string; detail: strin
   { id: "idol", icon: "☼", name: "Golden Idol", detail: "Multiplies all progress" },
 ];
 
+const MATERIALS: MaterialLayer[] = [
+  { id: "sand", name: "Sand", icon: "◌", start: 0, end: 10_000, light: "#d99c3c", mid: "#a85f20", dark: "#2a150b", accent: "#ffd078" },
+  { id: "stone", name: "Stone", icon: "⬟", start: 10_000, end: 100_000, light: "#8e8b86", mid: "#565451", dark: "#222224", accent: "#d8d4cc" },
+  { id: "copper", name: "Copper", icon: "◈", start: 100_000, end: 1_000_000, light: "#d27b43", mid: "#87452e", dark: "#2e1716", accent: "#ffad72" },
+  { id: "iron", name: "Iron", icon: "◆", start: 1_000_000, end: 10_000_000, light: "#788590", mid: "#45515b", dark: "#172027", accent: "#b9cbd8" },
+  { id: "silver", name: "Silver", icon: "◇", start: 10_000_000, end: 100_000_000, light: "#c9d2dd", mid: "#7a8797", dark: "#26303b", accent: "#f0f6ff" },
+  { id: "gold", name: "Gold", icon: "✦", start: 100_000_000, end: 1_000_000_000, light: "#f2ca54", mid: "#a97016", dark: "#38210a", accent: "#fff09a" },
+  { id: "obsidian", name: "Obsidian", icon: "⬢", start: 1_000_000_000, end: 10_000_000_000, light: "#5e4a71", mid: "#2e2338", dark: "#0d0912", accent: "#bf8cff" },
+  { id: "emerald", name: "Emerald", icon: "◉", start: 10_000_000_000, end: 100_000_000_000, light: "#3ecb91", mid: "#147054", dark: "#08271f", accent: "#8fffd2" },
+  { id: "starstone", name: "Starstone", icon: "✧", start: 100_000_000_000, end: 1_000_000_000_000, light: "#668cff", mid: "#373f9c", dark: "#10163c", accent: "#a7c4ff" },
+  { id: "duat-crystal", name: "Duat Crystal", icon: "♢", start: 1_000_000_000_000, end: 10_000_000_000_000, light: "#b77cff", mid: "#6738a3", dark: "#1e0d38", accent: "#e2b8ff" },
+  { id: "cosmic-ore", name: "Cosmic Ore", icon: "∞", start: 10_000_000_000_000, end: 100_000_000_000_000, light: "#55dff6", mid: "#6747cf", dark: "#090d38", accent: "#fff09b" },
+  { id: "voidstone", name: "Voidstone", icon: "●", start: 100_000_000_000_000, end: 1_000_000_000_000_000, light: "#706989", mid: "#29243c", dark: "#050409", accent: "#c9baff" },
+];
+
 function todayKey() { return new Date().toISOString().slice(0, 10); }
 function compact(value: number) {
   return new Intl.NumberFormat("en-GB", { notation: value >= 10_000 ? "compact" : "standard", maximumFractionDigits: value < 100 ? 1 : 0 }).format(Math.max(0, value));
 }
-function depthLabel(value: number) { return value < 1_000 ? `${compact(value)} m` : `${compact(value / 1_000)} km`; }
+function blockLabel(value: number) { return `${compact(Math.floor(value))} blocks`; }
+function materialForDepth(depth: number): MaterialLayer {
+  const known = MATERIALS.find((material) => depth < material.end);
+  if (known) return known;
+  const finalEnd = MATERIALS[MATERIALS.length - 1].end;
+  const age = Math.max(1, Math.floor(Math.log10(Math.max(1, depth / finalEnd))) + 1);
+  const start = finalEnd * 10 ** (age - 1);
+  return { id: `eclipse-${age}`, name: `Eclipse Ore ${age}`, icon: "☉", start, end: start * 10,
+    light: "#8e73d7", mid: "#3d2878", dark: "#09051a", accent: "#ffd782" };
+}
+function nextMaterial(material: MaterialLayer) {
+  const index = MATERIALS.findIndex((item) => item.id === material.id);
+  return index >= 0 && index < MATERIALS.length - 1 ? MATERIALS[index + 1].name : material.id.startsWith("eclipse-") ? `Eclipse Ore ${Number(material.id.split("-")[1]) + 1}` : "Eclipse Ore 1";
+}
 function upgradeCost(id: UpgradeId, level: number) {
   const base = { claws: 24, crew: 70, charm: 240, idol: 1_100 }[id];
   const growth = { claws: 1.58, crew: 1.7, charm: 1.9, idol: 2.12 }[id];
@@ -145,21 +177,53 @@ function nextArtifactGap(charmLevel: number, skinLuck: number) {
   return (13 + Math.random() * 20) * (1 - reduction);
 }
 
+const DIG_POSES: NebuPose[] = [
+  "idle", "idle", "puffed", "puffed", "back", "back", "swipe", "swipe",
+  "swipe", "pounce", "pounce", "pounce", "leap", "leap", "swipe", "swipe",
+  "walk", "walk", "run", "run", "pounce", "idle", "idle", "idle",
+];
+const COSMIC_DIG_FRAMES = [0, 0, 5, 5, 3, 3, 4, 4, 4, 8, 8, 8, 7, 7, 4, 4, 2, 2, 3, 3, 4, 0, 0, 0];
+const DIG_TRANSFORMS = [
+  [-10, 0, 1], [-11, -1, 1], [-9, -2, .99], [-7, -3, .98], [-5, -4, .98], [-2, -5, .99],
+  [1, -4, 1.01], [3, -3, 1.03], [5, -2, 1.04], [6, 0, 1.05], [4, 2, 1.05], [1, 4, 1.04],
+  [-4, 5, 1.03], [-8, 5, 1.02], [-5, 4, 1.02], [0, 2, 1.01], [5, 0, 1], [10, -1, .99],
+  [15, -1, .98], [20, 0, .97], [24, 1, .97], [13, 1, .98], [2, 0, .99], [-7, 0, 1],
+] as const;
+
 function SandNebu({ skin, digging }: { skin: SkinId; digging: boolean }) {
   const [frame, setFrame] = useState(0);
   const assets = getNebuHeatAssets(skin);
   const cosmic = skin === "cosmic_nebu";
   useEffect(() => {
-    if (!digging) return;
-    const timer = window.setInterval(() => setFrame((value) => (value + 1) % 2), 145);
-    return () => window.clearInterval(timer);
+    if (!digging) { setFrame(0); return; }
+    let animationFrame = 0;
+    let lastFrameAt = performance.now();
+    const frameLength = 1_000 / 24;
+    const animate = (now: number) => {
+      if (now - lastFrameAt >= frameLength) {
+        const elapsedFrames = Math.max(1, Math.floor((now - lastFrameAt) / frameLength));
+        setFrame((value) => (value + elapsedFrames) % 24);
+        lastFrameAt += elapsedFrames * frameLength;
+      }
+      animationFrame = window.requestAnimationFrame(animate);
+    };
+    animationFrame = window.requestAnimationFrame(animate);
+    return () => window.cancelAnimationFrame(animationFrame);
   }, [digging]);
+  const [translateY, rotate, scale] = DIG_TRANSFORMS[digging ? frame : 0];
+  const phase = frame < 6 ? "brace" : frame < 12 ? "scoop" : frame < 16 ? "throw" : frame < 21 ? "descend" : "settle";
+  const rigStyle = { transform: `translateY(${translateY}px) rotate(${rotate}deg) scale(${scale})` };
   if (cosmic) {
-    return <NebuPerformanceSprite sheet={assets.reactionSheet} durationMs={900} staticFrame={digging ? (frame ? 3 : 4) : 0}
-      columns={assets.reactionColumns ?? 3} rows={assets.reactionRows ?? 3} className="sand-nebu" label="Cosmic Nebu digging" />;
+    return <span className={`sand-nebu-rig dig-${phase}`} data-dig-frame={frame} style={rigStyle}>
+      <NebuPerformanceSprite sheet={assets.reactionSheet} durationMs={900} staticFrame={digging ? COSMIC_DIG_FRAMES[frame] : 0}
+        columns={assets.reactionColumns ?? 3} rows={assets.reactionRows ?? 3} className="sand-nebu" label="Cosmic Nebu digging" />
+      <i className="dig-claw" /><i className="dig-debris" />
+    </span>;
   }
-  const pose: NebuPose = digging ? (frame ? "swipe" : "pounce") : "idle";
-  return <NebuSprite pose={pose} className="sand-nebu" label={`${getNebuSkin(skin).label} digging`} />;
+  return <span className={`sand-nebu-rig dig-${phase}`} data-dig-frame={frame} style={rigStyle}>
+    <NebuSprite pose={digging ? DIG_POSES[frame] : "idle"} className="sand-nebu" label={`${getNebuSkin(skin).label} digging`} />
+    <i className="dig-claw" /><i className="dig-debris" />
+  </span>;
 }
 
 export default function EndlessDuatGame({ bootstrap, accessToken, onExit, onOpenBadges }: Props) {
@@ -173,7 +237,7 @@ export default function EndlessDuatGame({ bootstrap, accessToken, onExit, onOpen
   const [combo, setCombo] = useState(0);
   const [latestFind, setLatestFind] = useState<ArtifactFind | null>(null);
   const [digging, setDigging] = useState(false);
-  const [notice, setNotice] = useState(boot.current.offline.sand > 1 ? `While away, Nebu dug ${depthLabel(boot.current.offline.depth)} and gathered ${compact(boot.current.offline.sand)} sand.` : "");
+  const [notice, setNotice] = useState(boot.current.offline.sand > 1 ? `While away, Nebu dug ${blockLabel(boot.current.offline.depth)} and gathered ${compact(boot.current.offline.sand)} sand.` : "");
   const [networkBusy, setNetworkBusy] = useState(false);
   const [tapBursts, setTapBursts] = useState<Array<{ id: number; x: number; y: number }>>([]);
   const stateRef = useRef(state);
@@ -191,6 +255,8 @@ export default function EndlessDuatGame({ bootstrap, accessToken, onExit, onOpen
   const tapPower = (1 + state.upgrades.claws * 1.28) * idolMultiplier * skinBonus.tap;
   const passiveRate = (0.22 + state.upgrades.crew * 0.48) * idolMultiplier * skinBonus.auto;
   const findProgress = Math.max(0, Math.min(100, ((state.depth - state.lastFindAt) / Math.max(1, state.nextFindAt - state.lastFindAt)) * 100));
+  const material = materialForDepth(state.depth);
+  const materialProgress = Math.max(0, Math.min(100, ((state.depth - material.start) / Math.max(1, material.end - material.start)) * 100));
 
   const persist = useCallback(async (snapshot: SandfallState) => {
     const saved = { ...snapshot, lastSeen: Date.now() };
@@ -317,34 +383,40 @@ export default function EndlessDuatGame({ bootstrap, accessToken, onExit, onOpen
   const wishReady = fragments >= WISH_FRAGMENTS;
   const fragmentReady = activeSeconds >= FRAGMENT_SECONDS && fragments < WISH_FRAGMENTS;
   const fragmentProgress = wishReady ? 100 : Math.min(100, (activeSeconds / FRAGMENT_SECONDS) * 100);
-  const shaftStyle = { "--shaft-shift": `${state.depth % 260}px`, "--skin-accent": skin.swatch } as CSSProperties;
-  const paceLabel = useMemo(() => `${compact(passiveRate * (1 + rush / 55))} m/s`, [passiveRate, rush]);
+  const shaftStyle = {
+    "--shaft-shift": `${-(state.depth % 260)}px`, "--skin-accent": skin.swatch,
+    "--material-light": material.light, "--material-mid": material.mid,
+    "--material-dark": material.dark, "--material-accent": material.accent,
+  } as CSSProperties;
+  const paceLabel = useMemo(() => `${compact(passiveRate * (1 + rush / 55))} blocks/s`, [passiveRate, rush]);
 
   return (
     <main className={`sandfall-shell ${latestFind ? `finding-${latestFind.rarity}` : ""}`} style={shaftStyle}>
       <header className="sandfall-topbar">
         <button className="sandfall-brand" onClick={onExit} aria-label="Return to Ancient Pulls"><span>←</span><div><b>NEBU SANDFALL</b><small>Ancient Pulls</small></div></button>
-        <div className="sandfall-stats"><div><small>DEPTH</small><b>{depthLabel(state.depth)}</b></div><div><small>ANCIENT SAND</small><b>✦ {compact(state.sand)}</b></div><div><small>WISHES</small><b>◉ {wishBalance}</b></div></div>
+        <div className="sandfall-stats"><div><small>DEPTH</small><b>{blockLabel(state.depth)}</b></div><div><small>ANCIENT SAND</small><b>✦ {compact(state.sand)}</b></div><div><small>LAYER</small><b>{material.name}</b></div></div>
         <button className="sandfall-exit" onClick={onExit}>Ancient Pulls</button>
       </header>
 
       <div className="sandfall-layout">
         <section className="dig-chamber">
           <button className="dig-zone" onPointerDown={dig} aria-label="Tap to make Nebu dig faster">
-            <div className="sand-glow" /><div className="sand-strata strata-back" />
+            <div className="sand-glow" /><div className="dug-tunnel" /><div className="sand-strata strata-back" />
             <div className="buried-shape shape-one">◒</div><div className="buried-shape shape-two">◆</div><div className="buried-shape shape-three">☥</div>
-            <div className="shaft-walls"><i /><i /></div><div className="depth-line"><span>{depthLabel(state.depth)}</span></div>
-            <div className={`nebu-digger ${digging ? "is-digging" : ""}`}><div className="nebu-aura" /><SandNebu skin={state.selectedSkin} digging={digging || rush > 20} /><div className="sand-spray"><i /><i /><i /><i /><i /><i /></div><div className="dig-shadow" /></div>
+            <div className="shaft-walls"><i /><i /></div><div className="depth-line"><span>{blockLabel(state.depth)}</span></div>
+            <div className="material-badge"><span>{material.icon}</span><div><small>CURRENT LAYER</small><b>{material.name}</b></div></div>
+            <div className={`nebu-digger ${digging ? "is-digging" : ""}`}><div className="nebu-aura" /><SandNebu skin={state.selectedSkin} digging={true} /><div className="sand-spray"><i /><i /><i /><i /><i /><i /></div><div className="dig-shadow" /></div>
             {tapBursts.map((burst) => <span key={burst.id} className="tap-burst" style={{ left: burst.x, top: burst.y }}>+{compact(tapPower)}</span>)}
             <div className="tap-callout"><b>TAP TO DIG</b><small>Rapid taps build Paw Rush</small></div>
             <div className="rush-meter"><span style={{ width: `${rush}%` }} /><div><b>PAW RUSH</b><small>{rush > 5 ? `×${(1 + rush / 55).toFixed(1)} speed · combo ${combo}` : "Keep tapping"}</small></div></div>
           </button>
 
-          {latestFind && <button className={`artifact-reveal rarity-${latestFind.rarity}`} onClick={() => setLatestFind(null)}><span className="artifact-rays" /><span className="artifact-icon">{latestFind.icon}</span><span className="artifact-rarity">{latestFind.rarity}</span><b>{latestFind.name}</b><small>Unearthed at {depthLabel(latestFind.depth)}</small><strong>+{compact(latestFind.reward)} Ancient Sand</strong></button>}
+          {latestFind && <button className={`artifact-reveal rarity-${latestFind.rarity}`} onClick={() => setLatestFind(null)}><span className="artifact-rays" /><span className="artifact-icon">{latestFind.icon}</span><span className="artifact-rarity">{latestFind.rarity}</span><b>{latestFind.name}</b><small>Unearthed at {blockLabel(latestFind.depth)}</small><strong>+{compact(latestFind.reward)} Ancient Sand</strong></button>}
         </section>
 
         <aside className="sandfall-panel">
-          <section className="next-find-card"><div className="panel-heading"><div><small>NEXT FIND</small><b>{compact(Math.max(0, state.nextFindAt - state.depth))} m away</b></div><span>?</span></div><div className="simple-meter"><i style={{ width: `${findProgress}%` }} /></div><p>Nebu finds something every few metres. Better charms improve both rarity and frequency.</p></section>
+          <section className="material-progress-card"><div className="material-progress-icon">{material.icon}</div><div className="material-progress-copy"><small>CURRENT LAYER</small><b>{material.name}</b><p>{blockLabel(state.depth)} / {compact(material.end)} blocks</p></div><div className="simple-meter"><i style={{ width: `${materialProgress}%` }} /></div><footer><span>NEXT</span><b>{nextMaterial(material)}</b><small>at {compact(material.end)} blocks</small></footer></section>
+          <section className="next-find-card"><div className="panel-heading"><div><small>NEXT ARTIFACT</small><b>{compact(Math.max(0, state.nextFindAt - state.depth))} blocks away</b></div><span>?</span></div><div className="simple-meter"><i style={{ width: `${findProgress}%` }} /></div><p>Nebu uncovers artifacts as he descends. Sifting Charms improve both rarity and frequency.</p></section>
 
           <section className="skin-bonus-card"><button onClick={onOpenBadges} className="skin-portrait" aria-label="Open Nebu skins in Badges"><SandNebu skin={state.selectedSkin} digging={false} /></button><div><small>{skin.label.toUpperCase()}</small><b>{skinBonus.title}</b><p>{skinBonus.detail}</p></div><button onClick={onOpenBadges}>Change</button></section>
 
