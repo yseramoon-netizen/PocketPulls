@@ -15,6 +15,8 @@
 
 .endless-duat-portal * { box-sizing: border-box; }
 .endless-duat-portal { background: var(--ink); }
+.endless-duat-portal .duat-player-constellation { position: fixed; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; background: radial-gradient(circle at 62% 45%, rgba(77, 51, 110, .19), transparent 35%), #05050c; }
+.endless-duat-portal .duat-player-constellation canvas { width: 100%; height: 100%; display: block; opacity: .86; }
 .endless-duat-portal { margin: 0; background: var(--ink); color: var(--text); font-family: var(--font-geist-sans), Inter, sans-serif; }
 .endless-duat-portal button { color: inherit; font: inherit; }
 .endless-duat-portal button:focus-visible { outline: 2px solid var(--gold-bright); outline-offset: 3px; }
@@ -37,12 +39,10 @@ html[data-duat-open="true"] [data-player-nav] { display: none !important; }
 
 .endless-duat-portal .game-shell {
   min-height: 100vh;
-  background: radial-gradient(circle at 66% 10%, rgba(91, 53, 148, .16), transparent 30%), radial-gradient(circle at 16% 85%, rgba(200, 118, 30, .08), transparent 25%), linear-gradient(145deg, #05050c, #0b0915 50%, #05050c);
-  overflow-x: hidden; position: relative;
+  background: linear-gradient(145deg, rgba(5,5,12,.82), rgba(11,9,21,.76) 50%, rgba(5,5,12,.84));
+  overflow-x: hidden; position: relative; z-index: 1;
 }
-.endless-duat-portal .ambient-stars, .endless-duat-portal .ambient-stars::before, .endless-duat-portal .ambient-stars::after { position: fixed; inset: 0; content: ""; pointer-events: none; background-image: radial-gradient(circle, rgba(255,255,255,.72) 0 1px, transparent 1.5px), radial-gradient(circle, rgba(237,198,106,.5) 0 1px, transparent 1.5px); background-position: 0 0, 75px 40px; background-size: 143px 143px, 217px 217px; opacity: .16; }
-.endless-duat-portal .ambient-stars::before { transform: rotate(17deg) scale(1.2); opacity: .18; }
-.endless-duat-portal .ambient-stars::after { transform: rotate(-9deg) scale(1.4); opacity: .1; }
+.endless-duat-portal .ambient-stars { display: none; }
 
 .endless-duat-portal .topbar { height: 78px; border-bottom: 1px solid var(--line); background: rgba(6, 6, 14, .88); backdrop-filter: blur(20px); display: flex; align-items: center; justify-content: space-between; padding: 0 28px; position: sticky; top: 0; z-index: 30; }
 .endless-duat-portal .brand { background: none; border: 0; display: flex; align-items: center; gap: 13px; text-align: left; cursor: pointer; }

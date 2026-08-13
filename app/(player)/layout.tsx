@@ -499,8 +499,6 @@ export default function PlayerLayout({ children }: PlayerLayoutProps) {
     <div className="unknown-pulls-shell relative min-h-[100dvh] overflow-x-hidden bg-[#02030d] text-white">
       <UnknownPullsBackdrop />
 
-      <TestOnlyBanner />
-
       <PlayerNav
         username={player.username}
         displayName={player.displayName}
@@ -632,21 +630,6 @@ function PublicLegalShell({ children }: { children: ReactNode }) {
     <div className="unknown-pulls-shell relative min-h-[100dvh] overflow-x-hidden bg-[#02030d] text-white">
       <UnknownPullsBackdrop />
       <main className="relative z-10 min-h-[100dvh]">{children}</main>
-    </div>
-  );
-}
-
-function TestOnlyBanner() {
-  return (
-    <div
-      className="relative z-[70] border-b border-yellow-100/20 px-3 py-2 text-center text-[0.68rem] font-black uppercase tracking-[0.14em] text-[#171225] shadow-[0_8px_30px_rgba(0,0,0,0.25)] sm:text-xs"
-      style={{
-        background:
-          "linear-gradient(90deg, rgba(245,158,11,0.96), rgba(253,224,71,0.98), rgba(103,232,249,0.96))",
-      }}
-    >
-      TEST ONLY - wishes are spent and pulled cards are saved to your test
-      collection. Physical stock is never reduced.
     </div>
   );
 }

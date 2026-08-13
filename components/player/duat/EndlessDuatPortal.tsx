@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 
 import { supabase } from "@/lib/supabase";
 import EndlessDuatGame, { type DuatBootstrap } from "@/components/player/duat/EndlessDuatGame";
+import DuatConstellationBackdrop from "@/components/player/duat/DuatConstellationBackdrop";
 
 export default function EndlessDuatPortal() {
   const router = useRouter();
@@ -50,7 +51,10 @@ export default function EndlessDuatPortal() {
   return (
     <div className="endless-duat-portal">
       {bootstrap && accessToken ? (
-        <EndlessDuatGame bootstrap={bootstrap} accessToken={accessToken} onExit={exit} onOpenBadges={openBadges} />
+        <>
+          <DuatConstellationBackdrop constellation={bootstrap.constellation} />
+          <EndlessDuatGame bootstrap={bootstrap} accessToken={accessToken} onExit={exit} onOpenBadges={openBadges} />
+        </>
       ) : (
         <main className="duat-gate">
           <div className="duat-gate-star">✦</div>

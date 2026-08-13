@@ -5,6 +5,7 @@ import type { CSSProperties } from "react";
 import NebuPerformanceSprite from "@/components/player/NebuPerformanceSprite";
 import NebuSprite, { type NebuPose } from "@/components/player/NebuSprite";
 import { getNebuHeatAssets } from "@/lib/player/nebu";
+import type { DuatConstellation } from "@/components/player/duat/DuatConstellationBackdrop";
 import {
   attackPower,
   biomeFor,
@@ -45,6 +46,7 @@ export type DuatBootstrap = {
   fragments: number;
   wishBalance: number;
   activeSeconds: number;
+  constellation: DuatConstellation;
 };
 
 type DuatGameProps = {
