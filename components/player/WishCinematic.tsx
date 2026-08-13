@@ -57,6 +57,7 @@ type WishCinematicProps = {
   forceFullSequence?: boolean;
   respectPreferences?: boolean;
   cosmicIssueNumber?: number | null;
+  cosmicSourceSkin?: NebuSkinKey | null;
 };
 
 const IMAGE_PRELOAD_TIMEOUT_MS = 2600;
@@ -168,6 +169,7 @@ export default function WishCinematic({
   forceFullSequence = false,
   respectPreferences = true,
   cosmicIssueNumber = null,
+  cosmicSourceSkin = null,
 }: WishCinematicProps) {
   const preloadTimerRef = useRef<number | null>(null);
   const completionTimerRef = useRef<number | null>(null);
@@ -191,8 +193,18 @@ export default function WishCinematic({
     [card?.marketValue, card?.rarity],
   );
   const timeline = useMemo(() => buildRevealTimeline(config), [config]);
-  const nebuHeatAssets = useMemo(() => getNebuHeatAssets(nebuSkin), [nebuSkin]);
-  const cosmicNebu = nebuSkin === "cosmic_nebu";
+  const cinematicNebuSkin = useMemo(
+    () =>
+      cosmicIssueNumber && isNebuSkinKey(cosmicSourceSkin)
+        ? cosmicSourceSkin
+        : nebuSkin,
+    [cosmicIssueNumber, cosmicSourceSkin, nebuSkin],
+  );
+  const nebuHeatAssets = useMemo(
+    () => getNebuHeatAssets(cinematicNebuSkin),
+    [cinematicNebuSkin],
+  );
+  const cosmicNebu = cinematicNebuSkin === "cosmic_nebu";
   const lowEffects = preferences.lowVisualEffects || preferences.dataSaver;
   const particleCount = getWishRevealParticleCount(config, {
     mobile: mobileEffects,
