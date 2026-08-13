@@ -85,10 +85,68 @@ function formatMoney(value: number | null | undefined): string {
   }).format(Math.max(0, Number(value) || 0));
 }
 
-function buildEscalationSteps(config: WishRevealConfig): readonly number[] {
+type WishRevealTimeline = {
+  escalationStartMs: number;
+  stepDurationsMs: readonly number[];
+  collapseAtMs: number;
+  impactAtMs: number;
+  cardAtMs: number;
+  infoAtMs: number;
+  durationMs: number;
+};
+
+const SUN_RISE_DELAY_MS = 260;
+const SUN_RISE_DURATION_MS = 2000;
+const WORLD_RARITY_STAGE_DURATIONS_MS = [
+  2000,
+  3000,
+  4000,
+  4000,
+  4000,
+  4000,
+  4000,
+  4000,
+  4000,
+] as const;
+
+function buildLegacyEscalationSteps(config: WishRevealConfig): readonly number[] {
   const available = Math.max(450, config.timings.cardAtMs - 620);
   const step = Math.max(150, Math.floor(available / config.tier));
   return Array.from({ length: 9 }, () => step);
+}
+
+function buildRevealTimeline(config: WishRevealConfig): WishRevealTimeline {
+  if (!config.usesWorldScene || config.blackHole) {
+    return {
+      escalationStartMs: 520,
+      stepDurationsMs: buildLegacyEscalationSteps(config),
+      collapseAtMs: Math.max(0, config.timings.cardAtMs - 680),
+      impactAtMs: config.timings.impactAtMs,
+      cardAtMs: config.timings.cardAtMs,
+      infoAtMs: config.timings.infoAtMs,
+      durationMs: config.timings.durationMs,
+    };
+  }
+
+  const escalationStartMs = SUN_RISE_DELAY_MS + SUN_RISE_DURATION_MS;
+  const finalRarityCompletedAtMs =
+    escalationStartMs +
+    WORLD_RARITY_STAGE_DURATIONS_MS
+      .slice(0, config.tier)
+      .reduce((total, duration) => total + duration, 0);
+  const collapseAtMs = finalRarityCompletedAtMs + 720;
+  const cardAtMs = collapseAtMs + 680;
+  const infoAtMs = cardAtMs + 560;
+
+  return {
+    escalationStartMs,
+    stepDurationsMs: WORLD_RARITY_STAGE_DURATIONS_MS,
+    collapseAtMs,
+    impactAtMs: cardAtMs,
+    cardAtMs,
+    infoAtMs,
+    durationMs: infoAtMs + 960,
+  };
 }
 
 export default function WishCinematic({
@@ -126,6 +184,7 @@ export default function WishCinematic({
     () => getWishRevealConfig(card?.rarity, card?.marketValue),
     [card?.marketValue, card?.rarity],
   );
+  const timeline = useMemo(() => buildRevealTimeline(config), [config]);
   const nebuHeatAssets = useMemo(() => getNebuHeatAssets(nebuSkin), [nebuSkin]);
   const cosmicNebu = nebuSkin === "cosmic_nebu";
   const lowEffects = preferences.lowVisualEffects || preferences.dataSaver;
@@ -133,7 +192,7 @@ export default function WishCinematic({
     mobile: mobileEffects,
     lowEffects,
   });
-  const escalationSteps = useMemo(() => buildEscalationSteps(config), [config]);
+  const isolatedSunSequence = config.usesWorldScene && !config.blackHole;
   const revealFromPreferences =
     respectPreferences &&
     (preferences.reducedMotion ||
@@ -264,7 +323,7 @@ export default function WishCinematic({
       completionTimerRef.current = window.setTimeout(() => {
         setComplete(true);
         reportFinished();
-      }, config.timings.durationMs);
+      }, timeline.durationMs);
     };
 
     const preloadSources = [
@@ -311,6 +370,7 @@ export default function WishCinematic({
     reportFinished,
     revealFromPreferences,
     stopAudio,
+    timeline.durationMs,
   ]);
 
   useEffect(() => {
@@ -326,8 +386,8 @@ export default function WishCinematic({
           muted,
           preferences.sfxVolume,
           {
-            impactAtMs: config.timings.impactAtMs,
-            revealAtMs: config.timings.cardAtMs,
+            impactAtMs: timeline.impactAtMs,
+            revealAtMs: timeline.cardAtMs,
           },
         );
       })
@@ -339,7 +399,7 @@ export default function WishCinematic({
       cancelled = true;
       stopAudio();
     };
-  }, [config, muted, open, preferences.sfxVolume, ready, runNumber, skipped, stopAudio]);
+  }, [config, muted, open, preferences.sfxVolume, ready, runNumber, skipped, stopAudio, timeline.cardAtMs, timeline.impactAtMs]);
 
   useEffect(() => {
     audioSessionRef.current?.setMuted(muted);
@@ -387,9 +447,11 @@ export default function WishCinematic({
     "--shake-distance": `${config.shakeDistance}px`,
     "--flash-strength": String(config.flashStrength),
     "--tier": String(config.tier),
-    "--impact-at": `${config.timings.impactAtMs}ms`,
-    "--card-at": `${config.timings.cardAtMs}ms`,
-    "--info-at": `${config.timings.infoAtMs}ms`,
+    "--collapse-at": `${timeline.collapseAtMs}ms`,
+    "--collapse-duration": `${Math.max(1, timeline.cardAtMs - timeline.collapseAtMs)}ms`,
+    "--impact-at": `${timeline.impactAtMs}ms`,
+    "--card-at": `${timeline.cardAtMs}ms`,
+    "--info-at": `${timeline.infoAtMs}ms`,
   } as CSSProperties;
 
   return (
@@ -398,6 +460,7 @@ export default function WishCinematic({
       style={rootStyle}
       data-tier={config.tier}
       data-family={config.family}
+      data-sun-sequence={isolatedSunSequence ? "true" : "false"}
       data-low-effects={lowEffects ? "true" : "false"}
       role="dialog"
       aria-modal="true"
@@ -439,9 +502,10 @@ export default function WishCinematic({
             <div className={styles.catScene}>
               <AncientCatPullScene
                 tier={config.tier}
-                escalationStartMs={520}
-                stepDurationsMs={escalationSteps}
-                cardRevealAtMs={config.timings.cardAtMs}
+                escalationStartMs={timeline.escalationStartMs}
+                stepDurationsMs={timeline.stepDurationsMs}
+                collapseAtMs={timeline.collapseAtMs}
+                cardRevealAtMs={timeline.cardAtMs}
                 walkSheet={nebuHeatAssets.walkSheet}
                 reactionSheet={nebuHeatAssets.reactionSheet}
                 walkColumns={nebuHeatAssets.walkColumns}
@@ -456,15 +520,9 @@ export default function WishCinematic({
           ) : null}
 
           <div className={styles.darkening} />
-          <p className={styles.omen}>{config.omen}</p>
+          {!isolatedSunSequence ? <p className={styles.omen}>{config.omen}</p> : null}
 
-          <div className={styles.relicSeal} aria-hidden="true">
-            <span className={styles.relicOuter} />
-            <span className={styles.relicInner} />
-            <span className={styles.relicStar}>✦</span>
-          </div>
-
-          {config.glyphCount > 0 ? (
+          {!isolatedSunSequence && config.glyphCount > 0 ? (
             <div className={styles.glyphOrbit} aria-hidden="true">
               {Array.from({ length: config.glyphCount }, (_, index) => (
                 <span
@@ -477,7 +535,9 @@ export default function WishCinematic({
             </div>
           ) : null}
 
-          <div className={styles.cardSilhouette} aria-hidden="true"><span>✦</span></div>
+          {!isolatedSunSequence ? (
+            <div className={styles.cardSilhouette} aria-hidden="true"><span>✦</span></div>
+          ) : null}
 
           <div className={styles.impact} aria-hidden="true">
             <div className={styles.impactFlash} />

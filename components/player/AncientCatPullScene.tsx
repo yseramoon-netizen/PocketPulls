@@ -14,6 +14,7 @@ type AncientCatPullSceneProps = {
   tier: number;
   escalationStartMs: number;
   stepDurationsMs: readonly number[];
+  collapseAtMs: number;
   cardRevealAtMs: number;
   walkSheet?: string;
   reactionSheet?: string;
@@ -137,6 +138,7 @@ export default function AncientCatPullScene({
   tier,
   escalationStartMs,
   stepDurationsMs,
+  collapseAtMs,
   cardRevealAtMs,
   walkSheet = DEFAULT_WALK_SHEET,
   reactionSheet = DEFAULT_REACTION_SHEET,
@@ -199,7 +201,7 @@ export default function AncientCatPullScene({
           timers.push(
             window.setTimeout(() => {
               setFinalTierReached(true);
-            }, stepStartsAt + Math.max(0, phaseDuration - 120)),
+            }, stepStartsAt + phaseDuration),
           );
         }
       }
@@ -225,6 +227,8 @@ export default function AncientCatPullScene({
     "--active-accent": grade.accent,
     "--active-glow": grade.glow,
     "--escalation-start": `${escalationStartMs}ms`,
+    "--sun-rise-duration": `${Math.max(700, escalationStartMs - 260)}ms`,
+    "--sun-collapse-at": `${collapseAtMs}ms`,
     "--scene-clear-at": `${cardRevealAtMs}ms`,
     "--walk-duration": `${walkDurationMs}ms`,
     "--heat-level": String(heatLevel),

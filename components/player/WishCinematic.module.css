@@ -6,6 +6,8 @@
   --shake-distance: 0px;
   --flash-strength: 0.3;
   --tier: 1;
+  --collapse-at: 0ms;
+  --collapse-duration: 1ms;
   --impact-at: 360ms;
   --card-at: 480ms;
   --info-at: 760ms;
@@ -221,6 +223,9 @@
 .overlay[data-tier="1"] .darkening { animation: none; }
 .overlay[data-tier="2"] .darkening { animation: darkenBrief 900ms 80ms ease-in-out both; }
 .overlay[data-tier]:not([data-tier="1"]):not([data-tier="2"]) .darkening { animation: darkenUntilImpact var(--impact-at) 100ms ease-in both; }
+.overlay[data-sun-sequence="true"] .darkening {
+  animation: darkenUntilImpact var(--collapse-duration) var(--collapse-at) ease-in both !important;
+}
 
 .omen {
   position: absolute;

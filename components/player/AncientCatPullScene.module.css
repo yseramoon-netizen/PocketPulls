@@ -69,7 +69,9 @@
   width: clamp(76px, 13vw, 150px);
   aspect-ratio: 1;
   transform: translate3d(-50%, 120%, 0) scale(0.76);
-  animation: sunRises calc(var(--scene-clear-at) - 420ms) 260ms cubic-bezier(0.16, 0.72, 0.22, 1) both;
+  animation:
+    sunRises var(--sun-rise-duration) 260ms cubic-bezier(0.16, 0.72, 0.22, 1) both,
+    finalSunCollapse 680ms var(--sun-collapse-at) cubic-bezier(0.72, 0, 0.92, 0.34) forwards;
   will-change: transform;
 }
 
@@ -609,6 +611,26 @@
 
   to {
     transform: scale(1.08);
+  }
+}
+
+@keyframes finalSunCollapse {
+  from {
+    opacity: 1;
+    filter: blur(0);
+    transform: translate3d(-50%, -155%, 0) scale(1.08);
+  }
+
+  62% {
+    opacity: 1;
+    filter: brightness(1.65) blur(0.5px);
+    transform: translate3d(-50%, -155%, 0) scale(0.5);
+  }
+
+  to {
+    opacity: 0;
+    filter: brightness(2.2) blur(7px);
+    transform: translate3d(-50%, -155%, 0) scale(0.025);
   }
 }
 
