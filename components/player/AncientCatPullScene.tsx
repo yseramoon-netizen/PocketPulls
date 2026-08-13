@@ -152,7 +152,6 @@ export default function AncientCatPullScene({
 }: AncientCatPullSceneProps) {
   const finalTier = clampTier(tier);
   const [activeTier, setActiveTier] = useState(1);
-  const [finalTierReached, setFinalTierReached] = useState(false);
   const [reactionBeat, setReactionBeat] = useState(0);
   const [reactionsStarted, setReactionsStarted] = useState(false);
 
@@ -160,7 +159,6 @@ export default function AncientCatPullScene({
     const timers: number[] = [];
 
     setActiveTier(1);
-    setFinalTierReached(false);
     setReactionBeat(0);
     setReactionsStarted(false);
 
@@ -168,7 +166,6 @@ export default function AncientCatPullScene({
       window.setTimeout(() => {
         setReactionsStarted(true);
         setActiveTier(blackHole ? finalTier : 1);
-        if (blackHole) setFinalTierReached(true);
       }, escalationStartMs),
     );
 
@@ -197,13 +194,6 @@ export default function AncientCatPullScene({
           }, stepStartsAt + reactionBeatAt),
         );
 
-        if (nextTier === finalTier) {
-          timers.push(
-            window.setTimeout(() => {
-              setFinalTierReached(true);
-            }, stepStartsAt + phaseDuration),
-          );
-        }
       }
     }
 
@@ -263,7 +253,6 @@ export default function AncientCatPullScene({
       data-black-hole={blackHole ? "true" : "false"}
       data-low-effects={lowEffects ? "true" : "false"}
       data-cosmic={cosmic ? "true" : "false"}
-      data-final-tier-reached={finalTierReached ? "true" : "false"}
       style={sceneStyle}
       aria-hidden="true"
     >
@@ -279,11 +268,6 @@ export default function AncientCatPullScene({
         <div className={styles.sun}>
           <span className={styles.sunCore} />
           <span className={styles.sunHalo} />
-          <span className={styles.sunOrbitSystem}>
-            <i className={`${styles.orbitRing} ${styles.orbitRingOne}`} />
-            <i className={`${styles.orbitRing} ${styles.orbitRingTwo}`} />
-            <i className={`${styles.orbitRing} ${styles.orbitRingThree}`} />
-          </span>
         </div>
 
         <img
