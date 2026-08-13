@@ -159,7 +159,8 @@ function BurningStarLayers({
 }) {
   const starId = useId().replace(/:/g, "");
   const photosphereId = `photosphere-${starId}`;
-  const stellarNoiseId = `stellar-noise-${starId}`;
+  const stellarMacroId = `stellar-macro-${starId}`;
+  const stellarGrainId = `stellar-grain-${starId}`;
   const stellarGlowId = `stellar-glow-${starId}`;
 
   return (
@@ -181,27 +182,46 @@ function BurningStarLayers({
             <stop offset="0.72" style={{ stopColor: "color-mix(in srgb, var(--active-accent) 72%, #f97316)" }} />
             <stop offset="1" stopColor="#6b1b08" />
           </radialGradient>
-          <filter id={stellarNoiseId} x="-35%" y="-35%" width="170%" height="170%" colorInterpolationFilters="sRGB">
+          <filter id={stellarMacroId} x="-10%" y="-10%" width="120%" height="120%" colorInterpolationFilters="sRGB">
             <feTurbulence
               type="fractalNoise"
-              baseFrequency="0.012 0.019"
+              baseFrequency="0.008 0.012"
               numOctaves="4"
-              seed="17"
-              result="noise"
+              seed="31"
+              result="macroNoise"
             >
               <animate
                 attributeName="baseFrequency"
-                dur={`${Math.max(5.2, 8.4 - heatLevel * 2.8)}s`}
-                values="0.012 0.019;0.018 0.012;0.012 0.019"
+                dur={`${Math.max(7.5, 12 - heatLevel * 3)}s`}
+                values="0.008 0.012;0.011 0.008;0.008 0.012"
                 repeatCount="indefinite"
               />
             </feTurbulence>
-            <feDisplacementMap
-              in="SourceGraphic"
-              in2="noise"
-              scale={18 + heatLevel * 13}
-              xChannelSelector="R"
-              yChannelSelector="B"
+            <feColorMatrix
+              in="macroNoise"
+              type="matrix"
+              values="1.55 0 0 0 -0.2  0 0.72 0 0 -0.04  0 0 0.18 0 -0.03  0 0 0 0.72 0"
+            />
+          </filter>
+          <filter id={stellarGrainId} x="-6%" y="-6%" width="112%" height="112%" colorInterpolationFilters="sRGB">
+            <feTurbulence
+              type="turbulence"
+              baseFrequency="0.072 0.086"
+              numOctaves="3"
+              seed="73"
+              result="grainNoise"
+            >
+              <animate
+                attributeName="baseFrequency"
+                dur={`${Math.max(4.2, 6.4 - heatLevel * 1.4)}s`}
+                values="0.072 0.086;0.086 0.069;0.072 0.086"
+                repeatCount="indefinite"
+              />
+            </feTurbulence>
+            <feColorMatrix
+              in="grainNoise"
+              type="matrix"
+              values="1.25 0 0 0 0.05  0 0.82 0 0 0.02  0 0 0.34 0 -0.02  0 0 0 0.64 0"
             />
           </filter>
           <filter id={stellarGlowId} x="-100%" y="-100%" width="300%" height="300%">
@@ -225,14 +245,28 @@ function BurningStarLayers({
         </g>
 
         <circle className={styles.stellarLimb} cx="256" cy="256" r="151" />
-        <circle
-          className={styles.stellarSurface}
-          cx="256"
-          cy="256"
-          r="137"
-          fill={`url(#${photosphereId})`}
-          filter={`url(#${stellarNoiseId})`}
-        />
+        <circle className={styles.stellarSurface} cx="256" cy="256" r="137" fill={`url(#${photosphereId})`} />
+        <g clipPath={`url(#stellar-clip-${starId})`} className={styles.stellarTextureField}>
+          <rect className={styles.stellarMacroTexture} x="112" y="112" width="288" height="288" filter={`url(#${stellarMacroId})`} />
+          <rect className={styles.stellarGrainTexture} x="112" y="112" width="288" height="288" filter={`url(#${stellarGrainId})`} />
+          <g className={styles.stellarCloudBands}>
+            <path d="M109 211 C154 172 208 194 247 175 C294 152 348 159 403 204 C361 188 316 201 278 221 C223 250 166 239 109 211Z" />
+            <path d="M116 303 C167 268 211 295 254 278 C303 258 349 264 397 306 C345 293 316 319 270 331 C218 344 161 332 116 303Z" />
+            <path d="M151 362 C194 326 222 352 264 349 C306 346 336 331 370 356 C323 379 197 392 151 362Z" />
+          </g>
+          <g className={styles.stellarSunspots}>
+            <ellipse cx="207" cy="226" rx="13" ry="8" transform="rotate(-18 207 226)" />
+            <ellipse cx="313" cy="301" rx="17" ry="9" transform="rotate(24 313 301)" />
+            <ellipse cx="270" cy="354" rx="9" ry="5" transform="rotate(-8 270 354)" />
+            <ellipse cx="349" cy="214" rx="7" ry="4" transform="rotate(31 349 214)" />
+          </g>
+          <g className={styles.stellarFaculae} filter={`url(#${stellarGlowId})`}>
+            <ellipse cx="174" cy="187" rx="23" ry="7" transform="rotate(-22 174 187)" />
+            <ellipse cx="325" cy="177" rx="18" ry="6" transform="rotate(14 325 177)" />
+            <ellipse cx="361" cy="276" rx="21" ry="6" transform="rotate(63 361 276)" />
+            <ellipse cx="191" cy="324" rx="16" ry="5" transform="rotate(34 191 324)" />
+          </g>
+        </g>
         <g clipPath={`url(#stellar-clip-${starId})`} className={styles.stellarGranules}>
           <path d="M104 246 C160 209 182 281 235 238 S326 183 408 230" />
           <path d="M112 294 C172 257 206 335 267 282 S348 236 401 275" />

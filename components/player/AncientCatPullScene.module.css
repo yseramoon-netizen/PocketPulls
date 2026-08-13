@@ -121,26 +121,70 @@
 }
 
 .stellarLimb {
-  fill: color-mix(in srgb, var(--active-accent) 82%, #fff4d2);
-  opacity: calc(0.72 + var(--heat-level) * 0.18);
-  filter: blur(7px);
+  fill: color-mix(in srgb, var(--active-accent) 88%, #ff7a18);
+  opacity: calc(0.6 + var(--heat-level) * 0.16);
+  filter: blur(5px);
   animation: stellarLimbBreath 2.7s ease-in-out infinite alternate;
 }
 
 .stellarSurface {
   transform-origin: 256px 256px;
-  animation:
-    stellarSurfaceTurns 24s linear infinite,
-    stellarSurfaceLives 3.1s ease-in-out infinite alternate;
+  stroke: color-mix(in srgb, var(--active-accent) 74%, #fff4d2);
+  stroke-width: 2;
+  filter:
+    drop-shadow(0 0 2px rgba(255,255,255,.56))
+    drop-shadow(0 0 9px var(--active-glow));
+  animation: stellarSurfaceLives 3.1s ease-in-out infinite alternate;
+}
+
+.stellarTextureField {
+  transform-origin: 256px 256px;
+  animation: stellarTextureDrifts 26s linear infinite;
+}
+
+.stellarMacroTexture,
+.stellarGrainTexture {
+  mix-blend-mode: soft-light;
+  opacity: calc(0.68 + var(--heat-level) * 0.12);
+}
+
+.stellarGrainTexture {
+  mix-blend-mode: screen;
+  opacity: calc(0.34 + var(--heat-level) * 0.18);
+  animation: stellarGrainShimmers 2.8s ease-in-out infinite alternate;
+}
+
+.stellarCloudBands {
+  fill: none;
+  stroke: color-mix(in srgb, var(--active-accent) 68%, #ff6a00);
+  stroke-width: 15;
+  opacity: calc(0.28 + var(--heat-level) * 0.12);
+  filter: blur(9px);
+  animation: stellarBandsFlow 10s ease-in-out infinite alternate;
+}
+
+.stellarSunspots {
+  fill: rgba(72, 20, 5, 0.72);
+  filter: blur(2.5px);
+  opacity: calc(0.52 + var(--heat-level) * 0.12);
+  transform-origin: 256px 256px;
+  animation: sunspotMigration 32s linear infinite;
+}
+
+.stellarFaculae {
+  fill: color-mix(in srgb, var(--active-accent) 32%, white);
+  opacity: calc(0.48 + var(--heat-level) * 0.23);
+  transform-origin: 256px 256px;
+  animation: faculaeFlicker 2.4s ease-in-out infinite alternate;
 }
 
 .stellarGranules {
   fill: none;
-  stroke: rgba(255, 255, 255, 0.48);
+  stroke: rgba(255, 244, 209, 0.34);
   stroke-linecap: round;
-  stroke-width: 9;
-  opacity: calc(0.32 + var(--heat-level) * 0.2);
-  filter: blur(4px);
+  stroke-width: 5;
+  opacity: calc(0.17 + var(--heat-level) * 0.1);
+  filter: blur(3px);
   mix-blend-mode: screen;
   transform-origin: 256px 256px;
   animation: convectionCells 7.4s linear infinite;
@@ -158,9 +202,9 @@
 .stellarVortex {
   fill: none;
   stroke: rgba(93, 28, 8, 0.46);
-  stroke-width: 12;
-  filter: blur(5px);
-  opacity: calc(0.38 + var(--heat-level) * 0.2);
+  stroke-width: 8;
+  filter: blur(6px);
+  opacity: calc(0.22 + var(--heat-level) * 0.12);
   transform-origin: 256px 256px;
   animation: magneticVortices 11s linear infinite reverse;
 }
@@ -171,8 +215,8 @@
 }
 
 .stellarHotspot {
-  fill: #fff;
-  opacity: calc(0.62 + var(--heat-level) * 0.25);
+  fill: #fff7d2;
+  opacity: calc(0.22 + var(--heat-level) * 0.14);
   animation: stellarHotspotFlares 1.9s ease-in-out infinite alternate;
 }
 
@@ -185,18 +229,18 @@
 
 .prominenceBack,
 .prominenceFront {
-  stroke: color-mix(in srgb, var(--active-accent) 54%, white);
-  stroke-width: 7;
-  opacity: calc(0.3 + var(--heat-level) * 0.28);
-  stroke-dasharray: 11 7 25 6;
-  animation: prominencePlasmaFlows 3.8s linear infinite;
+  stroke: color-mix(in srgb, var(--active-accent) 76%, #ff6a00);
+  stroke-width: 3;
+  opacity: calc(0.15 + var(--heat-level) * 0.16);
+  stroke-dasharray: 18 7 34 9;
+  animation: prominencePlasmaFlows 5.2s linear infinite;
 }
 
 .prominenceFront {
-  stroke: #fff9dd;
-  stroke-width: 4;
-  opacity: calc(0.42 + var(--heat-level) * 0.32);
-  animation-duration: 2.7s;
+  stroke: color-mix(in srgb, var(--active-accent) 44%, #fff1a8);
+  stroke-width: 2;
+  opacity: calc(0.22 + var(--heat-level) * 0.2);
+  animation-duration: 4.1s;
   animation-direction: reverse;
 }
 
@@ -1421,8 +1465,33 @@
 }
 
 @keyframes stellarSurfaceLives {
-  from { filter: brightness(0.94) saturate(1.06); }
-  to { filter: brightness(1.2) saturate(1.25); }
+  from { filter: brightness(0.94) saturate(1.08) drop-shadow(0 0 2px rgba(255,255,255,.46)) drop-shadow(0 0 8px var(--active-glow)); }
+  to { filter: brightness(1.12) saturate(1.22) drop-shadow(0 0 3px rgba(255,255,255,.62)) drop-shadow(0 0 13px var(--active-glow)); }
+}
+
+@keyframes stellarTextureDrifts {
+  from { transform: rotate(0deg) scale(1.04); }
+  to { transform: rotate(360deg) scale(1.04); }
+}
+
+@keyframes stellarGrainShimmers {
+  from { filter: brightness(0.74) contrast(1.08); opacity: calc(0.28 + var(--heat-level) * 0.14); }
+  to { filter: brightness(1.24) contrast(1.34); opacity: calc(0.42 + var(--heat-level) * 0.2); }
+}
+
+@keyframes stellarBandsFlow {
+  from { stroke-dasharray: 42 18; stroke-dashoffset: 0; transform: translateX(-4px) scaleY(.96); }
+  to { stroke-dasharray: 24 28; stroke-dashoffset: -88; transform: translateX(8px) scaleY(1.05); }
+}
+
+@keyframes sunspotMigration {
+  from { transform: rotate(0deg) scale(.98); }
+  to { transform: rotate(360deg) scale(.98); }
+}
+
+@keyframes faculaeFlicker {
+  from { filter: brightness(.82); opacity: calc(0.34 + var(--heat-level) * .18); transform: scale(.96); }
+  to { filter: brightness(1.36); opacity: calc(0.58 + var(--heat-level) * .24); transform: scale(1.03); }
 }
 
 @keyframes convectionCells {
@@ -2318,6 +2387,12 @@
   .stellarEngine,
   .stellarLimb,
   .stellarSurface,
+  .stellarTextureField,
+  .stellarMacroTexture,
+  .stellarGrainTexture,
+  .stellarCloudBands,
+  .stellarSunspots,
+  .stellarFaculae,
   .stellarGranules,
   .stellarVortex,
   .stellarHotspot,
