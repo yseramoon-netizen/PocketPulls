@@ -259,3 +259,196 @@
 
 @media (max-width:1050px){.endless-duat-portal .run-dashboard{grid-template-columns:1fr 1fr}.endless-duat-portal .run-boons{grid-column:span 2}.endless-duat-portal .oath-selector{grid-template-columns:1fr}.endless-duat-portal .skin-card{min-height:465px}}
 @media (max-width:760px){.endless-duat-portal .battle-controls{grid-template-columns:repeat(4,1fr)}.endless-duat-portal .power-button.skin-technique .power-icon{font-size:11px}.endless-duat-portal .oath-options{grid-template-columns:1fr}.endless-duat-portal .oath-options button{min-height:64px}.endless-duat-portal .run-dashboard{grid-template-columns:1fr 1fr}.endless-duat-portal .skin-card{min-height:455px}.endless-duat-portal .skin-card-copy{min-height:245px}.endless-duat-portal .enemy-trait{top:39px;right:4px;font-size:5px}.endless-duat-portal .active-skin-hero{min-height:650px}}
+
+/* Simplified, high-legibility Duat interface */
+.endless-duat-portal {
+  --panel: rgba(15, 14, 25, .96);
+  --line: rgba(238, 204, 119, .24);
+  --muted: #b8b1c0;
+  font-size: 16px;
+}
+.endless-duat-portal .ambient-stars { opacity: .08; }
+.endless-duat-portal .constellation-lines,
+.endless-duat-portal .player-seal,
+.endless-duat-portal .prophecy-panel,
+.endless-duat-portal .sidebar-bottom,
+.endless-duat-portal .oath-selector,
+.endless-duat-portal .skin-rule,
+.endless-duat-portal .skin-integration-note,
+.endless-duat-portal .museum-note,
+.endless-duat-portal .run-history,
+.endless-duat-portal .next-gate,
+.endless-duat-portal .auto-label { display: none !important; }
+
+.endless-duat-portal .topbar {
+  height: 74px;
+  padding: 0 clamp(16px, 3vw, 36px);
+  background: #090812;
+}
+.endless-duat-portal .brand-star {
+  width: 42px;
+  height: 42px;
+  clip-path: none;
+  border: 1px solid rgba(237,198,106,.55);
+  border-radius: 12px;
+  background: #181321;
+  color: var(--gold-bright);
+  font-size: 25px;
+  filter: none;
+}
+.endless-duat-portal .brand b { font: 700 16px/1.1 Georgia,serif; letter-spacing: .09em; }
+.endless-duat-portal .brand small { margin-top: 4px; color: var(--muted); font-size: 11px; letter-spacing: .04em; }
+.endless-duat-portal .resource-row { gap: 8px; }
+.endless-duat-portal .resource-pill { min-width: 104px; padding: 9px 11px; border-radius: 9px; }
+.endless-duat-portal .resource-pill b { font-size: 15px; }
+.endless-duat-portal .resource-pill small { margin-top: 4px; color: var(--muted); font-size: 10px; letter-spacing: .05em; }
+.endless-duat-portal .duat-exit { min-height: 40px; padding: 9px 14px; font-size: 12px; font-weight: 700; }
+
+.endless-duat-portal .game-layout { display: block; min-height: calc(100vh - 74px); }
+.endless-duat-portal .sidebar {
+  position: sticky;
+  top: 74px;
+  z-index: 25;
+  display: block;
+  width: 100%;
+  height: auto;
+  min-height: 0;
+  padding: 9px 16px;
+  border-right: 0;
+  border-bottom: 1px solid var(--line);
+  background: rgba(9,8,18,.96);
+}
+.endless-duat-portal .sidebar nav { display: flex; justify-content: center; gap: 7px; margin: 0; }
+.endless-duat-portal .sidebar nav button {
+  width: auto;
+  min-width: 118px;
+  height: 44px;
+  justify-content: center;
+  padding: 0 16px;
+  border-radius: 8px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+.endless-duat-portal .sidebar nav button > span { width: auto; font-size: 16px; }
+.endless-duat-portal .sidebar nav button i { position: absolute; right: 5px; top: 5px; }
+.endless-duat-portal .content { width: min(1220px, 100%); margin: 0 auto; padding: 32px clamp(18px, 4vw, 48px) 72px; }
+
+.endless-duat-portal .eyebrow { font-size: 11px; letter-spacing: .12em; }
+.endless-duat-portal .view-heading { align-items: center; margin-bottom: 20px; }
+.endless-duat-portal .view-heading h1 { margin-top: 7px; font-size: clamp(30px, 4vw, 44px); }
+.endless-duat-portal .view-heading p { margin-top: 7px; color: var(--muted); font-size: 14px; line-height: 1.5; }
+.endless-duat-portal .quiet-button { padding: 11px 14px; color: #ddd4e2; font-size: 12px; }
+.endless-duat-portal .badge-skin-sync b { font-size: 13px; }
+.endless-duat-portal .badge-skin-sync small { font-size: 11px; line-height: 1.45; }
+
+.endless-duat-portal .duat-stage { height: 500px; min-height: 500px; border-radius: 15px; }
+.endless-duat-portal .fighter-label b { font-size: 14px; }
+.endless-duat-portal .fighter-label span,
+.endless-duat-portal .fighter > small { color: #d0c8d4; font-size: 11px; }
+.endless-duat-portal .stage-message span { font-size: 10px; letter-spacing: .12em; }
+.endless-duat-portal .stage-message b { margin-top: 7px; font-size: 22px; }
+.endless-duat-portal .enemy-trait { top: 43px; padding: 5px 8px; font-size: 9px; letter-spacing: .05em; }
+.endless-duat-portal .battle-controls { gap: 8px; }
+.endless-duat-portal .power-button { min-width: 0; min-height: 60px; padding: 9px 12px; border-radius: 10px; }
+.endless-duat-portal .power-button b { font-size: 11px; }
+.endless-duat-portal .power-button small { margin-top: 3px; color: #c2b9c7; font-size: 9px; line-height: 1.25; }
+
+.endless-duat-portal .section-title h2 { font-size: 23px; }
+.endless-duat-portal .section-title p { color: var(--muted); font-size: 12px; }
+.endless-duat-portal .route-grid { grid-template-columns: repeat(auto-fit,minmax(235px,1fr)); gap: 11px; }
+.endless-duat-portal .route-card { min-height: 190px; padding: 20px; border-radius: 12px; }
+.endless-duat-portal .route-card h3 { font-size: 19px; }
+.endless-duat-portal .route-card p { color: var(--muted); font-size: 12px; line-height: 1.5; }
+.endless-duat-portal .route-card small,
+.endless-duat-portal .route-meta { font-size: 10px; }
+.endless-duat-portal .run-dashboard { grid-template-columns: 1.35fr 1fr; gap: 10px; }
+.endless-duat-portal .run-dashboard > div { min-height: 78px; padding: 14px; }
+.endless-duat-portal .run-boons small,
+.endless-duat-portal .fate-card small { color: var(--muted); font-size: 10px; }
+.endless-duat-portal .skin-run-passive { height: 36px; padding: 0 11px 0 6px; }
+.endless-duat-portal .skin-run-passive b { font-size: 10px; }
+
+.endless-duat-portal .reward-overlay h2,
+.endless-duat-portal .event-overlay h2 { font-size: 25px; }
+.endless-duat-portal .reward-overlay > p,
+.endless-duat-portal .event-overlay > p { color: var(--muted); font-size: 12px; }
+.endless-duat-portal .boon-choice { min-height: 190px; padding: 17px 13px; }
+.endless-duat-portal .boon-choice > small { font-size: 9px; }
+.endless-duat-portal .boon-choice > b { font-size: 15px; }
+.endless-duat-portal .boon-choice > p { color: var(--muted); font-size: 11px; }
+.endless-duat-portal .boon-choice > strong { font-size: 10px; }
+.endless-duat-portal .event-overlay button b { font-size: 15px; }
+.endless-duat-portal .event-overlay button small { color: var(--muted); font-size: 10px; }
+
+.endless-duat-portal .building-copy h3,
+.endless-duat-portal .ingredient-panel h3,
+.endless-duat-portal .sponsor-panel h3 { font-size: 18px; }
+.endless-duat-portal .building-copy p,
+.endless-duat-portal .ingredient small,
+.endless-duat-portal .sponsor-panel p { color: var(--muted); font-size: 11px; line-height: 1.45; }
+.endless-duat-portal .building-copy b,
+.endless-duat-portal .building-card > button,
+.endless-duat-portal .ingredient strong { font-size: 11px; }
+.endless-duat-portal .relic-grid { grid-template-columns: repeat(auto-fit,minmax(220px,1fr)); }
+.endless-duat-portal .relic-card h3 { font-size: 18px; }
+.endless-duat-portal .relic-card p { color: var(--muted); font-size: 11px; line-height: 1.45; }
+.endless-duat-portal .relic-card small { font-size: 9px; }
+
+.endless-duat-portal .active-skin-hero { grid-template-columns: 240px 1fr 210px; gap: 22px; padding: 24px; }
+.endless-duat-portal .active-skin-copy > p { color: var(--muted); font-size: 12px; }
+.endless-duat-portal .passive-callout small,
+.endless-duat-portal .technique-callout small,
+.endless-duat-portal .mastery-block > small { font-size: 9px; }
+.endless-duat-portal .passive-callout b,
+.endless-duat-portal .technique-callout b { font-size: 14px; }
+.endless-duat-portal .passive-callout p,
+.endless-duat-portal .technique-callout p,
+.endless-duat-portal .passive-callout em,
+.endless-duat-portal .mastery-block > em,
+.endless-duat-portal .skin-family span { color: var(--muted); font-size: 10px; line-height: 1.4; }
+.endless-duat-portal .badge-wardrobe-button { min-height: 40px; font-size: 11px; }
+.endless-duat-portal .skin-grid { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 14px; }
+.endless-duat-portal .skin-card { min-height: 460px; padding: 0 18px 18px; }
+.endless-duat-portal .skin-card-copy { min-height: 220px; }
+.endless-duat-portal .skin-card-copy h3 { font-size: 22px; }
+.endless-duat-portal .skin-card-copy > small,
+.endless-duat-portal .skin-unlock { font-size: 10px; }
+.endless-duat-portal .mini-passive b,
+.endless-duat-portal .mini-technique b { font-size: 12px; }
+.endless-duat-portal .mini-passive p,
+.endless-duat-portal .mini-passive em,
+.endless-duat-portal .mini-technique small { color: var(--muted); font-size: 10px; }
+.endless-duat-portal .skin-card > button { height: 42px; font-size: 11px; }
+
+.endless-duat-portal .forge-core h2 { font-size: 28px; }
+.endless-duat-portal .forge-core > p { color: var(--muted); font-size: 13px; line-height: 1.5; }
+.endless-duat-portal .forge-button b { font-size: 14px; }
+.endless-duat-portal .forge-button small { font-size: 10px; line-height: 1.4; }
+
+@media (max-width: 760px) {
+  .endless-duat-portal .topbar { height: auto; min-height: 112px; flex-direction: column; justify-content: center; gap: 9px; padding: 10px 12px; }
+  .endless-duat-portal .brand { align-self: flex-start; }
+  .endless-duat-portal .brand-star { width: 34px; height: 34px; font-size: 20px; }
+  .endless-duat-portal .brand b { font-size: 14px; }
+  .endless-duat-portal .resource-row { display: grid; grid-template-columns: repeat(5,minmax(0,1fr)); width: 100%; gap: 5px; }
+  .endless-duat-portal .resource-pill { min-width: 0; justify-content: center; padding: 7px 4px; }
+  .endless-duat-portal .resource-pill > div { display: block !important; }
+  .endless-duat-portal .resource-pill b { font-size: 11px; }
+  .endless-duat-portal .resource-pill small { display: none; }
+  .endless-duat-portal .duat-exit { min-width: 0; padding: 7px 4px; }
+  .endless-duat-portal .content { padding: 22px 12px 94px; }
+  .endless-duat-portal .view-heading h1 { font-size: 29px; }
+  .endless-duat-portal .view-heading p { font-size: 12px; }
+  .endless-duat-portal .duat-stage { height: 520px; min-height: 520px; }
+  .endless-duat-portal .power-button { min-height: 68px; padding: 8px 4px; }
+  .endless-duat-portal .power-button b { font-size: 9px; }
+  .endless-duat-portal .route-card { min-height: 175px; }
+  .endless-duat-portal .run-dashboard { grid-template-columns: 1fr; }
+  .endless-duat-portal .run-boons { grid-column: auto; }
+  .endless-duat-portal .boon-choice > p { display: none; }
+  .endless-duat-portal .skin-grid { grid-template-columns: 1fr; }
+  .endless-duat-portal .active-skin-hero { grid-template-columns: 1fr; min-height: 0; }
+  .endless-duat-portal .skin-card { min-height: 430px; }
+  .endless-duat-portal .skin-card-copy { min-height: 200px; }
+}

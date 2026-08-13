@@ -59,12 +59,19 @@ type OfflineReport = { minutes: number; dust: number; glyphs: number } | null;
 type NebuAction = "idle" | "travel" | "attack" | "pounce" | "ward" | "technique" | "hurt" | "victory" | "defeat";
 
 const NAV: Array<{ id: Tab; label: string; icon: string }> = [
-  { id: "adventure", label: "Expedition", icon: "✦" },
+  { id: "adventure", label: "Play", icon: "✦" },
   { id: "kingdom", label: "Kingdom", icon: "△" },
   { id: "relics", label: "Relics", icon: "◆" },
-  { id: "skins", label: "Nebu Skins", icon: "♛" },
-  { id: "forge", label: "Wish Forge", icon: "◉" },
+  { id: "skins", label: "Nebu", icon: "♛" },
+  { id: "forge", label: "Forge", icon: "◉" },
 ];
+
+const HIDDEN_DUAT_SKINS = new Set<SkinId>(["sherry", "bubbles"]);
+const VISIBLE_SKINS = SKINS.filter((skin) => !HIDDEN_DUAT_SKINS.has(skin.id));
+
+function visibleSkinOrMidnight(value: SkinId): SkinId {
+  return HIDDEN_DUAT_SKINS.has(value) ? "midnight" : value;
+}
 
 const EVENT_COPY: Record<string, { icon: string; eyebrow: string; title: string; body: string; bold: string; wise: string; boldHint: string; wiseHint: string }> = {
   sarcophagus: { icon: "♛", eyebrow: "Something inside is singing", title: "The Sarcophagus of Two Voices", body: "One voice promises a relic. The other calmly describes the creature waiting beneath it.", bold: "Break the golden seals", wise: "Translate the warning", boldHint: "Relic or elite ambush", wiseHint: "+2 Glyphs and healing" },
@@ -206,8 +213,8 @@ function ProgressBar({ value, max, danger = false }: { value: number; max: numbe
 function stateFromBootstrap(bootstrap: DuatBootstrap): GameState {
   const base = bootstrap.state ? safeLoad(JSON.stringify(bootstrap.state)) : null;
   const next = cloneState(base || initialState());
-  next.ownedSkins = bootstrap.ownedSkins;
-  next.selectedSkin = bootstrap.ownedSkins.includes(bootstrap.selectedSkin)
+  next.ownedSkins = bootstrap.ownedSkins.filter((skin) => !HIDDEN_DUAT_SKINS.has(skin));
+  next.selectedSkin = next.ownedSkins.includes(bootstrap.selectedSkin) && !HIDDEN_DUAT_SKINS.has(bootstrap.selectedSkin)
     ? bootstrap.selectedSkin
     : "midnight";
   next.resources.fragments = bootstrap.fragments;
@@ -227,7 +234,7 @@ export default function EndlessDuatGame({ bootstrap, accessToken, onExit, onOpen
   const [adOpen, setAdOpen] = useState(false);
   const [adSeconds, setAdSeconds] = useState(5);
   const [nebuAction, setNebuAction] = useState<NebuAction>("idle");
-  const [activeAccountSkin, setActiveAccountSkin] = useState<SkinId>(bootstrap.selectedSkin);
+  const [activeAccountSkin, setActiveAccountSkin] = useState<SkinId>(() => visibleSkinOrMidnight(bootstrap.selectedSkin));
   const noticeId = useRef(0);
   const nebuActionTimer = useRef<number | null>(null);
   const previousHp = useRef(state.run.hp);
@@ -265,7 +272,7 @@ export default function EndlessDuatGame({ bootstrap, accessToken, onExit, onOpen
   useEffect(() => {
     const syncAncientPullsSkin = (event: Event) => {
       const key = (event as CustomEvent<{ key?: SkinId }>).detail?.key;
-      if (!key || !SKINS.some((skin) => skin.id === key)) return;
+      if (!key || HIDDEN_DUAT_SKINS.has(key) || !VISIBLE_SKINS.some((skin) => skin.id === key)) return;
       setActiveAccountSkin(key);
       setState((current) => {
         if (!current.ownedSkins.includes(key)) return current;
@@ -917,8 +924,8 @@ export default function EndlessDuatGame({ bootstrap, accessToken, onExit, onOpen
       <div className="ambient-stars" aria-hidden="true" />
       <header className="topbar">
         <button className="brand" onClick={onExit} aria-label="Return to Ancient Pulls HQ">
-          <span className="brand-star">✦</span>
-          <span><b>ANCIENT PULLS</b><small>Nebu and the Endless Duat</small></span>
+          <span className="brand-star">☥</span>
+          <span><b>ENDLESS DUAT</b><small>An Ancient Pulls game</small></span>
         </button>
         <div className="resource-row">
           <ResourcePill icon="✦" label="Stardust" value={state.resources.dust} />
@@ -968,8 +975,8 @@ export default function EndlessDuatGame({ bootstrap, accessToken, onExit, onOpen
         <section className="content">
           {tab === "adventure" && (
             <div className="adventure-view">
-              <div className="view-heading">
-                <div><span className="eyebrow">Expedition · Depth {state.run.depth}</span><h1>{biome.name}</h1><p>{biome.subtitle}</p></div>
+            <div className="view-heading">
+                <div><span className="eyebrow">Depth {state.run.depth}</span><h1>{biome.name}</h1><p>{biome.subtitle}</p></div>
                 <button className="quiet-button" onClick={returnToOasis} disabled={state.run.phase !== "choice"}>↩ Return to oasis</button>
               </div>
               {badgeSkinWaiting && <div className="badge-skin-sync"><span>♛</span><div><b>{getSkin(activeAccountSkin).name} equipped from Badges</b><small>Finish or leave this expedition and the Duat will change Nebu safely at the oasis.</small></div></div>}
@@ -1138,7 +1145,7 @@ export default function EndlessDuatGame({ bootstrap, accessToken, onExit, onOpen
           {tab === "skins" && (
             <div className="skins-view">
               <div className="view-heading">
-                <div><span className="eyebrow">Synced to the current Ancient Pulls wardrobe</span><h1>Nebu&apos;s Celestial Wardrobe</h1><p>The seven achievement coats, two administrator companions and Cosmic Nebu now carry their own passive, burden, active technique and mastery path.</p></div>
+                <div><span className="eyebrow">Synced with Ancient Pulls Badges</span><h1>Nebu</h1><p>Your equipped badge coat follows Nebu into every Duat action.</p></div>
                 <div className="skin-rule"><span>◇</span><div><b>Sidegrades, not shortcuts</b><small>Every strength carries a burden; forge recipes never change</small></div></div>
               </div>
               <section className={`active-skin-hero theme-${activeSkin.id}`} style={{ "--skin-accent": activeSkin.accent } as CSSProperties}>
@@ -1147,7 +1154,7 @@ export default function EndlessDuatGame({ bootstrap, accessToken, onExit, onOpen
                 <div className="skin-family"><small>PLAYSTYLE</small><b>{activeSkin.family}</b><div className="mastery-block"><small>MASTERY {masteryLevel} / 10</small><div><span style={{ width: `${masteryProgress}%` }} /></div><em>{masteryXp} resonance points</em></div><span>Coat selection is controlled by the Ancient Pulls Badges wardrobe.</span><button className="badge-wardrobe-button" onClick={onOpenBadges}>Open Badges wardrobe</button></div>
               </section>
               <div className="skin-grid">
-                {SKINS.map((skin) => {
+                {VISIBLE_SKINS.map((skin) => {
                   const owned = state.ownedSkins.includes(skin.id);
                   const selected = state.selectedSkin === skin.id;
                   const skinMasteryLevel = Math.min(10, Math.floor((state.skinMastery[skin.id] ?? 0) / 12));
@@ -1160,7 +1167,7 @@ export default function EndlessDuatGame({ bootstrap, accessToken, onExit, onOpen
                   );
                 })}
               </div>
-              <section className="skin-integration-note"><span>⌘</span><div><b>Uses the real Ancient Pulls skin keys</b><p>Midnight Gold, Nile Dawn, Lotus Bloom, Scarab Glow, Sunstone, Royal Night, Celestial Pearl, Sherry, Bubbles and Cosmic Nebu use the same selection key and ownership hand-off as the main wardrobe.</p></div></section>
+              <section className="skin-integration-note"><span>⌘</span><div><b>One wardrobe everywhere</b><p>The coat equipped in Ancient Pulls Badges is the coat used in the Duat.</p></div></section>
             </div>
           )}
 
