@@ -106,11 +106,6 @@ const MORE_ITEMS: NavItem[] = [
     label: "Help",
     glyph: "?",
   },
-  {
-    href: "/duat",
-    label: "Nebu Sandfall",
-    glyph: "☥",
-  },
 ];
 
 const PROFILE_ITEM: NavItem = {

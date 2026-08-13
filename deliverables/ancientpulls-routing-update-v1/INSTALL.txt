@@ -1,0 +1,9 @@
+1. Extract this ZIP directly into C:\Users\LukasMoon\pocketpulls and choose Replace files.
+2. In your already-open PowerShell window in that folder, run:
+   .\APPLY-ANCIENTPULLS-ROUTING-UPDATE.ps1
+3. Then deploy:
+   git add .
+   git commit -m "Route visitors to player sign-in"
+   git push
+
+This removes the old /login admin screen. Admin access remains at /admin.

@@ -1,0 +1,21 @@
+ANCIENT PULLS — SOCIAL SIGN-IN V61
+
+1. Extract this ZIP directly into:
+   C:\Users\LukasMoon\pocketpulls
+
+2. When Windows asks, choose Replace the files in the destination.
+   This package contains only the files that changed; it will not replace your
+   entire project.
+
+3. In Supabase → SQL Editor, run:
+   supabase\migrations\20260810_social_oauth_profile_bootstrap_v61.sql
+
+4. Open SOCIAL_SIGN_IN_SETUP.md and complete the Google, Discord, Supabase URL
+   Configuration and Vercel setup before testing the buttons.
+
+5. Deploy as normal:
+   git add .
+   git commit -m "Add Google and Discord sign-in"
+   git push
+
+Important: provider secrets go in Supabase, never in Vercel or source code.
