@@ -537,21 +537,10 @@ export default function WishCinematic({
                 reactionSheet={nebuHeatAssets.reactionSheet}
                 reactionColumns={nebuHeatAssets.reactionColumns}
                 reactionRows={nebuHeatAssets.reactionRows}
-                flightSheet={nebuHeatAssets.walkSheet}
-                flightColumns={nebuHeatAssets.walkColumns}
-                flightRows={nebuHeatAssets.walkRows}
                 cosmic={cosmicNebu}
                 blackHole={config.blackHole}
                 lowEffects={lowEffects}
               />
-            </div>
-          ) : null}
-
-          {cosmicNebu && !skipped ? (
-            <div className={styles.cosmicCinematicSignature} aria-hidden="true">
-              <span className={styles.cosmicGravityWave} />
-              <span className={styles.cosmicConstellationCrown}><i /><i /><i /><i /><i /></span>
-              <span className={styles.cosmicFallingStar} />
             </div>
           ) : null}
 
