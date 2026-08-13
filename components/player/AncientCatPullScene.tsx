@@ -186,7 +186,6 @@ export default function AncientCatPullScene({
           window.setTimeout(() => {
             setActiveTier(nextTier);
             setReactionBeat(0);
-            if (nextTier === finalTier) setFinalTierReached(true);
           }, stepStartsAt),
         );
 
@@ -195,6 +194,14 @@ export default function AncientCatPullScene({
             setReactionBeat(1);
           }, stepStartsAt + reactionBeatAt),
         );
+
+        if (nextTier === finalTier) {
+          timers.push(
+            window.setTimeout(() => {
+              setFinalTierReached(true);
+            }, stepStartsAt + Math.max(0, phaseDuration - 120)),
+          );
+        }
       }
     }
 
