@@ -73,6 +73,7 @@
 .burningStar {
   position: absolute;
   inset: 0;
+  overflow: visible;
   transform: translateZ(0);
   will-change: opacity, filter, transform;
 }
@@ -460,9 +461,12 @@
   aspect-ratio: 1;
   visibility: hidden;
   opacity: 0;
+  overflow: visible;
   transform-origin: center;
   will-change: opacity, transform;
-  contain: layout paint style;
+  /* Paint containment clipped the circular corona and plasma at the square
+     route-node boundary, making every destination star appear boxed. */
+  contain: layout style;
 }
 
 .dormantDestination {
