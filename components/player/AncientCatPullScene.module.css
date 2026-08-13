@@ -28,7 +28,7 @@
   z-index: 4;
   overflow: hidden;
   transform-origin: 50% 35%;
-  will-change: opacity, filter, transform;
+  will-change: opacity, transform;
 }
 
 .world[data-gone="true"] {
@@ -343,6 +343,8 @@
     radial-gradient(ellipse at 79% 72%, rgba(8, 145, 178, 0.11), transparent 30%),
     linear-gradient(180deg, #010107, #050517 55%, #010208);
   transition: opacity 540ms ease;
+  contain: layout paint style;
+  transform: translateZ(0);
 }
 
 .routeStage[data-active="true"] {
@@ -357,7 +359,6 @@
     radial-gradient(ellipse at 44% 43%, color-mix(in srgb, var(--active-accent) 7%, transparent), transparent 28%),
     radial-gradient(ellipse at 28% 62%, rgba(99, 102, 241, 0.08), transparent 26%),
     radial-gradient(ellipse at 72% 28%, rgba(34, 211, 238, 0.055), transparent 24%);
-  filter: blur(20px);
   animation: nebulaDrift 16s ease-in-out infinite alternate;
 }
 
@@ -365,6 +366,7 @@
   z-index: 2;
   width: 100%;
   height: 100%;
+  transform: translateZ(0);
 }
 
 .routeStar,
@@ -379,6 +381,15 @@
   opacity: 0;
   transform-origin: center;
   will-change: opacity, transform;
+  contain: layout paint style;
+}
+
+.dormantDestination {
+  position: absolute;
+  inset: 46%;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 5px var(--active-accent);
 }
 
 .routeStar[data-visible="false"] .sunCore,
@@ -395,7 +406,7 @@
 
 .routeVignette {
   z-index: 9;
-  box-shadow: inset 0 0 16vmin 5vmin rgba(0, 0, 0, 0.84);
+  background: radial-gradient(circle, transparent 38%, rgba(0, 0, 0, 0.35) 72%, rgba(0, 0, 0, 0.82) 100%);
 }
 
 .routeBlackHole {
@@ -524,10 +535,10 @@
 }
 
 @keyframes cameraLeavesDesert {
-  0% { opacity: 1; filter: blur(0); transform: scale(1); }
-  28% { opacity: 1; filter: blur(0); transform: scale(0.94); }
-  64% { opacity: 0.88; filter: blur(1px); transform: scale(1.42); }
-  100% { opacity: 0; filter: blur(8px); transform: scale(4.6); visibility: hidden; }
+  0% { opacity: 1; transform: scale(1); }
+  28% { opacity: 1; transform: scale(0.94); }
+  64% { opacity: 0.88; transform: scale(1.42); }
+  100% { opacity: 0; transform: scale(4.6); visibility: hidden; }
 }
 
 @keyframes sunRises {
@@ -653,6 +664,11 @@
   .worldSun { bottom: 24%; width: clamp(68px, 22vw, 128px); }
   .routeStar { width: clamp(112px, 32vw, 168px); }
   .routeBlackHole { width: min(59vw, 270px); }
+  .routeNebula { animation: none; }
+  .routeStar .solarSparks,
+  .routeStar .surfaceFireSecondary,
+  .routeStar .plasmaTongues i:nth-child(n + 9),
+  .routeStar .supernovaFragments i:nth-child(n + 13) { display: none; }
   .rarityCaption { top: max(4.1rem, calc(env(safe-area-inset-top) + 2.55rem)); max-width: 78vw; }
 }
 

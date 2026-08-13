@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  memo,
   type CSSProperties,
   type RefCallback,
   useCallback,
@@ -68,7 +69,7 @@ type BackgroundStar = {
   z: number;
   size: number;
   alpha: number;
-  temperature: number;
+  colour: 0 | 1 | 2;
 };
 
 type PrebuiltSpaceRouteProps = {
@@ -116,6 +117,7 @@ const ROUTE_NODES: readonly RouteNode[] = [
 const SOLAR_TONGUES = Array.from({ length: 14 }, (_, index) => index);
 const SOLAR_SPARKS = Array.from({ length: 12 }, (_, index) => index);
 const SUPERNOVA_FRAGMENTS = Array.from({ length: 18 }, (_, index) => index);
+const STAR_COLOURS = ["#e6ebff", "#afd7ff", "#ffe2ac"] as const;
 
 function clamp(value: number, minimum: number, maximum: number): number {
   return Math.max(minimum, Math.min(maximum, value));
@@ -166,7 +168,7 @@ function buildBackgroundStars(): readonly BackgroundStar[] {
       z: -35 + (index / 239) * 2150 + random() * 34,
       size: 0.7 + random() * 1.65,
       alpha: 0.34 + random() * 0.66,
-      temperature: random(),
+      colour: random() > 0.82 ? 2 : random() < 0.18 ? 1 : 0,
     };
   });
 }
@@ -207,7 +209,7 @@ function buildRoutePhases(
   return phases;
 }
 
-function BurningStar({ grade, tier, final = false }: { grade: Grade; tier: number; final?: boolean }) {
+const BurningStar = memo(function BurningStar({ grade, tier, final = false }: { grade: Grade; tier: number; final?: boolean }) {
   const heat = (tier - 1) / (GRADES.length - 1);
 
   return (
@@ -255,7 +257,7 @@ function BurningStar({ grade, tier, final = false }: { grade: Grade; tier: numbe
       </span>
     </div>
   );
-}
+});
 
 function PrebuiltSpaceRoute({
   active,
@@ -279,6 +281,10 @@ function PrebuiltSpaceRoute({
   const lastFrameAtRef = useRef(0);
   const announcedNodeRef = useRef<string>("common");
   const travellingRef = useRef(false);
+  const phaseIndexRef = useRef(0);
+  const nodeVisibilityRef = useRef(new Map<string, boolean>());
+  const detailedSignatureRef = useRef("");
+  const [detailedStarIds, setDetailedStarIds] = useState<readonly string[]>([]);
 
   const phases = useMemo(
     () => buildRoutePhases(finalTier, stepDurationsMs, arrivalHoldMs, blackHole, blackHoleTravelMs),
@@ -300,6 +306,12 @@ function PrebuiltSpaceRoute({
       routeStartedAtRef.current = 0;
       announcedNodeRef.current = "common";
       travellingRef.current = false;
+      phaseIndexRef.current = 0;
+      nodeVisibilityRef.current.clear();
+      if (detailedSignatureRef.current) {
+        detailedSignatureRef.current = "";
+        setDetailedStarIds([]);
+      }
       onTravelStateChange(false);
       return;
     }
@@ -308,21 +320,29 @@ function PrebuiltSpaceRoute({
     const stage = stageRef.current;
     if (!canvas || !stage) return;
 
-    const context = canvas.getContext("2d", { alpha: true });
+    const context = canvas.getContext("2d", { alpha: true, desynchronized: true });
     if (!context) return;
 
     routeStartedAtRef.current = performance.now();
     lastFrameAtRef.current = routeStartedAtRef.current;
     lastCameraRef.current = cameraAtNode(ROUTE_NODES[0]);
+    phaseIndexRef.current = 0;
     let width = 1;
     let height = 1;
     let pixelRatio = 1;
+    let qualityLevel = lowEffects ? 0 : 2;
+    let frameTimeTotal = 0;
+    let frameTimeSamples = 0;
+    const projectedStars = new Float32Array(BACKGROUND_STARS.length * 5);
 
     const resize = () => {
       const bounds = stage.getBoundingClientRect();
       width = Math.max(1, bounds.width);
       height = Math.max(1, bounds.height);
-      pixelRatio = Math.min(window.devicePixelRatio || 1, lowEffects ? 1 : 1.5);
+      const mobile = width <= 720;
+      if (mobile && qualityLevel > 1) qualityLevel = 1;
+      const pixelRatioCaps = [1, 1.15, 1.35] as const;
+      pixelRatio = Math.min(window.devicePixelRatio || 1, pixelRatioCaps[qualityLevel]);
       canvas.width = Math.round(width * pixelRatio);
       canvas.height = Math.round(height * pixelRatio);
       canvas.style.width = `${width}px`;
@@ -336,7 +356,13 @@ function PrebuiltSpaceRoute({
 
     const render = (now: number) => {
       const elapsed = now - routeStartedAtRef.current;
-      const phase = phases.find((candidate) => elapsed >= candidate.startsAt && elapsed < candidate.endsAt) ?? phases[phases.length - 1];
+      while (
+        phaseIndexRef.current < phases.length - 1 &&
+        elapsed >= phases[phaseIndexRef.current].endsAt
+      ) {
+        phaseIndexRef.current += 1;
+      }
+      const phase = phases[phaseIndexRef.current] ?? phases[phases.length - 1];
       const isTravelling = phase.kind === "travel";
 
       if (isTravelling !== travellingRef.current) {
@@ -392,7 +418,9 @@ function PrebuiltSpaceRoute({
       const focalLength = Math.min(width, height) * 0.86;
 
       context.clearRect(0, 0, width, height);
-      const backgroundCount = lowEffects ? 96 : BACKGROUND_STARS.length;
+      const starCountByQuality = [72, 124, 184] as const;
+      const backgroundCount = starCountByQuality[qualityLevel];
+      let projectedCount = 0;
 
       for (let index = 0; index < backgroundCount; index += 1) {
         const star = BACKGROUND_STARS[index];
@@ -406,36 +434,69 @@ function PrebuiltSpaceRoute({
         const depthScale = clamp(120 / depth, 0.18, 3.4);
         const radius = clamp(star.size * depthScale, 0.45, 3.2);
         const alpha = star.alpha * clamp(230 / depth, 0.22, 1);
-        const red = star.temperature > 0.82 ? 255 : star.temperature < 0.18 ? 175 : 230;
-        const green = star.temperature > 0.82 ? 226 : star.temperature < 0.18 ? 215 : 235;
-        const blue = star.temperature > 0.82 ? 172 : 255;
+        const offset = projectedCount * 5;
+        projectedStars[offset] = projectedX;
+        projectedStars[offset + 1] = projectedY;
+        projectedStars[offset + 2] = radius;
+        projectedStars[offset + 3] = alpha;
+        projectedStars[offset + 4] = star.colour;
+        projectedCount += 1;
+      }
 
-        if (motionStrength > 0.08) {
-          const radialX = projectedX - width / 2;
-          const radialY = projectedY - height / 2;
-          const radialLength = Math.max(1, Math.hypot(radialX, radialY));
-          const trailLength = clamp(motionStrength * depthScale * 22, 1.5, 42);
+      if (motionStrength > 0.08) {
+        context.lineWidth = qualityLevel === 0 ? 0.7 : 1;
+        context.globalAlpha = 0.5 * motionStrength;
+        for (let colour = 0; colour < STAR_COLOURS.length; colour += 1) {
           context.beginPath();
-          context.moveTo(projectedX, projectedY);
-          context.lineTo(
-            projectedX - (radialX / radialLength) * trailLength,
-            projectedY - (radialY / radialLength) * trailLength,
-          );
-          context.strokeStyle = `rgba(${red},${green},${blue},${alpha * 0.56})`;
-          context.lineWidth = Math.max(0.45, radius * 0.58);
+          for (let index = 0; index < projectedCount; index += 1) {
+            const offset = index * 5;
+            if (projectedStars[offset + 4] !== colour) continue;
+            const projectedX = projectedStars[offset];
+            const projectedY = projectedStars[offset + 1];
+            const radialX = projectedX - width / 2;
+            const radialY = projectedY - height / 2;
+            const inverseLength = 1 / Math.max(1, Math.hypot(radialX, radialY));
+            const trailLength = clamp(motionStrength * projectedStars[offset + 2] * 13, 1.4, 36);
+            context.moveTo(projectedX, projectedY);
+            context.lineTo(
+              projectedX - radialX * inverseLength * trailLength,
+              projectedY - radialY * inverseLength * trailLength,
+            );
+          }
+          context.strokeStyle = STAR_COLOURS[colour];
           context.stroke();
         }
-
-        context.beginPath();
-        context.arc(projectedX, projectedY, radius, 0, Math.PI * 2);
-        context.fillStyle = `rgba(${red},${green},${blue},${alpha})`;
-        context.shadowColor = `rgba(${red},${green},${blue},${alpha * 0.8})`;
-        context.shadowBlur = radius > 1.25 ? 7 : 2;
-        context.fill();
       }
 
       context.shadowBlur = 0;
+      for (let colour = 0; colour < STAR_COLOURS.length; colour += 1) {
+        context.fillStyle = STAR_COLOURS[colour];
+        for (let index = 0; index < projectedCount; index += 1) {
+          const offset = index * 5;
+          if (projectedStars[offset + 4] !== colour) continue;
+          const radius = projectedStars[offset + 2];
+          const diameter = radius * 2;
+          context.globalAlpha = projectedStars[offset + 3];
+          context.fillRect(
+            projectedStars[offset] - radius,
+            projectedStars[offset + 1] - radius,
+            diameter,
+            diameter,
+          );
+          if (radius > 1.5 && qualityLevel > 0) {
+            context.globalAlpha = projectedStars[offset + 3] * 0.16;
+            context.fillRect(
+              projectedStars[offset] - radius * 2.2,
+              projectedStars[offset + 1] - radius * 2.2,
+              diameter * 2.2,
+              diameter * 2.2,
+            );
+          }
+        }
+      }
+      context.globalAlpha = 1;
       const visibleDistance = 188;
+      const detailedIds: string[] = [];
 
       for (const node of ROUTE_NODES.slice(1)) {
         const element = starRefs.current.get(node.id);
@@ -443,9 +504,11 @@ function PrebuiltSpaceRoute({
         const depth = node.z - camera.z;
 
         if (depth <= 3 || depth >= visibleDistance) {
-          element.style.opacity = "0";
-          element.style.visibility = "hidden";
-          element.dataset.visible = "false";
+          if (nodeVisibilityRef.current.get(node.id) !== false) {
+            element.style.opacity = "0";
+            element.style.visibility = "hidden";
+            nodeVisibilityRef.current.set(node.id, false);
+          }
           continue;
         }
 
@@ -454,11 +517,44 @@ function PrebuiltSpaceRoute({
         const scale = clamp(CAMERA_STAR_DISTANCE / depth, 0.012, 12);
         const appearance = smootherStep((visibleDistance - depth) / 78);
         const insideFrame = projectedX > -width * 0.75 && projectedX < width * 1.75 && projectedY > -height * 0.75 && projectedY < height * 1.75;
+        const visible = insideFrame && appearance > 0.025;
 
-        element.style.visibility = insideFrame ? "visible" : "hidden";
-        element.style.opacity = insideFrame ? String(appearance) : "0";
+        if (!visible) {
+          if (nodeVisibilityRef.current.get(node.id) !== false) {
+            element.style.opacity = "0";
+            element.style.visibility = "hidden";
+            nodeVisibilityRef.current.set(node.id, false);
+          }
+          continue;
+        }
+
+        element.style.visibility = "visible";
+        element.style.opacity = String(appearance);
         element.style.transform = `translate3d(${projectedX}px, ${projectedY}px, 0) translate(-50%, -50%) scale(${scale})`;
-        element.dataset.visible = insideFrame && appearance > 0.025 ? "true" : "false";
+        if (nodeVisibilityRef.current.get(node.id) !== true) {
+          nodeVisibilityRef.current.set(node.id, true);
+        }
+        if (!node.blackHole) detailedIds.push(node.id);
+      }
+
+      const detailedSignature = detailedIds.join("|");
+      if (detailedSignature !== detailedSignatureRef.current) {
+        detailedSignatureRef.current = detailedSignature;
+        setDetailedStarIds(detailedIds);
+      }
+
+      if (isTravelling) {
+        frameTimeTotal += now - lastFrameAtRef.current;
+        frameTimeSamples += 1;
+        if (frameTimeSamples >= 45) {
+          const averageFrameTime = frameTimeTotal / frameTimeSamples;
+          if (averageFrameTime > 20.5 && qualityLevel > 0) {
+            qualityLevel -= 1;
+            resize();
+          }
+          frameTimeTotal = 0;
+          frameTimeSamples = 0;
+        }
       }
 
       lastCameraRef.current = camera;
@@ -483,9 +579,14 @@ function PrebuiltSpaceRoute({
       {ROUTE_NODES.slice(1, 9).map((node) => {
         const nodeTier = node.tier ?? 9;
         const grade = GRADES[nodeTier - 1];
+        const detailed = detailedStarIds.includes(node.id);
         return (
-          <div key={node.id} ref={registerStar(node.id)} className={styles.routeStar} data-visible="false" style={gradeVariables(grade, nodeTier)}>
-            <BurningStar grade={grade} tier={nodeTier} final={!blackHole && finaleStarted && nodeTier === finalTier} />
+          <div key={node.id} ref={registerStar(node.id)} className={styles.routeStar} data-visible={detailed ? "true" : "false"} style={gradeVariables(grade, nodeTier)}>
+            {detailed ? (
+              <BurningStar grade={grade} tier={nodeTier} final={!blackHole && finaleStarted && nodeTier === finalTier} />
+            ) : (
+              <span className={styles.dormantDestination} />
+            )}
           </div>
         );
       })}
@@ -526,13 +627,6 @@ export default function AncientCatPullScene({
   const [finaleStarted, setFinaleStarted] = useState(false);
 
   useEffect(() => {
-    setActiveTier(1);
-    setIntroComplete(false);
-    setSpaceMode(false);
-    setTravelling(false);
-    setBlackHoleReached(false);
-    setFinaleStarted(false);
-
     const introTimer = window.setTimeout(() => {
       setIntroComplete(true);
       if (finalTier > 1 || blackHole) setSpaceMode(true);
