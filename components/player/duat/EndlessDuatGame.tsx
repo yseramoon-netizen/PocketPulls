@@ -15,9 +15,9 @@ type Rarity = "common" | "uncommon" | "rare" | "epic" | "legendary";
 type UpgradeId = "claws" | "crew" | "charm" | "idol";
 type ArtifactFind = { id: string; name: string; icon: string; rarity: Rarity; speedBoost: number; depth: number; foundAt: number };
 type SandfallState = {
-  kind: typeof SAVE_KIND; version: 1; lastSeen: number; dayKey: string; depth: number; deepest: number;
-  sand: number; totalSand: number; lastFindAt: number; nextFindAt: number; totalFinds: number;
-  dailyFinds: number; sinceRare: number; totalTaps: number; bestCombo: number;
+  kind: typeof SAVE_KIND; version: 2; lastSeen: number; dayKey: string; depth: number; deepest: number;
+  sand: number; totalSand: number; totalFinds: number; dailyFinds: number;
+  totalTaps: number; bestCombo: number;
   upgrades: Record<UpgradeId, number>; collection: Record<Rarity, number>;
   recentFinds: ArtifactFind[]; selectedSkin: SkinId;
 };
@@ -36,6 +36,7 @@ type MaterialLayer = {
 
 const RARITIES: Rarity[] = ["common", "uncommon", "rare", "epic", "legendary"];
 const ARTIFACT_CHANCE = 0.01;
+const LOOP_SECONDS = 1;
 const ARTIFACT_SPEED_BONUS: Record<Rarity, number> = {
   common: 0.01,
   uncommon: 0.03,
@@ -70,7 +71,7 @@ const SKIN_BONUSES: Record<SkinId, SkinBonus> = {
   midnight: { title: "Curious Paws", detail: "+8% artifact luck", tap: 1, auto: 1, sand: 1, luck: 0.08 },
   nile: { title: "River Current", detail: "+15% passive digging", tap: 1, auto: 1.15, sand: 1, luck: 0 },
   lotus: { title: "Bloom Finder", detail: "+14% artifact luck", tap: 1, auto: 1, sand: 1, luck: 0.14 },
-  scarab: { title: "Golden Instinct", detail: "+15% sand from finds", tap: 1, auto: 1, sand: 1.15, luck: 0 },
+  scarab: { title: "Golden Instinct", detail: "+15% Ancient Sand", tap: 1, auto: 1, sand: 1.15, luck: 0 },
   sunstone: { title: "Solar Claws", detail: "+20% tap strength", tap: 1.2, auto: 1, sand: 1, luck: 0 },
   royal: { title: "Royal Tribute", detail: "+8% to all digging", tap: 1.08, auto: 1.08, sand: 1.08, luck: 0.05 },
   pearl: { title: "Moon Sifter", detail: "+10% artifact rarity", tap: 1, auto: 1, sand: 1, luck: 0.1 },
@@ -106,6 +107,10 @@ function compact(value: number) {
   return new Intl.NumberFormat("en-GB", { notation: value >= 10_000 ? "compact" : "standard", maximumFractionDigits: value < 100 ? 1 : 0 }).format(Math.max(0, value));
 }
 function blockLabel(value: number) { return `${compact(Math.floor(value))} blocks`; }
+function clockLabel(seconds: number) {
+  const safe = Math.max(0, Math.ceil(seconds));
+  return `${Math.floor(safe / 60)}:${String(safe % 60).padStart(2, "0")}`;
+}
 function materialForDepth(depth: number): MaterialLayer {
   const known = MATERIALS.find((material) => depth < material.end);
   if (known) return known;
@@ -127,18 +132,65 @@ function upgradeCost(id: UpgradeId, level: number) {
 function artifactSpeedMultiplier(collection: Record<Rarity, number>) {
   return 1 + RARITIES.reduce((total, rarity) => total + (collection[rarity] || 0) * ARTIFACT_SPEED_BONUS[rarity], 0);
 }
+function upgradeEffect(id: UpgradeId, level: number) {
+  if (id === "claws") return `+${Math.round(level * 128)}% tap depth`;
+  if (id === "crew") return `+${(level * 0.48).toFixed(2)} blocks/s`;
+  if (id === "charm") return `+${Math.round(level * 8)}% rarity luck`;
+  return `+${Math.round(level * 28)}% all progress`;
+}
+function safeNumber(value: unknown, fallback = 0) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
+}
 
 function initialState(selectedSkin: SkinId): SandfallState {
   return {
-    kind: SAVE_KIND, version: 1, lastSeen: Date.now(), dayKey: todayKey(), depth: 0, deepest: 0,
-    sand: 0, totalSand: 0, lastFindAt: 0, nextFindAt: 8, totalFinds: 0, dailyFinds: 0,
-    sinceRare: 0, totalTaps: 0, bestCombo: 0, upgrades: { claws: 0, crew: 0, charm: 0, idol: 0 },
+    kind: SAVE_KIND, version: 2, lastSeen: Date.now(), dayKey: todayKey(), depth: 0, deepest: 0,
+    sand: 0, totalSand: 0, totalFinds: 0, dailyFinds: 0,
+    totalTaps: 0, bestCombo: 0, upgrades: { claws: 0, crew: 0, charm: 0, idol: 0 },
     collection: { common: 0, uncommon: 0, rare: 0, epic: 0, legendary: 0 },
     recentFinds: [], selectedSkin,
   };
 }
 function isSandfallState(value: unknown): value is SandfallState {
   return Boolean(value && typeof value === "object" && (value as { kind?: string }).kind === SAVE_KIND);
+}
+function normalizeState(value: unknown, selectedSkin: SkinId): SandfallState {
+  const fresh = initialState(selectedSkin);
+  if (!isSandfallState(value)) return fresh;
+  const legacy = value as SandfallState & { recentFinds?: Array<Partial<ArtifactFind> & { reward?: number }> };
+  const collection = Object.fromEntries(RARITIES.map((rarity) => [rarity, Math.floor(safeNumber(legacy.collection?.[rarity]))])) as Record<Rarity, number>;
+  const upgrades = Object.fromEntries((["claws", "crew", "charm", "idol"] as UpgradeId[]).map((id) => [id, Math.floor(safeNumber(legacy.upgrades?.[id]))])) as Record<UpgradeId, number>;
+  const recentFinds = (legacy.recentFinds || []).filter((find) => find && RARITIES.includes(find.rarity as Rarity)).slice(0, 6).map((find, index) => {
+    const rarity = find.rarity as Rarity;
+    return {
+      id: String(find.id || `legacy-${index}`),
+      name: String(find.name || "Ancient Artifact"),
+      icon: String(find.icon || "✦"),
+      rarity,
+      speedBoost: safeNumber(find.speedBoost, ARTIFACT_SPEED_BONUS[rarity]),
+      depth: safeNumber(find.depth),
+      foundAt: safeNumber(find.foundAt, Date.now()),
+    };
+  });
+  return {
+    ...fresh,
+    ...legacy,
+    version: 2,
+    selectedSkin,
+    lastSeen: safeNumber(legacy.lastSeen, Date.now()),
+    depth: safeNumber(legacy.depth),
+    deepest: safeNumber(legacy.deepest),
+    sand: safeNumber(legacy.sand),
+    totalSand: safeNumber(legacy.totalSand),
+    totalFinds: Math.floor(safeNumber(legacy.totalFinds)),
+    dailyFinds: Math.floor(safeNumber(legacy.dailyFinds)),
+    totalTaps: Math.floor(safeNumber(legacy.totalTaps)),
+    bestCombo: Math.floor(safeNumber(legacy.bestCombo)),
+    collection,
+    upgrades,
+    recentFinds,
+  };
 }
 function readState(bootstrap: DuatBootstrap) {
   let candidate: unknown = bootstrap.state;
@@ -149,7 +201,7 @@ function readState(bootstrap: DuatBootstrap) {
       if (isSandfallState(parsed) && (!isSandfallState(candidate) || parsed.lastSeen > candidate.lastSeen)) candidate = parsed;
     }
   } catch { /* Server progress remains the fallback. */ }
-  const base = isSandfallState(candidate) ? candidate : initialState(bootstrap.selectedSkin);
+  const base = normalizeState(candidate, bootstrap.selectedSkin);
   const elapsed = Math.max(0, Math.min(8 * 60 * 60, (Date.now() - Number(base.lastSeen || Date.now())) / 1_000));
   const bonus = SKIN_BONUSES[bootstrap.selectedSkin];
   const idleRate = (0.22 + base.upgrades.crew * 0.48) * (1 + base.upgrades.idol * 0.28) * bonus.auto * artifactSpeedMultiplier(base.collection);
@@ -189,7 +241,7 @@ function SandNebu({ skin, digging }: { skin: SkinId; digging: boolean }) {
   const assets = getNebuHeatAssets(skin);
   const cosmic = skin === "cosmic_nebu";
   useEffect(() => {
-    if (!digging) { setFrame(0); return; }
+    if (!digging) return;
     let animationFrame = 0;
     let lastFrameAt = performance.now();
     const frameLength = 1_000 / 24;
@@ -218,28 +270,28 @@ function SandNebu({ skin, digging }: { skin: SkinId; digging: boolean }) {
 }
 
 export default function EndlessDuatGame({ bootstrap, accessToken, onExit, onOpenBadges }: Props) {
-  const boot = useRef<ReturnType<typeof readState> | null>(null);
-  if (!boot.current) boot.current = readState(bootstrap);
-  const [state, setState] = useState<SandfallState>(boot.current.state);
+  const [boot] = useState(() => readState(bootstrap));
+  const [state, setState] = useState<SandfallState>(boot.state);
   const [fragments, setFragments] = useState(bootstrap.fragments);
   const [wishBalance, setWishBalance] = useState(bootstrap.wishBalance);
   const [activeSeconds, setActiveSeconds] = useState(bootstrap.activeSeconds);
   const [rush, setRush] = useState(0);
   const [combo, setCombo] = useState(0);
   const [latestFind, setLatestFind] = useState<ArtifactFind | null>(null);
+  const [layerArrival, setLayerArrival] = useState<MaterialLayer | null>(null);
   const [digging, setDigging] = useState(false);
-  const [notice, setNotice] = useState(boot.current.offline.sand > 1 ? `While away, Nebu dug ${blockLabel(boot.current.offline.depth)} and gathered ${compact(boot.current.offline.sand)} sand.` : "");
+  const [notice, setNotice] = useState(boot.offline.sand > 1 ? `While away, Nebu dug ${blockLabel(boot.offline.depth)} and gathered ${compact(boot.offline.sand)} sand.` : "");
   const [networkBusy, setNetworkBusy] = useState(false);
-  const [tapBursts, setTapBursts] = useState<Array<{ id: number; x: number; y: number }>>([]);
+  const [tapBursts, setTapBursts] = useState<Array<{ id: number; x: number; y: number; amount: number }>>([]);
   const stateRef = useRef(state);
   const rushRef = useRef(rush);
+  const comboRef = useRef(combo);
   const lastTapRef = useRef(0);
   const digTimerRef = useRef<number | null>(null);
   const saveTimerRef = useRef(0);
   const findTimerRef = useRef<number | null>(null);
-  stateRef.current = state;
-  rushRef.current = rush;
-
+  const layerTimerRef = useRef<number | null>(null);
+  const materialRef = useRef(materialForDepth(state.depth).id);
   const skin = getNebuSkin(state.selectedSkin);
   const skinBonus = SKIN_BONUSES[state.selectedSkin];
   const idolMultiplier = 1 + state.upgrades.idol * 0.28;
@@ -249,6 +301,12 @@ export default function EndlessDuatGame({ bootstrap, accessToken, onExit, onOpen
   const passiveRate = (0.22 + state.upgrades.crew * 0.48) * idolMultiplier * skinBonus.auto * artifactMultiplier;
   const material = materialForDepth(state.depth);
   const materialProgress = Math.max(0, Math.min(100, ((state.depth - material.start) / Math.max(1, material.end - material.start)) * 100));
+  const blocksRemaining = Math.max(0, material.end - state.depth);
+  const rushMultiplier = 1 + rush / 55;
+  const rushTier = rush >= 86 ? "FRENZY" : rush >= 58 ? "BLAZING" : rush >= 28 ? "QUICK PAWS" : "WARMING UP";
+
+  useEffect(() => { stateRef.current = state; }, [state]);
+  useEffect(() => { rushRef.current = rush; }, [rush]);
 
   const persist = useCallback(async (snapshot: SandfallState) => {
     const saved = { ...snapshot, lastSeen: Date.now() };
@@ -275,13 +333,14 @@ export default function EndlessDuatGame({ bootstrap, accessToken, onExit, onOpen
       foundAt: Date.now(),
     };
     setLatestFind(find);
+    navigator.vibrate?.(rarity === "legendary" ? [35, 40, 70] : rarity === "epic" ? [25, 25, 45] : 20);
     if (findTimerRef.current) window.clearTimeout(findTimerRef.current);
     findTimerRef.current = window.setTimeout(() => setLatestFind(null), rarity === "legendary" ? 7_500 : 4_200);
     setState((current) => ({
       ...current,
       totalFinds: current.totalFinds + 1,
-      dailyFinds: current.dailyFinds + 1,
-      sinceRare: rarity === "rare" || rarity === "epic" || rarity === "legendary" ? 0 : current.sinceRare + 1,
+      dayKey: todayKey(),
+      dailyFinds: current.dayKey === todayKey() ? current.dailyFinds + 1 : 1,
       collection: { ...current.collection, [rarity]: current.collection[rarity] + 1 },
       recentFinds: [find, ...current.recentFinds].slice(0, 6),
     }));
@@ -306,9 +365,20 @@ export default function EndlessDuatGame({ bootstrap, accessToken, onExit, onOpen
   }, []);
 
   useEffect(() => {
-    const timer = window.setInterval(discoverArtifact, 1_000);
+    const timer = window.setInterval(discoverArtifact, LOOP_SECONDS * 1_000);
     return () => window.clearInterval(timer);
   }, [discoverArtifact]);
+
+  useEffect(() => {
+    if (materialRef.current === material.id) return;
+    const reachedMaterial = materialForDepth(stateRef.current.depth);
+    materialRef.current = reachedMaterial.id;
+    const arrivalTimer = window.setTimeout(() => setLayerArrival(reachedMaterial), 0);
+    navigator.vibrate?.([20, 30, 35]);
+    if (layerTimerRef.current) window.clearTimeout(layerTimerRef.current);
+    layerTimerRef.current = window.setTimeout(() => setLayerArrival(null), 3_200);
+    return () => window.clearTimeout(arrivalTimer);
+  }, [material.id]);
 
   useEffect(() => {
     const timer = window.setInterval(() => { saveTimerRef.current += 1; if (saveTimerRef.current % 10 === 0) void persist(stateRef.current); }, 1_000);
@@ -331,16 +401,22 @@ export default function EndlessDuatGame({ bootstrap, accessToken, onExit, onOpen
     return () => { cancelled = true; window.clearTimeout(first); window.clearInterval(interval); };
   }, [accessToken]);
 
-  useEffect(() => () => { if (digTimerRef.current) window.clearTimeout(digTimerRef.current); if (findTimerRef.current) window.clearTimeout(findTimerRef.current); }, []);
+  useEffect(() => () => {
+    if (digTimerRef.current) window.clearTimeout(digTimerRef.current);
+    if (findTimerRef.current) window.clearTimeout(findTimerRef.current);
+    if (layerTimerRef.current) window.clearTimeout(layerTimerRef.current);
+  }, []);
 
   const dig = (event: ReactPointerEvent<HTMLButtonElement>) => {
     const now = Date.now();
-    const nextCombo = now - lastTapRef.current < 650 ? Math.min(99, combo + 1) : 1;
-    lastTapRef.current = now; setCombo(nextCombo); setRush((value) => Math.min(100, value + 7.5)); setDigging(true);
+    const nextCombo = now - lastTapRef.current < 650 ? Math.min(99, comboRef.current + 1) : 1;
+    const tapAmount = tapPower * (1 + Math.min(40, nextCombo) * 0.012);
+    lastTapRef.current = now; comboRef.current = nextCombo; setCombo(nextCombo); setRush((value) => Math.min(100, value + 7.5)); setDigging(true);
+    if (nextCombo % 10 === 0) navigator.vibrate?.(12);
     if (digTimerRef.current) window.clearTimeout(digTimerRef.current);
     digTimerRef.current = window.setTimeout(() => setDigging(false), 180);
     const rect = event.currentTarget.getBoundingClientRect();
-    const burst = { id: now + Math.random(), x: event.clientX - rect.left, y: event.clientY - rect.top };
+    const burst = { id: now + Math.random(), x: event.clientX - rect.left, y: event.clientY - rect.top, amount: tapAmount };
     setTapBursts((items) => [...items.slice(-7), burst]);
     window.setTimeout(() => setTapBursts((items) => items.filter((item) => item.id !== burst.id)), 650);
     setState((current) => {
@@ -359,8 +435,10 @@ export default function EndlessDuatGame({ bootstrap, accessToken, onExit, onOpen
     setState((current) => {
       const cost = upgradeCost(id, current.upgrades[id]);
       if (current.sand < cost) return current;
-      setNotice(`${UPGRADES.find((upgrade) => upgrade.id === id)?.name} upgraded.`);
-      return { ...current, sand: current.sand - cost, upgrades: { ...current.upgrades, [id]: current.upgrades[id] + 1 } };
+      const nextLevel = current.upgrades[id] + 1;
+      setNotice(`${UPGRADES.find((upgrade) => upgrade.id === id)?.name} level ${nextLevel} · ${upgradeEffect(id, nextLevel)}`);
+      navigator.vibrate?.(16);
+      return { ...current, sand: current.sand - cost, upgrades: { ...current.upgrades, [id]: nextLevel } };
     });
   };
 
@@ -388,18 +466,19 @@ export default function EndlessDuatGame({ bootstrap, accessToken, onExit, onOpen
   const wishReady = fragments >= WISH_FRAGMENTS;
   const fragmentReady = activeSeconds >= FRAGMENT_SECONDS && fragments < WISH_FRAGMENTS;
   const fragmentProgress = wishReady ? 100 : Math.min(100, (activeSeconds / FRAGMENT_SECONDS) * 100);
+  const fragmentSecondsLeft = Math.max(0, FRAGMENT_SECONDS - activeSeconds);
   const shaftStyle = {
     "--shaft-shift": `${-(state.depth % 260)}px`, "--skin-accent": skin.swatch,
     "--material-light": material.light, "--material-mid": material.mid,
     "--material-dark": material.dark, "--material-accent": material.accent,
   } as CSSProperties;
-  const paceLabel = useMemo(() => `${compact(passiveRate * (1 + rush / 55))} blocks/s`, [passiveRate, rush]);
+  const paceLabel = useMemo(() => `${compact(passiveRate * rushMultiplier)} blocks/s`, [passiveRate, rushMultiplier]);
 
   return (
     <main className={`sandfall-shell ${latestFind ? `finding-${latestFind.rarity}` : ""}`} style={shaftStyle}>
       <header className="sandfall-topbar">
         <button className="sandfall-brand" onClick={onExit} aria-label="Return to Ancient Pulls"><span>←</span><div><b>NEBU SANDFALL</b><small>Ancient Pulls</small></div></button>
-        <div className="sandfall-stats"><div><small>DEPTH</small><b>{blockLabel(state.depth)}</b></div><div><small>ANCIENT SAND</small><b>✦ {compact(state.sand)}</b></div><div><small>LAYER</small><b>{material.name}</b></div></div>
+        <div className="sandfall-stats"><div><small>DEPTH</small><b>{blockLabel(state.depth)}</b></div><div><small>DIG SPEED</small><b>{paceLabel}</b></div><div><small>ANCIENT SAND</small><b>✦ {compact(state.sand)}</b></div></div>
         <button className="sandfall-exit" onClick={onExit}>Ancient Pulls</button>
       </header>
 
@@ -410,27 +489,28 @@ export default function EndlessDuatGame({ bootstrap, accessToken, onExit, onOpen
             <div className="shaft-walls"><i /><i /></div><div className="depth-line"><span>{blockLabel(state.depth)}</span></div>
             <div className="material-badge"><span>{material.icon}</span><div><small>CURRENT LAYER</small><b>{material.name}</b></div></div>
             <div className={`nebu-digger ${digging ? "is-digging" : ""}`}><div className="nebu-aura" /><SandNebu skin={state.selectedSkin} digging={true} /><div className="sand-spray"><i /><i /><i /><i /><i /><i /></div><div className="dig-shadow" /></div>
-            {tapBursts.map((burst) => <span key={burst.id} className="tap-burst" style={{ left: burst.x, top: burst.y }}>+{compact(tapPower)}</span>)}
+            {tapBursts.map((burst) => <span key={burst.id} className="tap-burst" style={{ left: burst.x, top: burst.y }}>+{compact(burst.amount)}</span>)}
             <div className="tap-callout"><b>TAP TO DIG</b><small>Rapid taps build Paw Rush</small></div>
-            <div className="rush-meter"><span style={{ width: `${rush}%` }} /><div><b>PAW RUSH</b><small>{rush > 5 ? `×${(1 + rush / 55).toFixed(1)} speed · combo ${combo}` : "Keep tapping"}</small></div></div>
+            <div className={`rush-meter ${rush >= 86 ? "is-frenzy" : ""}`}><span style={{ width: `${rush}%` }} /><div><b>{rushTier}</b><small>{rush > 5 ? `×${rushMultiplier.toFixed(2)} speed · ${combo} chain` : "Tap anywhere to accelerate"}</small></div></div>
           </button>
 
+          {layerArrival && <div className="layer-arrival" role="status"><span>{layerArrival.icon}</span><small>NEW LAYER REACHED</small><b>{layerArrival.name}</b><p>The shaft has changed. Keep digging.</p></div>}
           {latestFind && <button className={`artifact-reveal rarity-${latestFind.rarity}`} onClick={() => setLatestFind(null)}><span className="artifact-rays" /><span className="artifact-icon">{latestFind.icon}</span><span className="artifact-rarity">{latestFind.rarity}</span><b>{latestFind.name}</b><small>Unearthed at {blockLabel(latestFind.depth)}</small><strong>Permanent +{Math.round(latestFind.speedBoost * 100)}% dig speed</strong></button>}
         </section>
 
         <aside className="sandfall-panel">
-          <section className="material-progress-card"><div className="material-progress-icon">{material.icon}</div><div className="material-progress-copy"><small>CURRENT LAYER</small><b>{material.name}</b><p>{blockLabel(state.depth)} / {compact(material.end)} blocks</p></div><div className="simple-meter"><i style={{ width: `${materialProgress}%` }} /></div><footer><span>NEXT</span><b>{nextMaterial(material)}</b><small>at {compact(material.end)} blocks</small></footer></section>
-          <section className="next-find-card"><div className="panel-heading"><div><small>ARTIFACT CHANCE</small><b>1% per dig</b></div><span>✦</span></div><div className="artifact-boost-total"><small>PERMANENT ARTIFACT BOOST</small><b>+{artifactBoostPercent}% speed</b></div><div className="artifact-boost-grid">{RARITIES.map((rarity) => <span key={rarity} className={rarity}>{rarity.slice(0, 1).toUpperCase()} +{Math.round(ARTIFACT_SPEED_BONUS[rarity] * 100)}%</span>)}</div><p>Every tap and every completed 24-frame loop gets one independent 1% roll. A find boosts Nebu instantly and permanently.</p></section>
+          <section className="material-progress-card"><div className="material-progress-icon">{material.icon}</div><div className="material-progress-copy"><small>CURRENT LAYER</small><b>{material.name}</b><p>{blockLabel(blocksRemaining)} until {nextMaterial(material)}</p></div><div className="simple-meter"><i style={{ width: `${materialProgress}%` }} /></div><footer><span>{materialProgress.toFixed(1)}% COMPLETE</span><b>{nextMaterial(material)}</b><small>at {compact(material.end)}</small></footer></section>
+          <section className="next-find-card"><div className="panel-heading"><div><small>ARTIFACT ROLL</small><b>1 in 100 every dig</b></div><span>✦</span></div><div className="artifact-boost-total"><small>TOTAL PERMANENT SPEED</small><b>×{artifactMultiplier.toFixed(2)}</b></div><div className="artifact-boost-grid">{RARITIES.map((rarity) => <span key={rarity} className={rarity}>{rarity.slice(0, 1).toUpperCase()} +{Math.round(ARTIFACT_SPEED_BONUS[rarity] * 100)}%</span>)}</div><p>Each tap and each completed 24-frame loop rolls an independent 1%. Rarity decides the permanent speed gained.</p></section>
 
           <section className="skin-bonus-card"><button onClick={onOpenBadges} className="skin-portrait" aria-label="Open Nebu skins in Badges"><SandNebu skin={state.selectedSkin} digging={false} /></button><div><small>{skin.label.toUpperCase()}</small><b>{skinBonus.title}</b><p>{skinBonus.detail}</p></div><button onClick={onOpenBadges}>Change</button></section>
 
           <section className="upgrade-section"><div className="panel-title"><div><small>SPEND SAND</small><b>Help Nebu dig deeper</b></div><span>{paceLabel}</span></div><div className="upgrade-list">
-            {UPGRADES.map((upgrade) => { const level = state.upgrades[upgrade.id]; const cost = upgradeCost(upgrade.id, level); return <button key={upgrade.id} className={state.sand >= cost ? "can-buy" : ""} onClick={() => buyUpgrade(upgrade.id)} disabled={state.sand < cost}><span>{upgrade.icon}</span><div><small>LEVEL {level}</small><b>{upgrade.name}</b><p>{upgrade.detail}</p></div><strong>✦ {compact(cost)}</strong></button>; })}
+            {UPGRADES.map((upgrade) => { const level = state.upgrades[upgrade.id]; const cost = upgradeCost(upgrade.id, level); return <button key={upgrade.id} aria-label={`Upgrade ${upgrade.name} to level ${level + 1} for ${compact(cost)} Ancient Sand`} className={state.sand >= cost ? "can-buy" : ""} onClick={() => buyUpgrade(upgrade.id)} disabled={state.sand < cost}><span>{upgrade.icon}</span><div><small>LEVEL {level} → {level + 1}</small><b>{upgrade.name}</b><p>{upgradeEffect(upgrade.id, level + 1)}</p></div><strong><em>UPGRADE</em>✦ {compact(cost)}</strong></button>; })}
           </div></section>
 
-          <section className="wish-path-card"><div className="panel-heading"><div><small>FREE WISH</small><b>{fragments} / {WISH_FRAGMENTS} fragments</b></div><span>◉</span></div><div className="fragment-pips">{Array.from({ length: WISH_FRAGMENTS }, (_, index) => <i key={index} className={index < fragments ? "filled" : ""} />)}</div>{!wishReady && <div className="simple-meter wish-meter"><i style={{ width: `${fragmentProgress}%` }} /></div>}<button disabled={networkBusy || (!wishReady && !fragmentReady)} onClick={() => void (wishReady ? claimWish() : forgeFragment())}>{wishReady ? "Claim free wish" : fragmentReady ? "Unearth fragment" : `${Math.max(0, 12 - Math.floor(activeSeconds / 60))} min of digging to fragment`}</button></section>
+          <section className="wish-path-card"><div className="panel-heading"><div><small>FREE WISH PATH</small><b>{fragments} / {WISH_FRAGMENTS} fragments</b></div><span>◉</span></div><div className="wish-balance-line"><span>Ancient Pulls balance</span><b>{compact(wishBalance)} wishes</b></div><div className="fragment-pips">{Array.from({ length: WISH_FRAGMENTS }, (_, index) => <i key={index} className={index < fragments ? "filled" : ""} />)}</div>{!wishReady && <div className="simple-meter wish-meter"><i style={{ width: `${fragmentProgress}%` }} /></div>}<button disabled={networkBusy || (!wishReady && !fragmentReady)} onClick={() => void (wishReady ? claimWish() : forgeFragment())}>{networkBusy ? "Connecting…" : wishReady ? "Claim free wish" : fragmentReady ? "Unearth fragment" : `Next fragment in ${clockLabel(fragmentSecondsLeft)}`}</button></section>
 
-          <section className="collection-card"><div className="panel-title"><div><small>TODAY</small><b>{state.dailyFinds} artifacts found</b></div><span>{state.totalFinds} total</span></div><div className="rarity-row">{RARITIES.map((rarity) => <div key={rarity} className={rarity}><i /><span>{rarity.slice(0, 1).toUpperCase()}</span><b>{state.collection[rarity]}</b></div>)}</div>{state.recentFinds.length > 0 && <div className="recent-find"><span className={state.recentFinds[0].rarity}>{state.recentFinds[0].icon}</span><div><small>LATEST FIND</small><b>{state.recentFinds[0].name}</b></div></div>}</section>
+          <section className="collection-card"><div className="panel-title"><div><small>ARTIFACT VAULT</small><b>{state.dailyFinds} found today</b></div><span>{state.totalFinds} total · +{artifactBoostPercent}%</span></div><div className="rarity-row">{RARITIES.map((rarity) => <div key={rarity} className={rarity} title={`Each ${rarity} artifact grants +${Math.round(ARTIFACT_SPEED_BONUS[rarity] * 100)}% speed`}><i /><span>{rarity.slice(0, 1).toUpperCase()}</span><b>{state.collection[rarity]}</b></div>)}</div>{state.recentFinds.length > 0 && <div className="recent-find"><span className={state.recentFinds[0].rarity}>{state.recentFinds[0].icon}</span><div><small>LATEST FIND · +{Math.round(state.recentFinds[0].speedBoost * 100)}% SPEED</small><b>{state.recentFinds[0].name}</b></div></div>}</section>
         </aside>
       </div>
 
