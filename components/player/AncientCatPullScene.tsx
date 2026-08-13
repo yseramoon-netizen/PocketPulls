@@ -270,7 +270,7 @@ export default function AncientCatPullScene({
       <div className={styles.world}>
         <div className={styles.sun}>
           <span className={styles.sunHalo} />
-          <span className={styles.solarFlares} />
+          <span className={styles.chromosphere} />
           <span className={styles.plasmaTongues}>
             {SOLAR_TONGUES.map((index) => (
               <i
@@ -287,7 +287,6 @@ export default function AncientCatPullScene({
               />
             ))}
           </span>
-          <span className={styles.solarCrown} />
           <span className={styles.sunCore} />
           <span className={styles.supernovaCorona} />
           <span className={styles.supernovaRays} />
