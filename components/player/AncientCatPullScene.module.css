@@ -76,31 +76,143 @@
 }
 
 .sunCore,
-.sunHalo {
+.sunHalo,
+.solarFlares,
+.solarCrown,
+.plasmaTongues {
   position: absolute;
   inset: 0;
-  border-radius: 999px;
 }
 
 .sunCore {
   z-index: 3;
-  inset: 21%;
-  background: radial-gradient(circle at 35% 31%, #ffffff 0 5%, var(--active-accent) 36%, color-mix(in srgb, var(--active-accent) 62%, #f97316) 75%, transparent 76%);
-  box-shadow:
-    0 0 18px 7px var(--active-glow),
-    0 0 62px 24px var(--active-glow);
+  inset: 26%;
+  clip-path: polygon(
+    50% 0%, 59% 35%, 82% 18%, 65% 41%,
+    100% 50%, 65% 59%, 82% 82%, 59% 65%,
+    50% 100%, 41% 65%, 18% 82%, 35% 59%,
+    0% 50%, 35% 41%, 18% 18%, 41% 35%
+  );
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.96) 0 24%, transparent 25%),
+    linear-gradient(315deg, color-mix(in srgb, var(--active-accent) 68%, white) 0 30%, transparent 31%),
+    var(--active-accent);
+  filter:
+    drop-shadow(0 0 5px white)
+    drop-shadow(0 0 13px var(--active-accent))
+    drop-shadow(0 0 28px var(--active-glow));
   transition:
     background 560ms ease,
-    box-shadow 560ms ease;
-  animation: sunBreath 1.8s ease-in-out infinite alternate;
+    filter 560ms ease;
+  animation: starHeartBreath 1.65s ease-in-out infinite alternate;
+}
+
+.sunCore::before {
+  position: absolute;
+  inset: 28%;
+  clip-path: polygon(50% 0, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0 50%, 38% 38%);
+  background: white;
+  filter: drop-shadow(0 0 7px white);
+  content: "";
+  animation: starHeartGlints 1.15s ease-in-out infinite alternate;
+}
+
+.sunCore::after {
+  position: absolute;
+  top: 18%;
+  left: 28%;
+  width: 18%;
+  aspect-ratio: 1;
+  clip-path: polygon(50% 0, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0 50%, 38% 38%);
+  background: rgba(255, 255, 255, 0.95);
+  filter: drop-shadow(0 0 4px white);
+  content: "";
+  animation: starFacetTwinkles 1.9s ease-in-out infinite;
 }
 
 .sunHalo {
+  z-index: 0;
   inset: -42%;
+  border-radius: 50%;
   background: radial-gradient(circle, var(--active-glow), transparent 66%);
   filter: blur(15px);
   opacity: var(--sun-halo-opacity);
   transition: opacity 560ms ease;
+}
+
+.solarFlares {
+  z-index: 1;
+  inset: -33%;
+  clip-path: polygon(
+    50% 0, 56% 36%, 77% 9%, 63% 41%,
+    100% 50%, 63% 59%, 89% 82%, 56% 64%,
+    50% 100%, 44% 64%, 18% 91%, 37% 59%,
+    0 50%, 37% 41%, 12% 21%, 44% 36%
+  );
+  opacity: calc(0.34 + var(--heat-level) * 0.28);
+  background: color-mix(in srgb, var(--active-accent) 58%, transparent);
+  filter: blur(1.2px) drop-shadow(0 0 9px var(--active-glow));
+  mix-blend-mode: screen;
+  transition:
+    background 560ms ease,
+    opacity 560ms ease;
+  animation: solarFlaresPulse 2.2s ease-in-out infinite alternate;
+}
+
+.solarCrown {
+  z-index: 2;
+  inset: 10%;
+  clip-path: polygon(
+    50% 0%, 57% 18%, 69% 7%, 70% 28%,
+    89% 18%, 78% 38%, 100% 43%, 80% 52%,
+    96% 66%, 73% 65%, 80% 89%, 61% 75%,
+    50% 100%, 42% 76%, 23% 92%, 29% 67%,
+    4% 70%, 21% 52%, 0% 42%, 24% 37%,
+    12% 17%, 33% 28%, 31% 5%, 43% 20%
+  );
+  opacity: calc(0.72 + var(--heat-level) * 0.2);
+  background:
+    conic-gradient(
+      from 12deg,
+      color-mix(in srgb, var(--active-accent) 52%, #f97316),
+      var(--active-accent),
+      color-mix(in srgb, var(--active-accent) 76%, white),
+      var(--active-accent),
+      color-mix(in srgb, var(--active-accent) 45%, #f97316)
+    );
+  filter:
+    drop-shadow(0 0 7px var(--active-accent))
+    drop-shadow(0 0 18px var(--active-glow));
+  transition:
+    background 560ms ease,
+    filter 560ms ease,
+    opacity 560ms ease;
+  animation: solarCrownTurns 13s linear infinite;
+}
+
+.plasmaTongues {
+  z-index: 1;
+  inset: 50%;
+  overflow: visible;
+}
+
+.plasmaTongues i {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: var(--tongue-width);
+  height: var(--tongue-length);
+  min-height: 24px;
+  border-radius: 80% 80% 32% 32%;
+  opacity: calc(0.38 + var(--heat-level) * 0.34);
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.95), var(--active-accent) 42%, transparent 100%);
+  filter: drop-shadow(0 0 5px var(--active-glow));
+  transform: rotate(var(--tongue-angle)) translateY(27px) skewX(-5deg);
+  transform-origin: 50% 0;
+  transition:
+    background 560ms ease,
+    opacity 560ms ease;
+  animation: plasmaTongueLives 1.7s var(--tongue-delay) ease-in-out infinite alternate;
 }
 
 .supernovaCorona,
@@ -596,6 +708,10 @@
   display: none;
 }
 
+.scene[data-low-effects="true"] .plasmaTongues i:nth-child(n + 7) {
+  display: none;
+}
+
 @keyframes sceneClears {
   from {
     opacity: 1;
@@ -639,13 +755,56 @@
   }
 }
 
-@keyframes sunBreath {
+@keyframes starHeartBreath {
   from {
-    transform: scale(0.94);
+    filter:
+      brightness(0.94)
+      drop-shadow(0 0 4px white)
+      drop-shadow(0 0 11px var(--active-accent))
+      drop-shadow(0 0 24px var(--active-glow));
+    transform: scale(0.92) rotate(-1.5deg);
   }
 
   to {
-    transform: scale(1.08);
+    filter:
+      brightness(1.2)
+      drop-shadow(0 0 7px white)
+      drop-shadow(0 0 17px var(--active-accent))
+      drop-shadow(0 0 34px var(--active-glow));
+    transform: scale(1.08) rotate(1.5deg);
+  }
+}
+
+@keyframes starHeartGlints {
+  from { opacity: 0.72; transform: scale(0.76) rotate(-4deg); }
+  to { opacity: 1; transform: scale(1.12) rotate(4deg); }
+}
+
+@keyframes starFacetTwinkles {
+  0%, 26%, 100% { opacity: 0.34; transform: scale(0.68); }
+  48% { opacity: 1; transform: scale(1.2); }
+}
+
+@keyframes solarFlaresPulse {
+  from { filter: blur(1.5px) drop-shadow(0 0 7px var(--active-glow)); transform: scale(0.9) rotate(-1deg); }
+  to { filter: blur(0.5px) drop-shadow(0 0 14px var(--active-glow)); transform: scale(1.1) rotate(1deg); }
+}
+
+@keyframes solarCrownTurns {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes plasmaTongueLives {
+  from {
+    filter: blur(0.2px) drop-shadow(0 0 4px var(--active-glow));
+    height: var(--tongue-short);
+    opacity: calc(0.24 + var(--heat-level) * 0.25);
+  }
+
+  to {
+    filter: blur(0.7px) drop-shadow(0 0 8px var(--active-glow));
+    height: var(--tongue-length);
+    opacity: calc(0.52 + var(--heat-level) * 0.34);
   }
 }
 

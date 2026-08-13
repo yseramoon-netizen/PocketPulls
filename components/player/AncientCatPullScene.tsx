@@ -129,6 +129,7 @@ const TIER_LABELS = [
 ] as const;
 
 const EMBERS = Array.from({ length: 18 }, (_, index) => index);
+const SOLAR_TONGUES = Array.from({ length: 10 }, (_, index) => index);
 const SUPERNOVA_FRAGMENTS = Array.from({ length: 16 }, (_, index) => index);
 
 function clampTier(tier: number): number {
@@ -268,8 +269,26 @@ export default function AncientCatPullScene({
 
       <div className={styles.world}>
         <div className={styles.sun}>
-          <span className={styles.sunCore} />
           <span className={styles.sunHalo} />
+          <span className={styles.solarFlares} />
+          <span className={styles.plasmaTongues}>
+            {SOLAR_TONGUES.map((index) => (
+              <i
+                key={index}
+                style={
+                  {
+                    "--tongue-angle": `${index * 36 + (index % 2) * 7}deg`,
+                    "--tongue-short": `${Math.round((24 + (index % 4) * 8) * 0.64)}px`,
+                    "--tongue-length": `${24 + (index % 4) * 8}px`,
+                    "--tongue-width": `${3 + (index % 3) * 1.4}px`,
+                    "--tongue-delay": `${index * -137}ms`,
+                  } as CSSProperties
+                }
+              />
+            ))}
+          </span>
+          <span className={styles.solarCrown} />
+          <span className={styles.sunCore} />
           <span className={styles.supernovaCorona} />
           <span className={styles.supernovaRays} />
           <span className={styles.supernovaFragments}>
