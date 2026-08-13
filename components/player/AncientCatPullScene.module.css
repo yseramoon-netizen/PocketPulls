@@ -78,7 +78,8 @@
 .sunCore,
 .sunHalo,
 .chromosphere,
-.plasmaTongues {
+.plasmaTongues,
+.solarSparks {
   position: absolute;
   inset: 0;
 }
@@ -137,6 +138,38 @@
   animation: magneticSurfaceDrift 12s linear infinite reverse;
 }
 
+.surfaceFire,
+.surfaceFireSecondary {
+  position: absolute;
+  z-index: 2;
+  inset: -22%;
+  border-radius: 50%;
+  opacity: var(--surface-fire-opacity);
+  pointer-events: none;
+  mix-blend-mode: screen;
+}
+
+.surfaceFire {
+  background:
+    radial-gradient(ellipse at 18% 32%, rgba(255,255,255,.82) 0 2%, transparent 7%),
+    radial-gradient(ellipse at 67% 22%, color-mix(in srgb, var(--active-accent) 58%, white) 0 3%, transparent 9%),
+    radial-gradient(ellipse at 82% 63%, rgba(255,255,255,.66) 0 2%, transparent 8%),
+    radial-gradient(ellipse at 39% 79%, color-mix(in srgb, var(--active-accent) 62%, white) 0 3%, transparent 10%),
+    repeating-conic-gradient(from 11deg, transparent 0deg 9deg, rgba(255,255,255,.25) 10deg 13deg, transparent 14deg 24deg);
+  filter: blur(0.7px) contrast(1.3);
+  animation: surfacePlasmaRoll 4.6s linear infinite;
+}
+
+.surfaceFireSecondary {
+  inset: -12%;
+  opacity: var(--surface-fire-secondary-opacity);
+  background:
+    conic-gradient(from 80deg at 40% 43%, transparent 0 10%, rgba(255,255,255,.3) 14%, transparent 23% 46%, color-mix(in srgb, var(--active-accent) 72%, white) 51%, transparent 58% 82%, rgba(255,255,255,.22) 88%, transparent 96%),
+    radial-gradient(ellipse at 50% 50%, transparent 0 34%, rgba(255,255,255,.17) 42%, transparent 58%);
+  filter: blur(1px);
+  animation: surfacePlasmaCounterflow 3.8s ease-in-out infinite alternate;
+}
+
 .sunHalo {
   z-index: 0;
   inset: -42%;
@@ -173,17 +206,48 @@
   left: 0;
   width: var(--tongue-width);
   height: var(--tongue-length);
-  min-height: 24px;
-  border-radius: 80% 80% 32% 32%;
+  border-radius: 90% 45% 70% 26%;
   opacity: calc(0.38 + var(--heat-level) * 0.34);
   background: linear-gradient(to bottom, rgba(255, 255, 255, 0.95), var(--active-accent) 42%, transparent 100%);
   filter: drop-shadow(0 0 5px var(--active-glow));
-  transform: rotate(var(--tongue-angle)) translateY(24px) skewX(-5deg);
+  transform: rotate(var(--tongue-angle)) translateY(23px) scaleY(0.45) skewX(-7deg);
   transform-origin: 50% 0;
   transition:
     background 560ms ease,
     opacity 560ms ease;
-  animation: plasmaTongueLives 1.7s var(--tongue-delay) ease-in-out infinite alternate;
+  animation: plasmaTongueBurns var(--tongue-duration) var(--tongue-delay) cubic-bezier(0.38, 0.06, 0.24, 1) infinite;
+  will-change: filter, opacity, transform;
+}
+
+.plasmaTongues i:nth-child(3n + 1) {
+  border-radius: 44% 92% 30% 72%;
+}
+
+.plasmaTongues i:nth-child(3n + 2) {
+  border-radius: 76% 34% 84% 42%;
+}
+
+.solarSparks {
+  z-index: 2;
+  inset: 50%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.solarSparks i {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: var(--spark-size);
+  height: var(--spark-size);
+  border-radius: 50%;
+  opacity: 0;
+  background: color-mix(in srgb, var(--active-accent) 52%, white);
+  box-shadow:
+    0 0 5px 1px var(--active-glow),
+    0 0 10px var(--active-accent);
+  animation: solarSparkLifts var(--spark-duration) var(--spark-delay) ease-out infinite;
+  will-change: opacity, transform;
 }
 
 .supernovaCorona,
@@ -674,6 +738,7 @@
 
 .scene[data-low-effects="true"] .heatHaze,
 .scene[data-low-effects="true"] .embers,
+.scene[data-low-effects="true"] .solarSparks,
 .scene[data-low-effects="true"] .supernovaRays,
 .scene[data-low-effects="true"] .supernovaFragments {
   display: none;
@@ -748,22 +813,74 @@
   to { transform: rotate(360deg) scale(1.08); }
 }
 
+@keyframes surfacePlasmaRoll {
+  0% { filter: blur(0.7px) contrast(1.25) brightness(0.92); transform: rotate(0deg) scale(0.96); }
+  34% { filter: blur(0.35px) contrast(1.4) brightness(1.16); transform: rotate(118deg) scale(1.06); }
+  67% { filter: blur(0.9px) contrast(1.3) brightness(1.02); transform: rotate(241deg) scale(0.99); }
+  100% { filter: blur(0.7px) contrast(1.25) brightness(0.92); transform: rotate(360deg) scale(0.96); }
+}
+
+@keyframes surfacePlasmaCounterflow {
+  0% { transform: rotate(7deg) scale(0.9) skewX(-2deg); }
+  48% { opacity: calc(var(--surface-fire-secondary-opacity) + 0.12); transform: rotate(-18deg) scale(1.08) skewX(3deg); }
+  100% { transform: rotate(-38deg) scale(0.96) skewX(-1deg); }
+}
+
 @keyframes chromosphereBreath {
   from { filter: blur(4px) drop-shadow(0 0 9px var(--active-glow)); transform: scale(0.93); }
   to { filter: blur(2px) drop-shadow(0 0 18px var(--active-glow)); transform: scale(1.07); }
 }
 
-@keyframes plasmaTongueLives {
-  from {
-    filter: blur(0.2px) drop-shadow(0 0 4px var(--active-glow));
-    height: var(--tongue-short);
-    opacity: calc(0.24 + var(--heat-level) * 0.25);
+@keyframes plasmaTongueBurns {
+  0%, 100% {
+    filter: blur(0.8px) drop-shadow(0 0 3px var(--active-glow));
+    opacity: 0.08;
+    transform: rotate(var(--tongue-angle)) translateY(23px) scaleX(0.52) scaleY(0.32) skewX(-9deg);
   }
 
-  to {
-    filter: blur(0.7px) drop-shadow(0 0 8px var(--active-glow));
-    height: var(--tongue-length);
-    opacity: calc(0.52 + var(--heat-level) * 0.34);
+  18% {
+    filter: blur(0.25px) drop-shadow(0 0 7px var(--active-glow));
+    opacity: calc(0.42 + var(--heat-level) * 0.25);
+    transform: rotate(var(--tongue-angle)) translateY(24px) scaleX(0.84) scaleY(0.82) skewX(-3deg);
+  }
+
+  46% {
+    filter: blur(0.45px) drop-shadow(0 0 11px var(--active-glow));
+    opacity: calc(0.68 + var(--heat-level) * 0.25);
+    transform: rotate(calc(var(--tongue-angle) + var(--tongue-sway))) translateY(25px) scaleX(1.08) scaleY(1.18) skewX(7deg);
+  }
+
+  68% {
+    filter: blur(0.2px) drop-shadow(0 0 8px var(--active-glow));
+    opacity: calc(0.54 + var(--heat-level) * 0.3);
+    transform: rotate(calc(var(--tongue-angle) + var(--tongue-sway-back))) translateY(25px) scaleX(0.72) scaleY(0.93) skewX(-5deg);
+  }
+
+  84% {
+    opacity: 0.24;
+    transform: rotate(var(--tongue-angle)) translateY(24px) scaleX(0.45) scaleY(0.56) skewX(2deg);
+  }
+}
+
+@keyframes solarSparkLifts {
+  0% {
+    opacity: 0;
+    transform: rotate(var(--spark-angle)) translateY(27px) scale(0.3);
+  }
+
+  14% {
+    opacity: calc(0.54 + var(--heat-level) * 0.3);
+    transform: rotate(var(--spark-angle)) translateY(33px) scale(1);
+  }
+
+  58% {
+    opacity: calc(0.3 + var(--heat-level) * 0.26);
+    transform: rotate(calc(var(--spark-angle) + 4deg)) translateY(var(--spark-distance)) scale(0.68);
+  }
+
+  100% {
+    opacity: 0;
+    transform: rotate(calc(var(--spark-angle) - 3deg)) translateY(calc(var(--spark-distance) + 18px)) scale(0.05);
   }
 }
 
@@ -1218,8 +1335,11 @@
   .sunCore,
   .sunCore::before,
   .sunCore::after,
+  .surfaceFire,
+  .surfaceFireSecondary,
   .chromosphere,
   .plasmaTongues i,
+  .solarSparks i,
   .supernovaCorona,
   .supernovaRays,
   .supernovaFragments i,

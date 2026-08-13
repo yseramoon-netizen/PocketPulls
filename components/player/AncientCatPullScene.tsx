@@ -129,7 +129,8 @@ const TIER_LABELS = [
 ] as const;
 
 const EMBERS = Array.from({ length: 18 }, (_, index) => index);
-const SOLAR_TONGUES = Array.from({ length: 10 }, (_, index) => index);
+const SOLAR_TONGUES = Array.from({ length: 14 }, (_, index) => index);
+const SOLAR_SPARKS = Array.from({ length: 12 }, (_, index) => index);
 const SUPERNOVA_FRAGMENTS = Array.from({ length: 16 }, (_, index) => index);
 
 function clampTier(tier: number): number {
@@ -238,6 +239,8 @@ export default function AncientCatPullScene({
     "--scorch-scale": String(0.45 + heatLevel * 0.55),
     "--haze-opacity": String(heatLevel * 0.58),
     "--ember-opacity": String(Math.max(0, (heatLevel - 0.62) * 2.6)),
+    "--surface-fire-opacity": String(0.34 + heatLevel * 0.34),
+    "--surface-fire-secondary-opacity": String(0.24 + heatLevel * 0.25),
   } as CSSProperties;
 
   const activeGradeStyle = useMemo(
@@ -277,17 +280,38 @@ export default function AncientCatPullScene({
                 key={index}
                 style={
                   {
-                    "--tongue-angle": `${index * 36 + (index % 2) * 7}deg`,
-                    "--tongue-short": `${Math.round((24 + (index % 4) * 8) * 0.64)}px`,
-                    "--tongue-length": `${24 + (index % 4) * 8}px`,
-                    "--tongue-width": `${3 + (index % 3) * 1.4}px`,
-                    "--tongue-delay": `${index * -137}ms`,
+                    "--tongue-angle": `${index * (360 / SOLAR_TONGUES.length) + (index % 2) * 5}deg`,
+                    "--tongue-length": `${25 + (index % 5) * 7}px`,
+                    "--tongue-width": `${3.2 + (index % 3) * 1.25}px`,
+                    "--tongue-sway": `${index % 2 === 0 ? 5 + (index % 3) : -5 - (index % 3)}deg`,
+                    "--tongue-sway-back": `${index % 2 === 0 ? -4 - (index % 2) : 4 + (index % 2)}deg`,
+                    "--tongue-delay": `${index * -113}ms`,
+                    "--tongue-duration": `${Math.round(1420 + (index % 4) * 125 - heatLevel * 520)}ms`,
                   } as CSSProperties
                 }
               />
             ))}
           </span>
-          <span className={styles.sunCore} />
+          <span className={styles.solarSparks}>
+            {SOLAR_SPARKS.map((index) => (
+              <i
+                key={index}
+                style={
+                  {
+                    "--spark-angle": `${index * 30 + (index % 3) * 8}deg`,
+                    "--spark-distance": `${48 + (index % 4) * 13}px`,
+                    "--spark-size": `${1.5 + (index % 3) * 0.75}px`,
+                    "--spark-delay": `${index * -149}ms`,
+                    "--spark-duration": `${Math.round(1500 + (index % 5) * 170 - heatLevel * 460)}ms`,
+                  } as CSSProperties
+                }
+              />
+            ))}
+          </span>
+          <span className={styles.sunCore}>
+            <i className={styles.surfaceFire} />
+            <i className={styles.surfaceFireSecondary} />
+          </span>
           <span className={styles.supernovaCorona} />
           <span className={styles.supernovaRays} />
           <span className={styles.supernovaFragments}>
