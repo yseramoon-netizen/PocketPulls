@@ -188,16 +188,16 @@ type FrameSignature = FrameFingerprint;
 type SourceCrop = ScannerSourceCrop;
 
 const CARD_ASPECT_RATIO = 63 / 88;
-const AUTO_SAMPLE_MS = 120;
-const AUTO_CALIBRATION_FRAMES = 6;
-const AUTO_MIN_PRESENCE_THRESHOLD = 1.15;
-const AUTO_MAX_PRESENCE_THRESHOLD = 6.0;
-const AUTO_STABLE_FRAMES = 3;
+const AUTO_SAMPLE_MS = 80;
+const AUTO_CALIBRATION_FRAMES = 8;
+const AUTO_MIN_PRESENCE_THRESHOLD = 0.58;
+const AUTO_MAX_PRESENCE_THRESHOLD = 3.2;
+const AUTO_STABLE_FRAMES = 2;
 const AUTO_REMOVAL_FRAMES = 2;
-const AUTO_MIN_CHANGED_FRACTION = 0.055;
-const AUTO_GEOMETRY_CONFIDENCE = 0.36;
+const AUTO_MIN_CHANGED_FRACTION = 0.018;
+const AUTO_GEOMETRY_CONFIDENCE = 0.30;
 const AUTO_MAX_CAPTURE_QUEUE = 12;
-const SCANNER_VERSION = "41.0-conveyor";
+const SCANNER_VERSION = "42.0-reliable-intake";
 
 const CARD_SELECT = `
   id,
@@ -1584,18 +1584,17 @@ function shouldAutoAdd(candidates: ScannerCandidate[], scan: ExtractedScan): boo
   const exactCollector = best.collectorScore === 1;
   const exactSet = best.setScore >= 0.90;
   const exactHp = best.hpScore === 1;
-  const strongArtwork = (best.visualConfidence ?? 0) >= 82;
-  const strongName = best.nameScore >= 0.90;
-  const nameMargin = scan.nameHypotheses[0]?.margin ?? 0;
+  const strongArtwork = (best.visualConfidence ?? 0) >= 78;
+  const strongName = best.nameScore >= 0.86;
   const secondaryEvidence = [exactCollector, exactSet, exactHp, strongArtwork].filter(Boolean).length;
   const exactIdentity = strongName && exactCollector && (exactSet || exactHp || strongArtwork);
-  const strongVisualIdentity = best.nameScore >= 0.94 && strongArtwork && (exactSet || exactHp);
+  const strongVisualIdentity = best.nameScore >= 0.90 && strongArtwork && (exactSet || exactCollector || exactHp);
+  const collectorIdentity = exactCollector && exactSet && best.nameScore >= 0.78;
 
   return (
-    (exactIdentity || strongVisualIdentity) &&
-    nameMargin >= 0.025 &&
-    best.confidence >= 86 &&
-    margin >= 5 &&
+    (exactIdentity || strongVisualIdentity || collectorIdentity) &&
+    best.confidence >= 76 &&
+    margin >= 3 &&
     secondaryEvidence >= 1 &&
     best.evidenceCount >= 2 &&
     best.hardRejectReasons.length === 0
@@ -1635,6 +1634,7 @@ export default function CardScanner({
   const scanSessionRef = useRef(0);
   const baselineRef = useRef<FrameSignature | null>(null);
   const previousFrameRef = useRef<FrameSignature | null>(null);
+  const capturedFrameRef = useRef<FrameSignature | null>(null);
   const calibrationFramesRef = useRef<FrameSignature[]>([]);
   const stableFramesRef = useRef(0);
   const presenceFramesRef = useRef(0);
@@ -1644,7 +1644,6 @@ export default function CardScanner({
   const calibrationNoiseRef = useRef<number[]>([]);
   const lastGeometryRef = useRef<CardGeometry | null>(null);
   const previousGeometryRef = useRef<CardGeometry | null>(null);
-  const baselineGeometryRef = useRef<CardGeometry | null>(null);
   const lastQualityRef = useRef<CardQuality | null>(null);
 
   const [state, setState] = useState<ScannerState>("idle");
@@ -1688,14 +1687,22 @@ export default function CardScanner({
       throw new Error("The camera is not ready.");
     }
 
-    const guideCrop = getLiveGuideCrop();
+    const mappedGuideCrop = getLiveGuideCrop();
+    const mappedGuideIsUsable = Boolean(
+      mappedGuideCrop &&
+      mappedGuideCrop.width >= video.videoWidth * 0.16 &&
+      mappedGuideCrop.height >= video.videoHeight * 0.24,
+    );
+    const guideCrop = mappedGuideIsUsable
+      ? mappedGuideCrop
+      : getCardCropBounds(video.videoWidth, video.videoHeight);
     const geometry = detectCardGeometry(video, guideCrop);
     lastGeometryRef.current = geometry;
 
     let canvas: HTMLCanvasElement;
     if (geometry && geometry.confidence >= 0.40 && geometry.aspectScore >= 0.58) {
       canvas = rectifyCard(video, geometry, 756);
-    } else if (cameraViewportRef.current && cardGuideRef.current) {
+    } else if (mappedGuideIsUsable && cameraViewportRef.current && cardGuideRef.current) {
       canvas = extractVideoGuideCanvas(
         video,
         cameraViewportRef.current,
@@ -1729,9 +1736,9 @@ export default function CardScanner({
     setPhase("off");
     baselineRef.current = null;
     previousFrameRef.current = null;
+    capturedFrameRef.current = null;
     previousGeometryRef.current = null;
     lastGeometryRef.current = null;
-    baselineGeometryRef.current = null;
     lastQualityRef.current = null;
     calibrationFramesRef.current = [];
     stableFramesRef.current = 0;
@@ -2247,9 +2254,9 @@ export default function CardScanner({
         calibrationFramesRef.current = [];
         calibrationNoiseRef.current = [];
         previousFrameRef.current = null;
+        capturedFrameRef.current = null;
         previousGeometryRef.current = null;
         lastGeometryRef.current = null;
-        baselineGeometryRef.current = null;
         lastQualityRef.current = null;
         stableFramesRef.current = 0;
         presenceFramesRef.current = 0;
@@ -2396,9 +2403,9 @@ export default function CardScanner({
     if (!cameraOpen || !handsFree) return;
     baselineRef.current = null;
     previousFrameRef.current = null;
+    capturedFrameRef.current = null;
     previousGeometryRef.current = null;
     lastGeometryRef.current = null;
-    baselineGeometryRef.current = null;
     lastQualityRef.current = null;
     calibrationFramesRef.current = [];
     stableFramesRef.current = 0;
@@ -2418,11 +2425,17 @@ export default function CardScanner({
       const video = videoRef.current;
       if (!video || autoBusyRef.current || !video.videoWidth || !video.videoHeight) return;
 
-      const liveCrop = getLiveGuideCrop();
-      if (!liveCrop) return;
+      const mappedCrop = getLiveGuideCrop();
+      // Some mobile browsers briefly report zero-sized overlay geometry while
+      // the camera element settles. Never let that silently stop automatic
+      // intake: fall back to the same centred card crop used by manual mode.
+      const liveCrop = mappedCrop &&
+        mappedCrop.width >= video.videoWidth * 0.16 &&
+        mappedCrop.height >= video.videoHeight * 0.24
+        ? mappedCrop
+        : getCardCropBounds(video.videoWidth, video.videoHeight);
       const current = captureFrameSignature(video, liveCrop);
       if (!current) return;
-      const geometry = detectCardGeometry(video, liveCrop);
       const phase = autoPhaseRef.current;
 
       if (phase === "calibrating") {
@@ -2452,16 +2465,15 @@ export default function CardScanner({
           const averageNoise = noiseSamples.reduce((sum, value) => sum + value, 0) / Math.max(1, noiseSamples.length);
           presenceThresholdRef.current = Math.max(
             AUTO_MIN_PRESENCE_THRESHOLD,
-            Math.min(AUTO_MAX_PRESENCE_THRESHOLD, averageNoise * 3.2 + 0.85),
+            Math.min(AUTO_MAX_PRESENCE_THRESHOLD, averageNoise * 2.2 + 0.42),
           );
-          stableThresholdRef.current = Math.max(0.65, Math.min(3.6, averageNoise * 2.7 + 0.5));
+          stableThresholdRef.current = Math.max(0.72, Math.min(3.8, averageNoise * 2.8 + 0.6));
           calibrationFramesRef.current = [];
           calibrationNoiseRef.current = [];
           stableFramesRef.current = 0;
           presenceFramesRef.current = 0;
           previousFrameRef.current = current;
           previousGeometryRef.current = null;
-          baselineGeometryRef.current = geometry && geometry.aspectScore >= 0.48 ? geometry : null;
           setPhase("ready");
           setStatus("Ready — place a card inside the guide");
           signal("ready");
@@ -2479,26 +2491,32 @@ export default function CardScanner({
       const changedFraction = changedPixelFraction(
         baseline,
         current,
-        Math.max(0.045, Math.min(0.085, presenceThresholdRef.current / 100 + 0.025)),
+        Math.max(0.025, Math.min(0.06, presenceThresholdRef.current / 100 + 0.018)),
       );
-      const contrastRise = current.contrast - baseline.contrast;
-      const geometryStrong = Boolean(geometry && geometry.confidence >= AUTO_GEOMETRY_CONFIDENCE && geometry.aspectScore >= 0.48);
-      const diagonal = Math.hypot(video.videoWidth, video.videoHeight);
-      const backgroundGeometry = baselineGeometryRef.current;
-      const geometryNovel = geometryStrong && Boolean(
-        !backgroundGeometry ||
-        cornerJitter(backgroundGeometry, geometry, diagonal) >= 0.012 ||
-        changedFraction >= 0.035 ||
-        presenceDifference >= presenceThresholdRef.current * 0.30
-      );
-      const changedStrong =
-        changedFraction >= AUTO_MIN_CHANGED_FRACTION &&
+      const shouldCheckGeometry =
+        phase === "remove" ||
+        changedFraction >= 0.007 ||
         presenceDifference >= presenceThresholdRef.current * 0.42;
-      const changedModerate =
-        changedFraction >= 0.032 &&
-        presenceDifference >= presenceThresholdRef.current * 0.28;
-      const contrastStrong = contrastRise >= Math.max(2.5, baseline.contrast * 0.08);
-      const cardPresent = geometryNovel || changedStrong || (changedModerate && contrastStrong);
+      const geometry = shouldCheckGeometry ? detectCardGeometry(video, liveCrop) : null;
+      const geometryStrong = Boolean(
+        geometry &&
+        geometry.confidence >= AUTO_GEOMETRY_CONFIDENCE &&
+        geometry.aspectScore >= 0.42 &&
+        geometry.coverageScore >= 0.16
+      );
+      const diagonal = Math.hypot(video.videoWidth, video.videoHeight);
+      // Production conveyor scanners capture any stable, substantial change in
+      // the fixed scan window. Geometry helps, but it is not a hard gate: dark
+      // cards, borderless cards, sleeves and glare can all weaken rectangle
+      // detection while still producing a perfectly usable OCR image.
+      const changedEnough =
+        changedFraction >= AUTO_MIN_CHANGED_FRACTION ||
+        presenceDifference >= presenceThresholdRef.current;
+      const geometrySupportsPresence = geometryStrong && (
+        changedFraction >= 0.008 ||
+        presenceDifference >= presenceThresholdRef.current * 0.42
+      );
+      const cardPresent = geometrySupportsPresence || changedEnough;
 
       if (phase === "ready" || phase === "settling") {
         if (!cardPresent) {
@@ -2516,9 +2534,9 @@ export default function CardScanner({
           // Slowly follow ordinary exposure/white-balance drift only while the
           // guide is confidently empty.
           baseline.values = baseline.values.map(
-            (value, index) => value * 0.992 + current.values[index] * 0.008,
+            (value, index) => value * 0.996 + current.values[index] * 0.004,
           );
-          baseline.contrast = baseline.contrast * 0.992 + current.contrast * 0.008;
+          baseline.contrast = baseline.contrast * 0.996 + current.contrast * 0.004;
           previousFrameRef.current = current;
           return;
         }
@@ -2535,9 +2553,9 @@ export default function CardScanner({
         }
 
         setPhase("settling");
-        const geometryStable = geometryStrong && geometryMovement <= 0.018;
-        const fallbackStable = !geometryStrong && frameMovement <= stableThresholdRef.current * 1.25;
-        const motionStable = frameMovement <= stableThresholdRef.current * 2.1;
+        const geometryStable = geometryStrong && geometryMovement <= 0.026;
+        const fallbackStable = frameMovement <= Math.max(1.05, stableThresholdRef.current * 1.7);
+        const motionStable = frameMovement <= Math.max(1.5, stableThresholdRef.current * 2.8);
 
         if ((geometryStable && motionStable) || fallbackStable) {
           stableFramesRef.current += 1;
@@ -2561,23 +2579,10 @@ export default function CardScanner({
           try {
             const canvas = captureLiveCardCanvas();
             const quality = lastQualityRef.current ?? measureCardQuality(canvas);
-            // Only reject genuinely unusable captures. Slight glare should lower
-            // visual confidence later, not stop a fast bulk workflow.
-            if (
-              quality.sharpness < 2.2 ||
-              quality.clippedRatio > 0.44 ||
-              quality.titleGlareRatio > 0.38
-            ) {
-              setStatus(
-                quality.titleGlareRatio > 0.38
-                  ? "Too much reflection over the title — tilt the card slightly"
-                  : quality.sharpness < 2.2
-                    ? "Card is out of focus — hold it still a moment longer"
-                    : "Exposure is too harsh — adjust the card or light",
-              );
-              previousGeometryRef.current = geometry;
-              return;
-            }
+            // Do not block the conveyor for quality concerns. Recognition and
+            // Review are the correct places to handle blur or glare; refusing
+            // to capture here is what made valid cards appear invisible.
+            lastQualityRef.current = quality;
             autoBusyRef.current = true;
             const accepted = queueHandsFreeCaptureRef.current(canvas);
             autoBusyRef.current = false;
@@ -2586,6 +2591,7 @@ export default function CardScanner({
               return;
             }
             removalFramesRef.current = 0;
+            capturedFrameRef.current = current;
             previousFrameRef.current = current;
             previousGeometryRef.current = geometry;
             setState("camera");
@@ -2602,16 +2608,20 @@ export default function CardScanner({
       }
 
       if (phase === "remove") {
-        const removed =
-          !cardPresent &&
-          changedFraction < 0.055 &&
-          presenceDifference < Math.max(1.0, presenceThresholdRef.current * 0.52);
+        const differenceFromCapture = frameDifference(capturedFrameRef.current, current);
+        const returnedToBackground =
+          changedFraction < Math.max(0.028, AUTO_MIN_CHANGED_FRACTION * 1.4) ||
+          presenceDifference < Math.max(0.82, presenceThresholdRef.current * 0.72);
+        const capturedCardMoved =
+          differenceFromCapture >= Math.max(0.9, presenceThresholdRef.current * 0.75);
+        const removed = returnedToBackground && capturedCardMoved;
         if (removed) removalFramesRef.current += 1;
         else removalFramesRef.current = 0;
 
         if (removalFramesRef.current >= AUTO_REMOVAL_FRAMES) {
           removalFramesRef.current = 0;
           previousFrameRef.current = current;
+          capturedFrameRef.current = null;
           previousGeometryRef.current = null;
           setCapturedImage("");
           setCandidates([]);
