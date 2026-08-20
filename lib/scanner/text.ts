@@ -22,6 +22,19 @@ const OCR_DIGIT_CORRECTIONS: Record<string, string> = {
   B: "8",
 };
 
+const SET_CODE_STOP_WORDS = new Set([
+  "BASIC",
+  "CARD",
+  "GAME",
+  "ILLUS",
+  "ITEM",
+  "NINT",
+  "POKE",
+  "STAGE",
+  "TRAINER",
+  "WEAK",
+]);
+
 export function normaliseText(value: string): string {
   return value
     .normalize("NFKD")
@@ -171,7 +184,9 @@ export function extractCollectorFractions(text: string, confidence = 0.5): Colle
   const found = new Map<string, CollectorFraction>();
   const patterns = [
     /([0-9OQILZSBGD]{1,4})\s*[/\-]\s*([0-9OQILZSBGD]{2,4})/g,
-    /([A-Z]{0,4}[0-9OQILZSBGD]{1,4})\s+([0-9OQILZSBGD]{2,4})/g,
+    // Tesseract occasionally drops the slash. Only accept two tokens when they
+    // occupy the whole OCR line; never manufacture a fraction from attack text.
+    /^\s*([0-9OQILZSBGD]{1,4})\s+([0-9OQILZSBGD]{2,4})\s*$/gm,
   ];
   for (const pattern of patterns) {
     for (const match of cleaned.matchAll(pattern)) {
@@ -179,9 +194,9 @@ export function extractCollectorFractions(text: string, confidence = 0.5): Colle
       const denominatorDigits = correctDigitToken(match[2]);
       const numerator = normaliseCollector(numeratorDigits);
       const denominator = Number(denominatorDigits);
-      if (!numerator || !Number.isFinite(denominator) || denominator < 10 || denominator > 9999) continue;
+      if (!numerator || !Number.isFinite(denominator) || denominator < 10 || denominator > 999) continue;
       const numericNumerator = Number(numerator);
-      if (Number.isFinite(numericNumerator) && numericNumerator > denominator + 500) continue;
+      if (Number.isFinite(numericNumerator) && numericNumerator > denominator + 120) continue;
       const key = `${numerator}/${denominator}`;
       found.set(key, {
         numerator,
@@ -198,9 +213,18 @@ export function extractCollectorNumbers(text: string): string[] {
   const fractions = extractCollectorFractions(text);
   const found = new Set(fractions.map((fraction) => fraction.numerator));
   const cleaned = text.toUpperCase();
-  for (const match of cleaned.matchAll(/(?:NO\.?\s*)?([A-Z]{0,4}[0-9OQILZSBGD]{1,4})/g)) {
-    const prefix = match[1].match(/^[A-Z]+/)?.[0] || "";
-    const digits = correctDigitToken(match[1].slice(prefix.length));
+  const anchoredPatterns = [
+    /\bNO\.?\s*([A-Z]{0,4}[0-9OQILZSBGD]{1,4})\b/g,
+    /^\s*([A-Z]{1,4}[0-9]{1,4})\s*$/gm,
+    /^\s*([A-Z]{1,4}\s+[0-9]{1,4})\s*$/gm,
+    // A bare number is supporting evidence only when the tight crop contains
+    // nothing else. Single attack-damage digits such as "7" are rejected.
+    /^\s*([0-9OQILZSBGD]{2,4})\s*$/gm,
+  ];
+  for (const pattern of anchoredPatterns) for (const match of cleaned.matchAll(pattern)) {
+    const token = match[1].replace(/\s+/g, "");
+    const prefix = token.match(/^[A-Z]+/)?.[0] || "";
+    const digits = correctDigitToken(token.slice(prefix.length));
     if (!digits) continue;
     const value = normaliseCollector(`${prefix}${digits}`);
     if (value && value.length <= 8) found.add(value);
@@ -211,9 +235,9 @@ export function extractCollectorNumbers(text: string): string[] {
 export function extractSetCodes(text: string): string[] {
   const found = new Set<string>();
   const upper = text.toUpperCase();
-  for (const match of upper.matchAll(/\b[A-Z0-9]{2,5}\b/g)) {
+  for (const match of upper.matchAll(/\b(?=[A-Z0-9]{2,5}\b)(?=[A-Z0-9]*[A-Z])[A-Z0-9]+\b/g)) {
     const value = normaliseSetCode(match[0]);
-    if (/^\d+$/.test(value) || value === "BASIC" || value === "TRAINER") continue;
+    if (/^\d+$/.test(value) || SET_CODE_STOP_WORDS.has(value)) continue;
     if (value.length >= 2) found.add(value);
   }
   return [...found];
@@ -235,12 +259,17 @@ export function extractNameCandidates(text: string): string[] {
     const line = rawLine
       .replace(/[^A-Za-z0-9À-ÿ'’ .:-]/g, " ")
       .replace(/\s+/g, " ")
+      .replace(/^(?:basic|stage\s*[12]?|trainer|item|supporter|stadium|energy)\s+/i, "")
+      .replace(/\s+(?:hp\s*)?\d{2,3}\s*$/i, "")
       .trim();
     if (!line || line.length < 2 || line.length > 42) continue;
     const words = line.split(" ").filter(Boolean);
     if (!words.some((word) => /[A-Za-zÀ-ÿ]/.test(word))) continue;
-    if (/^(basic|stage|trainer|item|supporter|stadium|energy|ability|hp)\b/i.test(line)) continue;
+    if (/^(ability|hp)\b/i.test(line)) continue;
     candidates.add(line);
+    const usefulWords = words.filter((word) => /[A-Za-zÀ-ÿ]{3}/.test(word));
+    if (usefulWords.length > 1) candidates.add(usefulWords.slice(-2).join(" "));
+    for (const word of usefulWords) candidates.add(word);
     if (words.length > 1 && NAME_SUFFIXES.has(words.at(-1)?.toLowerCase() || "")) {
       candidates.add(words.slice(-3).join(" "));
     }

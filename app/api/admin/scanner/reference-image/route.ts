@@ -22,7 +22,11 @@ const ALLOWED_IMAGE_HOSTS = new Set([
 ]);
 
 function safeCardId(value: unknown): string {
-  return typeof value === "string" ? value.trim().slice(0, 128) : "";
+  if (typeof value === "string") return value.trim().slice(0, 128);
+  if (typeof value === "number" && Number.isSafeInteger(value) && value >= 0) {
+    return String(value);
+  }
+  return "";
 }
 
 function safeReferenceUrl(value: string | null): URL | null {

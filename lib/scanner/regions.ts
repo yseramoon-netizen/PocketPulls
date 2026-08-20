@@ -1,4 +1,12 @@
-export type CardRegionName = "name" | "hp" | "collector" | "set" | "symbol" | "artwork";
+export type CardRegionName =
+  | "name"
+  | "nameWide"
+  | "hp"
+  | "collector"
+  | "collectorRight"
+  | "set"
+  | "symbol"
+  | "artwork";
 
 export type CardRegion = {
   x: number;
@@ -8,11 +16,15 @@ export type CardRegion = {
 };
 
 export const CARD_REGIONS: Record<CardRegionName, CardRegion> = {
-  name: { x: 0.035, y: 0.015, width: 0.68, height: 0.105 },
-  hp: { x: 0.66, y: 0.012, width: 0.31, height: 0.105 },
-  collector: { x: 0.015, y: 0.83, width: 0.52, height: 0.16 },
-  set: { x: 0.0, y: 0.76, width: 0.56, height: 0.23 },
-  symbol: { x: 0.015, y: 0.735, width: 0.24, height: 0.22 },
+  // The former regions covered attacks and the weakness bar. Tight lanes keep
+  // high-weight OCR away from damage values, retreat costs and copyright years.
+  name: { x: 0.18, y: 0.035, width: 0.55, height: 0.075 },
+  nameWide: { x: 0.07, y: 0.022, width: 0.82, height: 0.105 },
+  hp: { x: 0.69, y: 0.02, width: 0.285, height: 0.08 },
+  collector: { x: 0.012, y: 0.922, width: 0.56, height: 0.072 },
+  collectorRight: { x: 0.51, y: 0.912, width: 0.475, height: 0.082 },
+  set: { x: 0.008, y: 0.895, width: 0.68, height: 0.098 },
+  symbol: { x: 0.008, y: 0.89, width: 0.255, height: 0.103 },
   artwork: { x: 0.055, y: 0.125, width: 0.89, height: 0.50 },
 };
 

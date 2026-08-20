@@ -46,15 +46,21 @@ function collectorScore(card: ScannerPokemonCard, evidence: ScannerEvidence): {
     if (numerator === cardNumber) {
       const denominatorMatches = fraction.denominator === null ||
         numeric(card.set_printed_total) === fraction.denominator;
-      score = Math.max(score, denominatorMatches ? 1 : 0.76);
-      if (denominatorMatches) exact = true;
+      const repeated = fraction.weight >= 1.25;
+      const reliableSingle = fraction.confidence >= 0.82;
+      score = Math.max(score, denominatorMatches
+        ? repeated ? 1 : reliableSingle ? 0.92 : 0.84
+        : 0.66);
+      if (denominatorMatches && (repeated || reliableSingle)) exact = true;
     }
   }
   for (const item of evidence.collectorNumbers) {
     const value = normaliseCollector(item.value);
     if (value === cardNumber) {
-      score = Math.max(score, 0.9);
-      exact = true;
+      // A numerator without a denominator is useful for candidate generation,
+      // but it is not an exact identity signal. This prevents attack damage or
+      // a copyright digit from receiving the old 90% collector score.
+      score = Math.max(score, item.weight >= 1.25 ? 0.74 : 0.52);
     } else if (value.endsWith(cardNumber) || cardNumber.endsWith(value)) {
       score = Math.max(score, 0.58);
     }
@@ -71,15 +77,17 @@ function setScore(card: ScannerPokemonCard, evidence: ScannerEvidence): {
   let exact = false;
   for (const fraction of evidence.collectorFractions) {
     if (fraction.denominator && total === fraction.denominator) {
-      score = Math.max(score, 0.88);
-      exact = true;
+      const reliable = fraction.weight >= 1.25 || fraction.confidence >= 0.82;
+      score = Math.max(score, reliable ? 0.88 : 0.70);
+      if (reliable) exact = true;
     }
   }
   const code = card.set_code || card.set_id || "";
   for (const item of evidence.setCodes) {
     const similarity = setCodeSimilarity(code, item.value);
-    if (similarity >= 0.99) exact = true;
-    score = Math.max(score, similarity);
+    const reliability = item.weight >= 1.25 ? 1 : 0.78;
+    if (similarity >= 0.99 && item.weight >= 1.25) exact = true;
+    score = Math.max(score, similarity * reliability);
   }
   return { score, exact };
 }

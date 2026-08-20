@@ -43,7 +43,7 @@ const NUMBER_WHITELIST = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/-| .";
 const HP_WHITELIST = "HP0123456789 ";
 
 function qualityVariant(frame: TrackedFrame, field: "name" | "collector"): PreprocessVariant {
-  if (frame.qualityWeight >= 0.76) return field === "name" ? "sharpen" : "adaptive";
+  if (frame.qualityWeight >= 0.76) return field === "name" ? "grey" : "adaptive";
   return field === "name" ? "grey" : "otsu";
 }
 
@@ -129,12 +129,15 @@ export class ScannerOcrEngine {
     index: number,
   ): Promise<FrameObservation> {
     const nameRaw = cropRegion(source, CARD_REGIONS.name, 920);
+    const nameWideRaw = cropRegion(source, CARD_REGIONS.nameWide, 920);
     const collectorRaw = cropRegion(source, CARD_REGIONS.collector, 920);
+    const collectorRightRaw = cropRegion(source, CARD_REGIONS.collectorRight, 820);
     const setRaw = cropRegion(source, CARD_REGIONS.set, 920);
     const hpRaw = cropRegion(source, CARD_REGIONS.hp, 620);
     const nameVariant = qualityVariant(frame, "name");
     const collectorVariant = qualityVariant(frame, "collector");
     this.onProgress(`Reading frame ${index + 1} name`, 12 + index * 20);
+    const nameReads: OcrReading[] = [];
     const nameRead = await this.read(
       worker,
       preprocessRegion(nameRaw, nameVariant),
@@ -142,14 +145,38 @@ export class ScannerOcrEngine {
       NAME_WHITELIST,
       nameVariant,
     );
+    nameReads.push(nameRead);
+    // A wide fallback covers Trainer titles and older layouts. Do not pay for
+    // it when the tight Pokémon-name lane already returned a plausible name.
+    if (!extractNameCandidates(nameRead.text).length && index === 0) {
+      nameReads.push(await this.read(
+        worker,
+        preprocessRegion(nameWideRaw, "adaptive"),
+        "line",
+        NAME_WHITELIST,
+        "wide-adaptive",
+      ));
+    }
     this.onProgress(`Reading frame ${index + 1} number`, 20 + index * 20);
+    const collectorReads: OcrReading[] = [];
     const collectorRead = await this.read(
       worker,
       preprocessRegion(collectorRaw, collectorVariant),
-      "sparse",
+      "line",
       NUMBER_WHITELIST,
       collectorVariant,
     );
+    collectorReads.push(collectorRead);
+    // Some WOTC/legacy layouts print the collector line on the opposite side.
+    if (index === 0) {
+      collectorReads.push(await this.read(
+        worker,
+        preprocessRegion(collectorRightRaw, "grey"),
+        "line",
+        NUMBER_WHITELIST,
+        "right-grey",
+      ));
+    }
     // Set and HP are supporting evidence. Read them on the sharpest two frames;
     // a third frame is reserved for recovery rather than repeated expensive OCR.
     const setReads: OcrReading[] = [];
@@ -173,19 +200,24 @@ export class ScannerOcrEngine {
         "grey",
       ));
     }
-    const numberText = [collectorRead.text, ...setReads.map((read) => read.text)].filter(Boolean).join("\n");
+    const nameText = nameReads.map((read) => read.text).filter(Boolean).join("\n");
+    const collectorText = collectorReads.map((read) => read.text).filter(Boolean).join("\n");
+    const setText = setReads.map((read) => read.text).filter(Boolean).join("\n");
+    const collectorConfidence = collectorReads.length
+      ? Math.max(...collectorReads.map((read) => read.confidence))
+      : 0;
     const observation: FrameObservation = {
       frameId: frame.id,
       qualityWeight: frame.qualityWeight,
       orientation,
-      names: extractNameCandidates(nameRead.text),
-      collectorNumbers: extractCollectorNumbers(numberText),
-      collectorFractions: extractCollectorFractions(numberText, collectorRead.confidence),
-      setCodes: extractSetCodes(numberText),
+      names: extractNameCandidates(nameText),
+      collectorNumbers: extractCollectorNumbers(collectorText),
+      collectorFractions: extractCollectorFractions(collectorText, collectorConfidence),
+      setCodes: extractSetCodes(setText),
       hpValues: extractHpValues(hpReads.map((read) => read.text).join("\n")),
       reads: {
-        name: [nameRead],
-        collector: [collectorRead],
+        name: nameReads,
+        collector: collectorReads,
         set: setReads,
         hp: hpReads,
       },
@@ -244,7 +276,9 @@ export class ScannerOcrEngine {
     }
     const debugRegions = {
       name: previewCanvas(cropRegion(firstSource, CARD_REGIONS.name, 720)),
+      nameWide: previewCanvas(cropRegion(firstSource, CARD_REGIONS.nameWide, 720)),
       collector: previewCanvas(cropRegion(firstSource, CARD_REGIONS.collector, 720)),
+      collectorRight: previewCanvas(cropRegion(firstSource, CARD_REGIONS.collectorRight, 720)),
       set: previewCanvas(cropRegion(firstSource, CARD_REGIONS.set, 720)),
       symbol: previewCanvas(cropRegion(firstSource, CARD_REGIONS.symbol, 420)),
       artwork: previewCanvas(cropRegion(firstSource, CARD_REGIONS.artwork, 720)),

@@ -21,6 +21,7 @@ import {
 import {
   clearBenchmarkRecords,
   downloadBenchmarkRecords,
+  downloadDiagnosticSnapshot,
   recordBenchmarkDecision,
 } from "@/lib/scanner/benchmark";
 import { CardIdentifier, shouldAutomaticallyAccept } from "@/lib/scanner/identify";
@@ -65,7 +66,7 @@ type RecentAdd = {
   message: string;
 };
 
-const VERSION = "50.0-database-first";
+const VERSION = "50.1-evidence-reliability";
 const SAMPLE_MS = 105;
 const CALIBRATION_FRAMES = 8;
 const MAX_TRACKED_FRAMES = 4;
@@ -586,6 +587,7 @@ export default function CardScanner({
           ) : null}
           <button type="button" onClick={() => setDiagnostics((value) => !value)} className={`rounded-xl border px-3 py-2 text-xs font-black transition ${diagnostics ? "border-fuchsia-300 bg-fuchsia-300 text-slate-950" : "border-white/10 bg-black/25 text-slate-300 hover:border-fuchsia-300/50"}`}>Diagnostics {diagnostics ? "on" : "off"}</button>
           {diagnostics ? <button type="button" onClick={downloadBenchmarkRecords} className="rounded-xl border border-fuchsia-300/30 bg-fuchsia-300/5 px-3 py-2 text-xs font-black text-fuchsia-100 hover:bg-fuchsia-300/10">Export benchmark data</button> : null}
+          {diagnostics && activeDebug ? <button type="button" onClick={() => downloadDiagnosticSnapshot(activeDebug)} className="rounded-xl border border-cyan-300/30 bg-cyan-300/5 px-3 py-2 text-xs font-black text-cyan-100 hover:bg-cyan-300/10">Export current diagnostic JSON</button> : null}
           {diagnostics ? <button type="button" onClick={clearBenchmarkRecords} className="rounded-xl border border-white/10 bg-black/25 px-3 py-2 text-xs font-bold text-slate-400 hover:text-white">Clear benchmark</button> : null}
           {autoIntakeLabel ? <div className="rounded-xl border border-white/10 bg-black/25 px-3 py-2 text-xs text-slate-300">Destination: <span className="font-bold text-white">{autoIntakeLabel}</span></div> : null}
         </div>

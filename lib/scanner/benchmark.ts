@@ -1,6 +1,6 @@
 "use client";
 
-import type { ScannerIdentification } from "./types";
+import type { ScannerDebugSnapshot, ScannerIdentification } from "./types";
 
 export type ScannerBenchmarkRecord = {
   caseId: string;
@@ -29,18 +29,21 @@ function readRecords(): ScannerBenchmarkRecord[] {
 
 export function recordBenchmarkDecision(
   identification: ScannerIdentification,
-  expectedCardId: string,
+  expectedCardId: string | number,
   tags: string[] = ["operator-confirmed"],
 ): ScannerBenchmarkRecord {
-  const predictedCardId = identification.candidates[0]?.card.id || null;
+  const expected = String(expectedCardId);
+  const predictedCardId = identification.candidates[0]?.card.id === undefined
+    ? null
+    : String(identification.candidates[0].card.id);
   const record: ScannerBenchmarkRecord = {
     caseId: `case-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
     recordedAt: new Date().toISOString(),
-    expectedCardId,
+    expectedCardId: expected,
     predictedCardId,
-    candidateIds: identification.candidates.map((candidate) => candidate.card.id),
+    candidateIds: identification.candidates.map((candidate) => String(candidate.card.id)),
     confidence: identification.confidence,
-    correct: predictedCardId === expectedCardId,
+    correct: predictedCardId === expected,
     timings: identification.debug.timings,
     tags,
   };
@@ -67,6 +70,43 @@ export function downloadBenchmarkRecords(): void {
   const anchor = document.createElement("a");
   anchor.href = url;
   anchor.download = `ancient-pulls-scanner-benchmark-${new Date().toISOString().slice(0, 10)}.json`;
+  anchor.click();
+  window.setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
+export function downloadDiagnosticSnapshot(snapshot: ScannerDebugSnapshot): void {
+  if (typeof window === "undefined") return;
+  const payload = {
+    scannerVersion: "50.1-evidence-reliability",
+    exportedAt: new Date().toISOString(),
+    timings: snapshot.timings,
+    evidence: snapshot.evidence,
+    observations: snapshot.observations,
+    candidates: snapshot.candidates.map((candidate) => ({
+      card: {
+        id: String(candidate.card.id),
+        name: candidate.card.name,
+        set: candidate.card.set_name || candidate.card.set_id,
+        collectorNumber: candidate.card.card_no,
+        printedTotal: candidate.card.set_printed_total,
+      },
+      confidence: candidate.confidence,
+      rawScore: candidate.rawScore,
+      evidence: candidate.evidence,
+      evidenceCount: candidate.evidenceCount,
+      exactCollector: candidate.exactCollector,
+      exactSet: candidate.exactSet,
+      visualConfidence: candidate.visualConfidence,
+      visualBreakdown: candidate.visualBreakdown,
+      reasons: candidate.reasons,
+    })),
+    regionNames: Object.keys(snapshot.regions),
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = `ancient-pulls-current-scan-${new Date().toISOString().replace(/[:.]/g, "-")}.json`;
   anchor.click();
   window.setTimeout(() => URL.revokeObjectURL(url), 0);
 }

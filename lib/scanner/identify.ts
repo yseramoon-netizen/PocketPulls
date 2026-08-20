@@ -33,7 +33,7 @@ function loadBlobImage(blob: Blob): Promise<HTMLImageElement | null> {
   });
 }
 
-async function loadReference(cardId: string): Promise<HTMLImageElement | null> {
+async function loadReference(cardId: string | number): Promise<HTMLImageElement | null> {
   try {
     const blob = await adminFetchBlob("/api/admin/scanner/reference-image", {
       method: "POST",
@@ -107,7 +107,12 @@ export class CardIdentifier {
     if (captured && candidates.length) {
       candidates = await mapLimited(candidates.slice(0, 10), 3, async (candidate) => {
         const reference = await loadReference(candidate.card.id);
-        return reference ? applyVisualEvidence(candidate, captured, reference) : candidate;
+        return reference
+          ? applyVisualEvidence(candidate, captured, reference)
+          : {
+            ...candidate,
+            reasons: [...candidate.reasons, "Reference image unavailable"],
+          };
       });
     }
     candidates = calibrateCandidates(candidates).slice(0, 5);

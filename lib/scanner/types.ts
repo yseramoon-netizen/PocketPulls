@@ -1,5 +1,5 @@
 export type ScannerPokemonCard = {
-  id: string;
+  id: string | number;
   name: string;
   rarity: string | null;
   set_name: string | null;
