@@ -114,6 +114,12 @@ export function scoreCandidates(
     const set = setScore(card, evidence);
     const name = cardNameScore(card, evidence);
     const secondary = secondaryScore(card, evidence);
+    // A strict fraction can be low-confidence OCR while still being decisive
+    // when both its numerator and printed total agree with an exact repeated
+    // name. This is materially safer than trusting any one of those fields.
+    const crossValidatedIdentity = collector.score >= 0.84 && set.score >= 0.70 && name >= 0.94;
+    const exactCollector = collector.exact || crossValidatedIdentity;
+    const exactSet = set.exact || crossValidatedIdentity;
     const available: Array<[keyof CandidateEvidence, number, number]> = [];
     if (evidence.collectorNumbers.length || evidence.collectorFractions.length) {
       available.push(["collector", collector.score, SCANNER_WEIGHTS.collector]);
@@ -127,16 +133,16 @@ export function scoreCandidates(
     }
     const weight = available.reduce((sum, item) => sum + item[2], 0) || 1;
     let rawScore = available.reduce((sum, item) => sum + item[1] * item[2], 0) / weight;
-    if (collector.exact && set.exact) rawScore = Math.max(rawScore, 0.88);
-    if (collector.exact && name >= 0.84) rawScore = Math.max(rawScore, 0.86);
+    if (exactCollector && exactSet) rawScore = Math.max(rawScore, 0.88);
+    if (exactCollector && name >= 0.84) rawScore = Math.max(rawScore, 0.86);
     const reasons: string[] = [];
-    if (collector.exact) reasons.push(`Number ${card.card_no} matched`);
+    if (exactCollector) reasons.push(`Number ${card.card_no} matched`);
     else if (collector.score >= 0.55) reasons.push("Collector number is compatible");
-    if (set.exact) reasons.push(`Set ${card.set_code || card.set_name || card.set_id || "matched"}`);
+    if (exactSet) reasons.push(`Set ${card.set_code || card.set_name || card.set_id || "matched"}`);
     if (name >= 0.94) reasons.push("Name matched");
     else if (name >= 0.72) reasons.push("Name is a close OCR match");
     if (secondary === 1) reasons.push(`HP ${card.hp} matched`);
-    const evidenceCount = [collector.score >= 0.88, set.score >= 0.84, name >= 0.84, secondary === 1]
+    const evidenceCount = [exactCollector, exactSet, name >= 0.84, secondary === 1]
       .filter(Boolean).length;
     return {
       card,
@@ -150,8 +156,8 @@ export function scoreCandidates(
         secondary,
       },
       evidenceCount,
-      exactCollector: collector.exact,
-      exactSet: set.exact,
+      exactCollector,
+      exactSet,
       visualConfidence: null,
       visualBreakdown: null,
       reasons,

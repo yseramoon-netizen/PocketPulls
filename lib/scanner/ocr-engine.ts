@@ -206,13 +206,32 @@ export class ScannerOcrEngine {
     const collectorConfidence = collectorReads.length
       ? Math.max(...collectorReads.map((read) => read.confidence))
       : 0;
+    const setConfidence = setReads.length
+      ? Math.max(...setReads.map((read) => read.confidence))
+      : 0;
+    // The printed fraction drifts between the collector and set crops across
+    // layouts (and with small perspective errors). Parse both lanes, but only
+    // promote strict numerator/denominator pairs from the broader set crop.
+    // This recovers reads such as "BETS 067/084" without treating attack text
+    // or copyright digits as standalone collector numbers.
+    const collectorFractions = [
+      ...extractCollectorFractions(collectorText, collectorConfidence),
+      ...extractCollectorFractions(setText, setConfidence),
+    ].filter((fraction, index, items) => items.findIndex((candidate) =>
+      candidate.numerator === fraction.numerator &&
+      candidate.denominator === fraction.denominator
+    ) === index);
+    const collectorNumbers = [...new Set([
+      ...extractCollectorNumbers(collectorText),
+      ...collectorFractions.map((fraction) => fraction.numerator),
+    ])];
     const observation: FrameObservation = {
       frameId: frame.id,
       qualityWeight: frame.qualityWeight,
       orientation,
       names: extractNameCandidates(nameText),
-      collectorNumbers: extractCollectorNumbers(collectorText),
-      collectorFractions: extractCollectorFractions(collectorText, collectorConfidence),
+      collectorNumbers,
+      collectorFractions,
       setCodes: extractSetCodes(setText),
       hpValues: extractHpValues(hpReads.map((read) => read.text).join("\n")),
       reads: {

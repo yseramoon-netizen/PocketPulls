@@ -77,7 +77,7 @@ type VisualIndexStatus = {
   failed?: number;
 };
 
-const VERSION = "51.0-image-first";
+const VERSION = "51.1-image-first-diagnostics";
 const SAMPLE_MS = 105;
 const CALIBRATION_FRAMES = 8;
 const MAX_TRACKED_FRAMES = 4;
@@ -92,7 +92,7 @@ function phaseCopy(phase: ScannerMachinePhase): string {
     "card-entering": "Card detected — hold steady",
     tracking: "Capturing the clearest frames",
     queued: "Card queued for identification",
-    "waiting-removal": "Captured — remove or replace the card",
+    "waiting-removal": "Captured — remove the card",
   };
   return labels[phase];
 }
@@ -185,7 +185,9 @@ function CandidateCard({
           {candidate.card.set_name || candidate.card.set_id || "Unknown set"} · {collectorLabel(candidate.card)}
         </div>
         <div className="mt-2 line-clamp-2 text-[11px] text-slate-300">
-          {candidate.reasons.join(" · ") || "Visual candidate"}
+          {candidate.reasons.join(" · ") || (candidate.visualConfidence !== null
+            ? "Image-index candidate"
+            : "OCR fallback candidate")}
         </div>
       </div>
       <div className={`self-start rounded-full border px-2.5 py-1 text-xs font-black ${confidenceTone(candidate.confidence)}`}>
@@ -202,8 +204,15 @@ function DebugPanel({ snapshot }: { snapshot: ScannerDebugSnapshot }) {
         <div>
           <h4 className="font-black text-fuchsia-100">Detection diagnostics</h4>
           <div className="mt-1 font-mono text-[10px] text-fuchsia-200/60">
-            visual index {snapshot.visualIndex.ready ? `${snapshot.visualIndex.indexedCount.toLocaleString()} cards` : "not ready"}
+            visual index {snapshot.visualIndex.ready
+              ? `${snapshot.visualIndex.indexedCount.toLocaleString()} cards`
+              : `${snapshot.visualIndex.indexedCount.toLocaleString()} / ${snapshot.visualIndex.totalCount.toLocaleString()} — not ready`}
           </div>
+          {snapshot.visualIndex.error ? (
+            <div className="mt-1 max-w-3xl text-xs font-bold text-rose-300">
+              Visual search error: {snapshot.visualIndex.error}
+            </div>
+          ) : null}
         </div>
         <div className="font-mono text-[11px] text-fuchsia-200/70">
           capture {snapshot.timings.captureMs.toFixed(0)}ms · OCR {snapshot.timings.ocrMs.toFixed(0)}ms · candidates {snapshot.timings.candidateMs.toFixed(0)}ms · visual {snapshot.timings.visualMs.toFixed(0)}ms
@@ -269,12 +278,10 @@ export default function CardScanner({
   const baselineFramesRef = useRef<FrameFingerprint[]>([]);
   const baselineRef = useRef<FrameFingerprint | null>(null);
   const lastFingerprintRef = useRef<FrameFingerprint | null>(null);
-  const lockedFingerprintRef = useRef<FrameFingerprint | null>(null);
   const trackedRef = useRef<TrackedFrame[]>([]);
   const captureStartedRef = useRef(0);
   const presenceRef = useRef(0);
   const absenceRef = useRef(0);
-  const replacementRef = useRef(0);
   const phaseRef = useRef<ScannerMachinePhase>("off");
   const stopVisualBuildRef = useRef(false);
   const visualBuildOffsetRef = useRef(0);
@@ -381,7 +388,9 @@ export default function CardScanner({
         identification: result,
       }, ...items].slice(0, 10));
       setStatus("Visual index is not ready");
-      setError("Image-first recognition needs its one-time visual index. Enable Diagnostics, run Build / resume visual index, and let it finish before scanning.");
+      setError(result.debug.visualIndex.error
+        ? `Image-first recognition failed: ${result.debug.visualIndex.error}`
+        : `Image-first recognition needs its visual index (${result.debug.visualIndex.indexedCount.toLocaleString()} / ${result.debug.visualIndex.totalCount.toLocaleString()}). Enable Diagnostics, run Build / resume visual index, and let it finish before scanning.`);
       return;
     }
     if (best && mode === "automatic" && onAutoAdd && shouldAutomaticallyAccept(result.candidates)) {
@@ -558,29 +567,17 @@ export default function CardScanner({
         if ((trackedRef.current.length >= 3 && elapsed >= 420) || elapsed >= 1050) {
           if (!trackedRef.current.length) trackedRef.current.push(captureTrackedFrame(video, crop));
           queueCapture(trackedRef.current, elapsed);
-          lockedFingerprintRef.current = fingerprint;
           trackedRef.current = [];
           absenceRef.current = 0;
-          replacementRef.current = 0;
           setPhase("waiting-removal");
         }
         return;
       }
       if (currentPhase === "waiting-removal" || currentPhase === "queued") {
         absenceRef.current = present ? 0 : absenceRef.current + 1;
-        const replacementDelta = frameDifference(lockedFingerprintRef.current, fingerprint);
-        replacementRef.current = present && replacementDelta >= 9.5
-          ? replacementRef.current + 1
-          : 0;
         if (absenceRef.current >= 3) {
           presenceRef.current = 0;
           setPhase("searching");
-        } else if (replacementRef.current >= 3) {
-          trackedRef.current = [];
-          captureStartedRef.current = performance.now();
-          lastFingerprintRef.current = fingerprint;
-          replacementRef.current = 0;
-          setPhase("card-entering");
         }
       }
     }, SAMPLE_MS);

@@ -110,6 +110,8 @@ export type ScannerDebugSnapshot = {
   visualIndex: {
     ready: boolean;
     indexedCount: number;
+    totalCount: number;
+    error: string | null;
   };
 };
 
@@ -152,6 +154,8 @@ export type VisualSearchResponse = {
   ok: true;
   ready: boolean;
   indexedCount: number;
+  totalCount: number;
+  error?: string | null;
   matches: IndexedVisualMatch[];
 };
 

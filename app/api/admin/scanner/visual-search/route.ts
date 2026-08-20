@@ -172,7 +172,13 @@ export async function POST(request: Request) {
     }
     const index = await loadIndex(admin);
     if (!index.rows.length) {
-      return Response.json({ ok: true, ready: false, indexedCount: 0, matches: [] }, {
+      return Response.json({
+        ok: true,
+        ready: false,
+        indexedCount: 0,
+        totalCount: index.total,
+        matches: [],
+      }, {
         headers: { "Cache-Control": "no-store" },
       });
     }
@@ -189,6 +195,7 @@ export async function POST(request: Request) {
       ok: true,
       ready: index.total > 0 && index.rows.length >= Math.ceil(index.total * 0.98),
       indexedCount: index.rows.length,
+      totalCount: index.total,
       matches: top.flatMap((match) => {
         const card = cardById.get(match.cardId);
         return card ? [{

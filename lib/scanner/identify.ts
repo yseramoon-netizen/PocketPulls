@@ -42,10 +42,12 @@ export class CardIdentifier {
       body: JSON.stringify({
         frames: selectedFrames.map((frame) => fingerprintCanvasOrientations(frame.canvas)),
       }),
-    }).catch((): VisualSearchResponse => ({
+    }).catch((error: unknown): VisualSearchResponse => ({
       ok: true,
       ready: false,
       indexedCount: 0,
+      totalCount: 0,
+      error: error instanceof Error ? error.message : "The visual search request failed.",
       matches: [],
     }));
     // OCR is deliberately parallel supporting evidence. It no longer decides
@@ -126,6 +128,8 @@ export class CardIdentifier {
         visualIndex: {
           ready: visualResponse.ready,
           indexedCount: visualResponse.indexedCount,
+          totalCount: visualResponse.totalCount,
+          error: visualResponse.error || null,
         },
       },
     };
