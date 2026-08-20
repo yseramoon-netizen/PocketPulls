@@ -107,6 +107,10 @@ export type ScannerDebugSnapshot = {
   evidence: ScannerEvidence;
   candidates: ScannerCandidate[];
   timings: ScannerTiming;
+  visualIndex: {
+    ready: boolean;
+    indexedCount: number;
+  };
 };
 
 export type ScannerIdentification = {
@@ -129,6 +133,26 @@ export type CandidateResponse = {
   ok: true;
   cards: ScannerPokemonCard[];
   generatedBy: string[];
+};
+
+export type IndexedVisualMatch = {
+  card: ScannerPokemonCard;
+  similarity: number;
+  agreement: number;
+  breakdown: {
+    combined: number;
+    artwork: number;
+    fullCard: number;
+    colour: number;
+    edge: number;
+  };
+};
+
+export type VisualSearchResponse = {
+  ok: true;
+  ready: boolean;
+  indexedCount: number;
+  matches: IndexedVisualMatch[];
 };
 
 export type TrackedFrame = {

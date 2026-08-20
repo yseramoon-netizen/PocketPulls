@@ -1,12 +1,13 @@
 "use client";
 
-import { adminFetch, adminFetchBlob } from "@/lib/admin/client-auth";
+import { adminFetch } from "@/lib/admin/client-auth";
+import { fingerprintCanvasOrientations } from "./compact-visual";
 import { buildConsensus, evidenceLooksUseful } from "./consensus";
 import { ScannerOcrEngine } from "./ocr-engine";
 import { previewCanvas } from "./regions";
 import {
-  applyVisualEvidence,
   calibrateCandidates,
+  scoreImageFirstMatches,
   scoreCandidates,
 } from "./scoring";
 import type {
@@ -15,54 +16,10 @@ import type {
   ScannerCandidate,
   ScannerIdentification,
   TrackedFrame,
+  VisualSearchResponse,
 } from "./types";
 
 type ProgressCallback = (status: string, progress: number) => void;
-
-function loadBlobImage(blob: Blob): Promise<HTMLImageElement | null> {
-  return new Promise((resolve) => {
-    const url = URL.createObjectURL(blob);
-    const image = new Image();
-    const finish = (value: HTMLImageElement | null) => {
-      URL.revokeObjectURL(url);
-      resolve(value);
-    };
-    image.onload = () => finish(image);
-    image.onerror = () => finish(null);
-    image.src = url;
-  });
-}
-
-async function loadReference(cardId: string | number): Promise<HTMLImageElement | null> {
-  try {
-    const blob = await adminFetchBlob("/api/admin/scanner/reference-image", {
-      method: "POST",
-      body: JSON.stringify({ cardId }),
-      headers: { "Content-Type": "application/json" },
-    });
-    return loadBlobImage(blob);
-  } catch {
-    return null;
-  }
-}
-
-async function mapLimited<T, R>(
-  values: T[],
-  limit: number,
-  mapper: (value: T, index: number) => Promise<R>,
-): Promise<R[]> {
-  const output = new Array<R>(values.length);
-  let cursor = 0;
-  const workers = Array.from({ length: Math.min(limit, values.length) }, async () => {
-    while (cursor < values.length) {
-      const index = cursor;
-      cursor += 1;
-      output[index] = await mapper(values[index], index);
-    }
-  });
-  await Promise.all(workers);
-  return output;
-}
 
 export class CardIdentifier {
   private readonly ocr: ScannerOcrEngine;
@@ -75,11 +32,33 @@ export class CardIdentifier {
 
   async identify(frames: TrackedFrame[], captureMs: number): Promise<ScannerIdentification> {
     const totalStarted = performance.now();
-    const recognised = await this.ocr.recogniseFrames(frames);
+    const selectedFrames = [...frames]
+      .sort((left, right) => right.qualityWeight - left.qualityWeight)
+      .slice(0, 3);
+    this.onProgress("Searching the visual card index", 7);
+    const visualStarted = performance.now();
+    const visualRequest = adminFetch<VisualSearchResponse>("/api/admin/scanner/visual-search", {
+      method: "POST",
+      body: JSON.stringify({
+        frames: selectedFrames.map((frame) => fingerprintCanvasOrientations(frame.canvas)),
+      }),
+    }).catch((): VisualSearchResponse => ({
+      ok: true,
+      ready: false,
+      indexedCount: 0,
+      matches: [],
+    }));
+    // OCR is deliberately parallel supporting evidence. It no longer decides
+    // which cards the visual engine is allowed to inspect.
+    const [visualResponse, recognised] = await Promise.all([
+      visualRequest,
+      this.ocr.recogniseFrames(selectedFrames),
+    ]);
+    const visualMs = performance.now() - visualStarted;
     const evidence = buildConsensus(recognised.observations);
-    this.onProgress("Searching the card catalogue", 72);
+    this.onProgress("Verifying the visual matches", 74);
     const candidateStarted = performance.now();
-    let cards: CandidateResponse["cards"] = [];
+    let ocrCards: CandidateResponse["cards"] = [];
     if (evidenceLooksUseful(evidence)) {
       const request: CandidateRequest = {
         names: evidence.names.map((item) => item.value),
@@ -97,26 +76,25 @@ export class CardIdentifier {
         method: "POST",
         body: JSON.stringify(request),
       });
-      cards = response.cards;
+      ocrCards = response.cards;
     }
     const candidateMs = performance.now() - candidateStarted;
-    let candidates = scoreCandidates(cards, evidence).slice(0, 12);
-    this.onProgress("Comparing artwork and card layout", 84);
-    const visualStarted = performance.now();
-    const captured = recognised.canonicalFrames[0];
-    if (captured && candidates.length) {
-      candidates = await mapLimited(candidates.slice(0, 10), 3, async (candidate) => {
-        const reference = await loadReference(candidate.card.id);
-        return reference
-          ? applyVisualEvidence(candidate, captured, reference)
-          : {
-            ...candidate,
-            reasons: [...candidate.reasons, "Reference image unavailable"],
-          };
-      });
+    let candidates = scoreImageFirstMatches(visualResponse.matches, evidence);
+    const visualIds = new Set(candidates.map((candidate) => String(candidate.card.id)));
+    const ocrOnly = scoreCandidates(
+      ocrCards.filter((card) => !visualIds.has(String(card.id))),
+      evidence,
+    ).map((candidate) => visualResponse.ready ? {
+      ...candidate,
+      rawScore: candidate.rawScore * 0.35,
+      confidence: Math.round(candidate.confidence * 0.35),
+      reasons: [...candidate.reasons, "OCR-only fallback; no strong image retrieval"],
+    } : candidate);
+    if (!visualResponse.ready) {
+      this.onProgress("Visual index is not built — using limited OCR fallback", 84);
     }
-    candidates = calibrateCandidates(candidates).slice(0, 5);
-    const visualMs = performance.now() - visualStarted;
+    candidates = calibrateCandidates([...candidates, ...ocrOnly]).slice(0, 5);
+    const captured = recognised.canonicalFrames[0];
     const confidence = candidates[0]?.confidence || 0;
     const margin = candidates.length > 1
       ? candidates[0].confidence - candidates[1].confidence
@@ -145,6 +123,10 @@ export class CardIdentifier {
         evidence,
         candidates,
         timings,
+        visualIndex: {
+          ready: visualResponse.ready,
+          indexedCount: visualResponse.indexedCount,
+        },
       },
     };
   }

@@ -10,6 +10,7 @@ import {
   useState,
 } from "react";
 
+import { adminFetch } from "@/lib/admin/client-auth";
 import {
   averageFingerprints,
   captureTrackedFrame,
@@ -66,7 +67,17 @@ type RecentAdd = {
   message: string;
 };
 
-const VERSION = "50.1-evidence-reliability";
+type VisualIndexStatus = {
+  ok: true;
+  total: number;
+  indexed: number;
+  nextOffset?: number;
+  done?: boolean;
+  generated?: number;
+  failed?: number;
+};
+
+const VERSION = "51.0-image-first";
 const SAMPLE_MS = 105;
 const CALIBRATION_FRAMES = 8;
 const MAX_TRACKED_FRAMES = 4;
@@ -188,7 +199,12 @@ function DebugPanel({ snapshot }: { snapshot: ScannerDebugSnapshot }) {
   return (
     <div className="mt-5 space-y-4 rounded-2xl border border-fuchsia-400/25 bg-fuchsia-950/15 p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h4 className="font-black text-fuchsia-100">Detection diagnostics</h4>
+        <div>
+          <h4 className="font-black text-fuchsia-100">Detection diagnostics</h4>
+          <div className="mt-1 font-mono text-[10px] text-fuchsia-200/60">
+            visual index {snapshot.visualIndex.ready ? `${snapshot.visualIndex.indexedCount.toLocaleString()} cards` : "not ready"}
+          </div>
+        </div>
         <div className="font-mono text-[11px] text-fuchsia-200/70">
           capture {snapshot.timings.captureMs.toFixed(0)}ms · OCR {snapshot.timings.ocrMs.toFixed(0)}ms · candidates {snapshot.timings.candidateMs.toFixed(0)}ms · visual {snapshot.timings.visualMs.toFixed(0)}ms
         </div>
@@ -260,6 +276,8 @@ export default function CardScanner({
   const absenceRef = useRef(0);
   const replacementRef = useRef(0);
   const phaseRef = useRef<ScannerMachinePhase>("off");
+  const stopVisualBuildRef = useRef(false);
+  const visualBuildOffsetRef = useRef(0);
 
   const [cameraOpen, setCameraOpen] = useState(false);
   const [phase, setPhaseState] = useState<ScannerMachinePhase>("off");
@@ -273,6 +291,8 @@ export default function CardScanner({
   const [recentAdds, setRecentAdds] = useState<RecentAdd[]>([]);
   const [activeDebug, setActiveDebug] = useState<ScannerDebugSnapshot | null>(null);
   const [choosing, setChoosing] = useState<string | null>(null);
+  const [visualIndexStatus, setVisualIndexStatus] = useState<VisualIndexStatus | null>(null);
+  const [buildingVisualIndex, setBuildingVisualIndex] = useState(false);
 
   const setPhase = useCallback((next: ScannerMachinePhase) => {
     phaseRef.current = next;
@@ -284,6 +304,68 @@ export default function CardScanner({
     setProgress(nextProgress);
   }, []);
 
+  const refreshVisualIndex = useCallback(async () => {
+    try {
+      const result = await adminFetch<VisualIndexStatus>("/api/admin/scanner/visual-index");
+      setVisualIndexStatus(result);
+    } catch (caught) {
+      setError(caught instanceof Error
+        ? caught.message
+        : "The visual index status could not be loaded. Run the V51 migration first.");
+    }
+  }, []);
+
+  const toggleDiagnostics = useCallback(() => {
+    const next = !diagnostics;
+    setDiagnostics(next);
+    if (next) void refreshVisualIndex();
+  }, [diagnostics, refreshVisualIndex]);
+
+  const buildVisualIndex = useCallback(async () => {
+    if (buildingVisualIndex) {
+      stopVisualBuildRef.current = true;
+      return;
+    }
+    if (
+      visualIndexStatus && visualIndexStatus.total > 0 &&
+      visualIndexStatus.indexed >= visualIndexStatus.total
+    ) {
+      await refreshVisualIndex();
+      return;
+    }
+    stopVisualBuildRef.current = false;
+    setBuildingVisualIndex(true);
+    setError(null);
+    let offset = visualBuildOffsetRef.current;
+    try {
+      while (!stopVisualBuildRef.current) {
+        const result = await adminFetch<VisualIndexStatus>("/api/admin/scanner/visual-index", {
+          method: "POST",
+          body: JSON.stringify({ offset, limit: 80 }),
+        });
+        setVisualIndexStatus(result);
+        offset = result.nextOffset ?? offset + 80;
+        visualBuildOffsetRef.current = offset;
+        setStatus(`Building visual index: ${result.indexed.toLocaleString()} / ${result.total.toLocaleString()}`);
+        if (result.done) {
+          visualBuildOffsetRef.current = 0;
+          break;
+        }
+      }
+      setStatus(stopVisualBuildRef.current
+        ? "Visual index build paused — resume whenever ready"
+        : "Visual card index is ready");
+    } catch (caught) {
+      setError(caught instanceof Error
+        ? caught.message
+        : "The visual index build failed. Run the V51 migration and try again.");
+    } finally {
+      setBuildingVisualIndex(false);
+      stopVisualBuildRef.current = false;
+      void refreshVisualIndex();
+    }
+  }, [buildingVisualIndex, refreshVisualIndex, visualIndexStatus]);
+
   const ensureIdentifier = useCallback(() => {
     if (!identifierRef.current) identifierRef.current = new CardIdentifier(progressHandler);
     return identifierRef.current;
@@ -292,6 +374,16 @@ export default function CardScanner({
   const handleIdentification = useCallback(async (capture: QueuedCapture, result: ScannerIdentification) => {
     const best = result.candidates[0];
     setActiveDebug(result.debug);
+    if (!result.debug.visualIndex.ready) {
+      setReview((items) => [{
+        id: capture.id,
+        preview: capture.frames[0]?.preview || "",
+        identification: result,
+      }, ...items].slice(0, 10));
+      setStatus("Visual index is not ready");
+      setError("Image-first recognition needs its one-time visual index. Enable Diagnostics, run Build / resume visual index, and let it finish before scanning.");
+      return;
+    }
     if (best && mode === "automatic" && onAutoAdd && shouldAutomaticallyAccept(result.candidates)) {
       try {
         const added = await onAutoAdd(best.card);
@@ -569,8 +661,8 @@ export default function CardScanner({
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <div className="text-xs font-black uppercase tracking-[0.24em] text-cyan-300">Ancient Pulls Intake</div>
-            <h2 className="mt-1 text-2xl font-black tracking-tight sm:text-3xl">Database-first card scanner</h2>
-            <p className="mt-2 max-w-2xl text-sm text-slate-300">Collector number, set, name, artwork and HP vote independently across several frames. Only a high-confidence multi-signal match can add itself.</p>
+            <h2 className="mt-1 text-2xl font-black tracking-tight sm:text-3xl">Image-first card scanner</h2>
+            <p className="mt-2 max-w-2xl text-sm text-slate-300">Artwork and full-card appearance search the entire indexed catalogue first. OCR can confirm a result, but it can no longer hide the correct card from visual matching.</p>
           </div>
           <div className="rounded-xl border border-white/10 bg-black/25 px-3 py-2 text-right">
             <div className="font-mono text-[10px] uppercase tracking-wider text-slate-500">Engine</div>
@@ -585,12 +677,28 @@ export default function CardScanner({
               ))}
             </div>
           ) : null}
-          <button type="button" onClick={() => setDiagnostics((value) => !value)} className={`rounded-xl border px-3 py-2 text-xs font-black transition ${diagnostics ? "border-fuchsia-300 bg-fuchsia-300 text-slate-950" : "border-white/10 bg-black/25 text-slate-300 hover:border-fuchsia-300/50"}`}>Diagnostics {diagnostics ? "on" : "off"}</button>
+          <button type="button" onClick={toggleDiagnostics} className={`rounded-xl border px-3 py-2 text-xs font-black transition ${diagnostics ? "border-fuchsia-300 bg-fuchsia-300 text-slate-950" : "border-white/10 bg-black/25 text-slate-300 hover:border-fuchsia-300/50"}`}>Diagnostics {diagnostics ? "on" : "off"}</button>
           {diagnostics ? <button type="button" onClick={downloadBenchmarkRecords} className="rounded-xl border border-fuchsia-300/30 bg-fuchsia-300/5 px-3 py-2 text-xs font-black text-fuchsia-100 hover:bg-fuchsia-300/10">Export benchmark data</button> : null}
           {diagnostics && activeDebug ? <button type="button" onClick={() => downloadDiagnosticSnapshot(activeDebug)} className="rounded-xl border border-cyan-300/30 bg-cyan-300/5 px-3 py-2 text-xs font-black text-cyan-100 hover:bg-cyan-300/10">Export current diagnostic JSON</button> : null}
           {diagnostics ? <button type="button" onClick={clearBenchmarkRecords} className="rounded-xl border border-white/10 bg-black/25 px-3 py-2 text-xs font-bold text-slate-400 hover:text-white">Clear benchmark</button> : null}
           {autoIntakeLabel ? <div className="rounded-xl border border-white/10 bg-black/25 px-3 py-2 text-xs text-slate-300">Destination: <span className="font-bold text-white">{autoIntakeLabel}</span></div> : null}
         </div>
+        {diagnostics ? (
+          <div className="mt-3 flex flex-wrap items-center gap-3 rounded-2xl border border-cyan-300/20 bg-cyan-300/5 p-3">
+            <div className="min-w-[220px] flex-1">
+              <div className="text-xs font-black text-cyan-100">Whole-catalogue visual index</div>
+              <div className="mt-1 text-[11px] text-slate-400">
+                {visualIndexStatus
+                  ? `${visualIndexStatus.indexed.toLocaleString()} of ${visualIndexStatus.total.toLocaleString()} reference images indexed`
+                  : "Load the index status, then build it once after installing the V51 migration."}
+              </div>
+              {visualIndexStatus?.total ? <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/10"><div className="h-full bg-cyan-300 transition-all" style={{ width: `${Math.min(100, visualIndexStatus.indexed / visualIndexStatus.total * 100)}%` }} /></div> : null}
+            </div>
+            <button type="button" onClick={() => void buildVisualIndex()} className={`rounded-xl px-4 py-2 text-xs font-black ${buildingVisualIndex ? "border border-amber-300/40 bg-amber-300/10 text-amber-100" : "bg-cyan-300 text-slate-950 hover:bg-cyan-200"}`}>
+              {buildingVisualIndex ? "Pause visual build" : visualIndexStatus && visualIndexStatus.indexed >= visualIndexStatus.total && visualIndexStatus.total > 0 ? "Recheck index" : "Build / resume visual index"}
+            </button>
+          </div>
+        ) : null}
       </div>
 
       <div className="grid gap-5 p-5 sm:p-6 lg:grid-cols-[minmax(0,1.3fr)_minmax(300px,.7fr)]">
@@ -644,8 +752,8 @@ export default function CardScanner({
             <div className="flex items-center justify-between gap-3"><h3 className="font-black">Recognition lane</h3><span className="rounded-full bg-cyan-300/10 px-2.5 py-1 text-xs font-black text-cyan-200">{pendingCount} pending</span></div>
             <ol className="mt-4 space-y-3 text-xs text-slate-300">
               <li><span className="mr-2 font-black text-cyan-300">1</span> Detect and rectify the card boundary</li>
-              <li><span className="mr-2 font-black text-cyan-300">2</span> OCR only name, number, set and HP regions</li>
-              <li><span className="mr-2 font-black text-cyan-300">3</span> Query the catalogue, then rerank artwork</li>
+              <li><span className="mr-2 font-black text-cyan-300">2</span> Search every indexed card by artwork and layout</li>
+              <li><span className="mr-2 font-black text-cyan-300">3</span> Use name, number, set and HP only to verify</li>
               <li><span className="mr-2 font-black text-cyan-300">4</span> Auto-add only after independent evidence agrees</li>
             </ol>
           </div>
@@ -673,7 +781,7 @@ export default function CardScanner({
                   <div><div className="text-xs font-bold text-slate-400">Top catalogue matches</div><div className="mt-1 text-sm text-slate-300">Confidence {item.identification.confidence}% · margin {item.identification.margin.toFixed(0)} points</div></div>
                 </div>
                 <div className="mt-3 space-y-2">
-                  {item.identification.candidates.length ? item.identification.candidates.slice(0, 3).map((candidate) => <CandidateCard key={candidate.card.id} candidate={candidate} disabled={disabled || choosing === item.id} onChoose={() => void chooseCandidate(item, candidate)} />) : <div className="rounded-xl border border-white/10 bg-black/20 p-4 text-sm text-slate-400">No catalogue candidate survived. Retake with the bottom collector number sharp and unobstructed.</div>}
+                  {item.identification.candidates.length ? item.identification.candidates.slice(0, 3).map((candidate) => <CandidateCard key={candidate.card.id} candidate={candidate} disabled={disabled || choosing === item.id} onChoose={() => void chooseCandidate(item, candidate)} />) : <div className="rounded-xl border border-white/10 bg-black/20 p-4 text-sm text-slate-400">No indexed visual candidate was available. Finish building the visual index, then retake with the complete artwork visible.</div>}
                 </div>
               </article>
             ))}

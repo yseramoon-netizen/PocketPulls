@@ -10,6 +10,7 @@ import {
 } from "./text";
 import type {
   CandidateEvidence,
+  IndexedVisualMatch,
   ScannerCandidate,
   ScannerEvidence,
   ScannerPokemonCard,
@@ -154,6 +155,66 @@ export function scoreCandidates(
       visualConfidence: null,
       visualBreakdown: null,
       reasons,
+    };
+  }).sort((left, right) => right.rawScore - left.rawScore);
+}
+
+export function scoreImageFirstMatches(
+  matches: IndexedVisualMatch[],
+  evidence: ScannerEvidence,
+): ScannerCandidate[] {
+  const textById = new Map(scoreCandidates(
+    matches.map((match) => match.card),
+    evidence,
+  ).map((candidate) => [String(candidate.card.id), candidate]));
+  const hasTextEvidence = Boolean(
+    evidence.names.length || evidence.collectorFractions.length ||
+    evidence.collectorNumbers.length || evidence.setCodes.length || evidence.hpValues.length,
+  );
+  return matches.map((match) => {
+    const text = textById.get(String(match.card.id));
+    const visual = clamp(match.similarity);
+    const support = text?.rawScore || 0;
+    // OCR can add a small confirmation bonus, but disagreement never drags a
+    // visually correct card below an OCR hallucination. Visual retrieval owns
+    // identity; text only breaks close visual ties.
+    const supportBonus = hasTextEvidence ? Math.max(0, support - 0.60) * 0.12 : 0;
+    let rawScore = clamp(visual + supportBonus);
+    if (visual >= 0.92 && match.agreement >= 0.94) rawScore = Math.max(rawScore, 0.94);
+    const visualSignals = visual >= 0.78 ? 1 : 0;
+    const agreementSignal = visual >= 0.78 && match.agreement >= 0.92 ? 1 : 0;
+    const breakdown: VisualBreakdown = {
+      artwork: match.breakdown.artwork,
+      fullCard: match.breakdown.fullCard,
+      symbol: 0,
+      structure: match.breakdown.artwork,
+      edge: match.breakdown.edge,
+      colour: match.breakdown.colour,
+    };
+    return {
+      ...(text || {
+        card: match.card,
+        confidence: 0,
+        rawScore: 0,
+        evidence: { collector: 0, set: 0, name: 0, visual: 0, secondary: 0 },
+        evidenceCount: 0,
+        exactCollector: false,
+        exactSet: false,
+        visualConfidence: null,
+        visualBreakdown: null,
+        reasons: [],
+      }),
+      rawScore,
+      confidence: Math.round(rawScore * 100),
+      evidence: { ...(text?.evidence || { collector: 0, set: 0, name: 0, secondary: 0 }), visual },
+      evidenceCount: (text?.evidenceCount || 0) + visualSignals + agreementSignal,
+      visualConfidence: Math.round(visual * 100),
+      visualBreakdown: breakdown,
+      reasons: [
+        `Whole-catalogue image match ${Math.round(visual * 100)}%`,
+        ...(match.agreement >= 0.92 ? ["Artwork agreed across captured frames"] : []),
+        ...(text?.reasons || []),
+      ],
     };
   }).sort((left, right) => right.rawScore - left.rawScore);
 }

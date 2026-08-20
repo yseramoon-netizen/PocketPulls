@@ -80,6 +80,7 @@ export function downloadDiagnosticSnapshot(snapshot: ScannerDebugSnapshot): void
     scannerVersion: "50.1-evidence-reliability",
     exportedAt: new Date().toISOString(),
     timings: snapshot.timings,
+    visualIndex: snapshot.visualIndex,
     evidence: snapshot.evidence,
     observations: snapshot.observations,
     candidates: snapshot.candidates.map((candidate) => ({
