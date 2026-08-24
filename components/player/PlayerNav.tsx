@@ -65,7 +65,14 @@ type NavGroup = {
   items: NavItem[];
 };
 
-const PRIMARY_ITEMS: NavItem[] = [
+const PRIMARY_ITEMS: readonly [
+  NavItem,
+  NavItem,
+  NavItem,
+  NavItem,
+  NavItem,
+  NavItem,
+] = [
   {
     href: "/hq",
     label: "HQ",
@@ -98,7 +105,15 @@ const PRIMARY_ITEMS: NavItem[] = [
   },
 ];
 
-const MORE_ITEMS: NavItem[] = [
+const MORE_ITEMS: readonly [
+  NavItem,
+  NavItem,
+  NavItem,
+  NavItem,
+  NavItem,
+  NavItem,
+  NavItem,
+] = [
   {
     href: "/constellation",
     label: "Constellation",
@@ -173,7 +188,6 @@ const DRAWER_GROUPS: NavGroup[] = [
       MORE_ITEMS[0],
       MORE_ITEMS[1],
       MORE_ITEMS[2],
-      MORE_ITEMS[7],
     ],
   },
   {

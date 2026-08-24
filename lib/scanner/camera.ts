@@ -68,7 +68,7 @@ export function guideSourceCrop(
 function cropVideo(
   video: HTMLVideoElement,
   crop: ScannerSourceCrop,
-  outputWidth = 756,
+  outputWidth = 504,
 ): HTMLCanvasElement {
   const canvas = document.createElement("canvas");
   canvas.width = outputWidth;
@@ -108,8 +108,8 @@ export function captureTrackedFrame(
   const started = performance.now();
   const geometry = detectCardGeometry(video, crop);
   const canvas = geometry && geometry.confidence >= 0.36 && geometry.aspectScore >= 0.50
-    ? rectifyCard(video, geometry, 756)
-    : cropVideo(video, crop, 756);
+    ? rectifyCard(video, geometry, 504)
+    : cropVideo(video, crop, 504);
   const quality = measureCardQuality(canvas);
   return {
     id: `frame-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,

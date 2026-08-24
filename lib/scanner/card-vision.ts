@@ -442,6 +442,52 @@ function homographyFromDestinationToSource(
   return [...solution, 1];
 }
 
+function projectDestinationToSource(matrix: number[], x: number, y: number): ScannerPoint {
+  const denominator = matrix[6] * x + matrix[7] * y + 1;
+  return {
+    x: (matrix[0] * x + matrix[1] * y + matrix[2]) / denominator,
+    y: (matrix[3] * x + matrix[4] * y + matrix[5]) / denominator,
+  };
+}
+
+function drawMappedTriangle(
+  context: CanvasRenderingContext2D,
+  source: HTMLCanvasElement | HTMLImageElement | HTMLVideoElement,
+  sourcePoints: [ScannerPoint, ScannerPoint, ScannerPoint],
+  destinationPoints: [ScannerPoint, ScannerPoint, ScannerPoint],
+  sourceWidth: number,
+  sourceHeight: number,
+): void {
+  const [s0, s1, s2] = sourcePoints;
+  const [d0, d1, d2] = destinationPoints;
+  const determinant = s0.x * (s1.y - s2.y) + s1.x * (s2.y - s0.y) + s2.x * (s0.y - s1.y);
+  if (Math.abs(determinant) < 1e-6) return;
+  const a = (d0.x * (s1.y - s2.y) + d1.x * (s2.y - s0.y) + d2.x * (s0.y - s1.y)) / determinant;
+  const c = (d0.x * (s2.x - s1.x) + d1.x * (s0.x - s2.x) + d2.x * (s1.x - s0.x)) / determinant;
+  const e = (
+    d0.x * (s1.x * s2.y - s2.x * s1.y) +
+    d1.x * (s2.x * s0.y - s0.x * s2.y) +
+    d2.x * (s0.x * s1.y - s1.x * s0.y)
+  ) / determinant;
+  const b = (d0.y * (s1.y - s2.y) + d1.y * (s2.y - s0.y) + d2.y * (s0.y - s1.y)) / determinant;
+  const d = (d0.y * (s2.x - s1.x) + d1.y * (s0.x - s2.x) + d2.y * (s1.x - s0.x)) / determinant;
+  const f = (
+    d0.y * (s1.x * s2.y - s2.x * s1.y) +
+    d1.y * (s2.x * s0.y - s0.x * s2.y) +
+    d2.y * (s0.x * s1.y - s1.x * s0.y)
+  ) / determinant;
+  context.save();
+  context.beginPath();
+  context.moveTo(d0.x, d0.y);
+  context.lineTo(d1.x, d1.y);
+  context.lineTo(d2.x, d2.y);
+  context.closePath();
+  context.clip();
+  context.setTransform(a, b, c, d, e, f);
+  context.drawImage(source, 0, 0, sourceWidth, sourceHeight);
+  context.restore();
+}
+
 export function rectifyCard(
   source: HTMLCanvasElement | HTMLImageElement | HTMLVideoElement,
   geometry: CardGeometry,
@@ -449,49 +495,41 @@ export function rectifyCard(
 ): HTMLCanvasElement {
   const outputHeight = Math.round(outputWidth / CARD_ASPECT_RATIO);
   const size = dimensions(source);
-  const sourceCanvas = document.createElement("canvas");
-  sourceCanvas.width = size.width;
-  sourceCanvas.height = size.height;
-  const sourceContext = sourceCanvas.getContext("2d", { willReadFrequently: true });
-  if (!sourceContext) throw new Error("Scanner source canvas is unavailable.");
-  sourceContext.drawImage(source, 0, 0, size.width, size.height);
-  const sourceData = sourceContext.getImageData(0, 0, size.width, size.height);
-
   const matrix = homographyFromDestinationToSource(outputWidth, outputHeight, geometry.corners);
   if (!matrix) throw new Error("The scanner could not flatten this card.");
 
   const output = document.createElement("canvas");
   output.width = outputWidth;
   output.height = outputHeight;
-  const outputContext = output.getContext("2d", { willReadFrequently: true });
+  const outputContext = output.getContext("2d");
   if (!outputContext) throw new Error("Scanner output canvas is unavailable.");
-  const image = outputContext.createImageData(outputWidth, outputHeight);
-  const destination = image.data;
-  const sourcePixels = sourceData.data;
+  outputContext.imageSmoothingEnabled = true;
+  outputContext.imageSmoothingQuality = "high";
+  outputContext.fillStyle = "#101010";
+  outputContext.fillRect(0, 0, outputWidth, outputHeight);
 
-  for (let y = 0; y < outputHeight; y += 1) {
-    for (let x = 0; x < outputWidth; x += 1) {
-      const denominator = matrix[6] * x + matrix[7] * y + 1;
-      const sx = (matrix[0] * x + matrix[1] * y + matrix[2]) / denominator;
-      const sy = (matrix[3] * x + matrix[4] * y + matrix[5]) / denominator;
-      const ix = Math.round(sx);
-      const iy = Math.round(sy);
-      const destinationIndex = (y * outputWidth + x) * 4;
-      if (ix >= 0 && ix < size.width && iy >= 0 && iy < size.height) {
-        const sourceIndex = (iy * size.width + ix) * 4;
-        destination[destinationIndex] = sourcePixels[sourceIndex];
-        destination[destinationIndex + 1] = sourcePixels[sourceIndex + 1];
-        destination[destinationIndex + 2] = sourcePixels[sourceIndex + 2];
-        destination[destinationIndex + 3] = 255;
-      } else {
-        destination[destinationIndex] = 16;
-        destination[destinationIndex + 1] = 16;
-        destination[destinationIndex + 2] = 16;
-        destination[destinationIndex + 3] = 255;
-      }
+  // Canvas has no native projective draw. A small affine mesh delegates the
+  // resampling to the browser/GPU and avoids the old 800k-pixel JavaScript loop.
+  const columns = 8;
+  const rows = 12;
+  for (let row = 0; row < rows; row += 1) {
+    const y0 = row / rows * outputHeight;
+    const y1 = (row + 1) / rows * outputHeight;
+    for (let column = 0; column < columns; column += 1) {
+      const x0 = column / columns * outputWidth;
+      const x1 = (column + 1) / columns * outputWidth;
+      const d00 = { x: x0, y: y0 };
+      const d10 = { x: x1, y: y0 };
+      const d11 = { x: x1, y: y1 };
+      const d01 = { x: x0, y: y1 };
+      const s00 = projectDestinationToSource(matrix, x0, y0);
+      const s10 = projectDestinationToSource(matrix, x1, y0);
+      const s11 = projectDestinationToSource(matrix, x1, y1);
+      const s01 = projectDestinationToSource(matrix, x0, y1);
+      drawMappedTriangle(outputContext, source, [s00, s10, s11], [d00, d10, d11], size.width, size.height);
+      drawMappedTriangle(outputContext, source, [s00, s11, s01], [d00, d11, d01], size.width, size.height);
     }
   }
-  outputContext.putImageData(image, 0, 0);
   return output;
 }
 
