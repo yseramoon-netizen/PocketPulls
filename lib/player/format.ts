@@ -1,3 +1,27 @@
+const MONEY_FORMATTER = new Intl.NumberFormat("en-GB", {
+  style: "currency",
+  currency: "GBP",
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+const WHOLE_NUMBER_FORMATTER = new Intl.NumberFormat("en-GB");
+const DATE_FORMATTER = new Intl.DateTimeFormat("en-GB", {
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+});
+const DATE_TIME_FORMATTER = new Intl.DateTimeFormat("en-GB", {
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+});
+const NATURAL_COLLATOR = new Intl.Collator(undefined, {
+  sensitivity: "base",
+  numeric: true,
+});
+
 export function getErrorMessage(
   error: unknown,
   fallback: string,
@@ -35,12 +59,7 @@ export function toWholeNumber(value: unknown): number {
 }
 
 export function formatMoney(value: number): string {
-  return new Intl.NumberFormat("en-GB", {
-    style: "currency",
-    currency: "GBP",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(Math.max(0, value));
+  return MONEY_FORMATTER.format(Math.max(0, value));
 }
 
 export function formatMarketValue(
@@ -54,7 +73,7 @@ export function formatMarketValue(
 }
 
 export function formatWholeNumber(value: number): string {
-  return new Intl.NumberFormat("en-GB").format(
+  return WHOLE_NUMBER_FORMATTER.format(
     Math.max(0, Math.floor(value)),
   );
 }
@@ -72,11 +91,7 @@ export function formatDate(
     return "Recently";
   }
 
-  return new Intl.DateTimeFormat("en-GB", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  }).format(date);
+  return DATE_FORMATTER.format(date);
 }
 
 export function formatDateTime(
@@ -92,13 +107,7 @@ export function formatDateTime(
     return "Recently";
   }
 
-  return new Intl.DateTimeFormat("en-GB", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(date);
+  return DATE_TIME_FORMATTER.format(date);
 }
 
 export function normaliseStringArray(value: unknown): string[] {
@@ -126,12 +135,7 @@ export function normaliseStringArray(value: unknown): string[] {
         )
         .map((item) => item.trim()),
     ),
-  ).sort((first, second) =>
-    first.localeCompare(second, undefined, {
-      sensitivity: "base",
-      numeric: true,
-    }),
-  );
+  ).sort((first, second) => NATURAL_COLLATOR.compare(first, second));
 }
 
 export function clamp(

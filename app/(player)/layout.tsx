@@ -2,11 +2,10 @@
 
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import { usePathname, useRouter } from "next/navigation";
 import type { Session } from "@supabase/supabase-js";
 
-import FirstWishJourney from "@/components/player/FirstWishJourney";
-import CosmicNebuAmbient from "@/components/player/CosmicNebuAmbient";
 import PlayerNav from "@/components/player/PlayerNav";
 import PurchaseConsentGate from "@/components/player/PurchaseConsentGate";
 import UnownText from "@/components/player/UnownText";
@@ -22,6 +21,13 @@ import {
   readNebuPerformancesFromMetadata,
 } from "@/lib/player/nebuPerformances";
 import { supabase } from "@/lib/supabase";
+
+const FirstWishJourney = dynamic(
+  () => import("@/components/player/FirstWishJourney"),
+  { ssr: false },
+);
+
+const ONBOARDING_COMPLETE_KEY = "pocketpulls:first-wish-tour-complete-v1";
 
 type PlayerLayoutProps = {
   children: ReactNode;
@@ -137,6 +143,8 @@ export default function PlayerLayout({ children }: PlayerLayoutProps) {
   const [player, setPlayer] = useState<PlayerShellData | null>(null);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [onboardingReadyFor, setOnboardingReadyFor] = useState<string | null>(null);
+  const activePlayerUsername = player?.username || null;
 
   const redirectToSignIn = useCallback(() => {
     const nextPath = pathname || "/wishes";
@@ -402,11 +410,15 @@ export default function PlayerLayout({ children }: PlayerLayoutProps) {
           { announce: false },
         );
 
-        window.setTimeout(() => {
-          if (mountedRef.current) {
-            void loadPlayer(session, true);
-          }
-        }, 0);
+        // A token refresh does not change profile, wallet, or consent data.
+        // Avoid repeating those queries on Supabase's routine refresh cycle.
+        if (event !== "TOKEN_REFRESHED") {
+          window.setTimeout(() => {
+            if (mountedRef.current) {
+              void loadPlayer(session, true);
+            }
+          }, 0);
+        }
       }
     });
 
@@ -430,6 +442,33 @@ export default function PlayerLayout({ children }: PlayerLayoutProps) {
       );
     };
   }, [legalPageAllowed, loadCurrentSession, loadPlayer, redirectToSignIn]);
+
+  useEffect(() => {
+    if (!activePlayerUsername || loading) {
+      return;
+    }
+
+    try {
+      if (window.localStorage.getItem(ONBOARDING_COMPLETE_KEY) === "1") return;
+    } catch {
+      // The journey can still load when device storage is unavailable.
+    }
+
+    const start = () => setOnboardingReadyFor(activePlayerUsername);
+    const idleScheduler = window as unknown as {
+      requestIdleCallback?: (
+        callback: IdleRequestCallback,
+        options?: IdleRequestOptions,
+      ) => number;
+      cancelIdleCallback?: (handle: number) => void;
+    };
+    if (typeof idleScheduler.requestIdleCallback === "function") {
+      const handle = idleScheduler.requestIdleCallback(start, { timeout: 1800 });
+      return () => idleScheduler.cancelIdleCallback?.(handle);
+    }
+    const timer = window.setTimeout(start, 900);
+    return () => window.clearTimeout(timer);
+  }, [activePlayerUsername, loading]);
 
   if (legalPageAllowed && !player && !loading) {
     return <PublicLegalShell>{children}</PublicLegalShell>;
@@ -499,9 +538,6 @@ export default function PlayerLayout({ children }: PlayerLayoutProps) {
   return (
     <div className="unknown-pulls-shell relative min-h-[100dvh] overflow-x-hidden bg-[#02030d] text-white">
       <UnknownPullsBackdrop />
-      <CosmicNebuAmbient />
-
-      <TestOnlyBanner />
 
       <PlayerNav
         username={player.username}
@@ -514,7 +550,9 @@ export default function PlayerLayout({ children }: PlayerLayoutProps) {
         {children}
       </main>
 
-      <FirstWishJourney displayName={player.displayName} />
+      {onboardingReadyFor === activePlayerUsername ? (
+        <FirstWishJourney displayName={player.displayName} />
+      ) : null}
 
       <style jsx global>{`
         .unknown-pulls-shell {
@@ -638,21 +676,6 @@ function PublicLegalShell({ children }: { children: ReactNode }) {
   );
 }
 
-function TestOnlyBanner() {
-  return (
-    <div
-      className="relative z-[70] border-b border-yellow-100/20 px-3 py-2 text-center text-[0.68rem] font-black uppercase tracking-[0.14em] text-[#171225] shadow-[0_8px_30px_rgba(0,0,0,0.25)] sm:text-xs"
-      style={{
-        background:
-          "linear-gradient(90deg, rgba(245,158,11,0.96), rgba(253,224,71,0.98), rgba(103,232,249,0.96))",
-      }}
-    >
-      TEST ONLY - wishes are spent and pulled cards are saved to your test
-      collection. Physical stock is never reduced.
-    </div>
-  );
-}
-
 function PlayerLoadingScreen() {
   return (
     <main className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden bg-[#02030d] px-6 text-white">
@@ -665,7 +688,7 @@ function PlayerLoadingScreen() {
           <div className="absolute inset-0 animate-spin rounded-full border border-transparent border-r-cyan-100/40 border-t-yellow-100/70 [animation-duration:2.5s]" />
 
           <img
-            src="/ancient-pulls/celestial-cat.png"
+            src="/ancient-pulls/celestial-cat.webp"
             alt=""
             draggable={false}
             onError={(event) => {
@@ -751,7 +774,7 @@ function PlayerBannedScreen({
             <div className="absolute inset-2 rounded-full bg-red-300/15 blur-2xl" />
 
             <img
-              src="/ancient-pulls/celestial-cat.png"
+              src="/ancient-pulls/celestial-cat.webp"
               alt=""
               draggable={false}
               className="relative h-20 w-20 object-contain grayscale-[0.35] drop-shadow-[0_12px_16px_rgba(0,0,0,0.45)]"

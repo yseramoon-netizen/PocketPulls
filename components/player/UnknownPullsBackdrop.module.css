@@ -50,7 +50,7 @@
   background:
     radial-gradient(ellipse at center, rgba(9, 11, 39, 0.08) 0%, rgba(4, 6, 24, 0.54) 48%, rgba(2, 3, 13, 0.92) 82%),
     linear-gradient(180deg, rgba(3, 5, 20, 0.38), rgba(8, 7, 31, 0.56) 48%, rgba(2, 4, 15, 0.76)),
-    var(--nebu-portrait-image, url("/ancient-pulls/celestial-cat.png")) center 49% / clamp(18rem, 38vw, 34rem) auto no-repeat;
+    var(--nebu-portrait-image, url("/ancient-pulls/celestial-cat.webp")) center 49% / clamp(18rem, 38vw, 34rem) auto no-repeat;
   opacity: 0.16;
   mix-blend-mode: soft-light;
   filter: var(--nebu-ghost-filter, saturate(1.08) contrast(1.1));

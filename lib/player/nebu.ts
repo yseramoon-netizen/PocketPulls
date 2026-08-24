@@ -140,26 +140,26 @@ export const NEBU_SKINS: readonly NebuSkin[] = [
   {
     key: "cosmic_nebu",
     label: "Cosmic Nebu",
-    palette: "Pure stellar plasma · gravitational heart · event-horizon tail",
-    swatch: "conic-gradient(from 215deg, #03051f, #0ea5e9, #7c3aed, #ec4899, #fef3c7, #03051f)",
+    palette: "Living nebula · constellation core · comet light",
+    swatch: "linear-gradient(135deg, #050b3d 0 30%, #2563eb 30% 49%, #8b5cf6 49% 68%, #22d3ee 68% 82%, #f9d976 82%)",
     achievementKey: null,
     achievementTitle: null,
     exclusiveOwner: null,
     cosmicOwnershipRequired: true,
     heatAssets: {
-      portrait: "/ancient-pulls/skins/cosmic-nebu-v2/portrait.webp",
-      walkSheet: "/ancient-pulls/skins/cosmic-nebu-v2/flight.webp",
-      reactionSheet: "/ancient-pulls/skins/cosmic-nebu-v2/tier-reactions.webp",
+      portrait: "/ancient-pulls/skins/cosmic-nebu/portrait.webp",
+      walkSheet: "/ancient-pulls/skins/cosmic-nebu/flight.webp",
+      reactionSheet: "/ancient-pulls/skins/cosmic-nebu/tier-reactions.webp",
       walkColumns: 4,
       walkRows: 4,
-      reactionColumns: 4,
+      reactionColumns: 3,
       reactionRows: 3,
     },
   },
 ];
 
 const DEFAULT_NEBU_HEAT_ASSETS: NebuHeatAssets = {
-  portrait: "/ancient-pulls/celestial-cat.png",
+  portrait: "/ancient-pulls/celestial-cat.webp",
   walkSheet: "/ancient-pulls/scene/nebu-pyramid-exit-v1.webp",
   reactionSheet: "/ancient-pulls/scene/nebu-heat-reactions-v1.webp",
 };

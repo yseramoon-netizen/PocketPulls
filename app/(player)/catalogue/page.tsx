@@ -1557,7 +1557,7 @@ function CatalogueEmptyState({
         <div className="absolute inset-3 animate-pulse rounded-full bg-cyan-200/10 blur-2xl" />
 
         <img
-          src="/ancient-pulls/celestial-cat.png"
+          src="/ancient-pulls/celestial-cat.webp"
           alt=""
           draggable={false}
           className="relative h-24 w-24 object-contain opacity-75 drop-shadow-[0_14px_22px_rgba(0,0,0,0.4)]"

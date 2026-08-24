@@ -1,3 +1,10 @@
+const PENCE_FORMATTER = new Intl.NumberFormat("en-GB", {
+  style: "currency",
+  currency: "GBP",
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+
 export type WishPackage = {
   id: string;
   name: string;
@@ -78,10 +85,5 @@ export function applyFirstRechargeDiscount(amountPence: number): number {
 }
 
 export function formatPence(amountPence: number): string {
-  return new Intl.NumberFormat("en-GB", {
-    style: "currency",
-    currency: "GBP",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(Math.max(0, amountPence) / 100);
+  return PENCE_FORMATTER.format(Math.max(0, amountPence) / 100);
 }

@@ -44,7 +44,7 @@
 
 .backgroundImage {
   z-index: -5;
-  background-image: url('/tree-wonder/garden-background.png');
+  background-image: url('/tree-wonder/garden-background.webp');
   background-position: center center;
   background-size: cover;
   filter: saturate(1.04) contrast(1.02) brightness(0.92);

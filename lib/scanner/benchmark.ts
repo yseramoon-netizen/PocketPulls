@@ -77,7 +77,7 @@ export function downloadBenchmarkRecords(): void {
 export function downloadDiagnosticSnapshot(snapshot: ScannerDebugSnapshot): void {
   if (typeof window === "undefined") return;
   const payload = {
-    scannerVersion: "50.1-evidence-reliability",
+    scannerVersion: "52.0-visual-consensus",
     exportedAt: new Date().toISOString(),
     timings: snapshot.timings,
     visualIndex: snapshot.visualIndex,

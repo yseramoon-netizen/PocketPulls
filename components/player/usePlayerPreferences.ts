@@ -21,10 +21,13 @@ export default function usePlayerPreferences(): PlayerPreferences {
       setPreferences(customEvent.detail || readCachedPlayerPreferences());
     };
 
-    setPreferences(readCachedPlayerPreferences());
+    const frame = window.requestAnimationFrame(() => {
+      setPreferences(readCachedPlayerPreferences());
+    });
     window.addEventListener(PLAYER_PREFERENCES_EVENT, refresh);
 
     return () => {
+      window.cancelAnimationFrame(frame);
       window.removeEventListener(PLAYER_PREFERENCES_EVENT, refresh);
     };
   }, []);

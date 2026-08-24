@@ -78,6 +78,7 @@ const HIDDEN_PATHS = new Set([
 
 const PAUSED_KEY = "pocketpulls:first-wish-tour-paused-v2";
 const CELEBRATED_KEY = "pocketpulls:first-wish-tour-celebrated-v2";
+const COMPLETE_KEY = "pocketpulls:first-wish-tour-complete-v1";
 
 function asJourneyRow(value: unknown): JourneyRow | null {
   const item = Array.isArray(value) ? value[0] : value;
@@ -233,6 +234,7 @@ export default function FirstWishJourney({
 
     if (nextJourney?.completed && nextJourney.intro_seen) {
       try {
+        window.localStorage.setItem(COMPLETE_KEY, "1");
         if (window.localStorage.getItem(CELEBRATED_KEY) !== "1") {
           setCelebrating(true);
         }

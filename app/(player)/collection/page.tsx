@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import {
   useCallback,
   useEffect,
@@ -11,9 +12,7 @@ import {
 import BinderSpread, {
   type BinderDisplayCard,
 } from "@/components/player/BinderSpread";
-import PlayerCardModal, {
-  type PlayerCardModalCard,
-} from "@/components/player/PlayerCardModal";
+import type { PlayerCardModalCard } from "@/components/player/PlayerCardModal";
 import {
   PlayerErrorBanner,
   PlayerSecondaryButton,
@@ -30,6 +29,11 @@ import {
 import { supabase } from "@/lib/supabase";
 
 import styles from "./collection.module.css";
+
+const PlayerCardModal = dynamic(
+  () => import("@/components/player/PlayerCardModal"),
+  { ssr: false },
+);
 
 type CollectionRow = {
   card_id: string | number | null;

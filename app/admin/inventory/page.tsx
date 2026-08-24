@@ -1163,18 +1163,42 @@ export default function InventoryPage() {
 
     const databaseInterval =
       window.setInterval(() => {
-        void loadInventory(true);
+        if (
+          document.visibilityState ===
+          "visible"
+        ) {
+          void loadInventory(true);
+        }
       }, DATABASE_REFRESH_INTERVAL);
 
     const priceInterval =
       window.setInterval(() => {
-        void syncExternalPrices(
-          false,
-          true,
-        );
-      }, DATABASE_REFRESH_INTERVAL);
+        if (
+          document.visibilityState ===
+          "visible"
+        ) {
+          void syncExternalPrices(
+            false,
+            true,
+          );
+        }
+      }, EXTERNAL_PRICE_INTERVAL);
+
+    let lastFocusRefreshAt = 0;
 
     function refreshOnFocus() {
+      if (
+        document.visibilityState !==
+          "visible" ||
+        Date.now() -
+          lastFocusRefreshAt <
+          5_000
+      ) {
+        return;
+      }
+
+      lastFocusRefreshAt =
+        Date.now();
       void loadInventory(true);
 
       void syncExternalPrices(

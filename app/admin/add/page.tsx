@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import dynamic from "next/dynamic";
 
 import {
   type FormEvent,
@@ -14,11 +15,23 @@ import { supabase } from "@/lib/supabase";
 import { adminFetch } from "@/lib/admin/client-auth";
 
 import AdminNav from "@/components/AdminNav";
-import CardScanner, {
-  type ScannerAutoAddResult,
-  type ScannerPokemonCard,
-} from "@/components/CardScanner";
+import type {
+  ScannerAutoAddResult,
+  ScannerPokemonCard,
+} from "@/lib/scanner/types";
 import ForestBackground from "@/components/ForestBackground";
+
+const CardScanner = dynamic(
+  () => import("@/components/CardScanner"),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex min-h-[28rem] items-center justify-center rounded-[2rem] border border-cyan-200/15 bg-[#061813]/90 p-8 text-center text-sm font-black text-cyan-100/60">
+        Loading the image-first scanner…
+      </div>
+    ),
+  },
+);
 
 type AddPageCard = ScannerPokemonCard & {
   market_value_normal_gbp?:

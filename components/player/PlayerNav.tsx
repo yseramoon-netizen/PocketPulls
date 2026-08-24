@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import {
   usePathname,
 } from "next/navigation";
@@ -11,11 +12,39 @@ import {
   useState,
 } from "react";
 
-import NotificationCentre from "@/components/player/NotificationCentre";
 import NebuPortrait from "@/components/player/NebuPortrait";
-import PlayerPreferencesPanel from "@/components/player/PlayerPreferences";
 import UnownText from "@/components/player/UnownText";
 import { supabase } from "@/lib/supabase";
+
+const PlayerPreferencesPanel = dynamic(
+  () => import("@/components/player/PlayerPreferences"),
+  {
+    ssr: false,
+    loading: () => (
+      <span
+        aria-hidden="true"
+        className="flex h-11 w-11 flex-none items-center justify-center rounded-xl border border-violet-100/10 bg-violet-200/[0.035] text-lg text-violet-50/45"
+      >
+        ⚙
+      </span>
+    ),
+  },
+);
+
+const NotificationCentre = dynamic(
+  () => import("@/components/player/NotificationCentre"),
+  {
+    ssr: false,
+    loading: () => (
+      <span
+        aria-hidden="true"
+        className="flex h-11 w-11 flex-none items-center justify-center rounded-xl border border-cyan-100/10 bg-cyan-200/[0.035] text-lg text-cyan-50/45"
+      >
+        ✧
+      </span>
+    ),
+  },
+);
 
 type PlayerNavProps = {
   username: string;
@@ -144,6 +173,7 @@ const DRAWER_GROUPS: NavGroup[] = [
       MORE_ITEMS[0],
       MORE_ITEMS[1],
       MORE_ITEMS[2],
+      MORE_ITEMS[7],
     ],
   },
   {
@@ -254,6 +284,11 @@ export default function PlayerNav({
   ] =
     useState(false);
 
+  const [
+    secondaryControlsReady,
+    setSecondaryControlsReady,
+  ] = useState(false);
+
   const currentItem =
     useMemo(
       () =>
@@ -279,6 +314,25 @@ export default function PlayerNav({
           item.href,
         ),
     );
+
+  useEffect(() => {
+    const reveal = () => setSecondaryControlsReady(true);
+    const scheduler = window as unknown as {
+      requestIdleCallback?: (
+        callback: IdleRequestCallback,
+        options?: IdleRequestOptions,
+      ) => number;
+      cancelIdleCallback?: (handle: number) => void;
+    };
+
+    if (typeof scheduler.requestIdleCallback === "function") {
+      const handle = scheduler.requestIdleCallback(reveal, { timeout: 1_200 });
+      return () => scheduler.cancelIdleCallback?.(handle);
+    }
+
+    const timer = window.setTimeout(reveal, 600);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     const handleWishCinematicVisibility = (event: Event) => {
@@ -433,6 +487,8 @@ export default function PlayerNav({
   }, []);
 
   useEffect(() => {
+    if (!secondaryControlsReady) return;
+
     let active = true;
 
     async function checkReward() {
@@ -488,7 +544,7 @@ export default function PlayerNav({
         handleRewardClaimed,
       );
     };
-  }, []);
+  }, [secondaryControlsReady]);
 
   async function handleSignOut() {
     if (signingOut) {
@@ -888,9 +944,27 @@ export default function PlayerNav({
               xl:ml-2
             "
           >
-            <PlayerPreferencesPanel />
-
-            <NotificationCentre />
+            {secondaryControlsReady ? (
+              <>
+                <PlayerPreferencesPanel />
+                <NotificationCentre />
+              </>
+            ) : (
+              <>
+                <span
+                  aria-hidden="true"
+                  className="flex h-11 w-11 flex-none items-center justify-center rounded-xl border border-violet-100/10 bg-violet-200/[0.035] text-lg text-violet-50/45"
+                >
+                  ⚙
+                </span>
+                <span
+                  aria-hidden="true"
+                  className="flex h-11 w-11 flex-none items-center justify-center rounded-xl border border-cyan-100/10 bg-cyan-200/[0.035] text-lg text-cyan-50/45"
+                >
+                  ✧
+                </span>
+              </>
+            )}
 
             <Link
               href="/wishes"

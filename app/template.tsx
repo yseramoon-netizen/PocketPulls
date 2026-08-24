@@ -61,36 +61,7 @@ export default function RootTemplate({
 
   useEffect(() => {
     const pageTitle = getPageTitle(pathname);
-
-    const applyTitle = () => {
-      if (
-        document.title !==
-        pageTitle
-      ) {
-        document.title =
-          pageTitle;
-      }
-    };
-
-    applyTitle();
-
-    const observer =
-      new MutationObserver(
-        applyTitle,
-      );
-
-    observer.observe(
-      document.head,
-      {
-        childList: true,
-        subtree: true,
-        characterData: true,
-      },
-    );
-
-    return () => {
-      observer.disconnect();
-    };
+    if (document.title !== pageTitle) document.title = pageTitle;
   }, [pathname]);
 
   return children;

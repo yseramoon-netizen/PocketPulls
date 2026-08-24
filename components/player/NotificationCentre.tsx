@@ -38,6 +38,16 @@ const REFRESH_EVENTS = [
   "pocketpulls:wish-balance",
 ] as const;
 
+const QUIET_REFRESH_MINIMUM_MS = 45_000;
+const BACKGROUND_REFRESH_MS = 180_000;
+const RELATIVE_TIME_FORMATTER = new Intl.RelativeTimeFormat("en-GB", {
+  numeric: "auto",
+});
+const SHORT_DATE_FORMATTER = new Intl.DateTimeFormat("en-GB", {
+  day: "numeric",
+  month: "short",
+});
+
 function asNotificationRows(value: unknown): NotificationRow[] {
   if (!Array.isArray(value)) {
     return [];
@@ -91,30 +101,23 @@ function formatRelativeTime(value: string): string {
 
   const differenceSeconds = Math.round((timestamp - Date.now()) / 1000);
   const absoluteSeconds = Math.abs(differenceSeconds);
-  const formatter = new Intl.RelativeTimeFormat("en-GB", {
-    numeric: "auto",
-  });
-
   if (absoluteSeconds < 60) {
     return "Just now";
   }
 
   if (absoluteSeconds < 3600) {
-    return formatter.format(Math.round(differenceSeconds / 60), "minute");
+    return RELATIVE_TIME_FORMATTER.format(Math.round(differenceSeconds / 60), "minute");
   }
 
   if (absoluteSeconds < 86400) {
-    return formatter.format(Math.round(differenceSeconds / 3600), "hour");
+    return RELATIVE_TIME_FORMATTER.format(Math.round(differenceSeconds / 3600), "hour");
   }
 
   if (absoluteSeconds < 604800) {
-    return formatter.format(Math.round(differenceSeconds / 86400), "day");
+    return RELATIVE_TIME_FORMATTER.format(Math.round(differenceSeconds / 86400), "day");
   }
 
-  return new Intl.DateTimeFormat("en-GB", {
-    day: "numeric",
-    month: "short",
-  }).format(new Date(timestamp));
+  return SHORT_DATE_FORMATTER.format(new Date(timestamp));
 }
 
 function notificationTone(kind: string): string {
@@ -138,8 +141,10 @@ export default function NotificationCentre() {
   const pathname = usePathname();
   const closeButtonRef = useRef<HTMLButtonElement | null>(null);
   const requestRef = useRef(0);
+  const lastLoadedAtRef = useRef(0);
+  const inFlightRef = useRef<Promise<void> | null>(null);
 
-  const [mounted, setMounted] = useState(false);
+  const [mounted] = useState(() => typeof document !== "undefined");
   const [available, setAvailable] = useState(true);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -151,7 +156,13 @@ export default function NotificationCentre() {
     [notifications],
   );
 
-  const loadNotifications = useCallback(async (quiet = false) => {
+  const loadNotifications = useCallback(async (quiet = false, force = false) => {
+    if (
+      quiet && !force &&
+      Date.now() - lastLoadedAtRef.current < QUIET_REFRESH_MINIMUM_MS
+    ) return;
+    if (inFlightRef.current) return inFlightRef.current;
+
     const requestId = requestRef.current + 1;
     requestRef.current = requestId;
 
@@ -159,29 +170,38 @@ export default function NotificationCentre() {
       setLoading(true);
     }
 
-    const { data, error } = await supabase.rpc("get_player_notifications", {
-      p_limit: 40,
-    });
+    const request = (async () => {
+      const { data, error } = await supabase.rpc("get_player_notifications", {
+        p_limit: 40,
+      });
 
-    if (requestRef.current !== requestId) {
-      return;
-    }
+      if (requestRef.current !== requestId) return;
+      lastLoadedAtRef.current = Date.now();
 
-    if (error) {
-      console.warn("Notification centre is unavailable:", error.message);
-      setAvailable(false);
+      if (error) {
+        console.warn("Notification centre is unavailable:", error.message);
+        setAvailable(false);
+        setLoading(false);
+        return;
+      }
+
+      setAvailable(true);
+      setNotifications(asNotificationRows(data));
       setLoading(false);
-      return;
-    }
+    })();
 
-    setAvailable(true);
-    setNotifications(asNotificationRows(data));
-    setLoading(false);
+    inFlightRef.current = request;
+    try {
+      await request;
+    } finally {
+      if (inFlightRef.current === request) inFlightRef.current = null;
+    }
   }, []);
 
   useEffect(() => {
-    setMounted(true);
-    void loadNotifications();
+    const initialFrame = window.requestAnimationFrame(() => {
+      void loadNotifications();
+    });
 
     const refresh = () => {
       if (document.visibilityState === "visible") {
@@ -195,27 +215,30 @@ export default function NotificationCentre() {
       }
     };
 
-    const interval = window.setInterval(refresh, 60000);
+    const interval = window.setInterval(refresh, BACKGROUND_REFRESH_MS);
 
     window.addEventListener("focus", refresh);
     document.addEventListener("visibilitychange", handleVisibility);
+    const refreshFromEvent = () => void loadNotifications(true, true);
     REFRESH_EVENTS.forEach((eventName) => {
-      window.addEventListener(eventName, refresh);
+      window.addEventListener(eventName, refreshFromEvent);
     });
 
     return () => {
       requestRef.current += 1;
+      window.cancelAnimationFrame(initialFrame);
       window.clearInterval(interval);
       window.removeEventListener("focus", refresh);
       document.removeEventListener("visibilitychange", handleVisibility);
       REFRESH_EVENTS.forEach((eventName) => {
-        window.removeEventListener(eventName, refresh);
+        window.removeEventListener(eventName, refreshFromEvent);
       });
     };
   }, [loadNotifications]);
 
   useEffect(() => {
-    setOpen(false);
+    const frame = window.requestAnimationFrame(() => setOpen(false));
+    return () => window.cancelAnimationFrame(frame);
   }, [pathname]);
 
   useEffect(() => {
@@ -223,9 +246,8 @@ export default function NotificationCentre() {
       return;
     }
 
-    void loadNotifications(true);
-
     const frame = window.requestAnimationFrame(() => {
+      void loadNotifications(true, true);
       closeButtonRef.current?.focus();
     });
 

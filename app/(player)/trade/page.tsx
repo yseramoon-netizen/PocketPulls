@@ -660,14 +660,10 @@ export default function TradePage() {
             activeTradeId,
             true,
           );
-
-          void loadLists(
-            true,
-          );
         },
         summary?.status === "countdown"
-          ? 1500
-          : 5000,
+          ? 2500
+          : 15000,
       );
 
     return () => {
@@ -677,7 +673,6 @@ export default function TradePage() {
     };
   }, [
     activeTradeId,
-    loadLists,
     loadTrade,
     summary?.status,
   ]);

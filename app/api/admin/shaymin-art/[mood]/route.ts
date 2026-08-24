@@ -1,4 +1,6 @@
-import { PRIVATE_SHAYMIN_ART } from "@/lib/admin/private-shaymin-art-data";
+import { readFile } from "node:fs/promises";
+import path from "node:path";
+
 import { adminErrorResponse, requireAdmin } from "@/lib/admin/server-auth";
 
 export const runtime = "nodejs";
@@ -9,19 +11,41 @@ type RouteContext = {
   params: Promise<{ mood: string }>;
 };
 
+const PRIVATE_ART_MOODS = new Set([
+  "gentle",
+  "eager",
+  "zoomies",
+  "content",
+  "joyful",
+  "blooming",
+  "playful",
+  "curious",
+  "surprised",
+  "grumpy",
+  "sad",
+  "crying",
+  "sleepy",
+  "resting",
+  "cheerful",
+  "exploring",
+  "determined",
+  "shy",
+]);
+
 export async function GET(request: Request, context: RouteContext) {
   try {
     await requireAdmin(request);
 
     const params = await Promise.resolve(context.params);
     const mood = String(params.mood || "").toLowerCase().trim();
-    const encoded = PRIVATE_SHAYMIN_ART[mood];
 
-    if (!encoded) {
+    if (!PRIVATE_ART_MOODS.has(mood)) {
       return new Response("Not found", { status: 404 });
     }
 
-    const bytes = Buffer.from(encoded, "base64");
+    const bytes = await readFile(
+      path.join(process.cwd(), "private-assets", "shaymin", `${mood}.png`),
+    );
 
     return new Response(bytes, {
       status: 200,

@@ -42,7 +42,7 @@ export default function PullsPage() {
     setCard({
       name: "Shaymin EX",
       rarity: "Secret Rare",
-      image_url: "/ancient-pulls/celestial-cat.png",
+      image_url: "/ancient-pulls/celestial-cat.webp",
       market_value: 84.5,
     });
     setOpening(false);

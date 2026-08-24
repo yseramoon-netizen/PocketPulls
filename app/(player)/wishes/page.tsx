@@ -5,14 +5,22 @@ import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import NebuPortrait from "@/components/player/NebuPortrait";
-import WishDetailsDialog from "@/components/player/WishDetailsDialog";
 import { type WishRevealCard } from "@/components/player/WishCinematic";
 import { primeWishAudio } from "@/components/player/wishAudio";
-import { applyNebuSkin } from "@/lib/player/nebu";
+import {
+  applyNebuSkin,
+  readNebuSkin,
+  type NebuSkinKey,
+} from "@/lib/player/nebu";
 import { supabase } from "@/lib/supabase";
 
 const WishCinematic = dynamic(
   () => import("@/components/player/WishCinematic"),
+  { ssr: false },
+);
+
+const WishDetailsDialog = dynamic(
+  () => import("@/components/player/WishDetailsDialog"),
   { ssr: false },
 );
 
@@ -78,12 +86,7 @@ type WishReveal = {
   marketValue: number;
   wishBalance: number;
   cosmicIssueNumber: number | null;
-  cosmicPreview?: boolean;
-};
-
-type NebuEntitlementsResponse = {
-  ok?: boolean;
-  cosmicPreviewAllowed?: boolean;
+  cosmicSourceSkin: NebuSkinKey | null;
 };
 
 type DashboardData = {
@@ -111,6 +114,19 @@ const EMPTY_DASHBOARD: DashboardData = {
   shippingThreshold: 100,
   recentWishes: [],
 };
+
+const MONEY_FORMATTER = new Intl.NumberFormat("en-GB", {
+  style: "currency",
+  currency: "GBP",
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+const WHOLE_NUMBER_FORMATTER = new Intl.NumberFormat("en-GB");
+const DATE_FORMATTER = new Intl.DateTimeFormat("en-GB", {
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+});
 
 function getErrorMessage(error: unknown, fallback: string): string {
   if (error instanceof Error && error.message.trim()) {
@@ -147,12 +163,7 @@ function toWholeNumber(value: unknown): number {
 }
 
 function formatMoney(value: number): string {
-  return new Intl.NumberFormat("en-GB", {
-    style: "currency",
-    currency: "GBP",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(Math.max(0, value));
+  return MONEY_FORMATTER.format(Math.max(0, value));
 }
 
 function formatMarketValue(value: number): string {
@@ -160,7 +171,7 @@ function formatMarketValue(value: number): string {
 }
 
 function formatWholeNumber(value: number): string {
-  return new Intl.NumberFormat("en-GB").format(Math.max(0, Math.floor(value)));
+  return WHOLE_NUMBER_FORMATTER.format(Math.max(0, Math.floor(value)));
 }
 
 function formatDate(value: string): string {
@@ -170,11 +181,7 @@ function formatDate(value: string): string {
     return "Recently";
   }
 
-  return new Intl.DateTimeFormat("en-GB", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  }).format(date);
+  return DATE_FORMATTER.format(date);
 }
 
 export default function WishesPage() {
@@ -187,7 +194,6 @@ export default function WishesPage() {
   const [wishReveal, setWishReveal] = useState<WishReveal | null>(null);
   const [forceFullSequence, setForceFullSequence] = useState(false);
   const [wishDetailsOpen, setWishDetailsOpen] = useState(false);
-  const [cosmicPreviewAllowed, setCosmicPreviewAllowed] = useState(false);
 
   const loadDashboard = useCallback(async (background = false) => {
     if (background) {
@@ -212,34 +218,6 @@ export default function WishesPage() {
         throw new Error("Your trainer session has expired. Sign in again.");
       }
 
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-
-      const previewAccessPromise = session?.access_token
-        ? (async () => {
-          try {
-          const entitlementResponse = await fetch(
-            "/api/player/nebu-entitlements",
-            {
-              headers: {
-                Authorization: `Bearer ${session.access_token}`,
-              },
-              cache: "no-store",
-            },
-          );
-          const entitlementPayload =
-            (await entitlementResponse.json()) as NebuEntitlementsResponse;
-
-          return entitlementResponse.ok &&
-              entitlementPayload.ok === true &&
-              entitlementPayload.cosmicPreviewAllowed === true;
-          } catch {
-            return false;
-          }
-        })()
-        : Promise.resolve(false);
-
       const [
         walletResult,
         inventoryResult,
@@ -247,7 +225,6 @@ export default function WishesPage() {
         wishPurchaseOrdersResult,
         wishesResult,
         shippingSettingsResult,
-        previewAccess,
       ] = await Promise.all([
         supabase
           .from("player_wallets")
@@ -286,11 +263,7 @@ export default function WishesPage() {
           .select("free_shipping_card_threshold")
           .eq("id", 1)
           .maybeSingle(),
-
-        previewAccessPromise,
       ]);
-
-      setCosmicPreviewAllowed(previewAccess);
 
       if (walletResult.error) {
         throw walletResult.error;
@@ -470,6 +443,7 @@ export default function WishesPage() {
             marketValue: latest.valueAtWish,
             wishBalance: nextDashboard.wishBalance,
             cosmicIssueNumber: null,
+            cosmicSourceSkin: null,
           });
         } else {
           setErrorMessage(
@@ -510,6 +484,7 @@ export default function WishesPage() {
       return;
     }
 
+    void import("@/components/player/WishCinematic");
     setErrorMessage(null);
     setForceFullSequence(true);
     setWishReveal({
@@ -523,35 +498,9 @@ export default function WishesPage() {
       marketValue: latest.valueAtWish,
       wishBalance: dashboard.wishBalance,
       cosmicIssueNumber: null,
+      cosmicSourceSkin: null,
     });
   }, [dashboard.recentWishes, dashboard.wishBalance]);
-
-  const previewCosmicNebuPull = useCallback(() => {
-    if (!cosmicPreviewAllowed) {
-      return;
-    }
-
-    const latest = dashboard.recentWishes[0];
-
-    void primeWishAudio();
-    window.dispatchEvent(new Event("unown-pulls:close-more"));
-    setWishDetailsOpen(false);
-    setErrorMessage(null);
-    setForceFullSequence(true);
-    setWishReveal({
-      wishId: "cosmic-nebu-founder-preview",
-      cardId: latest?.cardId || "cosmic-nebu-preview",
-      cardName: latest?.cardName || "Cosmic Nebu Awakening",
-      setName: latest?.setName || "Ancient Pulls Founder Preview",
-      cardNumber: latest?.cardNumber || "✦",
-      rarity: latest?.rarity || "Crown Rare",
-      imageUrl: latest?.imageUrl || null,
-      marketValue: latest?.valueAtWish || 0,
-      wishBalance: dashboard.wishBalance,
-      cosmicIssueNumber: null,
-      cosmicPreview: true,
-    });
-  }, [cosmicPreviewAllowed, dashboard.recentWishes, dashboard.wishBalance]);
 
   useEffect(() => {
     const handleReplayLatestWish = () => replayLatestWish();
@@ -577,11 +526,13 @@ export default function WishesPage() {
     // Resume Web Audio while this direct player gesture is still active.
     // The reveal itself begins only after the server-authoritative wish returns.
     void primeWishAudio();
+    void import("@/components/player/WishCinematic");
     window.dispatchEvent(new Event("unown-pulls:close-more"));
     setWishDetailsOpen(false);
     setForceFullSequence(false);
     setMakingWish(true);
     setErrorMessage(null);
+    const nebuSkinBeforeWish = readNebuSkin();
 
     try {
       const { data, error } = await supabase.rpc("make_player_wish");
@@ -626,6 +577,7 @@ export default function WishesPage() {
         marketValue: toNumber(result.market_value),
         wishBalance: nextBalance,
         cosmicIssueNumber: cosmicIssueNumber > 0 ? cosmicIssueNumber : null,
+        cosmicSourceSkin: cosmicIssueNumber > 0 ? nebuSkinBeforeWish : null,
       });
 
       window.dispatchEvent(
@@ -765,8 +717,6 @@ export default function WishesPage() {
           makingWish={makingWish}
           onMakeWish={() => void makeWish()}
           onShowDetails={() => setWishDetailsOpen(true)}
-          cosmicPreviewAllowed={cosmicPreviewAllowed}
-          onPreviewCosmicNebu={previewCosmicNebuPull}
         />
 
         <ShippingProgress
@@ -784,37 +734,36 @@ export default function WishesPage() {
         <QuickLinks />
       </div>
 
-      <WishDetailsDialog
-        open={wishDetailsOpen}
-        onClose={() => setWishDetailsOpen(false)}
-      />
+      {wishDetailsOpen ? (
+        <WishDetailsDialog
+          open
+          onClose={() => setWishDetailsOpen(false)}
+        />
+      ) : null}
 
-      <WishCinematic
-        open={Boolean(wishReveal)}
-        card={cinematicCard}
-        onFinished={() => {
-          void loadDashboard(true);
-        }}
-        onWishAgain={() => {
-          setWishReveal(null);
-          setForceFullSequence(false);
-          window.setTimeout(() => void makeWish(), 120);
-        }}
-        canWishAgain={Boolean(wishReveal && wishReveal.wishBalance > 0)}
-        busy={makingWish}
-        forceFullSequence={forceFullSequence}
-        cosmicIssueNumber={wishReveal?.cosmicIssueNumber}
-        cosmicPreview={wishReveal?.cosmicPreview === true}
-        cosmicSourceSkin={
-          wishReveal?.cosmicPreview
-            ? "cosmic_nebu"
-            : undefined
-        }
-        onClose={() => {
-          setWishReveal(null);
-          setForceFullSequence(false);
-        }}
-      />
+      {wishReveal ? (
+        <WishCinematic
+          open
+          card={cinematicCard}
+          onFinished={() => {
+            void loadDashboard(true);
+          }}
+          onWishAgain={() => {
+            setWishReveal(null);
+            setForceFullSequence(false);
+            window.setTimeout(() => void makeWish(), 120);
+          }}
+          canWishAgain={wishReveal.wishBalance > 0}
+          busy={makingWish}
+          forceFullSequence={forceFullSequence}
+          cosmicIssueNumber={wishReveal.cosmicIssueNumber}
+          cosmicSourceSkin={wishReveal.cosmicSourceSkin}
+          onClose={() => {
+            setWishReveal(null);
+            setForceFullSequence(false);
+          }}
+        />
+      ) : null}
     </section>
   );
 }
@@ -863,16 +812,12 @@ function WishChamber({
   makingWish,
   onMakeWish,
   onShowDetails,
-  cosmicPreviewAllowed,
-  onPreviewCosmicNebu,
 }: {
   wishBalance: number;
   totalWishes: number;
   makingWish: boolean;
   onMakeWish: () => void;
   onShowDetails: () => void;
-  cosmicPreviewAllowed: boolean;
-  onPreviewCosmicNebu: () => void;
 }) {
   const hasWishes = wishBalance > 0;
 
@@ -953,17 +898,6 @@ function WishChamber({
               {hasWishes ? "Wish Shop" : "Browse the catalogue"}
             </Link>
           </div>
-
-          {cosmicPreviewAllowed ? (
-            <button
-              type="button"
-              onClick={onPreviewCosmicNebu}
-              className="group relative mt-3 flex min-h-12 w-full items-center justify-center overflow-hidden rounded-xl border border-violet-200/25 bg-gradient-to-r from-violet-400/[0.16] via-cyan-300/[0.12] to-yellow-200/[0.12] px-5 text-sm font-black text-violet-50 transition hover:border-violet-100/45 hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-200"
-            >
-              <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/10 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
-              <span className="relative">✦ Preview Cosmic Nebu Pull</span>
-            </button>
-          ) : null}
 
           <p className="mt-4 text-xs font-semibold text-white/25">
             Lifetime wishes completed: {formatWholeNumber(totalWishes)}

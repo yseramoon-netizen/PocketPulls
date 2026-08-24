@@ -10,7 +10,7 @@ export default function PageHeader({
   return (
     <div className="text-center mb-10">
       <img
-        src="/ancient-pulls/celestial-cat.png"
+        src="/ancient-pulls/celestial-cat.webp"
         alt="Nebu"
         className="w-28 h-28 mx-auto mb-4"
       />

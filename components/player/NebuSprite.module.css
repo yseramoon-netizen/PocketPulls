@@ -1,7 +1,7 @@
 .sprite {
   display: block;
   aspect-ratio: 1;
-  background-image: url("/ancient-pulls/nebu-performance-sheet.png");
+  background-image: url("/ancient-pulls/nebu-performance-sheet.webp");
   background-repeat: no-repeat;
   background-size: 400% 400%;
   filter: var(--nebu-image-filter);

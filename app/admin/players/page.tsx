@@ -54,15 +54,6 @@ type PlayerAccount = {
   admin_display_name:
     | string
     | null;
-  cosmic_issue_number:
-    | number
-    | null;
-  cosmic_discovered_at:
-    | string
-    | null;
-  cosmic_award_source:
-    | string
-    | null;
 };
 
 type PlayerInventoryCard = {
@@ -132,9 +123,6 @@ type ActionResponse = {
   removedCards?: number;
   removedWishes?: number;
   warehouseCardsReturned?: number;
-  removedCosmicNebu?: number;
-  cosmicIssueNumber?: number | null;
-  alreadyOwned?: boolean;
   metadataReset?: boolean;
 };
 
@@ -359,12 +347,6 @@ export default function AdminPlayersPage() {
     useState("");
 
   const [
-    cosmicReason,
-    setCosmicReason,
-  ] =
-    useState("");
-
-  const [
     loading,
     setLoading,
   ] =
@@ -457,9 +439,6 @@ export default function AdminPlayersPage() {
 
           setResetReason("");
           setResetConfirmation(
-            "",
-          );
-          setCosmicReason(
             "",
           );
         }
@@ -1229,7 +1208,7 @@ export default function AdminPlayersPage() {
                     "
                   >
                     <img
-                      src="/shaymin-moods/lukas.png"
+                      src="/shaymin-moods/lukas.webp"
                       alt=""
                       className="
                         h-full
@@ -1346,16 +1325,15 @@ export default function AdminPlayersPage() {
                     <p className="mt-2 text-sm font-semibold leading-6 text-red-50/70">
                       Wishes, collection cards, wish history, achievements,
                       friends, trades, shipping addresses, binder choices,
-                      onboarding, player preferences, Cosmic Nebu ownership and
-                      Cosmic Nebu roll history are cleared. Unshipped allocated
-                      cards are returned to warehouse stock.
+                      onboarding and player preferences are cleared. Unshipped
+                      allocated cards are returned to warehouse stock.
                     </p>
 
                     <p className="mt-3 text-sm font-semibold leading-6 text-emerald-50/70">
                       Their email, password, username, trainer code, legal
                       consent, payment records, Shaymin admin access and private
-                      account-only Sherry/Bubbles entitlement stay intact. Their
-                      wallet returns to the current new-account starting offer.
+                      Nebu entitlement stay intact. Their wallet returns to the
+                      current new-account starting offer.
                     </p>
 
                     <p className="mt-3 text-xs font-bold leading-5 text-white/45">
@@ -1617,105 +1595,6 @@ export default function AdminPlayersPage() {
                     </p>
                   </Panel>
                 </section>
-
-                <Panel
-                  eyebrow="Legendary mascot entitlement"
-                  title={
-                    selectedPlayer.cosmic_issue_number
-                      ? `Cosmic Nebu #${String(
-                          selectedPlayer.cosmic_issue_number,
-                        ).padStart(6, "0")}`
-                      : "Enable Cosmic Nebu"
-                  }
-                  description={
-                    selectedPlayer.cosmic_issue_number
-                      ? "This trainer owns a permanent, numbered Cosmic Nebu entitlement."
-                      : "Award this trainer a real numbered Cosmic Nebu entitlement without creating a card pull or changing their wish balance."
-                  }
-                >
-                  <div className="mt-5 overflow-hidden rounded-2xl border border-violet-200/20 bg-gradient-to-br from-violet-300/[0.12] via-cyan-300/[0.07] to-yellow-200/[0.08] p-5">
-                    {selectedPlayer.cosmic_issue_number ? (
-                      <div className="flex flex-wrap items-center justify-between gap-4">
-                        <div>
-                          <p className="text-xs font-black uppercase tracking-[0.16em] text-violet-100/60">
-                            Legendary form active
-                          </p>
-                          <p className="mt-2 text-2xl font-black text-white">
-                            Issue #{String(
-                              selectedPlayer.cosmic_issue_number,
-                            ).padStart(6, "0")}
-                          </p>
-                          <p className="mt-2 text-xs font-semibold text-white/45">
-                            {selectedPlayer.cosmic_award_source ===
-                            "shaymin_admin"
-                              ? "Enabled through Shaymin"
-                              : "Discovered through a wish"}
-                            {selectedPlayer.cosmic_discovered_at
-                              ? ` · ${formatDate(
-                                  selectedPlayer.cosmic_discovered_at,
-                                )}`
-                              : ""}
-                          </p>
-                        </div>
-
-                        <span className="rounded-full border border-violet-100/25 bg-violet-100/[0.1] px-4 py-2 text-xs font-black text-violet-50">
-                          Cosmic Nebu enabled
-                        </span>
-                      </div>
-                    ) : (
-                      <>
-                        <p className="text-sm font-semibold leading-6 text-white/65">
-                          The next issue number is assigned permanently from the
-                          same global Cosmic Nebu sequence. This action is
-                          recorded in the Shaymin audit log.
-                        </p>
-
-                        <label className="mt-5 block text-xs font-black uppercase tracking-[0.14em] text-white/45">
-                          Optional award note
-                        </label>
-                        <input
-                          value={cosmicReason}
-                          onChange={(event) =>
-                            setCosmicReason(
-                              event.target.value,
-                            )
-                          }
-                          placeholder="For example: Founder test entitlement"
-                          className="mt-2 min-h-12 w-full rounded-xl border border-violet-100/15 bg-black/25 px-4 font-bold text-white outline-none placeholder:text-white/25 focus:border-violet-100/40"
-                        />
-
-                        <div className="mt-4 flex flex-wrap items-center gap-3">
-                          <ActionButton
-                            disabled={Boolean(actionKey)}
-                            onClick={() =>
-                              void runAction(
-                                "enable-cosmic-nebu",
-                                {
-                                  action:
-                                    "enable_cosmic_nebu",
-                                  reason:
-                                    cosmicReason.trim(),
-                                },
-                                `Cosmic Nebu has been enabled for ${getName(
-                                  selectedPlayer,
-                                )}.`,
-                              )
-                            }
-                          >
-                            {actionKey ===
-                            "enable-cosmic-nebu"
-                              ? "Awakening Cosmic Nebu..."
-                              : "Enable Cosmic Nebu"}
-                          </ActionButton>
-
-                          <p className="text-xs font-bold text-white/38">
-                            This does not consume a wish or grant a card.
-                          </p>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                </Panel>
 
                 <section
                   className="

@@ -86,7 +86,7 @@ export default function PurchaseConsentGate({
           <div className="relative flex h-16 w-16 flex-none items-center justify-center rounded-2xl border border-yellow-100/12 bg-yellow-100/[0.04]">
             <div className="absolute inset-2 rounded-full bg-yellow-100/10 blur-xl" />
             <img
-              src="/ancient-pulls/celestial-cat.png"
+              src="/ancient-pulls/celestial-cat.webp"
               alt=""
               draggable={false}
               className="relative h-12 w-12 object-contain"

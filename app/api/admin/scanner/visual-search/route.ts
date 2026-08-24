@@ -4,6 +4,7 @@ import {
 } from "@/lib/admin/server-auth";
 import {
   COMPACT_VISUAL_VERSION,
+  compareCompactCoarse,
   compareCompactDecoded,
   decodeCompactFingerprint,
   type CompactVisualComparison,
@@ -43,7 +44,13 @@ type VisualMatch = {
   cardId: string;
   similarity: number;
   agreement: number;
+  frameCount: number;
   breakdown: CompactVisualComparison;
+};
+
+type CoarseMatch = {
+  cardId: string;
+  similarity: number;
 };
 
 let indexCache: { expiresAt: number; rows: StoredFingerprint[]; total: number } | null = null;
@@ -107,12 +114,18 @@ async function loadIndex(admin: Awaited<ReturnType<typeof requireAdmin>>["admin"
   indexCache = {
     rows,
     total: Number(countResult.count || 0),
-    expiresAt: Date.now() + 5 * 60_000,
+    // A completed catalogue is immutable between card imports, so keep its
+    // decoded descriptors warm. Partial builds refresh quickly while indexing.
+    expiresAt: Date.now() + (
+      Number(countResult.count || 0) > 0 && rows.length >= Math.ceil(Number(countResult.count || 0) * 0.98)
+        ? 30 * 60_000
+        : 15_000
+    ),
   };
   return indexCache;
 }
 
-function insertTop(matches: VisualMatch[], candidate: VisualMatch, limit: number): void {
+function insertTop<T extends { similarity: number }>(matches: T[], candidate: T, limit: number): void {
   const index = matches.findIndex((item) => candidate.similarity > item.similarity);
   if (index < 0) {
     if (matches.length < limit) matches.push(candidate);
@@ -122,25 +135,51 @@ function insertTop(matches: VisualMatch[], candidate: VisualMatch, limit: number
   }
 }
 
+function coarseFrameScore(frames: CompactVisualDecoded[][], reference: CompactVisualDecoded): number {
+  // The best-quality frame is sufficient for high-recall retrieval. Remaining
+  // frames verify the shortlist below, avoiding a full-catalogue N x M scan.
+  let best = 0;
+  for (const orientation of frames[0] || []) {
+    best = Math.max(best, compareCompactCoarse(orientation, reference));
+  }
+  return best;
+}
+
 function compareFrames(
   frames: CompactVisualDecoded[][],
   reference: CompactVisualDecoded,
 ): Omit<VisualMatch, "cardId"> {
-  const perFrame = frames.map((orientations) => {
+  let firstScore = 0;
+  let secondScore = 0;
+  let thirdScore = 0;
+  let count = 0;
+  let strongest: CompactVisualComparison | null = null;
+
+  for (const orientations of frames) {
     let best = compareCompactDecoded(orientations[0], reference);
     for (let index = 1; index < orientations.length; index += 1) {
       const comparison = compareCompactDecoded(orientations[index], reference);
       if (comparison.combined > best.combined) best = comparison;
     }
-    return best;
-  }).sort((left, right) => right.combined - left.combined);
-  const used = perFrame.slice(0, Math.min(3, perFrame.length));
-  const similarity = used.reduce((sum, item) => sum + item.combined, 0) / Math.max(1, used.length);
-  const spread = used.reduce((sum, item) => sum + Math.abs(item.combined - similarity), 0) / Math.max(1, used.length);
+
+    if (!strongest || best.combined > strongest.combined) strongest = best;
+    if (count === 0) firstScore = best.combined;
+    else if (count === 1) secondScore = best.combined;
+    else thirdScore = best.combined;
+    count += 1;
+  }
+
+  const similarity = (firstScore + secondScore + thirdScore) / Math.max(1, count);
+  const spread = (
+    Math.abs(firstScore - similarity) +
+    (count > 1 ? Math.abs(secondScore - similarity) : 0) +
+    (count > 2 ? Math.abs(thirdScore - similarity) : 0)
+  ) / Math.max(1, count);
   return {
     similarity,
     agreement: Math.max(0, 1 - spread * 4),
-    breakdown: used[0],
+    frameCount: count,
+    breakdown: strongest ?? compareCompactDecoded(frames[0][0], reference),
   };
 }
 
@@ -182,8 +221,20 @@ export async function POST(request: Request) {
         headers: { "Cache-Control": "no-store" },
       });
     }
-    const top: VisualMatch[] = [];
+    // Stage one touches only the packed gradient hashes. It cheaply narrows the
+    // complete catalogue before the richer structure/edge comparison runs.
+    const coarse: CoarseMatch[] = [];
     for (const row of index.rows) {
+      insertTop(coarse, {
+        cardId: row.cardId,
+        similarity: coarseFrameScore(frames, row.decoded),
+      }, 180);
+    }
+    const rowById = new Map(index.rows.map((row) => [row.cardId, row]));
+    const top: VisualMatch[] = [];
+    for (const item of coarse) {
+      const row = rowById.get(item.cardId);
+      if (!row) continue;
       insertTop(top, { cardId: row.cardId, ...compareFrames(frames, row.decoded) }, 40);
     }
     const ids = top.map((item) => item.cardId);
@@ -202,6 +253,7 @@ export async function POST(request: Request) {
           card,
           similarity: match.similarity,
           agreement: match.agreement,
+          frameCount: match.frameCount,
           breakdown: match.breakdown,
         }] : [];
       }),

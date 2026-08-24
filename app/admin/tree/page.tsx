@@ -107,16 +107,16 @@ const LEGACY_WONDER_KEY = "unown-pulls:tree-wonder:v14";
 const MILLION_GOAL = 1_000_000;
 
 const FAIRIES = [
-  "/tree-wonder/visitors/01-lantern-fairy.png",
-  "/tree-wonder/visitors/02-waving-fairy.png",
-  "/tree-wonder/visitors/03-gliding-fairy.png",
-  "/tree-wonder/visitors/04-seed-fairy.png",
-  "/tree-wonder/visitors/05-fairy-pair.png",
-  "/tree-wonder/visitors/07-leaf-rest-fairy.png",
-  "/tree-wonder/visitors/08-sleepy-leaf-fairy.png",
-  "/tree-wonder/visitors/09-dancing-fairy.png",
-  "/tree-wonder/visitors/10-peek-fairy.png",
-  "/tree-wonder/visitors/12-tiny-fairy.png",
+  "/tree-wonder/visitors/01-lantern-fairy.webp",
+  "/tree-wonder/visitors/02-waving-fairy.webp",
+  "/tree-wonder/visitors/03-gliding-fairy.webp",
+  "/tree-wonder/visitors/04-seed-fairy.webp",
+  "/tree-wonder/visitors/05-fairy-pair.webp",
+  "/tree-wonder/visitors/07-leaf-rest-fairy.webp",
+  "/tree-wonder/visitors/08-sleepy-leaf-fairy.webp",
+  "/tree-wonder/visitors/09-dancing-fairy.webp",
+  "/tree-wonder/visitors/10-peek-fairy.webp",
+  "/tree-wonder/visitors/12-tiny-fairy.webp",
 ] as const;
 
 const MOON_WHISPERS = [
@@ -172,7 +172,7 @@ function buildStage(growth: number): VisualStage {
     return {
       key: "million",
       label: "The hidden door awakens",
-      asset: "/tree-wonder/tree-door.png",
+      asset: "/tree-wonder/tree-door.webp",
       assetClassName: styles.treeMillion,
       description: "The million-growth promise has been reached. The old bark has opened a little door into whatever comes next.",
       leafHotspots: [
@@ -188,7 +188,7 @@ function buildStage(growth: number): VisualStage {
     return {
       key: "ancient",
       label: "Ancient luminous grove",
-      asset: "/tree-wonder/tree-vines.png",
+      asset: "/tree-wonder/tree-vines.webp",
       assetClassName: styles.treeAncient,
       description: "The canopy is old enough to collect its own little ecosystem: vines, visitors, mushrooms and wandering lights.",
       leafHotspots: [
@@ -203,7 +203,7 @@ function buildStage(growth: number): VisualStage {
     return {
       key: "grove",
       label: "Living moon grove",
-      asset: "/tree-wonder/tree-friends.png",
+      asset: "/tree-wonder/tree-friends.webp",
       assetClassName: styles.treeLarge,
       description: "The tree has become a real landmark. Tiny woodland visitors now treat the roots like home.",
       leafHotspots: [
@@ -218,7 +218,7 @@ function buildStage(growth: number): VisualStage {
     return {
       key: "young",
       label: "Young moonlit tree",
-      asset: "/tree-wonder/tree-friends.png",
+      asset: "/tree-wonder/tree-friends.webp",
       assetClassName: styles.treeYoung,
       description: "The trunk is finding its shape and the garden is beginning to attract more than just fireflies.",
       leafHotspots: [
@@ -232,7 +232,7 @@ function buildStage(growth: number): VisualStage {
     return {
       key: "sapling",
       label: "First green awakening",
-      asset: "/tree-wonder/sapling.png",
+      asset: "/tree-wonder/sapling.webp",
       assetClassName: styles.treeSapling,
       description: "The seed has broken the soil. A few wandering lights have noticed.",
       leafHotspots: [
@@ -245,7 +245,7 @@ function buildStage(growth: number): VisualStage {
   return {
     key: "seed",
     label: "A promise in the soil",
-    asset: "/tree-wonder/seedling.png",
+    asset: "/tree-wonder/seedling.webp",
     assetClassName: styles.treeSeed,
     description: "For now, it is meant to be small: a seedling, a few lights, and everything still ahead of ancientpulls.",
     leafHotspots: [
@@ -400,20 +400,20 @@ export default function TreePage() {
     const roll = Math.random();
     if (roll < 0.14) {
       setWonder((current) => ({ ...current, leafClicks: current.leafClicks + 1, rareCareTreats: current.rareCareTreats + 1 }));
-      spawnDrop("/tree-wonder/icons/06-cupcake.png", "Rare Shaymin treat", left, top);
+      spawnDrop("/tree-wonder/icons/06-cupcake.webp", "Rare Shaymin treat", left, top);
       toast("Rare Shaymin treat!", "A special mood-room snack fell from the leaves.");
       note("A rare Shaymin care treat tumbled out of the tree.");
       return;
     }
     if (roll < 0.24) {
       setWonder((current) => ({ ...current, leafClicks: current.leafClicks + 1, goldenSeeds: current.goldenSeeds + 1 }));
-      spawnDrop("/tree-wonder/icons/07-golden-seed.png", "Golden seed", left, top);
+      spawnDrop("/tree-wonder/icons/07-golden-seed.webp", "Golden seed", left, top);
       toast("Golden seed", "Something unusually bright was hiding in the leaves.");
       note("A golden seed dropped into the grass.");
       return;
     }
     setWonder((current) => ({ ...current, leafClicks: current.leafClicks + 1, leafFood: current.leafFood + 1 }));
-    spawnDrop("/tree-wonder/icons/05-flower-food.png", "Shaymin food", left, top);
+    spawnDrop("/tree-wonder/icons/05-flower-food.webp", "Shaymin food", left, top);
     toast("Shaymin food", "A little snack fell free from the leaves.");
     note("You shook a Shaymin snack from the tree.");
   }, [note, spawnDrop, toast]);
@@ -532,42 +532,42 @@ export default function TreePage() {
 
           {stage.ambientLevel >= 1 ? (
             <>
-              <img src="/tree-wonder/visitors/blue-butterfly.png" alt="" draggable={false} className={`${styles.ambientSprite} ${styles.butterflyOne}`} />
-              <img src="/tree-wonder/visitors/small-butterfly.png" alt="" draggable={false} className={`${styles.ambientSprite} ${styles.butterflyTwo}`} />
+              <img src="/tree-wonder/visitors/blue-butterfly.webp" alt="" draggable={false} className={`${styles.ambientSprite} ${styles.butterflyOne}`} />
+              <img src="/tree-wonder/visitors/small-butterfly.webp" alt="" draggable={false} className={`${styles.ambientSprite} ${styles.butterflyTwo}`} />
             </>
           ) : null}
 
           {stage.ambientLevel >= 2 ? (
             <>
-              <img src="/tree-wonder/visitors/moth.png" alt="" draggable={false} className={`${styles.ambientSprite} ${styles.moth}`} />
-              <img src="/tree-wonder/visitors/wisp-a.png" alt="" draggable={false} className={`${styles.ambientSprite} ${styles.wispOne}`} />
+              <img src="/tree-wonder/visitors/moth.webp" alt="" draggable={false} className={`${styles.ambientSprite} ${styles.moth}`} />
+              <img src="/tree-wonder/visitors/wisp-a.webp" alt="" draggable={false} className={`${styles.ambientSprite} ${styles.wispOne}`} />
             </>
           ) : null}
 
           {stage.ambientLevel >= 3 ? (
             <>
-              <img src="/tree-wonder/visitors/snail.png" alt="" draggable={false} className={`${styles.groundSprite} ${styles.snail}`} />
-              <img src="/tree-wonder/visitors/frog.png" alt="" draggable={false} className={`${styles.groundSprite} ${styles.frog}`} />
-              <img src="/tree-wonder/visitors/warm-mushrooms.png" alt="" draggable={false} className={`${styles.groundSprite} ${styles.warmMushrooms}`} />
+              <img src="/tree-wonder/visitors/snail.webp" alt="" draggable={false} className={`${styles.groundSprite} ${styles.snail}`} />
+              <img src="/tree-wonder/visitors/frog.webp" alt="" draggable={false} className={`${styles.groundSprite} ${styles.frog}`} />
+              <img src="/tree-wonder/visitors/warm-mushrooms.webp" alt="" draggable={false} className={`${styles.groundSprite} ${styles.warmMushrooms}`} />
             </>
           ) : null}
 
           {stage.ambientLevel >= 4 ? (
             <>
-              <img src="/tree-wonder/visitors/rabbit.png" alt="" draggable={false} className={`${styles.groundSprite} ${styles.rabbit}`} />
-              <img src="/tree-wonder/visitors/dragonfly.png" alt="" draggable={false} className={`${styles.ambientSprite} ${styles.dragonfly}`} />
-              <img src="/tree-wonder/visitors/blue-mushrooms.png" alt="" draggable={false} className={`${styles.groundSprite} ${styles.blueMushrooms}`} />
-              <img src="/tree-wonder/visitors/vine.png" alt="" draggable={false} className={`${styles.groundSprite} ${styles.magicVine}`} />
+              <img src="/tree-wonder/visitors/rabbit.webp" alt="" draggable={false} className={`${styles.groundSprite} ${styles.rabbit}`} />
+              <img src="/tree-wonder/visitors/dragonfly.webp" alt="" draggable={false} className={`${styles.ambientSprite} ${styles.dragonfly}`} />
+              <img src="/tree-wonder/visitors/blue-mushrooms.webp" alt="" draggable={false} className={`${styles.groundSprite} ${styles.blueMushrooms}`} />
+              <img src="/tree-wonder/visitors/vine.webp" alt="" draggable={false} className={`${styles.groundSprite} ${styles.magicVine}`} />
             </>
           ) : null}
         </div>
 
         <div className={styles.bottomHud}>
           <div className={styles.inventoryStrip}>
-            <div><img src="/tree-wonder/icons/02-jar.png" alt="" /><span>Fireflies</span><strong>{formatNumber(wonder.firefliesCaught)}</strong></div>
-            <div><img src="/tree-wonder/icons/05-flower-food.png" alt="" /><span>Shaymin food</span><strong>{formatNumber(wonder.leafFood)}</strong></div>
-            <div><img src="/tree-wonder/icons/06-cupcake.png" alt="" /><span>Rare treats</span><strong>{formatNumber(wonder.rareCareTreats)}</strong></div>
-            <div><img src="/tree-wonder/icons/07-golden-seed.png" alt="" /><span>Golden seeds</span><strong>{formatNumber(wonder.goldenSeeds)}</strong></div>
+            <div><img src="/tree-wonder/icons/02-jar.webp" alt="" /><span>Fireflies</span><strong>{formatNumber(wonder.firefliesCaught)}</strong></div>
+            <div><img src="/tree-wonder/icons/05-flower-food.webp" alt="" /><span>Shaymin food</span><strong>{formatNumber(wonder.leafFood)}</strong></div>
+            <div><img src="/tree-wonder/icons/06-cupcake.webp" alt="" /><span>Rare treats</span><strong>{formatNumber(wonder.rareCareTreats)}</strong></div>
+            <div><img src="/tree-wonder/icons/07-golden-seed.webp" alt="" /><span>Golden seeds</span><strong>{formatNumber(wonder.goldenSeeds)}</strong></div>
             <div className={styles.fairyCounter}><span>✧</span><span>Fairy blessings</span><strong>{formatNumber(wonder.fairyBlessings)}</strong></div>
           </div>
 

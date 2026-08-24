@@ -103,40 +103,40 @@ const MAX_MOOD_LOG_ENTRIES = 12;
 
 const MOOD_IMAGES: Record<MoodId, string> = {
   sleeping:
-    "/shaymin-moods/sleeping.png",
+    "/shaymin-moods/sleeping.webp",
 
   morning:
-    "/shaymin-moods/morning.png",
+    "/shaymin-moods/morning.webp",
 
   worried:
-    "/shaymin-moods/worried.png",
+    "/shaymin-moods/worried.webp",
 
   celebration:
-    "/shaymin-moods/celebration.png",
+    "/shaymin-moods/celebration.webp",
 
   together:
-    "/shaymin-moods/together.png",
+    "/shaymin-moods/together.webp",
 
   lukas:
-    "/shaymin-moods/lukas.png",
+    "/shaymin-moods/lukas.webp",
 
   skye:
-    "/shaymin-moods/skye.png",
+    "/shaymin-moods/skye.webp",
 
   proud:
-    "/shaymin-moods/proud.png",
+    "/shaymin-moods/proud.webp",
 
   busy:
-    "/shaymin-moods/busy.png",
+    "/shaymin-moods/busy.webp",
 
   gardener:
-    "/shaymin-moods/gardener.png",
+    "/shaymin-moods/gardener.webp",
 
   seed:
-    "/shaymin-moods/seed.png",
+    "/shaymin-moods/seed.webp",
 
   content:
-    "/shaymin-moods/content.png",
+    "/shaymin-moods/content.webp",
 };
 
 function formatCurrency(
@@ -307,7 +307,7 @@ function getMoodImage(
   if (
     hasReachedMillion(response)
   ) {
-    return "/shaymin-moods/golden.png";
+    return "/shaymin-moods/golden.webp";
   }
 
   const moodId =
@@ -1365,14 +1365,14 @@ export default function SecretTreeLogo() {
 
     if (
       image.src.endsWith(
-        "/ancient-pulls/celestial-cat.png",
+        "/ancient-pulls/celestial-cat.webp",
       )
     ) {
       return;
     }
 
     image.src =
-      "/ancient-pulls/celestial-cat.png";
+      "/ancient-pulls/celestial-cat.webp";
   }
 
   function clearMoodLog() {

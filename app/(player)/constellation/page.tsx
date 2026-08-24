@@ -96,6 +96,11 @@ type ProjectedStarHit = {
   depth: number;
 };
 
+type ProjectedStarFrame = {
+  star: ConstellationStar;
+  projected: ProjectedPoint;
+};
+
 type VolumeStar = SpatialPoint & {
   id: string;
   size: number;
@@ -158,6 +163,18 @@ const RARITY_THEMES: Record<string, RarityTheme> = {
     rank: 7,
   },
 };
+
+const MONEY_FORMATTER = new Intl.NumberFormat("en-GB", {
+  style: "currency",
+  currency: "GBP",
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+const LONG_DATE_FORMATTER = new Intl.DateTimeFormat("en-GB", {
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+});
 
 function toNumber(value: number | string | null | undefined): number {
   const parsed = Number(value);
@@ -681,12 +698,7 @@ function anniversaryMessage(years: number): string {
 }
 
 function formatMoney(value: number): string {
-  return new Intl.NumberFormat("en-GB", {
-    style: "currency",
-    currency: "GBP",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(value);
+  return MONEY_FORMATTER.format(value);
 }
 
 function formatDate(value: string | null): string {
@@ -700,11 +712,7 @@ function formatDate(value: string | null): string {
     return "A forgotten night";
   }
 
-  return new Intl.DateTimeFormat("en-GB", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  }).format(date);
+  return LONG_DATE_FORMATTER.format(date);
 }
 
 export default function ConstellationPage() {
@@ -729,6 +737,8 @@ export default function ConstellationPage() {
   const skyViewportRef = useRef<HTMLElement | null>(null);
   const skyPlaneRef = useRef<HTMLDivElement | null>(null);
   const skyCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const skyContextRef = useRef<CanvasRenderingContext2D | null>(null);
+  const projectedStarsScratchRef = useRef<ProjectedStarFrame[]>([]);
   const friendButtonRefs = useRef(new Map<string, HTMLButtonElement>());
   const projectedStarHitsRef = useRef<ProjectedStarHit[]>([]);
   const viewFrameRef = useRef<number | null>(null);
@@ -750,6 +760,7 @@ export default function ConstellationPage() {
     lowVisualEffects: boolean;
     selectedStarId: string | null;
     travellingStarId: string | null;
+    occupiedZodiacPoints: Set<number>;
   }>({
     stars: [],
     friendStars: [],
@@ -762,6 +773,7 @@ export default function ConstellationPage() {
     lowVisualEffects: false,
     selectedStarId: null,
     travellingStarId: null,
+    occupiedZodiacPoints: new Set<number>(),
   });
   const viewRef = useRef({
     rotation: { x: 0, y: 0 },
@@ -820,7 +832,7 @@ export default function ConstellationPage() {
 
     plane.style.transform = `translate3d(${offset.x}%, ${offset.y}%, 0) scale(${activeZoom})`;
 
-    const context = canvas.getContext("2d", {
+    const context = skyContextRef.current || canvas.getContext("2d", {
       alpha: true,
       desynchronized: true,
     });
@@ -828,6 +840,7 @@ export default function ConstellationPage() {
     if (!context) {
       return;
     }
+    skyContextRef.current = context;
 
     context.setTransform(dpr, 0, 0, dpr, 0, 0);
     context.clearRect(0, 0, width, height);
@@ -862,7 +875,9 @@ export default function ConstellationPage() {
       };
     };
 
-    for (const star of VOLUME_STARS.slice(0, scene.volumeStarCount)) {
+    const volumeLimit = Math.min(VOLUME_STARS.length, scene.volumeStarCount);
+    for (let index = 0; index < volumeLimit; index += 1) {
+      const star = VOLUME_STARS[index];
       const projected = projectPoint(star);
       const point = toCanvasPoint(projected);
       const radius = Math.max(0.45, star.size * projected.scale * 0.52);
@@ -891,11 +906,18 @@ export default function ConstellationPage() {
     context.shadowBlur = 0;
     context.globalAlpha = 1;
 
-    const projectedStars = scene.stars
-      .map((star) => ({
-        star,
-        projected: projectPoint(star),
-      }));
+    const projectedStars = projectedStarsScratchRef.current;
+    projectedStars.length = scene.stars.length;
+    for (let index = 0; index < scene.stars.length; index += 1) {
+      const star = scene.stars[index];
+      const existing = projectedStars[index];
+      if (existing) {
+        existing.star = star;
+        existing.projected = projectPoint(star);
+      } else {
+        projectedStars[index] = { star, projected: projectPoint(star) };
+      }
+    }
 
     const drawLine = (
       from: ProjectedPoint,
@@ -953,15 +975,7 @@ export default function ConstellationPage() {
 
       context.setLineDash([]);
 
-      const occupiedPoints = new Set(
-        scene.stars
-          .filter(
-            (star): star is ConstellationStar & { zodiacPointIndex: number } =>
-              star.zodiacAnchor === true &&
-              typeof star.zodiacPointIndex === "number",
-          )
-          .map((star) => star.zodiacPointIndex),
-      );
+      const occupiedPoints = scene.occupiedZodiacPoints;
 
       shape.points.forEach((skyPoint, index) => {
         const projected = zodiacPoints[index];
@@ -1528,7 +1542,7 @@ export default function ConstellationPage() {
         },
       });
     }
-  }, [clampZoom, mobileSky, queueSkyView, recenterEarthView]);
+  }, [clampZoom, queueSkyView, recenterEarthView]);
 
   const finishSkyPointer = useCallback((event: ReactPointerEvent<HTMLElement>) => {
     const gesture = gestureRef.current;
@@ -1566,20 +1580,22 @@ export default function ConstellationPage() {
           const localY =
             ((event.clientY - bounds.top) / Math.max(1, bounds.height)) *
             plane.clientHeight;
-          const hit = projectedStarHitsRef.current
-            .map((candidate) => ({
-              candidate,
-              distance: Math.hypot(
-                localX - candidate.x,
-                localY - candidate.y,
-              ),
-            }))
-            .filter(({ candidate, distance }) => distance <= candidate.radius)
-            .sort((first, second) =>
-              first.distance === second.distance
-                ? second.candidate.depth - first.candidate.depth
-                : first.distance - second.distance,
-            )[0]?.candidate;
+          let hit: ProjectedStarHit | null = null;
+          let hitDistance = Number.POSITIVE_INFINITY;
+          for (const candidate of projectedStarHitsRef.current) {
+            const distance = Math.hypot(
+              localX - candidate.x,
+              localY - candidate.y,
+            );
+            if (distance > candidate.radius) continue;
+            if (
+              distance < hitDistance ||
+              (distance === hitDistance && candidate.depth > (hit?.depth ?? -Infinity))
+            ) {
+              hit = candidate;
+              hitDistance = distance;
+            }
+          }
 
           if (hit) {
             travelToStar(hit.star);
@@ -1743,18 +1759,22 @@ export default function ConstellationPage() {
     [stars],
   );
 
-  const rarestStar = useMemo(() => {
-    return [...stars].sort((first, second) => {
-      const firstRank = first.rank;
-      const secondRank = second.rank;
+  const rarestStar = useMemo(() => stars.reduce<ConstellationStar | null>(
+    (best, star) => {
+      if (!best || star.rank > best.rank) return star;
+      if (star.rank === best.rank && star.marketValue > best.marketValue) return star;
+      return best;
+    },
+    null,
+  ), [stars]);
 
-      if (secondRank !== firstRank) {
-        return secondRank - firstRank;
-      }
-
-      return second.marketValue - first.marketValue;
-    })[0] || null;
-  }, [stars]);
+  const occupiedZodiacPoints = useMemo(() => new Set(
+    stars.flatMap((star) =>
+      star.zodiacAnchor && typeof star.zodiacPointIndex === "number"
+        ? [star.zodiacPointIndex]
+        : [],
+    ),
+  ), [stars]);
 
   const zodiacAnchorRequirement = zodiacSign
     ? ZODIAC_SHAPES[zodiacSign].points.length
@@ -1762,7 +1782,7 @@ export default function ConstellationPage() {
   const zodiacAnchorsFilled = zodiacSign
     ? Math.min(
         zodiacAnchorRequirement,
-        stars.filter((star) => star.zodiacAnchor).length,
+        occupiedZodiacPoints.size,
       )
     : 0;
   const constellationComplete =
@@ -1796,12 +1816,14 @@ export default function ConstellationPage() {
         preferences.lowVisualEffects || preferences.dataSaver,
       selectedStarId: selectedStar?.id ?? null,
       travellingStarId,
+      occupiedZodiacPoints,
     };
   }, [
     constellationComplete,
     earthView,
     friendStars,
     mobileSky,
+    occupiedZodiacPoints,
     preferences.dataSaver,
     preferences.lowVisualEffects,
     selectedStar,

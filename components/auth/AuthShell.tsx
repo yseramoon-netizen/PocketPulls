@@ -39,7 +39,7 @@ export default function AuthShell({
               <div className="relative grid h-20 w-20 place-items-center">
                 <div className="absolute inset-3 rounded-full bg-cyan-200/12 blur-2xl" />
                 <img
-                  src="/ancient-pulls/celestial-cat.png"
+                  src="/ancient-pulls/celestial-cat.webp"
                   alt=""
                   draggable={false}
                   className="relative h-16 w-16 object-contain opacity-90 drop-shadow-[0_12px_18px_rgba(0,0,0,0.5)]"

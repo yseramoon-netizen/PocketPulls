@@ -3,7 +3,7 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
-  --nebu-portrait-image: url("/ancient-pulls/celestial-cat.png");
+  --nebu-portrait-image: url("/ancient-pulls/celestial-cat.webp");
   --nebu-image-filter:
     drop-shadow(0 8px 16px rgba(0, 0, 0, 0.34))
     drop-shadow(0 0 9px rgba(242, 182, 56, 0.16));
@@ -164,7 +164,7 @@ textarea {
   touch-action: manipulation;
 }
 
-img[src="/ancient-pulls/celestial-cat.png"] {
+img[src="/ancient-pulls/celestial-cat.webp"] {
   image-rendering: pixelated;
   filter: var(--nebu-image-filter);
 }
@@ -172,22 +172,6 @@ img[src="/ancient-pulls/celestial-cat.png"] {
 .nebu-portrait-themed {
   image-rendering: pixelated;
   filter: var(--nebu-portrait-filter, var(--nebu-image-filter));
-}
-
-.nebu-portrait-themed[data-nebu-skin="cosmic_nebu"] {
-  transform-origin: 50% 55%;
-  animation: cosmicNebuBreath 4.8s ease-in-out infinite alternate;
-}
-
-@keyframes cosmicNebuBreath {
-  from { opacity: 0.9; transform: translate3d(0, 1px, 0) scale(0.985); }
-  to { opacity: 1; transform: translate3d(0, -2px, 0) scale(1.012); }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .nebu-portrait-themed[data-nebu-skin="cosmic_nebu"] {
-    animation: none;
-  }
 }
 
 /* iOS automatically zooms pages when a focused form control is below 16px. */

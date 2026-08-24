@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
+import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 
 import {
   applyNebuSkin,
@@ -9,6 +10,10 @@ import {
   NEBU_SKIN_STORAGE_KEY,
   readNebuSkin,
 } from "@/lib/player/nebu";
+import {
+  applyPlayerPreferences,
+  readCachedPlayerPreferences,
+} from "@/lib/player/preferences";
 
 const COPY_SCOPE_SELECTOR = ".unknown-pulls-shell";
 const COPY_ATTRIBUTES = ["alt", "aria-label", "title", "placeholder"] as const;
@@ -37,21 +42,18 @@ function containsMascotName(value: string, name: string): boolean {
   return value.toLowerCase().includes(name.toLowerCase());
 }
 
-function activatePersonalisedCopy(name: string): () => void {
+function activatePersonalisedCopy(scope: Element, name: string): () => void {
   const originalText = new Map<Text, string>();
   const originalAttributes = new Map<Element, Map<string, string>>();
-  let activeScope: Element | null = null;
-  let scopeObserver: MutationObserver | null = null;
+  const pendingNodes = new Set<Node>();
+  let frame: number | null = null;
 
   const personaliseText = (node: Text) => {
     const parentTag = node.parentElement?.tagName;
     if (parentTag === "SCRIPT" || parentTag === "STYLE" || parentTag === "NOSCRIPT") return;
 
     const current = node.data;
-    // "Cosmic Nebu" still contains the word "Nebu". Without this guard the
-    // MutationObserver sees its own edit and repeatedly creates
-    // "Cosmic Cosmic Nebu", locking the browser's main thread.
-    if (containsNebu(current) && !containsMascotName(current, name)) {
+    if (containsNebu(current)) {
       if (!originalText.has(node)) originalText.set(node, current);
       node.data = personaliseNebuName(current, name);
     } else if (originalText.has(node) && !containsMascotName(current, name)) {
@@ -63,11 +65,7 @@ function activatePersonalisedCopy(name: string): () => void {
     let originals = originalAttributes.get(element);
     for (const attribute of COPY_ATTRIBUTES) {
       const current = element.getAttribute(attribute);
-      if (
-        current &&
-        containsNebu(current) &&
-        !containsMascotName(current, name)
-      ) {
+      if (current && containsNebu(current)) {
         if (!originals) {
           originals = new Map<string, string>();
           originalAttributes.set(element, originals);
@@ -97,37 +95,35 @@ function activatePersonalisedCopy(name: string): () => void {
     }
   };
 
-  const bindScope = () => {
-    const nextScope = document.querySelector(COPY_SCOPE_SELECTOR);
-    if (nextScope === activeScope) return;
-    scopeObserver?.disconnect();
-    scopeObserver = null;
-    activeScope = nextScope;
-    if (!activeScope) return;
-    personaliseTree(activeScope);
-    scopeObserver = new MutationObserver((mutations) => {
-      for (const mutation of mutations) {
-        if (mutation.type === "characterData") personaliseText(mutation.target as Text);
-        else if (mutation.type === "attributes") personaliseAttributes(mutation.target as Element);
-        else for (const addedNode of mutation.addedNodes) personaliseTree(addedNode);
-      }
-    });
-    scopeObserver.observe(activeScope, {
-      attributes: true,
-      attributeFilter: [...COPY_ATTRIBUTES],
-      characterData: true,
-      childList: true,
-      subtree: true,
-    });
+  const flush = () => {
+    frame = null;
+    for (const node of pendingNodes) personaliseTree(node);
+    pendingNodes.clear();
   };
 
-  const shellObserver = new MutationObserver(bindScope);
-  shellObserver.observe(document.body, { childList: true, subtree: true });
-  bindScope();
+  personaliseTree(scope);
+  const scopeObserver = new MutationObserver((mutations) => {
+    for (const mutation of mutations) {
+      if (mutation.type === "characterData" || mutation.type === "attributes") {
+        pendingNodes.add(mutation.target);
+      } else {
+        for (const addedNode of mutation.addedNodes) pendingNodes.add(addedNode);
+      }
+    }
+    if (pendingNodes.size && frame === null) frame = window.requestAnimationFrame(flush);
+  });
+  scopeObserver.observe(scope, {
+    attributes: true,
+    attributeFilter: [...COPY_ATTRIBUTES],
+    characterData: true,
+    childList: true,
+    subtree: true,
+  });
 
   return () => {
-    scopeObserver?.disconnect();
-    shellObserver.disconnect();
+    scopeObserver.disconnect();
+    if (frame !== null) window.cancelAnimationFrame(frame);
+    pendingNodes.clear();
     for (const [node, value] of originalText) if (node.isConnected) node.data = value;
     for (const [element, attributes] of originalAttributes) {
       if (!element.isConnected) continue;
@@ -137,17 +133,14 @@ function activatePersonalisedCopy(name: string): () => void {
 }
 
 export default function NebuSkinController() {
-  useEffect(() => {
-    let stopPersonalisedCopy: (() => void) | null = null;
-    let activeName: string | null = null;
+  const pathname = usePathname();
+  const [personalisedName, setPersonalisedName] = useState<string | null>(null);
 
+  useEffect(() => {
     const syncMascotName = () => {
-      const nextName = mascotNameForSkin(document.documentElement.dataset.nebuSkin);
-      if (nextName === activeName) return;
-      stopPersonalisedCopy?.();
-      stopPersonalisedCopy = null;
-      activeName = nextName;
-      if (nextName) stopPersonalisedCopy = activatePersonalisedCopy(nextName);
+      setPersonalisedName(
+        mascotNameForSkin(document.documentElement.dataset.nebuSkin),
+      );
     };
 
     const skinAttributeObserver = new MutationObserver(syncMascotName);
@@ -156,6 +149,7 @@ export default function NebuSkinController() {
       attributeFilter: ["data-nebu-skin"],
     });
 
+    applyPlayerPreferences(readCachedPlayerPreferences());
     applyNebuSkin(readNebuSkin(), { persist: false, announce: false });
     syncMascotName();
 
@@ -173,11 +167,17 @@ export default function NebuSkinController() {
     window.addEventListener(NEBU_SKIN_CHANGE_EVENT, handleSkinChange);
     return () => {
       skinAttributeObserver.disconnect();
-      stopPersonalisedCopy?.();
       window.removeEventListener("storage", handleStorage);
       window.removeEventListener(NEBU_SKIN_CHANGE_EVENT, handleSkinChange);
     };
   }, []);
+
+  useEffect(() => {
+    if (!personalisedName) return;
+    const scope = document.querySelector(COPY_SCOPE_SELECTOR);
+    if (!scope) return;
+    return activatePersonalisedCopy(scope, personalisedName);
+  }, [pathname, personalisedName]);
 
   return null;
 }

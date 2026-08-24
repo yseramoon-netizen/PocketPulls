@@ -27,17 +27,21 @@ export default function PlayerPreferencesPanel() {
   const pathname = usePathname();
   const closeButtonRef = useRef<HTMLButtonElement | null>(null);
   const saveTimerRef = useRef<number | null>(null);
+  const initialPreferencesRef = useRef<PlayerPreferences | null>(null);
+  if (initialPreferencesRef.current === null) {
+    initialPreferencesRef.current = readCachedPlayerPreferences();
+  }
   const latestPreferencesRef = useRef<PlayerPreferences>(
-    DEFAULT_PLAYER_PREFERENCES,
+    initialPreferencesRef.current,
   );
 
-  const [mounted, setMounted] = useState(false);
+  const [mounted] = useState(() => typeof document !== "undefined");
   const [open, setOpen] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [serverAvailable, setServerAvailable] = useState(true);
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [preferences, setPreferences] = useState<PlayerPreferences>(
-    DEFAULT_PLAYER_PREFERENCES,
+    initialPreferencesRef.current,
   );
 
   const savePreferences = useCallback(async (next: PlayerPreferences) => {
@@ -98,11 +102,7 @@ export default function PlayerPreferencesPanel() {
   );
 
   useEffect(() => {
-    setMounted(true);
-
-    const cached = readCachedPlayerPreferences();
-    latestPreferencesRef.current = cached;
-    setPreferences(cached);
+    const cached = initialPreferencesRef.current ?? DEFAULT_PLAYER_PREFERENCES;
     publishPlayerPreferences(cached);
 
     let active = true;
@@ -145,7 +145,8 @@ export default function PlayerPreferencesPanel() {
   }, []);
 
   useEffect(() => {
-    setOpen(false);
+    const frame = window.requestAnimationFrame(() => setOpen(false));
+    return () => window.cancelAnimationFrame(frame);
   }, [pathname]);
 
   useEffect(() => {
@@ -306,6 +307,14 @@ export default function PlayerPreferencesPanel() {
               type="button"
               onClick={() => {
                 setOpen(false);
+
+                if (pathname === "/wishes") {
+                  window.dispatchEvent(
+                    new Event("pocketpulls:replay-latest-wish"),
+                  );
+                  return;
+                }
+
                 router.push("/wishes?replay=latest");
               }}
               className="mt-3 flex min-h-12 w-full items-center justify-between rounded-xl border border-yellow-100/20 bg-yellow-200/[0.07] px-4 text-left transition hover:border-yellow-100/30 hover:bg-yellow-200/[0.11] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-100"
