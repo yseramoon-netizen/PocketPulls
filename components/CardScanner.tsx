@@ -36,11 +36,7 @@ import type {
   ScannerPokemonCard,
   TrackedFrame,
 } from "@/lib/scanner/types";
-import {
-  detectCardGeometry,
-  rectifyCard,
-  type FrameFingerprint,
-} from "@/lib/scanner/card-vision";
+import type { FrameFingerprint } from "@/lib/scanner/card-vision";
 
 export type { ScannerAutoAddResult, ScannerPokemonCard } from "@/lib/scanner/types";
 
@@ -81,9 +77,9 @@ type VisualIndexStatus = {
   failed?: number;
 };
 
-const VERSION = "52.0-visual-consensus";
-const SAMPLE_MS = 80;
-const CALIBRATION_FRAMES = 6;
+const VERSION = "51.1-image-first-diagnostics";
+const SAMPLE_MS = 105;
+const CALIBRATION_FRAMES = 8;
 const MAX_TRACKED_FRAMES = 4;
 const MAX_QUEUE = 10;
 const CARD_ASPECT = 63 / 88;
@@ -123,36 +119,30 @@ function imageFileToFrame(file: File): Promise<TrackedFrame> {
     const image = new Image();
     image.onload = () => {
       try {
-        const geometry = detectCardGeometry(image);
-        let canvas: HTMLCanvasElement;
-        if (geometry && geometry.confidence >= 0.36 && geometry.aspectScore >= 0.50) {
-          canvas = rectifyCard(image, geometry, 504);
+        const canvas = document.createElement("canvas");
+        canvas.width = 756;
+        canvas.height = Math.round(canvas.width / CARD_ASPECT);
+        const context = canvas.getContext("2d");
+        if (!context) throw new Error("Image canvas is unavailable.");
+        const sourceAspect = image.naturalWidth / image.naturalHeight;
+        let sx = 0;
+        let sy = 0;
+        let sw = image.naturalWidth;
+        let sh = image.naturalHeight;
+        if (sourceAspect > CARD_ASPECT) {
+          sw = image.naturalHeight * CARD_ASPECT;
+          sx = (image.naturalWidth - sw) / 2;
         } else {
-          canvas = document.createElement("canvas");
-          canvas.width = 504;
-          canvas.height = Math.round(canvas.width / CARD_ASPECT);
-          const context = canvas.getContext("2d");
-          if (!context) throw new Error("Image canvas is unavailable.");
-          const sourceAspect = image.naturalWidth / image.naturalHeight;
-          let sx = 0;
-          let sy = 0;
-          let sw = image.naturalWidth;
-          let sh = image.naturalHeight;
-          if (sourceAspect > CARD_ASPECT) {
-            sw = image.naturalHeight * CARD_ASPECT;
-            sx = (image.naturalWidth - sw) / 2;
-          } else {
-            sh = image.naturalWidth / CARD_ASPECT;
-            sy = (image.naturalHeight - sh) / 2;
-          }
-          context.drawImage(image, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
+          sh = image.naturalWidth / CARD_ASPECT;
+          sy = (image.naturalHeight - sh) / 2;
         }
+        context.drawImage(image, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
         resolve({
           id: `upload-${Date.now()}`,
           canvas,
           preview: dataUrlFromCanvas(canvas),
           qualityWeight: 0.92,
-          geometryConfidence: geometry?.confidence ?? null,
+          geometryConfidence: null,
           capturedAt: performance.now(),
         });
       } catch (error) {
@@ -288,8 +278,6 @@ export default function CardScanner({
   const baselineFramesRef = useRef<FrameFingerprint[]>([]);
   const baselineRef = useRef<FrameFingerprint | null>(null);
   const lastFingerprintRef = useRef<FrameFingerprint | null>(null);
-  const acceptedFingerprintRef = useRef<FrameFingerprint | null>(null);
-  const replacementPresenceRef = useRef(0);
   const trackedRef = useRef<TrackedFrame[]>([]);
   const captureStartedRef = useRef(0);
   const presenceRef = useRef(0);
@@ -472,8 +460,6 @@ export default function CardScanner({
     if (videoRef.current) videoRef.current.srcObject = null;
     baselineFramesRef.current = [];
     baselineRef.current = null;
-    acceptedFingerprintRef.current = null;
-    replacementPresenceRef.current = 0;
     trackedRef.current = [];
     setCameraOpen(false);
     setPhase("off");
@@ -514,8 +500,6 @@ export default function CardScanner({
       sessionRef.current += 1;
       baselineFramesRef.current = [];
       baselineRef.current = null;
-      acceptedFingerprintRef.current = null;
-      replacementPresenceRef.current = 0;
       presenceRef.current = 0;
       absenceRef.current = 0;
       setCameraOpen(true);
@@ -570,7 +554,7 @@ export default function CardScanner({
         }
         const motion = frameDifference(lastFingerprintRef.current, fingerprint);
         lastFingerprintRef.current = fingerprint;
-        if (motion <= 6.5 || performance.now() - captureStartedRef.current > 430) {
+        if (motion <= 4.6 || performance.now() - captureStartedRef.current > 550) {
           setPhase("tracking");
           const frame = captureTrackedFrame(video, crop);
           const sufficientlyDifferent = trackedRef.current.every((item) =>
@@ -580,11 +564,9 @@ export default function CardScanner({
           if (sufficientlyDifferent) trackedRef.current.push(frame);
         }
         const elapsed = performance.now() - captureStartedRef.current;
-        if ((trackedRef.current.length >= 3 && elapsed >= 300) || elapsed >= 760) {
+        if ((trackedRef.current.length >= 3 && elapsed >= 420) || elapsed >= 1050) {
           if (!trackedRef.current.length) trackedRef.current.push(captureTrackedFrame(video, crop));
           queueCapture(trackedRef.current, elapsed);
-          acceptedFingerprintRef.current = fingerprint;
-          replacementPresenceRef.current = 0;
           trackedRef.current = [];
           absenceRef.current = 0;
           setPhase("waiting-removal");
@@ -592,25 +574,9 @@ export default function CardScanner({
         return;
       }
       if (currentPhase === "waiting-removal" || currentPhase === "queued") {
-        const replacementDelta = frameDifference(acceptedFingerprintRef.current, fingerprint);
-        const replacementChanged = changedFraction(acceptedFingerprintRef.current, fingerprint, 0.08);
-        const clearlyReplaced = present && replacementDelta >= 11 && replacementChanged >= 0.38;
-        replacementPresenceRef.current = clearlyReplaced ? replacementPresenceRef.current + 1 : 0;
-        if (replacementPresenceRef.current >= 2) {
-          trackedRef.current = [];
-          captureStartedRef.current = performance.now();
-          lastFingerprintRef.current = fingerprint;
-          presenceRef.current = 2;
-          replacementPresenceRef.current = 0;
-          setPhase("card-entering");
-          setStatus("New card detected");
-          return;
-        }
         absenceRef.current = present ? 0 : absenceRef.current + 1;
         if (absenceRef.current >= 3) {
           presenceRef.current = 0;
-          acceptedFingerprintRef.current = null;
-          replacementPresenceRef.current = 0;
           setPhase("searching");
         }
       }

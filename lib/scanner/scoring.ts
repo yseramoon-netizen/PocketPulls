@@ -159,8 +159,6 @@ export function scoreCandidates(
       exactCollector,
       exactSet,
       visualConfidence: null,
-      visualAgreement: null,
-      visualFrameCount: 0,
       visualBreakdown: null,
       reasons,
     };
@@ -189,8 +187,8 @@ export function scoreImageFirstMatches(
     const supportBonus = hasTextEvidence ? Math.max(0, support - 0.60) * 0.12 : 0;
     let rawScore = clamp(visual + supportBonus);
     if (visual >= 0.92 && match.agreement >= 0.94) rawScore = Math.max(rawScore, 0.94);
-    const visualSignals = visual >= 0.58 ? 1 : 0;
-    const agreementSignal = visual >= 0.58 && match.frameCount >= 2 && match.agreement >= 0.90 ? 1 : 0;
+    const visualSignals = visual >= 0.78 ? 1 : 0;
+    const agreementSignal = visual >= 0.78 && match.agreement >= 0.92 ? 1 : 0;
     const breakdown: VisualBreakdown = {
       artwork: match.breakdown.artwork,
       fullCard: match.breakdown.fullCard,
@@ -209,8 +207,6 @@ export function scoreImageFirstMatches(
         exactCollector: false,
         exactSet: false,
         visualConfidence: null,
-        visualAgreement: null,
-        visualFrameCount: 0,
         visualBreakdown: null,
         reasons: [],
       }),
@@ -219,12 +215,10 @@ export function scoreImageFirstMatches(
       evidence: { ...(text?.evidence || { collector: 0, set: 0, name: 0, secondary: 0 }), visual },
       evidenceCount: (text?.evidenceCount || 0) + visualSignals + agreementSignal,
       visualConfidence: Math.round(visual * 100),
-      visualAgreement: match.agreement,
-      visualFrameCount: match.frameCount,
       visualBreakdown: breakdown,
       reasons: [
-        `Discriminative image match ${Math.round(visual * 100)}%`,
-        ...(match.frameCount >= 2 && match.agreement >= 0.90 ? ["Artwork agreed across captured frames"] : []),
+        `Whole-catalogue image match ${Math.round(visual * 100)}%`,
+        ...(match.agreement >= 0.92 ? ["Artwork agreed across captured frames"] : []),
         ...(text?.reasons || []),
       ],
     };
@@ -269,8 +263,6 @@ export function applyVisualEvidence(
     evidence: { ...candidate.evidence, visual },
     evidenceCount: candidate.evidenceCount + (visual >= 0.78 ? 1 : 0),
     visualConfidence: Math.round(visual * 100),
-    visualAgreement: candidate.visualAgreement,
-    visualFrameCount: candidate.visualFrameCount,
     visualBreakdown: breakdown,
     reasons: [
       ...candidate.reasons,
@@ -286,15 +278,8 @@ export function calibrateCandidates(candidates: ScannerCandidate[]): ScannerCand
     const next = sorted[index + 1];
     const margin = next ? candidate.rawScore - next.rawScore : 0.2;
     let confidence = candidate.confidence;
-    const stableVisual = (candidate.visualConfidence || 0) >= 58 &&
-      candidate.visualFrameCount >= 2 && (candidate.visualAgreement || 0) >= 0.90;
-    if (stableVisual && margin >= 0.08) confidence = Math.max(confidence, 95);
-    if (stableVisual && (candidate.visualConfidence || 0) >= 72 && margin >= 0.06) {
-      confidence = Math.max(confidence, 97);
-    }
     if (candidate.evidenceCount >= 3 && margin >= 0.06) confidence = Math.max(confidence, 95);
     if (candidate.evidenceCount < 2) confidence = Math.min(confidence, 79);
-    if ((candidate.visualConfidence || 0) < 34 && !candidate.exactCollector) confidence = Math.min(confidence, 59);
     if (margin < 0.025) confidence = Math.min(confidence, 89);
     return { ...candidate, confidence: Math.max(1, Math.min(99, confidence)) };
   });

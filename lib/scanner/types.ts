@@ -87,8 +87,6 @@ export type ScannerCandidate = {
   exactCollector: boolean;
   exactSet: boolean;
   visualConfidence: number | null;
-  visualAgreement: number | null;
-  visualFrameCount: number;
   visualBreakdown: VisualBreakdown | null;
   reasons: string[];
 };
@@ -143,7 +141,6 @@ export type IndexedVisualMatch = {
   card: ScannerPokemonCard;
   similarity: number;
   agreement: number;
-  frameCount: number;
   breakdown: {
     combined: number;
     artwork: number;
