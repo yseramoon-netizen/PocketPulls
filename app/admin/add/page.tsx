@@ -1200,7 +1200,7 @@ export default function AddCardsPage() {
                   ◉
                 </span>
 
-                Scan card
+                Start automatic scanner
               </button>
               </div>
             </div>
@@ -2611,6 +2611,7 @@ export default function AddCardsPage() {
 
             <CardScanner
               disabled={adding}
+              autoStart
               resetKey={
                 scannerResetKey
               }

@@ -15,6 +15,7 @@ import {
   averageFingerprints,
   captureTrackedFrame,
   changedFraction,
+  detectCardInGuide,
   frameDifference,
   frameFingerprint,
   guideSourceCrop,
@@ -47,6 +48,7 @@ export type { ScannerAutoAddResult, ScannerPokemonCard } from "@/lib/scanner/typ
 type CardScannerProps = {
   disabled?: boolean;
   resetKey?: number;
+  autoStart?: boolean;
   onSelect: (card: ScannerPokemonCard) => void;
   onAutoAdd?: (card: ScannerPokemonCard) => Promise<ScannerAutoAddResult>;
   autoIntakeLabel?: string;
@@ -273,6 +275,7 @@ function DebugPanel({ snapshot }: { snapshot: ScannerDebugSnapshot }) {
 export default function CardScanner({
   disabled = false,
   resetKey = 0,
+  autoStart = false,
   onSelect,
   onAutoAdd,
   autoIntakeLabel,
@@ -290,13 +293,15 @@ export default function CardScanner({
   const lastFingerprintRef = useRef<FrameFingerprint | null>(null);
   const acceptedFingerprintRef = useRef<FrameFingerprint | null>(null);
   const replacementPresenceRef = useRef(0);
+  const cardShapePresenceRef = useRef(0);
+  const cardShapeAbsenceRef = useRef(0);
   const trackedRef = useRef<TrackedFrame[]>([]);
   const captureStartedRef = useRef(0);
-  const presenceRef = useRef(0);
   const absenceRef = useRef(0);
   const phaseRef = useRef<ScannerMachinePhase>("off");
   const stopVisualBuildRef = useRef(false);
   const visualBuildOffsetRef = useRef(0);
+  const disabledRef = useRef(disabled);
 
   const [cameraOpen, setCameraOpen] = useState(false);
   const [phase, setPhaseState] = useState<ScannerMachinePhase>("off");
@@ -312,6 +317,10 @@ export default function CardScanner({
   const [choosing, setChoosing] = useState<string | null>(null);
   const [visualIndexStatus, setVisualIndexStatus] = useState<VisualIndexStatus | null>(null);
   const [buildingVisualIndex, setBuildingVisualIndex] = useState(false);
+
+  useEffect(() => {
+    disabledRef.current = disabled;
+  }, [disabled]);
 
   const setPhase = useCallback((next: ScannerMachinePhase) => {
     phaseRef.current = next;
@@ -391,6 +400,7 @@ export default function CardScanner({
   }, [progressHandler]);
 
   const handleIdentification = useCallback(async (capture: QueuedCapture, result: ScannerIdentification) => {
+    if (capture.session !== sessionRef.current) return;
     const best = result.candidates[0];
     setActiveDebug(result.debug);
     if (!result.debug.visualIndex.ready) {
@@ -407,7 +417,9 @@ export default function CardScanner({
     }
     if (best && mode === "automatic" && onAutoAdd && shouldAutomaticallyAccept(result.candidates)) {
       try {
+        if (capture.session !== sessionRef.current) return;
         const added = await onAutoAdd(best.card);
+        if (capture.session !== sessionRef.current) return;
         setRecentAdds((items) => [{ id: capture.id, card: best.card, message: added.message }, ...items].slice(0, 8));
         setStatus(`${best.card.name} added automatically`);
         setError(null);
@@ -432,8 +444,13 @@ export default function CardScanner({
         const capture = queueRef.current.shift();
         setPendingCount(queueRef.current.length + 1);
         if (!capture) continue;
+        if (capture.session !== sessionRef.current) {
+          setPendingCount(queueRef.current.length);
+          continue;
+        }
         try {
           const result = await ensureIdentifier().identify(capture.frames, capture.captureMs);
+          if (capture.session !== sessionRef.current) continue;
           await handleIdentification(capture, result);
         } catch (caught) {
           setError(caught instanceof Error ? caught.message : "Card identification failed.");
@@ -467,6 +484,7 @@ export default function CardScanner({
 
   const stopCamera = useCallback(() => {
     sessionRef.current += 1;
+    queueRef.current = [];
     streamRef.current?.getTracks().forEach((track) => track.stop());
     streamRef.current = null;
     if (videoRef.current) videoRef.current.srcObject = null;
@@ -474,13 +492,18 @@ export default function CardScanner({
     baselineRef.current = null;
     acceptedFingerprintRef.current = null;
     replacementPresenceRef.current = 0;
+    cardShapePresenceRef.current = 0;
+    cardShapeAbsenceRef.current = 0;
+    absenceRef.current = 0;
     trackedRef.current = [];
+    setPendingCount(0);
     setCameraOpen(false);
     setPhase("off");
+    setStatus("Camera stopped");
   }, [setPhase]);
 
   const startCamera = useCallback(async () => {
-    if (disabled) return;
+    if (disabledRef.current) return;
     setError(null);
     stopCamera();
     try {
@@ -516,7 +539,8 @@ export default function CardScanner({
       baselineRef.current = null;
       acceptedFingerprintRef.current = null;
       replacementPresenceRef.current = 0;
-      presenceRef.current = 0;
+      cardShapePresenceRef.current = 0;
+      cardShapeAbsenceRef.current = 0;
       absenceRef.current = 0;
       setCameraOpen(true);
       setPhase("calibrating");
@@ -525,7 +549,7 @@ export default function CardScanner({
       stopCamera();
       setError(caught instanceof Error ? caught.message : "Camera access was denied.");
     }
-  }, [disabled, setPhase, stopCamera]);
+  }, [setPhase, stopCamera]);
 
   useEffect(() => {
     if (!cameraOpen) return;
@@ -550,22 +574,29 @@ export default function CardScanner({
       }
       const baselineDelta = frameDifference(baselineRef.current, fingerprint);
       const changed = changedFraction(baselineRef.current, fingerprint, 0.055);
-      const present = changed >= 0.13 || baselineDelta >= 5.5;
+      const sceneChanged = changed >= 0.13 || baselineDelta >= 5.5;
+      const cardGeometry = sceneChanged ? detectCardInGuide(video, crop) : null;
+      const cardPresent = Boolean(cardGeometry);
       if (currentPhase === "searching") {
-        presenceRef.current = present ? presenceRef.current + 1 : 0;
-        if (presenceRef.current >= 2) {
+        cardShapePresenceRef.current = cardPresent ? cardShapePresenceRef.current + 1 : 0;
+        if (cardShapePresenceRef.current >= 2) {
           trackedRef.current = [];
           captureStartedRef.current = performance.now();
           lastFingerprintRef.current = fingerprint;
+          cardShapeAbsenceRef.current = 0;
           setPhase("card-entering");
+          setStatus("Pokémon card detected — hold steady");
         }
         return;
       }
       if (currentPhase === "card-entering" || currentPhase === "tracking") {
-        if (!present) {
-          presenceRef.current = 0;
+        cardShapeAbsenceRef.current = cardPresent ? 0 : cardShapeAbsenceRef.current + 1;
+        if (!sceneChanged || cardShapeAbsenceRef.current >= 2) {
+          cardShapePresenceRef.current = 0;
+          cardShapeAbsenceRef.current = 0;
           trackedRef.current = [];
           setPhase("searching");
+          setStatus("No complete Pokémon card in the guide");
           return;
         }
         const motion = frameDifference(lastFingerprintRef.current, fingerprint);
@@ -594,21 +625,23 @@ export default function CardScanner({
       if (currentPhase === "waiting-removal" || currentPhase === "queued") {
         const replacementDelta = frameDifference(acceptedFingerprintRef.current, fingerprint);
         const replacementChanged = changedFraction(acceptedFingerprintRef.current, fingerprint, 0.08);
-        const clearlyReplaced = present && replacementDelta >= 11 && replacementChanged >= 0.38;
+        const clearlyReplaced = cardPresent && replacementDelta >= 11 && replacementChanged >= 0.38;
         replacementPresenceRef.current = clearlyReplaced ? replacementPresenceRef.current + 1 : 0;
         if (replacementPresenceRef.current >= 2) {
           trackedRef.current = [];
           captureStartedRef.current = performance.now();
           lastFingerprintRef.current = fingerprint;
-          presenceRef.current = 2;
+          cardShapePresenceRef.current = 2;
+          cardShapeAbsenceRef.current = 0;
           replacementPresenceRef.current = 0;
           setPhase("card-entering");
           setStatus("New card detected");
           return;
         }
-        absenceRef.current = present ? 0 : absenceRef.current + 1;
+        absenceRef.current = sceneChanged ? 0 : absenceRef.current + 1;
         if (absenceRef.current >= 3) {
-          presenceRef.current = 0;
+          cardShapePresenceRef.current = 0;
+          cardShapeAbsenceRef.current = 0;
           acceptedFingerprintRef.current = null;
           replacementPresenceRef.current = 0;
           setPhase("searching");
@@ -625,6 +658,12 @@ export default function CardScanner({
     if (!video || !viewport || !guide || video.readyState < 2) return;
     const started = performance.now();
     const crop = guideSourceCrop(video, viewport, guide);
+    if (!detectCardInGuide(video, crop)) {
+      setError("No complete Pokémon card is visible inside the guide.");
+      setStatus("Room/background ignored");
+      return;
+    }
+    setError(null);
     queueCapture([captureTrackedFrame(video, crop)], performance.now() - started);
     setPhase("waiting-removal");
   }, [queueCapture, setPhase]);
@@ -672,12 +711,17 @@ export default function CardScanner({
       setRecentAdds([]);
       setActiveDebug(null);
       setError(null);
+      if (autoStart && !disabledRef.current) void startCamera();
     }, 0);
     return () => window.clearTimeout(reset);
-  }, [resetKey, stopCamera]);
+  }, [autoStart, resetKey, startCamera, stopCamera]);
 
   useEffect(() => () => {
+    sessionRef.current += 1;
+    queueRef.current = [];
     streamRef.current?.getTracks().forEach((track) => track.stop());
+    streamRef.current = null;
+    if (videoRef.current) videoRef.current.srcObject = null;
     void identifierRef.current?.dispose();
   }, []);
 
@@ -741,7 +785,7 @@ export default function CardScanner({
                 <div>
                   <div className="mx-auto grid h-16 w-16 place-items-center rounded-2xl border border-cyan-300/30 bg-cyan-300/10 text-3xl">▣</div>
                   <div className="mt-4 text-lg font-black">Camera conveyor is paused</div>
-                  <div className="mt-1 text-sm text-slate-400">Start the camera or test a saved card image.</div>
+                  <div className="mt-1 text-sm text-slate-400">Opening your rear camera automatically…</div>
                 </div>
               </div>
             ) : null}
@@ -758,7 +802,7 @@ export default function CardScanner({
           <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
             <div>
               <div className="text-sm font-black text-white">{status}</div>
-              <div className="mt-0.5 text-xs text-slate-500">{cameraOpen ? "Keep the empty guide visible between cards for best separation." : "Portrait photos with the full card visible work best."}</div>
+              <div className="mt-0.5 text-xs text-slate-500">{cameraOpen ? "Only a complete 63:88 trading card inside the guide can trigger recognition." : "Portrait photos with the full card visible work best."}</div>
             </div>
             <div className="flex flex-wrap gap-2">
               {cameraOpen ? (
