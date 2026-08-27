@@ -90,7 +90,7 @@ type ScreenWakeLock = {
   release: () => Promise<void>;
 };
 
-const VERSION = "52.0-visual-consensus";
+const VERSION = "53.0-multi-algorithm-print-verification";
 const SAMPLE_MS = 80;
 const CALIBRATION_FRAMES = 6;
 const MAX_TRACKED_FRAMES = 4;
@@ -252,9 +252,9 @@ function DebugPanel({ snapshot }: { snapshot: ScannerDebugSnapshot }) {
         ))}
       </div>
       <div className="overflow-x-auto rounded-xl border border-white/10">
-        <table className="w-full min-w-[680px] text-left text-[11px]">
+        <table className="w-full min-w-[860px] text-left text-[11px]">
           <thead className="bg-white/5 text-slate-400">
-            <tr><th className="p-2">Candidate</th><th className="p-2">Total</th><th className="p-2">Number</th><th className="p-2">Set</th><th className="p-2">Name</th><th className="p-2">Visual</th><th className="p-2">Signals</th></tr>
+            <tr><th className="p-2">Candidate</th><th className="p-2">Total</th><th className="p-2">Number</th><th className="p-2">Set</th><th className="p-2">Name</th><th className="p-2">Visual</th><th className="p-2">Print</th><th className="p-2">Frames</th><th className="p-2">Signals</th></tr>
           </thead>
           <tbody>
             {snapshot.candidates.map((candidate) => (
@@ -265,6 +265,12 @@ function DebugPanel({ snapshot }: { snapshot: ScannerDebugSnapshot }) {
                 <td className="p-2">{Math.round(candidate.evidence.set * 100)}</td>
                 <td className="p-2">{Math.round(candidate.evidence.name * 100)}</td>
                 <td className="p-2">{candidate.visualConfidence ?? "—"}</td>
+                <td className="p-2">{candidate.visualBreakdown
+                  ? Math.round(candidate.visualBreakdown.details * 100)
+                  : "—"}</td>
+                <td className="p-2">{candidate.visualFrameCount
+                  ? `${candidate.visualSupportingFrames}/${candidate.visualFrameCount}`
+                  : "—"}</td>
                 <td className="p-2">{candidate.evidenceCount}</td>
               </tr>
             ))}

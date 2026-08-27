@@ -56,9 +56,14 @@ function emptyRecognition(frames: TrackedFrame[]): FrameRecognitionResult {
 
 function visualIsDecisive(matches: VisualSearchResponse["matches"]): boolean {
   const first = matches[0];
-  if (!first || first.frameCount < 2 || first.agreement < 0.90 || first.similarity < 0.58) return false;
+  if (
+    !first || first.frameCount < 2 || first.supportingFrames < 2 ||
+    first.agreement < 0.88 || first.similarity < 0.62 ||
+    first.breakdown.artwork < 0.52 || first.breakdown.hash < 0.62 ||
+    first.breakdown.details < 0.44
+  ) return false;
   const second = matches[1];
-  return !second || first.similarity - second.similarity >= 0.08;
+  return !second || first.similarity - second.similarity >= 0.055;
 }
 
 export class CardIdentifier {
@@ -194,8 +199,12 @@ export function shouldAutomaticallyAccept(candidates: ScannerCandidate[]): boole
   if (!best || best.confidence < 95) return false;
   const second = candidates[1];
   const rawMargin = second ? best.rawScore - second.rawScore : 0.2;
-  const stableVisual = (best.visualConfidence || 0) >= 58 &&
-    best.visualFrameCount >= 2 && (best.visualAgreement || 0) >= 0.90 && rawMargin >= 0.08;
+  const stableVisual = (best.visualConfidence || 0) >= 66 &&
+    best.visualFrameCount >= 2 && best.visualSupportingFrames >= 2 &&
+    (best.visualAgreement || 0) >= 0.88 && rawMargin >= 0.07 &&
+    (best.visualBreakdown?.artwork || 0) >= 0.52 &&
+    (best.visualBreakdown?.hash || 0) >= 0.62 &&
+    (best.visualBreakdown?.details || 0) >= 0.44;
   const textVerified = best.evidenceCount >= 3 && (
     (best.exactCollector && best.exactSet) ||
     (best.exactCollector && (best.visualConfidence || 0) >= 58)

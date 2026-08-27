@@ -68,6 +68,8 @@ export type VisualBreakdown = {
   structure: number;
   edge: number;
   colour: number;
+  hash: number;
+  details: number;
 };
 
 export type CandidateEvidence = {
@@ -89,6 +91,7 @@ export type ScannerCandidate = {
   visualConfidence: number | null;
   visualAgreement: number | null;
   visualFrameCount: number;
+  visualSupportingFrames: number;
   visualBreakdown: VisualBreakdown | null;
   reasons: string[];
 };
@@ -144,12 +147,15 @@ export type IndexedVisualMatch = {
   similarity: number;
   agreement: number;
   frameCount: number;
+  supportingFrames: number;
   breakdown: {
     combined: number;
     artwork: number;
     fullCard: number;
     colour: number;
     edge: number;
+    hash: number;
+    details: number;
   };
 };
 

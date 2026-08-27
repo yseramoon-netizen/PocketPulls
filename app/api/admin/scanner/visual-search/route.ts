@@ -45,6 +45,7 @@ type VisualMatch = {
   similarity: number;
   agreement: number;
   frameCount: number;
+  supportingFrames: number;
   breakdown: CompactVisualComparison;
 };
 
@@ -60,8 +61,8 @@ function cleanFingerprint(value: unknown): CompactVisualFingerprint | null {
   const item = value as Partial<CompactVisualFingerprint>;
   if (
     item.version !== COMPACT_VISUAL_VERSION ||
-    typeof item.full !== "string" || item.full.length > 1000 ||
-    typeof item.artwork !== "string" || item.artwork.length > 1000 ||
+    typeof item.full !== "string" || item.full.length > 1600 ||
+    typeof item.artwork !== "string" || item.artwork.length > 1200 ||
     typeof item.colour !== "string" || item.colour.length > 1000
   ) return null;
   return {
@@ -149,11 +150,7 @@ function compareFrames(
   frames: CompactVisualDecoded[][],
   reference: CompactVisualDecoded,
 ): Omit<VisualMatch, "cardId"> {
-  let firstScore = 0;
-  let secondScore = 0;
-  let thirdScore = 0;
-  let count = 0;
-  let strongest: CompactVisualComparison | null = null;
+  const comparisons: CompactVisualComparison[] = [];
 
   for (const orientations of frames) {
     let best = compareCompactDecoded(orientations[0], reference);
@@ -162,24 +159,42 @@ function compareFrames(
       if (comparison.combined > best.combined) best = comparison;
     }
 
-    if (!strongest || best.combined > strongest.combined) strongest = best;
-    if (count === 0) firstScore = best.combined;
-    else if (count === 1) secondScore = best.combined;
-    else thirdScore = best.combined;
-    count += 1;
+    comparisons.push(best);
   }
 
-  const similarity = (firstScore + secondScore + thirdScore) / Math.max(1, count);
-  const spread = (
-    Math.abs(firstScore - similarity) +
-    (count > 1 ? Math.abs(secondScore - similarity) : 0) +
-    (count > 2 ? Math.abs(thirdScore - similarity) : 0)
-  ) / Math.max(1, count);
+  const ranked = [...comparisons].sort((left, right) => right.combined - left.combined);
+  const weights = ranked.length >= 3 ? [0.45, 0.35, 0.20] : ranked.length === 2 ? [0.55, 0.45] : [1];
+  const similarity = ranked.reduce(
+    (sum, comparison, index) => sum + comparison.combined * weights[index],
+    0,
+  );
+  const spread = comparisons.reduce(
+    (sum, comparison) => sum + Math.abs(comparison.combined - similarity),
+    0,
+  ) / Math.max(1, comparisons.length);
+  const supportingFrames = comparisons.filter((comparison) =>
+    comparison.combined >= 0.54 &&
+    (comparison.artwork >= 0.48 || comparison.hash >= 0.64)
+  ).length;
+  const aggregate = (key: keyof CompactVisualComparison) => ranked.reduce(
+    (sum, comparison, index) => sum + comparison[key] * weights[index],
+    0,
+  );
+  const supportRatio = supportingFrames / Math.max(1, comparisons.length);
   return {
     similarity,
-    agreement: Math.max(0, 1 - spread * 4),
-    frameCount: count,
-    breakdown: strongest ?? compareCompactDecoded(frames[0][0], reference),
+    agreement: Math.max(0, Math.min(1, (1 - spread * 3.5) * (0.82 + supportRatio * 0.18))),
+    frameCount: comparisons.length,
+    supportingFrames,
+    breakdown: {
+      combined: aggregate("combined"),
+      artwork: aggregate("artwork"),
+      fullCard: aggregate("fullCard"),
+      colour: aggregate("colour"),
+      edge: aggregate("edge"),
+      hash: aggregate("hash"),
+      details: aggregate("details"),
+    },
   };
 }
 
@@ -221,8 +236,9 @@ export async function POST(request: Request) {
         headers: { "Cache-Control": "no-store" },
       });
     }
-    // Stage one touches only the packed gradient hashes. It cheaply narrows the
-    // complete catalogue before the richer structure/edge comparison runs.
+    // Stage one combines packed perceptual hashes, HOG and coarse structure to
+    // retain high recall across the full catalogue. Stage two spends the richer
+    // title/footer correlation only on that shortlist.
     const coarse: CoarseMatch[] = [];
     for (const row of index.rows) {
       insertTop(coarse, {
@@ -254,6 +270,7 @@ export async function POST(request: Request) {
           similarity: match.similarity,
           agreement: match.agreement,
           frameCount: match.frameCount,
+          supportingFrames: match.supportingFrames,
           breakdown: match.breakdown,
         }] : [];
       }),

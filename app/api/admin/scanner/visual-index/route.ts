@@ -125,14 +125,24 @@ export async function POST(request: Request) {
     const generated = await mapLimited(cards, 10, async (card) => {
       const cardId = String(card.id);
       if (existing.has(cardId)) return { status: "existing" as const, cardId };
-      // Small canonical images are sufficient for a 12x17 fingerprint and
-      // make the one-time catalogue build dramatically faster.
-      const url = safeImageUrl(card.image_url || card.image_url_large);
-      if (!url) return { status: "failed" as const, cardId };
-      const bytes = await fetchImage(url);
-      if (!bytes) return { status: "failed" as const, cardId };
+      // V3 fingerprints the printed title/footer as well as the artwork. Prefer
+      // the large canonical image so collector digits and set marks survive the
+      // downsample; fall back to the small image if the source is unavailable.
+      const urls = [card.image_url_large, card.image_url]
+        .map(safeImageUrl)
+        .filter((url): url is URL => Boolean(url))
+        .filter((url, index, values) => values.findIndex((item) => item.href === url.href) === index);
+      let source: { url: URL; bytes: Uint8Array } | null = null;
+      for (const url of urls) {
+        const bytes = await fetchImage(url);
+        if (bytes) {
+          source = { url, bytes };
+          break;
+        }
+      }
+      if (!source) return { status: "failed" as const, cardId };
       try {
-        const fingerprint = await fingerprintReferenceImage(bytes);
+        const fingerprint = await fingerprintReferenceImage(source.bytes);
         return {
           status: "generated" as const,
           cardId,
@@ -142,7 +152,7 @@ export async function POST(request: Request) {
             full_signature: fingerprint.full,
             artwork_signature: fingerprint.artwork,
             colour_signature: fingerprint.colour,
-            source_url: url.toString(),
+            source_url: source.url.toString(),
             updated_at: new Date().toISOString(),
           },
         };

@@ -1,13 +1,13 @@
 import { CARD_REGIONS, cropRegion, rotateCanvas180 } from "./regions";
 
 /**
- * Version 1 reduced artwork to a 12x8 average and converted an uncorrelated
- * Pearson score into 50% similarity. Unrelated cards therefore clustered near
- * 50-55%, which is exactly what the failed diagnostics showed. Version 2 keeps
- * a compact two-stage descriptor: gradient histograms for catalogue retrieval and
- * a normalised artwork structure for discriminative re-ranking.
+ * Version 3 is a compact ensemble rather than a single visual fingerprint.
+ * pHash/dHash and HOG provide high-recall catalogue retrieval; normalised
+ * artwork, title and footer structure then distinguish the exact printing.
+ * Keeping the descriptor deterministic lets the mobile client and server build
+ * identical fingerprints without shipping a large ML model to the phone.
  */
-export const COMPACT_VISUAL_VERSION = 2;
+export const COMPACT_VISUAL_VERSION = 3;
 
 export type CompactVisualFingerprint = {
   version: number;
@@ -22,6 +22,12 @@ export type CompactVisualDecoded = {
   coarseLuma: Uint8Array;
   artworkLuma: Uint8Array;
   colour: Uint8Array;
+  fullDhash: Uint8Array;
+  fullPhash: Uint8Array;
+  artworkDhash: Uint8Array;
+  artworkPhash: Uint8Array;
+  nameLuma: Uint8Array;
+  footerLuma: Uint8Array;
 };
 
 export type CompactVisualComparison = {
@@ -30,6 +36,8 @@ export type CompactVisualComparison = {
   fullCard: number;
   colour: number;
   edge: number;
+  hash: number;
+  details: number;
 };
 
 const FULL_WIDTH = 17;
@@ -38,6 +46,13 @@ const ART_WIDTH = 25;
 const ART_HEIGHT = 18;
 const COLOUR_WIDTH = 12;
 const COLOUR_HEIGHT = 8;
+const HASH_WIDTH = 32;
+const HASH_HEIGHT = 32;
+const HASH_BYTES = 8;
+const NAME_WIDTH = 28;
+const NAME_HEIGHT = 5;
+const FOOTER_WIDTH = 36;
+const FOOTER_HEIGHT = 6;
 
 const HOG_BINS = 8;
 const FULL_HOG_CELLS = { x: 4, y: 6 };
@@ -47,6 +62,19 @@ const ART_HOG_BYTES = ART_HOG_CELLS.x * ART_HOG_CELLS.y * HOG_BINS;
 const COARSE_LUMA_BYTES = COLOUR_WIDTH * COLOUR_HEIGHT;
 const ART_LUMA_BYTES = ART_WIDTH * ART_HEIGHT;
 const COLOUR_BYTES = COLOUR_WIDTH * COLOUR_HEIGHT * 3;
+const NAME_LUMA_BYTES = NAME_WIDTH * NAME_HEIGHT;
+const FOOTER_LUMA_BYTES = FOOTER_WIDTH * FOOTER_HEIGHT;
+
+const PHASH_LOW_FREQUENCIES = 8;
+const PHASH_COSINES = Array.from({ length: PHASH_LOW_FREQUENCIES }, (_, frequency) => {
+  const values = new Float64Array(HASH_WIDTH);
+  for (let position = 0; position < HASH_WIDTH; position += 1) {
+    values[position] = Math.cos(
+      (2 * position + 1) * frequency * Math.PI / (2 * HASH_WIDTH),
+    );
+  }
+  return values;
+});
 
 function clamp(value: number, min = 0, max = 1): number {
   return Math.max(min, Math.min(max, value));
@@ -73,6 +101,94 @@ function lumaValues(rgba: Uint8Array | Uint8ClampedArray): Float32Array {
     output[pixel] = rgba[source] * 0.299 + rgba[source + 1] * 0.587 + rgba[source + 2] * 0.114;
   }
   return output;
+}
+
+function packBits(bits: boolean[]): Uint8Array {
+  const output = new Uint8Array(Math.ceil(bits.length / 8));
+  for (let index = 0; index < bits.length; index += 1) {
+    if (bits[index]) output[index >> 3] |= 1 << (7 - (index & 7));
+  }
+  return output;
+}
+
+function resizeLuma(
+  source: Float32Array,
+  sourceWidth: number,
+  sourceHeight: number,
+  targetWidth: number,
+  targetHeight: number,
+): Float32Array {
+  const output = new Float32Array(targetWidth * targetHeight);
+  for (let y = 0; y < targetHeight; y += 1) {
+    const sourceY = targetHeight === 1 ? 0 : y * (sourceHeight - 1) / (targetHeight - 1);
+    const y0 = Math.floor(sourceY);
+    const y1 = Math.min(sourceHeight - 1, y0 + 1);
+    const weightY = sourceY - y0;
+    for (let x = 0; x < targetWidth; x += 1) {
+      const sourceX = targetWidth === 1 ? 0 : x * (sourceWidth - 1) / (targetWidth - 1);
+      const x0 = Math.floor(sourceX);
+      const x1 = Math.min(sourceWidth - 1, x0 + 1);
+      const weightX = sourceX - x0;
+      const top = source[y0 * sourceWidth + x0] * (1 - weightX) +
+        source[y0 * sourceWidth + x1] * weightX;
+      const bottom = source[y1 * sourceWidth + x0] * (1 - weightX) +
+        source[y1 * sourceWidth + x1] * weightX;
+      output[y * targetWidth + x] = top * (1 - weightY) + bottom * weightY;
+    }
+  }
+  return output;
+}
+
+/**
+ * Standard 64-bit difference hash plus DCT perceptual hash. The DCT computes
+ * only the low-frequency 8x8 block needed by pHash, avoiding the unused 32x32
+ * coefficient matrix on mobile and during the catalogue build.
+ */
+function perceptualHashBytes(
+  rgba: Uint8Array | Uint8ClampedArray,
+): { dhash: Uint8Array; phash: Uint8Array } {
+  const luma = lumaValues(rgba);
+  if (luma.length !== HASH_WIDTH * HASH_HEIGHT) {
+    throw new Error("Perceptual hash sample dimensions are invalid.");
+  }
+
+  const differenceLuma = resizeLuma(luma, HASH_WIDTH, HASH_HEIGHT, 9, 8);
+  const differenceBits: boolean[] = [];
+  for (let y = 0; y < 8; y += 1) {
+    for (let x = 0; x < 8; x += 1) {
+      differenceBits.push(differenceLuma[y * 9 + x] > differenceLuma[y * 9 + x + 1]);
+    }
+  }
+
+  const rowFrequencies = new Float64Array(HASH_HEIGHT * PHASH_LOW_FREQUENCIES);
+  for (let y = 0; y < HASH_HEIGHT; y += 1) {
+    for (let u = 0; u < PHASH_LOW_FREQUENCIES; u += 1) {
+      let total = 0;
+      const cosine = PHASH_COSINES[u];
+      for (let x = 0; x < HASH_WIDTH; x += 1) {
+        total += luma[y * HASH_WIDTH + x] * cosine[x];
+      }
+      rowFrequencies[y * PHASH_LOW_FREQUENCIES + u] = total;
+    }
+  }
+  const coefficients = new Float64Array(PHASH_LOW_FREQUENCIES ** 2);
+  for (let v = 0; v < PHASH_LOW_FREQUENCIES; v += 1) {
+    const cosine = PHASH_COSINES[v];
+    for (let u = 0; u < PHASH_LOW_FREQUENCIES; u += 1) {
+      let total = 0;
+      for (let y = 0; y < HASH_HEIGHT; y += 1) {
+        total += rowFrequencies[y * PHASH_LOW_FREQUENCIES + u] * cosine[y];
+      }
+      coefficients[v * PHASH_LOW_FREQUENCIES + u] = total;
+    }
+  }
+  const nonDc = Array.from(coefficients.slice(1)).sort((left, right) => left - right);
+  const median = nonDc[Math.floor(nonDc.length / 2)] || 0;
+  const perceptualBits = Array.from(coefficients, (value, index) => index > 0 && value > median);
+  return {
+    dhash: packBits(differenceBits),
+    phash: packBits(perceptualBits),
+  };
 }
 
 function hogBytes(
@@ -154,6 +270,10 @@ export function createCompactFingerprintFromSamples(
   fullRgba: Uint8Array | Uint8ClampedArray,
   artworkRgba: Uint8Array | Uint8ClampedArray,
   colourRgba: Uint8Array | Uint8ClampedArray,
+  fullHashRgba: Uint8Array | Uint8ClampedArray,
+  artworkHashRgba: Uint8Array | Uint8ClampedArray,
+  nameRgba: Uint8Array | Uint8ClampedArray,
+  footerRgba: Uint8Array | Uint8ClampedArray,
 ): CompactVisualFingerprint {
   const fullHog = hogBytes(
     fullRgba,
@@ -171,12 +291,38 @@ export function createCompactFingerprintFromSamples(
   );
   const artworkLuma = normalisedLumaBytes(artworkRgba);
   const coarseLuma = normalisedLumaBytes(colourRgba);
-  const full = new Uint8Array(fullHog.length + coarseLuma.length);
-  full.set(fullHog);
-  full.set(coarseLuma, fullHog.length);
-  const artwork = new Uint8Array(artworkHog.length + artworkLuma.length);
-  artwork.set(artworkHog);
-  artwork.set(artworkLuma, artworkHog.length);
+  const fullHash = perceptualHashBytes(fullHashRgba);
+  const artworkHash = perceptualHashBytes(artworkHashRgba);
+  const nameLuma = normalisedLumaBytes(nameRgba);
+  const footerLuma = normalisedLumaBytes(footerRgba);
+  const full = new Uint8Array(
+    fullHog.length + coarseLuma.length + HASH_BYTES * 2 + nameLuma.length + footerLuma.length,
+  );
+  let fullOffset = 0;
+  for (const values of [
+    fullHog,
+    coarseLuma,
+    fullHash.dhash,
+    fullHash.phash,
+    nameLuma,
+    footerLuma,
+  ]) {
+    full.set(values, fullOffset);
+    fullOffset += values.length;
+  }
+  const artwork = new Uint8Array(
+    artworkHog.length + artworkLuma.length + HASH_BYTES * 2,
+  );
+  let artworkOffset = 0;
+  for (const values of [
+    artworkHog,
+    artworkLuma,
+    artworkHash.dhash,
+    artworkHash.phash,
+  ]) {
+    artwork.set(values, artworkOffset);
+    artworkOffset += values.length;
+  }
   return {
     version: COMPACT_VISUAL_VERSION,
     full: bytesToBase64(full),
@@ -187,10 +333,16 @@ export function createCompactFingerprintFromSamples(
 
 export function fingerprintCanvas(source: HTMLCanvasElement): CompactVisualFingerprint {
   const artwork = cropRegion(source, CARD_REGIONS.artwork, 720);
+  const name = cropRegion(source, CARD_REGIONS.nameWide, 720);
+  const footer = cropRegion(source, CARD_REGIONS.footer, 900);
   return createCompactFingerprintFromSamples(
     sampleCanvas(source, FULL_WIDTH, FULL_HEIGHT),
     sampleCanvas(artwork, ART_WIDTH, ART_HEIGHT),
     sampleCanvas(artwork, COLOUR_WIDTH, COLOUR_HEIGHT),
+    sampleCanvas(source, HASH_WIDTH, HASH_HEIGHT),
+    sampleCanvas(artwork, HASH_WIDTH, HASH_HEIGHT),
+    sampleCanvas(name, NAME_WIDTH, NAME_HEIGHT),
+    sampleCanvas(footer, FOOTER_WIDTH, FOOTER_HEIGHT),
   );
 }
 
@@ -208,18 +360,37 @@ export function decodeCompactFingerprint(fingerprint: CompactVisualFingerprint):
   const artwork = base64ToBytes(fingerprint.artwork);
   const colour = base64ToBytes(fingerprint.colour);
   if (
-    full.length !== FULL_HOG_BYTES + COARSE_LUMA_BYTES ||
-    artwork.length !== ART_HOG_BYTES + ART_LUMA_BYTES ||
+    full.length !== FULL_HOG_BYTES + COARSE_LUMA_BYTES + HASH_BYTES * 2 +
+      NAME_LUMA_BYTES + FOOTER_LUMA_BYTES ||
+    artwork.length !== ART_HOG_BYTES + ART_LUMA_BYTES + HASH_BYTES * 2 ||
     colour.length !== COLOUR_BYTES
   ) {
     throw new Error("Visual fingerprint dimensions are invalid.");
   }
+  let fullOffset = 0;
+  const fullHog = full.slice(fullOffset, fullOffset += FULL_HOG_BYTES);
+  const coarseLuma = full.slice(fullOffset, fullOffset += COARSE_LUMA_BYTES);
+  const fullDhash = full.slice(fullOffset, fullOffset += HASH_BYTES);
+  const fullPhash = full.slice(fullOffset, fullOffset += HASH_BYTES);
+  const nameLuma = full.slice(fullOffset, fullOffset += NAME_LUMA_BYTES);
+  const footerLuma = full.slice(fullOffset, fullOffset += FOOTER_LUMA_BYTES);
+  let artworkOffset = 0;
+  const artworkHog = artwork.slice(artworkOffset, artworkOffset += ART_HOG_BYTES);
+  const artworkLuma = artwork.slice(artworkOffset, artworkOffset += ART_LUMA_BYTES);
+  const artworkDhash = artwork.slice(artworkOffset, artworkOffset += HASH_BYTES);
+  const artworkPhash = artwork.slice(artworkOffset, artworkOffset += HASH_BYTES);
   return {
-    fullHog: full.slice(0, FULL_HOG_BYTES),
-    coarseLuma: full.slice(FULL_HOG_BYTES),
-    artworkHog: artwork.slice(0, ART_HOG_BYTES),
-    artworkLuma: artwork.slice(ART_HOG_BYTES),
+    fullHog,
+    coarseLuma,
+    artworkHog,
+    artworkLuma,
     colour,
+    fullDhash,
+    fullPhash,
+    artworkDhash,
+    artworkPhash,
+    nameLuma,
+    footerLuma,
   };
 }
 
@@ -338,6 +509,29 @@ function colourSimilarity(first: Uint8Array, second: Uint8Array): number {
   return clamp(Math.exp(-(difference / first.length) / 30));
 }
 
+function binaryHashSimilarity(first: Uint8Array, second: Uint8Array): number {
+  if (first.length !== second.length || !first.length) return 0;
+  let differentBits = 0;
+  for (let index = 0; index < first.length; index += 1) {
+    let value = first[index] ^ second[index];
+    while (value) {
+      value &= value - 1;
+      differentBits += 1;
+    }
+  }
+  return clamp(1 - differentBits / (first.length * 8));
+}
+
+function combinedHashSimilarity(
+  firstDhash: Uint8Array,
+  firstPhash: Uint8Array,
+  secondDhash: Uint8Array,
+  secondPhash: Uint8Array,
+): number {
+  return binaryHashSimilarity(firstPhash, secondPhash) * 0.68 +
+    binaryHashSimilarity(firstDhash, secondDhash) * 0.32;
+}
+
 export function compareCompactCoarse(
   first: CompactVisualDecoded,
   second: CompactVisualDecoded,
@@ -352,7 +546,22 @@ export function compareCompactCoarse(
   const artwork = cosine(first.artworkHog, second.artworkHog);
   const full = cosine(first.fullHog, second.fullHog);
   const colour = colourSimilarity(first.colour, second.colour);
-  return clamp(structure * 0.62 + artwork * 0.25 + full * 0.05 + colour * 0.08);
+  const artworkHash = combinedHashSimilarity(
+    first.artworkDhash,
+    first.artworkPhash,
+    second.artworkDhash,
+    second.artworkPhash,
+  );
+  const fullHash = combinedHashSimilarity(
+    first.fullDhash,
+    first.fullPhash,
+    second.fullDhash,
+    second.fullPhash,
+  );
+  return clamp(
+    structure * 0.38 + artwork * 0.17 + full * 0.05 + colour * 0.05 +
+    artworkHash * 0.25 + fullHash * 0.10,
+  );
 }
 
 export function compareCompactDecoded(
@@ -361,16 +570,45 @@ export function compareCompactDecoded(
 ): CompactVisualComparison {
   const artwork = shiftedCorrelation(first.artworkLuma, second.artworkLuma, ART_WIDTH, ART_HEIGHT, 3);
   const edge = edgeSimilarity(first.artworkLuma, second.artworkLuma);
-  const fullCard = discriminativeHogSimilarity(first.fullHog, second.fullHog);
+  const fullHog = discriminativeHogSimilarity(first.fullHog, second.fullHog);
   const artworkHog = discriminativeHogSimilarity(first.artworkHog, second.artworkHog);
-  const hash = artworkHog * 0.78 + fullCard * 0.22;
+  const artworkHash = combinedHashSimilarity(
+    first.artworkDhash,
+    first.artworkPhash,
+    second.artworkDhash,
+    second.artworkPhash,
+  );
+  const fullHash = combinedHashSimilarity(
+    first.fullDhash,
+    first.fullPhash,
+    second.fullDhash,
+    second.fullPhash,
+  );
+  const hash = artworkHash * 0.68 + fullHash * 0.22 + artworkHog * 0.10;
+  const fullCard = fullHog * 0.58 + fullHash * 0.42;
+  const name = shiftedCorrelation(first.nameLuma, second.nameLuma, NAME_WIDTH, NAME_HEIGHT, 1);
+  const footer = shiftedCorrelation(
+    first.footerLuma,
+    second.footerLuma,
+    FOOTER_WIDTH,
+    FOOTER_HEIGHT,
+    1,
+  );
+  // Footer structure carries collector number, set symbol and printing marks;
+  // the title band separates language/name twins that share identical art.
+  const details = footer * 0.68 + name * 0.32;
   const colour = colourSimilarity(first.colour, second.colour);
   return {
-    combined: clamp(artwork * 0.52 + edge * 0.23 + hash * 0.17 + colour * 0.08),
+    combined: clamp(
+      artwork * 0.36 + edge * 0.16 + hash * 0.14 + fullCard * 0.10 +
+      details * 0.18 + colour * 0.06,
+    ),
     artwork,
     fullCard,
     colour,
     edge,
+    hash,
+    details,
   };
 }
 
@@ -378,4 +616,7 @@ export const COMPACT_SAMPLE_DIMENSIONS = {
   full: { width: FULL_WIDTH, height: FULL_HEIGHT },
   artwork: { width: ART_WIDTH, height: ART_HEIGHT },
   colour: { width: COLOUR_WIDTH, height: COLOUR_HEIGHT },
+  hash: { width: HASH_WIDTH, height: HASH_HEIGHT },
+  name: { width: NAME_WIDTH, height: NAME_HEIGHT },
+  footer: { width: FOOTER_WIDTH, height: FOOTER_HEIGHT },
 } as const;

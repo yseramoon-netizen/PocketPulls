@@ -161,6 +161,7 @@ export function scoreCandidates(
       visualConfidence: null,
       visualAgreement: null,
       visualFrameCount: 0,
+      visualSupportingFrames: 0,
       visualBreakdown: null,
       reasons,
     };
@@ -187,10 +188,16 @@ export function scoreImageFirstMatches(
     // visually correct card below an OCR hallucination. Visual retrieval owns
     // identity; text only breaks close visual ties.
     const supportBonus = hasTextEvidence ? Math.max(0, support - 0.60) * 0.12 : 0;
-    let rawScore = clamp(visual + supportBonus);
+    const exactPrintBonus = text?.exactCollector && text.exactSet
+      ? 0.07
+      : text?.exactCollector
+        ? 0.035
+        : 0;
+    let rawScore = clamp(visual + supportBonus + exactPrintBonus);
     if (visual >= 0.92 && match.agreement >= 0.94) rawScore = Math.max(rawScore, 0.94);
-    const visualSignals = visual >= 0.58 ? 1 : 0;
-    const agreementSignal = visual >= 0.58 && match.frameCount >= 2 && match.agreement >= 0.90 ? 1 : 0;
+    const visualSignals = visual >= 0.62 && match.breakdown.artwork >= 0.52 ? 1 : 0;
+    const agreementSignal = visual >= 0.62 && match.supportingFrames >= 2 &&
+      match.agreement >= 0.88 ? 1 : 0;
     const breakdown: VisualBreakdown = {
       artwork: match.breakdown.artwork,
       fullCard: match.breakdown.fullCard,
@@ -198,6 +205,8 @@ export function scoreImageFirstMatches(
       structure: match.breakdown.artwork,
       edge: match.breakdown.edge,
       colour: match.breakdown.colour,
+      hash: match.breakdown.hash,
+      details: match.breakdown.details,
     };
     return {
       ...(text || {
@@ -211,6 +220,7 @@ export function scoreImageFirstMatches(
         visualConfidence: null,
         visualAgreement: null,
         visualFrameCount: 0,
+        visualSupportingFrames: 0,
         visualBreakdown: null,
         reasons: [],
       }),
@@ -221,10 +231,13 @@ export function scoreImageFirstMatches(
       visualConfidence: Math.round(visual * 100),
       visualAgreement: match.agreement,
       visualFrameCount: match.frameCount,
+      visualSupportingFrames: match.supportingFrames,
       visualBreakdown: breakdown,
       reasons: [
-        `Discriminative image match ${Math.round(visual * 100)}%`,
-        ...(match.frameCount >= 2 && match.agreement >= 0.90 ? ["Artwork agreed across captured frames"] : []),
+        `Multi-algorithm image match ${Math.round(visual * 100)}%`,
+        ...(match.supportingFrames >= 2 && match.agreement >= 0.88 ? ["Image match agreed across captured frames"] : []),
+        ...(match.breakdown.hash >= 0.72 ? ["Perceptual hashes matched"] : []),
+        ...(match.breakdown.details >= 0.55 ? ["Title and footer printing matched"] : []),
         ...(text?.reasons || []),
       ],
     };
@@ -261,6 +274,8 @@ export function applyVisualEvidence(
     structure: artwork.structure,
     edge: artwork.edge,
     colour: artwork.colour,
+    hash: artwork.dhash,
+    details: symbol.structure,
   };
   return {
     ...candidate,
@@ -271,6 +286,7 @@ export function applyVisualEvidence(
     visualConfidence: Math.round(visual * 100),
     visualAgreement: candidate.visualAgreement,
     visualFrameCount: candidate.visualFrameCount,
+    visualSupportingFrames: candidate.visualSupportingFrames,
     visualBreakdown: breakdown,
     reasons: [
       ...candidate.reasons,
@@ -286,8 +302,12 @@ export function calibrateCandidates(candidates: ScannerCandidate[]): ScannerCand
     const next = sorted[index + 1];
     const margin = next ? candidate.rawScore - next.rawScore : 0.2;
     let confidence = candidate.confidence;
-    const stableVisual = (candidate.visualConfidence || 0) >= 58 &&
-      candidate.visualFrameCount >= 2 && (candidate.visualAgreement || 0) >= 0.90;
+    const breakdown = candidate.visualBreakdown;
+    const stableVisual = (candidate.visualConfidence || 0) >= 66 &&
+      candidate.visualFrameCount >= 2 && candidate.visualSupportingFrames >= 2 &&
+      (candidate.visualAgreement || 0) >= 0.88 &&
+      (breakdown?.artwork || 0) >= 0.52 &&
+      ((breakdown?.details || 0) >= 0.44 || candidate.exactCollector);
     if (stableVisual && margin >= 0.08) confidence = Math.max(confidence, 95);
     if (stableVisual && (candidate.visualConfidence || 0) >= 72 && margin >= 0.06) {
       confidence = Math.max(confidence, 97);
