@@ -3,6 +3,7 @@
 
 import {
   type ChangeEvent,
+  type ReactNode,
   useCallback,
   useEffect,
   useMemo,
@@ -33,7 +34,6 @@ import type {
   ScannerDebugSnapshot,
   ScannerIdentification,
   ScannerMachinePhase,
-  ScannerMode,
   ScannerPokemonCard,
   TrackedFrame,
 } from "@/lib/scanner/types";
@@ -52,6 +52,8 @@ type CardScannerProps = {
   onSelect: (card: ScannerPokemonCard) => void;
   onAutoAdd?: (card: ScannerPokemonCard) => Promise<ScannerAutoAddResult>;
   autoIntakeLabel?: string;
+  intakeControls?: ReactNode;
+  onClose?: () => void;
 };
 
 type QueuedCapture = {
@@ -82,6 +84,10 @@ type VisualIndexStatus = {
   done?: boolean;
   generated?: number;
   failed?: number;
+};
+
+type ScreenWakeLock = {
+  release: () => Promise<void>;
 };
 
 const VERSION = "52.0-visual-consensus";
@@ -280,11 +286,14 @@ export default function CardScanner({
   onSelect,
   onAutoAdd,
   autoIntakeLabel,
+  intakeControls,
+  onClose,
 }: CardScannerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
   const guideRef = useRef<HTMLDivElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const wakeLockRef = useRef<ScreenWakeLock | null>(null);
   const identifierRef = useRef<CardIdentifier | null>(null);
   const queueRef = useRef<QueuedCapture[]>([]);
   const processingRef = useRef(false);
@@ -306,7 +315,6 @@ export default function CardScanner({
 
   const [cameraOpen, setCameraOpen] = useState(false);
   const [phase, setPhaseState] = useState<ScannerMachinePhase>("off");
-  const [mode, setMode] = useState<ScannerMode>(onAutoAdd ? "automatic" : "confirm");
   const [diagnostics, setDiagnostics] = useState(false);
   const [status, setStatus] = useState("Ready to scan");
   const [progress, setProgress] = useState(0);
@@ -417,7 +425,7 @@ export default function CardScanner({
         : `Image-first recognition needs its visual index (${result.debug.visualIndex.indexedCount.toLocaleString()} / ${result.debug.visualIndex.totalCount.toLocaleString()}). Enable Diagnostics, run Build / resume visual index, and let it finish before scanning.`);
       return;
     }
-    if (best && mode === "automatic" && onAutoAdd && shouldAutomaticallyAccept(result.candidates)) {
+    if (best && onAutoAdd && shouldAutomaticallyAccept(result.candidates)) {
       try {
         if (capture.session !== sessionRef.current) return;
         const added = await onAutoAdd(best.card);
@@ -427,8 +435,9 @@ export default function CardScanner({
           card: best.card,
           message: added.message,
           confidence: best.confidence,
-        }, ...items].slice(0, 8));
+        }, ...items].slice(0, 1));
         setAddedCount((count) => count + 1);
+        navigator.vibrate?.(35);
         setStatus(`${best.card.name} added automatically`);
         setError(null);
         return;
@@ -442,7 +451,7 @@ export default function CardScanner({
       identification: result,
     }, ...items].slice(0, 10));
     setStatus(best ? `${best.card.name} needs confirmation` : "No safe match — try another angle");
-  }, [mode, onAutoAdd]);
+  }, [onAutoAdd]);
 
   const drainQueue = useCallback(async () => {
     if (processingRef.current) return;
@@ -495,6 +504,9 @@ export default function CardScanner({
     queueRef.current = [];
     streamRef.current?.getTracks().forEach((track) => track.stop());
     streamRef.current = null;
+    const wakeLock = wakeLockRef.current;
+    wakeLockRef.current = null;
+    void wakeLock?.release().catch(() => undefined);
     if (videoRef.current) videoRef.current.srcObject = null;
     baselineFramesRef.current = [];
     baselineRef.current = null;
@@ -529,6 +541,12 @@ export default function CardScanner({
       if (!video) throw new Error("Camera preview is unavailable.");
       video.srcObject = stream;
       await video.play();
+      const wakeLockApi = (navigator as Navigator & {
+        wakeLock?: { request: (type: "screen") => Promise<ScreenWakeLock> };
+      }).wakeLock;
+      if (wakeLockApi) {
+        wakeLockRef.current = await wakeLockApi.request("screen").catch(() => null);
+      }
       const track = stream.getVideoTracks()[0];
       const capabilities = track.getCapabilities?.() as MediaTrackCapabilities & {
         focusMode?: string[];
@@ -701,8 +719,9 @@ export default function CardScanner({
           card: candidate.card,
           message: added.message,
           confidence: candidate.confidence,
-        }, ...items].slice(0, 8));
+        }, ...items].slice(0, 1));
         setAddedCount((count) => count + 1);
+        navigator.vibrate?.(35);
       } else {
         onSelect(candidate.card);
       }
@@ -736,6 +755,9 @@ export default function CardScanner({
     queueRef.current = [];
     streamRef.current?.getTracks().forEach((track) => track.stop());
     streamRef.current = null;
+    const wakeLock = wakeLockRef.current;
+    wakeLockRef.current = null;
+    void wakeLock?.release().catch(() => undefined);
     if (videoRef.current) videoRef.current.srcObject = null;
     void identifierRef.current?.dispose();
   }, []);
@@ -760,46 +782,43 @@ export default function CardScanner({
           : "bg-slate-500";
 
   return (
-    <section className="relative border-y border-cyan-300/20 bg-[#06101c] text-white shadow-2xl shadow-cyan-950/30 sm:rounded-[26px] sm:border">
-      <header className="relative z-30 flex min-h-16 items-center gap-2 border-b border-white/10 bg-[#071522]/95 px-3 py-2.5 backdrop-blur-xl sm:gap-3 sm:px-4">
-        <div className="flex min-w-0 flex-1 items-center gap-2.5">
+    <section className="relative min-h-[100dvh] w-full bg-[#06101c] text-white">
+      <header
+        className="relative z-30 flex min-h-16 items-center gap-2 border-b border-white/10 bg-[#071522]/95 px-2.5 pb-2.5 backdrop-blur-xl"
+        style={{ paddingTop: "max(0.625rem, env(safe-area-inset-top))" }}
+      >
+        {onClose ? (
+          <button
+            type="button"
+            onClick={() => {
+              stopCamera();
+              onClose();
+            }}
+            className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-white/10 bg-white/5 text-xl font-black text-white active:bg-white/15"
+            aria-label="Close scanner"
+          >
+            ×
+          </button>
+        ) : null}
+
+        <div className="flex min-w-0 flex-1 items-center gap-2.5 px-1">
           <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${liveTone}`} aria-hidden="true" />
           <div className="min-w-0">
-            <div className="truncate text-sm font-black sm:text-base">Automatic intake</div>
-            <div className="truncate text-[10px] font-bold text-slate-400 sm:text-xs">
+            <div className="truncate text-sm font-black">Automatic intake</div>
+            <div className="truncate text-[10px] font-bold text-slate-400">
               {autoIntakeLabel || "Main inventory"}
             </div>
           </div>
         </div>
 
-        <div className="grid shrink-0 grid-cols-3 overflow-hidden rounded-xl border border-white/10 bg-black/25 text-center">
-          <div className="min-w-10 px-2 py-1.5 sm:min-w-14">
-            <div className="text-sm font-black text-emerald-300">{addedCount}</div>
-            <div className="text-[8px] font-black uppercase tracking-wide text-slate-500">Added</div>
-          </div>
-          <div className="min-w-10 border-x border-white/10 px-2 py-1.5 sm:min-w-14">
-            <div className="text-sm font-black text-cyan-200">{pendingCount}</div>
-            <div className="text-[8px] font-black uppercase tracking-wide text-slate-500">Queue</div>
-          </div>
-          <div className="min-w-10 px-2 py-1.5 sm:min-w-14">
-            <div className={`text-sm font-black ${review.length ? "text-amber-300" : "text-slate-300"}`}>{review.length}</div>
-            <div className="text-[8px] font-black uppercase tracking-wide text-slate-500">Review</div>
-          </div>
-        </div>
-
         <details className="group relative shrink-0">
-          <summary className="grid h-10 w-10 cursor-pointer list-none place-items-center rounded-xl border border-white/10 bg-white/5 text-lg font-black text-slate-200 transition hover:bg-white/10 [&::-webkit-details-marker]:hidden" aria-label="Scanner controls">
+          <summary className="grid h-11 w-11 cursor-pointer list-none place-items-center rounded-xl border border-white/10 bg-white/5 text-lg font-black text-slate-200 active:bg-white/15 [&::-webkit-details-marker]:hidden" aria-label="Scanner controls">
             •••
           </summary>
-          <div className="absolute right-0 top-12 z-50 w-[min(88vw,320px)] space-y-3 rounded-2xl border border-white/15 bg-[#071522] p-3 shadow-2xl">
-            {onAutoAdd ? (
-              <div>
-                <div className="mb-1.5 text-[10px] font-black uppercase tracking-wider text-slate-500">Intake mode</div>
-                <div className="grid grid-cols-2 rounded-xl border border-white/10 bg-black/25 p-1">
-                  {(["automatic", "confirm"] as ScannerMode[]).map((value) => (
-                    <button key={value} type="button" onClick={() => setMode(value)} className={`rounded-lg px-3 py-2 text-xs font-black capitalize transition ${mode === value ? "bg-cyan-300 text-slate-950" : "text-slate-300 hover:bg-white/5"}`}>{value}</button>
-                  ))}
-                </div>
+          <div className="absolute right-0 top-12 z-50 max-h-[calc(100dvh-5rem)] w-[min(92vw,340px)] space-y-3 overflow-y-auto rounded-2xl border border-white/15 bg-[#071522] p-3 shadow-2xl">
+            {intakeControls ? (
+              <div className="rounded-xl border border-white/10 bg-black/20 p-3">
+                {intakeControls}
               </div>
             ) : null}
             <div className="grid grid-cols-2 gap-2">
@@ -814,9 +833,13 @@ export default function CardScanner({
         </details>
       </header>
 
-      <div className="grid min-w-0 lg:grid-cols-[minmax(0,1fr)_320px]">
+      <div className="min-w-0">
         <div className="min-w-0">
-          <div ref={viewportRef} className="relative h-[calc(100dvh-13.5rem)] min-h-[360px] max-h-[760px] overflow-hidden bg-black shadow-inner lg:aspect-video lg:h-auto lg:min-h-0 lg:max-h-none">
+          <div
+            ref={viewportRef}
+            className="relative min-h-[330px] touch-pan-y overflow-hidden bg-black shadow-inner"
+            style={{ height: "calc(100dvh - 9.25rem - env(safe-area-inset-top) - env(safe-area-inset-bottom))" }}
+          >
             <video ref={videoRef} muted playsInline className={`h-full w-full object-cover transition-opacity ${cameraOpen ? "opacity-100" : "opacity-0"}`} />
             {!cameraOpen ? (
               <div className="absolute inset-0 grid place-items-center bg-[radial-gradient(circle_at_50%_45%,rgba(34,211,238,.13),transparent_45%)] p-6 text-center">
@@ -829,7 +852,7 @@ export default function CardScanner({
             ) : null}
 
             {cameraOpen ? (
-              <div ref={guideRef} className={`pointer-events-none absolute left-1/2 top-1/2 aspect-[63/88] h-[82%] max-h-[620px] max-w-[88%] -translate-x-1/2 -translate-y-1/2 rounded-[5%] border-2 transition ${phase === "tracking" || phase === "card-entering" ? "border-amber-300 shadow-[0_0_35px_rgba(253,224,71,.35)]" : phase === "waiting-removal" || phase === "queued" ? "border-emerald-300 shadow-[0_0_35px_rgba(110,231,183,.3)]" : "border-cyan-300/75 shadow-[0_0_30px_rgba(34,211,238,.2)]"}`}>
+              <div ref={guideRef} className={`pointer-events-none absolute left-1/2 top-1/2 aspect-[63/88] w-[86vw] max-w-[420px] -translate-x-1/2 -translate-y-1/2 rounded-[5%] border-2 transition ${phase === "tracking" || phase === "card-entering" ? "border-amber-300 shadow-[0_0_35px_rgba(253,224,71,.35)]" : phase === "waiting-removal" || phase === "queued" ? "border-emerald-300 shadow-[0_0_35px_rgba(110,231,183,.3)]" : "border-cyan-300/75 shadow-[0_0_30px_rgba(34,211,238,.2)]"}`}>
                 <span className="absolute -left-0.5 -top-0.5 h-8 w-8 rounded-tl-xl border-l-4 border-t-4 border-white" />
                 <span className="absolute -right-0.5 -top-0.5 h-8 w-8 rounded-tr-xl border-r-4 border-t-4 border-white" />
                 <span className="absolute -bottom-0.5 -left-0.5 h-8 w-8 rounded-bl-xl border-b-4 border-l-4 border-white" />
@@ -838,20 +861,25 @@ export default function CardScanner({
             ) : null}
 
             {cameraOpen ? (
-              <div className="absolute left-3 top-3 max-w-[75%] rounded-full border border-white/10 bg-black/75 px-3 py-2 text-xs font-black backdrop-blur" aria-live="polite">
+              <div className="absolute left-2.5 top-2.5 max-w-[58%] truncate rounded-full border border-white/10 bg-black/75 px-3 py-2 text-[11px] font-black backdrop-blur" aria-live="polite">
                 {headline}
               </div>
             ) : null}
 
-            {pendingCount ? (
-              <div className="absolute right-3 top-3 rounded-full border border-cyan-300/30 bg-cyan-950/85 px-3 py-2 text-xs font-black text-cyan-100 backdrop-blur">
-                {pendingCount} processing
+            {cameraOpen ? (
+              <div className="absolute right-2.5 top-2.5 flex items-center gap-2 rounded-full border border-white/10 bg-black/75 px-3 py-2 text-[10px] font-black backdrop-blur">
+                <span className="text-emerald-300">✓ {addedCount}</span>
+                {pendingCount ? <span className="text-cyan-200">◌ {pendingCount}</span> : null}
+                {review.length ? <span className="text-amber-300">! {review.length}</span> : null}
               </div>
             ) : null}
 
           </div>
 
-          <div className="border-t border-white/10 bg-[#071522] px-3 py-2.5 sm:px-4">
+          <div
+            className="border-t border-white/10 bg-[#071522] px-3 pt-2.5"
+            style={{ paddingBottom: "max(0.625rem, env(safe-area-inset-bottom))" }}
+          >
             <div className="flex items-center gap-3">
               {latestAdd ? (
                 <div className="flex min-w-0 flex-1 items-center gap-2.5" aria-live="polite">
@@ -860,7 +888,7 @@ export default function CardScanner({
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-sm font-black text-white">{latestAdd.card.name}</div>
-                    <div className="truncate text-[10px] text-slate-400 sm:text-xs">{latestAdd.card.set_name || latestAdd.card.set_id || "Unknown set"} · {collectorLabel(latestAdd.card)}</div>
+                    <div className="truncate text-[10px] text-slate-400">{latestAdd.card.set_name || latestAdd.card.set_id || "Unknown set"} · {collectorLabel(latestAdd.card)}</div>
                   </div>
                   <div className="shrink-0 text-right">
                     <div className="text-[10px] font-black uppercase tracking-wide text-emerald-300">Added</div>
@@ -870,7 +898,7 @@ export default function CardScanner({
               ) : (
                 <div className="min-w-0 flex-1" aria-live="polite">
                   <div className="truncate text-sm font-black text-white">{status}</div>
-                  <div className="truncate text-[10px] font-bold text-slate-500 sm:text-xs">Full Pokémon card only · safe matches log automatically</div>
+                  <div className="truncate text-[10px] font-bold text-slate-500">Full Pokémon card only · safe matches log automatically</div>
                 </div>
               )}
               {cameraOpen ? (
@@ -885,44 +913,6 @@ export default function CardScanner({
           </div>
         </div>
 
-        <aside className="hidden min-h-0 border-l border-white/10 bg-black/15 lg:flex lg:flex-col">
-          <div className="border-b border-white/10 p-4">
-            <div className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Latest result</div>
-            {latestAdd ? (
-              <div className="mt-3 flex gap-3">
-                <div className="aspect-[63/88] w-16 shrink-0 overflow-hidden rounded-lg bg-white/5">
-                  {latestImage ? <img src={latestImage} alt="" className="h-full w-full object-cover" /> : null}
-                </div>
-                <div className="min-w-0 self-center">
-                  <div className="truncate font-black">{latestAdd.card.name}</div>
-                  <div className="mt-1 text-xs text-slate-400">{latestAdd.card.set_name || latestAdd.card.set_id || "Unknown set"}</div>
-                  <div className="mt-1 text-xs font-bold text-cyan-200">{collectorLabel(latestAdd.card)} · {latestAdd.confidence}%</div>
-                  <div className="mt-2 line-clamp-2 text-[10px] text-emerald-200/70">{latestAdd.message}</div>
-                </div>
-              </div>
-            ) : (
-              <div className="mt-3 rounded-xl border border-dashed border-white/10 p-4 text-xs leading-relaxed text-slate-500">Pass a complete card through the guide. Accepted matches appear here without interrupting the camera.</div>
-            )}
-          </div>
-          <div className="min-h-0 flex-1 overflow-y-auto p-4">
-            <div className="flex items-center justify-between">
-              <div className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Session history</div>
-              <div className="text-[10px] font-bold text-slate-600">Newest first</div>
-            </div>
-            <div className="mt-3 space-y-2">
-              {recentAdds.slice(1).map((item) => (
-                <div key={item.id} className="flex items-center gap-2 rounded-xl border border-white/8 bg-white/[0.025] p-2.5">
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate text-xs font-black">{item.card.name}</div>
-                    <div className="truncate text-[10px] text-slate-500">{item.card.set_name || item.card.set_id || "Unknown set"} · {collectorLabel(item.card)}</div>
-                  </div>
-                  <div className="text-[10px] font-black text-emerald-300">{item.confidence}%</div>
-                </div>
-              ))}
-              {recentAdds.length <= 1 ? <div className="py-5 text-center text-xs text-slate-600">No earlier cards this session</div> : null}
-            </div>
-          </div>
-        </aside>
       </div>
 
       {diagnostics ? (
