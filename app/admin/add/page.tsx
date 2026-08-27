@@ -2520,12 +2520,11 @@ export default function AddCardsPage() {
             inset-0
             z-[100]
             overflow-y-auto
-            bg-[#020617]/90
-            px-3
-            py-5
-            backdrop-blur-2xl
-            md:px-8
-            md:py-8
+            bg-[#020617]
+            md:bg-[#020617]/92
+            md:px-5
+            md:py-5
+            md:backdrop-blur-2xl
           "
           role="dialog"
           aria-modal="true"
@@ -2539,43 +2538,52 @@ export default function AddCardsPage() {
           >
             <div
               className="
-                mb-4
+                sticky
+                top-0
+                z-40
                 flex
                 items-center
                 justify-between
                 gap-4
-                rounded-[1.75rem]
-                border
-                border-white/15
-                bg-[#03150f]/90
-                px-5
-                py-4
+                border-b
+                border-white/10
+                bg-[#03150f]/95
+                px-3
+                py-2.5
                 shadow-2xl
                 backdrop-blur-3xl
+                md:relative
+                md:mb-3
+                md:rounded-2xl
+                md:border
+                md:border-white/15
+                md:px-4
               "
             >
-              <div>
+              <div className="min-w-0">
                 <p
                   className="
-                    text-xs
+                    text-[9px]
                     font-black
                     uppercase
                     tracking-[0.18em]
                     text-cyan-200/55
                   "
                 >
-                  Optional intake tool
+                  Add inventory
                 </p>
 
                 <h2
                   className="
                     mt-1
-                    text-xl
+                    truncate
+                    text-base
                     font-black
                     text-white
+                    sm:text-lg
                   "
                 >
-                  Scan a card
+                  High-speed scanner
                 </h2>
               </div>
 
@@ -2586,26 +2594,27 @@ export default function AddCardsPage() {
                 }
                 className="
                   flex
-                  h-12
+                  h-10
                   items-center
                   justify-center
                   gap-2
-                  rounded-2xl
+                  rounded-xl
                   border
                   border-white/15
                   bg-white/[0.07]
-                  px-5
+                  px-3
                   font-black
                   text-white
                   transition
                   hover:bg-white/10
                 "
+                aria-label="Close scanner"
               >
-                <span className="text-xl">
+                <span className="text-lg">
                   ×
                 </span>
 
-                Close
+                <span className="hidden sm:inline">Done</span>
               </button>
             </div>
 

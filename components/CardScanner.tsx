@@ -71,6 +71,7 @@ type RecentAdd = {
   id: string;
   card: ScannerPokemonCard;
   message: string;
+  confidence: number;
 };
 
 type VisualIndexStatus = {
@@ -313,6 +314,7 @@ export default function CardScanner({
   const [pendingCount, setPendingCount] = useState(0);
   const [review, setReview] = useState<ReviewItem[]>([]);
   const [recentAdds, setRecentAdds] = useState<RecentAdd[]>([]);
+  const [addedCount, setAddedCount] = useState(0);
   const [activeDebug, setActiveDebug] = useState<ScannerDebugSnapshot | null>(null);
   const [choosing, setChoosing] = useState<string | null>(null);
   const [visualIndexStatus, setVisualIndexStatus] = useState<VisualIndexStatus | null>(null);
@@ -420,7 +422,13 @@ export default function CardScanner({
         if (capture.session !== sessionRef.current) return;
         const added = await onAutoAdd(best.card);
         if (capture.session !== sessionRef.current) return;
-        setRecentAdds((items) => [{ id: capture.id, card: best.card, message: added.message }, ...items].slice(0, 8));
+        setRecentAdds((items) => [{
+          id: capture.id,
+          card: best.card,
+          message: added.message,
+          confidence: best.confidence,
+        }, ...items].slice(0, 8));
+        setAddedCount((count) => count + 1);
         setStatus(`${best.card.name} added automatically`);
         setError(null);
         return;
@@ -688,7 +696,13 @@ export default function CardScanner({
       recordBenchmarkDecision(item.identification, candidate.card.id);
       if (onAutoAdd) {
         const added = await onAutoAdd(candidate.card);
-        setRecentAdds((items) => [{ id: item.id, card: candidate.card, message: added.message }, ...items].slice(0, 8));
+        setRecentAdds((items) => [{
+          id: item.id,
+          card: candidate.card,
+          message: added.message,
+          confidence: candidate.confidence,
+        }, ...items].slice(0, 8));
+        setAddedCount((count) => count + 1);
       } else {
         onSelect(candidate.card);
       }
@@ -709,6 +723,7 @@ export default function CardScanner({
       setPendingCount(0);
       setReview([]);
       setRecentAdds([]);
+      setAddedCount(0);
       setActiveDebug(null);
       setError(null);
       if (autoStart && !disabledRef.current) void startCamera();
@@ -730,124 +745,212 @@ export default function CardScanner({
     return phaseCopy(phase);
   }, [pendingCount, phase]);
 
+  const latestAdd = recentAdds[0] ?? null;
+  const latestImage = latestAdd
+    ? latestAdd.card.image_url || latestAdd.card.image_url_large
+    : null;
+  const liveTone = error
+    ? "bg-rose-400 shadow-[0_0_12px_rgba(251,113,133,.7)]"
+    : phase === "waiting-removal" || phase === "queued"
+      ? "bg-emerald-300 shadow-[0_0_12px_rgba(110,231,183,.7)]"
+      : phase === "tracking" || phase === "card-entering"
+        ? "bg-amber-300 shadow-[0_0_12px_rgba(253,224,71,.7)]"
+        : cameraOpen
+          ? "bg-cyan-300 shadow-[0_0_12px_rgba(103,232,249,.7)]"
+          : "bg-slate-500";
+
   return (
-    <section className="overflow-hidden rounded-[28px] border border-cyan-300/20 bg-[#06101c] text-white shadow-2xl shadow-cyan-950/30">
-      <div className="border-b border-white/10 bg-gradient-to-r from-cyan-400/10 via-blue-500/5 to-fuchsia-500/10 p-5 sm:p-6">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <div className="text-xs font-black uppercase tracking-[0.24em] text-cyan-300">Ancient Pulls Intake</div>
-            <h2 className="mt-1 text-2xl font-black tracking-tight sm:text-3xl">Image-first card scanner</h2>
-            <p className="mt-2 max-w-2xl text-sm text-slate-300">Artwork and full-card appearance search the entire indexed catalogue first. OCR can confirm a result, but it can no longer hide the correct card from visual matching.</p>
-          </div>
-          <div className="rounded-xl border border-white/10 bg-black/25 px-3 py-2 text-right">
-            <div className="font-mono text-[10px] uppercase tracking-wider text-slate-500">Engine</div>
-            <div className="font-mono text-xs font-bold text-cyan-200">v{VERSION}</div>
-          </div>
-        </div>
-        <div className="mt-5 flex flex-wrap gap-2">
-          {onAutoAdd ? (
-            <div className="flex rounded-xl border border-white/10 bg-black/25 p-1">
-              {(["automatic", "confirm"] as ScannerMode[]).map((value) => (
-                <button key={value} type="button" onClick={() => setMode(value)} className={`rounded-lg px-3 py-2 text-xs font-black capitalize transition ${mode === value ? "bg-cyan-300 text-slate-950" : "text-slate-300 hover:bg-white/5"}`}>{value}</button>
-              ))}
+    <section className="relative border-y border-cyan-300/20 bg-[#06101c] text-white shadow-2xl shadow-cyan-950/30 sm:rounded-[26px] sm:border">
+      <header className="relative z-30 flex min-h-16 items-center gap-2 border-b border-white/10 bg-[#071522]/95 px-3 py-2.5 backdrop-blur-xl sm:gap-3 sm:px-4">
+        <div className="flex min-w-0 flex-1 items-center gap-2.5">
+          <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${liveTone}`} aria-hidden="true" />
+          <div className="min-w-0">
+            <div className="truncate text-sm font-black sm:text-base">Automatic intake</div>
+            <div className="truncate text-[10px] font-bold text-slate-400 sm:text-xs">
+              {autoIntakeLabel || "Main inventory"}
             </div>
-          ) : null}
-          <button type="button" onClick={toggleDiagnostics} className={`rounded-xl border px-3 py-2 text-xs font-black transition ${diagnostics ? "border-fuchsia-300 bg-fuchsia-300 text-slate-950" : "border-white/10 bg-black/25 text-slate-300 hover:border-fuchsia-300/50"}`}>Diagnostics {diagnostics ? "on" : "off"}</button>
-          {diagnostics ? <button type="button" onClick={downloadBenchmarkRecords} className="rounded-xl border border-fuchsia-300/30 bg-fuchsia-300/5 px-3 py-2 text-xs font-black text-fuchsia-100 hover:bg-fuchsia-300/10">Export benchmark data</button> : null}
-          {diagnostics && activeDebug ? <button type="button" onClick={() => downloadDiagnosticSnapshot(activeDebug)} className="rounded-xl border border-cyan-300/30 bg-cyan-300/5 px-3 py-2 text-xs font-black text-cyan-100 hover:bg-cyan-300/10">Export current diagnostic JSON</button> : null}
-          {diagnostics ? <button type="button" onClick={clearBenchmarkRecords} className="rounded-xl border border-white/10 bg-black/25 px-3 py-2 text-xs font-bold text-slate-400 hover:text-white">Clear benchmark</button> : null}
-          {autoIntakeLabel ? <div className="rounded-xl border border-white/10 bg-black/25 px-3 py-2 text-xs text-slate-300">Destination: <span className="font-bold text-white">{autoIntakeLabel}</span></div> : null}
+          </div>
         </div>
-        {diagnostics ? (
-          <div className="mt-3 flex flex-wrap items-center gap-3 rounded-2xl border border-cyan-300/20 bg-cyan-300/5 p-3">
+
+        <div className="grid shrink-0 grid-cols-3 overflow-hidden rounded-xl border border-white/10 bg-black/25 text-center">
+          <div className="min-w-10 px-2 py-1.5 sm:min-w-14">
+            <div className="text-sm font-black text-emerald-300">{addedCount}</div>
+            <div className="text-[8px] font-black uppercase tracking-wide text-slate-500">Added</div>
+          </div>
+          <div className="min-w-10 border-x border-white/10 px-2 py-1.5 sm:min-w-14">
+            <div className="text-sm font-black text-cyan-200">{pendingCount}</div>
+            <div className="text-[8px] font-black uppercase tracking-wide text-slate-500">Queue</div>
+          </div>
+          <div className="min-w-10 px-2 py-1.5 sm:min-w-14">
+            <div className={`text-sm font-black ${review.length ? "text-amber-300" : "text-slate-300"}`}>{review.length}</div>
+            <div className="text-[8px] font-black uppercase tracking-wide text-slate-500">Review</div>
+          </div>
+        </div>
+
+        <details className="group relative shrink-0">
+          <summary className="grid h-10 w-10 cursor-pointer list-none place-items-center rounded-xl border border-white/10 bg-white/5 text-lg font-black text-slate-200 transition hover:bg-white/10 [&::-webkit-details-marker]:hidden" aria-label="Scanner controls">
+            •••
+          </summary>
+          <div className="absolute right-0 top-12 z-50 w-[min(88vw,320px)] space-y-3 rounded-2xl border border-white/15 bg-[#071522] p-3 shadow-2xl">
+            {onAutoAdd ? (
+              <div>
+                <div className="mb-1.5 text-[10px] font-black uppercase tracking-wider text-slate-500">Intake mode</div>
+                <div className="grid grid-cols-2 rounded-xl border border-white/10 bg-black/25 p-1">
+                  {(["automatic", "confirm"] as ScannerMode[]).map((value) => (
+                    <button key={value} type="button" onClick={() => setMode(value)} className={`rounded-lg px-3 py-2 text-xs font-black capitalize transition ${mode === value ? "bg-cyan-300 text-slate-950" : "text-slate-300 hover:bg-white/5"}`}>{value}</button>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+            <div className="grid grid-cols-2 gap-2">
+              <button type="button" onClick={captureNow} disabled={disabled || !cameraOpen} className="rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-xs font-black hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-35">Capture now</button>
+              <label className="cursor-pointer rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-center text-xs font-black hover:bg-white/10">
+                Test image<input type="file" accept="image/*" className="sr-only" onChange={uploadImage} disabled={disabled} />
+              </label>
+            </div>
+            <button type="button" onClick={toggleDiagnostics} className={`w-full rounded-xl border px-3 py-2.5 text-xs font-black transition ${diagnostics ? "border-fuchsia-300 bg-fuchsia-300 text-slate-950" : "border-white/10 bg-white/5 text-slate-300 hover:bg-white/10"}`}>Diagnostics {diagnostics ? "on" : "off"}</button>
+            <div className="text-center font-mono text-[9px] text-slate-600">Scanner v{VERSION}</div>
+          </div>
+        </details>
+      </header>
+
+      <div className="grid min-w-0 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="min-w-0">
+          <div ref={viewportRef} className="relative h-[calc(100dvh-13.5rem)] min-h-[360px] max-h-[760px] overflow-hidden bg-black shadow-inner lg:aspect-video lg:h-auto lg:min-h-0 lg:max-h-none">
+            <video ref={videoRef} muted playsInline className={`h-full w-full object-cover transition-opacity ${cameraOpen ? "opacity-100" : "opacity-0"}`} />
+            {!cameraOpen ? (
+              <div className="absolute inset-0 grid place-items-center bg-[radial-gradient(circle_at_50%_45%,rgba(34,211,238,.13),transparent_45%)] p-6 text-center">
+                <div>
+                  <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl border border-cyan-300/30 bg-cyan-300/10 text-2xl">▣</div>
+                  <div className="mt-3 text-base font-black">Camera paused</div>
+                  <button type="button" onClick={startCamera} disabled={disabled} className="mt-4 rounded-xl bg-cyan-300 px-5 py-2.5 text-sm font-black text-slate-950 hover:bg-cyan-200 disabled:opacity-50">Start camera</button>
+                </div>
+              </div>
+            ) : null}
+
+            {cameraOpen ? (
+              <div ref={guideRef} className={`pointer-events-none absolute left-1/2 top-1/2 aspect-[63/88] h-[82%] max-h-[620px] max-w-[88%] -translate-x-1/2 -translate-y-1/2 rounded-[5%] border-2 transition ${phase === "tracking" || phase === "card-entering" ? "border-amber-300 shadow-[0_0_35px_rgba(253,224,71,.35)]" : phase === "waiting-removal" || phase === "queued" ? "border-emerald-300 shadow-[0_0_35px_rgba(110,231,183,.3)]" : "border-cyan-300/75 shadow-[0_0_30px_rgba(34,211,238,.2)]"}`}>
+                <span className="absolute -left-0.5 -top-0.5 h-8 w-8 rounded-tl-xl border-l-4 border-t-4 border-white" />
+                <span className="absolute -right-0.5 -top-0.5 h-8 w-8 rounded-tr-xl border-r-4 border-t-4 border-white" />
+                <span className="absolute -bottom-0.5 -left-0.5 h-8 w-8 rounded-bl-xl border-b-4 border-l-4 border-white" />
+                <span className="absolute -bottom-0.5 -right-0.5 h-8 w-8 rounded-br-xl border-b-4 border-r-4 border-white" />
+              </div>
+            ) : null}
+
+            {cameraOpen ? (
+              <div className="absolute left-3 top-3 max-w-[75%] rounded-full border border-white/10 bg-black/75 px-3 py-2 text-xs font-black backdrop-blur" aria-live="polite">
+                {headline}
+              </div>
+            ) : null}
+
+            {pendingCount ? (
+              <div className="absolute right-3 top-3 rounded-full border border-cyan-300/30 bg-cyan-950/85 px-3 py-2 text-xs font-black text-cyan-100 backdrop-blur">
+                {pendingCount} processing
+              </div>
+            ) : null}
+
+          </div>
+
+          <div className="border-t border-white/10 bg-[#071522] px-3 py-2.5 sm:px-4">
+            <div className="flex items-center gap-3">
+              {latestAdd ? (
+                <div className="flex min-w-0 flex-1 items-center gap-2.5" aria-live="polite">
+                  <div className="h-11 w-8 shrink-0 overflow-hidden rounded bg-white/5">
+                    {latestImage ? <img src={latestImage} alt="" className="h-full w-full object-cover" /> : null}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-sm font-black text-white">{latestAdd.card.name}</div>
+                    <div className="truncate text-[10px] text-slate-400 sm:text-xs">{latestAdd.card.set_name || latestAdd.card.set_id || "Unknown set"} · {collectorLabel(latestAdd.card)}</div>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <div className="text-[10px] font-black uppercase tracking-wide text-emerald-300">Added</div>
+                    <div className="text-[10px] font-bold text-emerald-200/70">{latestAdd.confidence}%</div>
+                  </div>
+                </div>
+              ) : (
+                <div className="min-w-0 flex-1" aria-live="polite">
+                  <div className="truncate text-sm font-black text-white">{status}</div>
+                  <div className="truncate text-[10px] font-bold text-slate-500 sm:text-xs">Full Pokémon card only · safe matches log automatically</div>
+                </div>
+              )}
+              {cameraOpen ? (
+                <button type="button" onClick={stopCamera} className="shrink-0 rounded-xl border border-rose-300/25 bg-rose-400/10 px-4 py-2.5 text-sm font-black text-rose-100 hover:bg-rose-400/15">Stop</button>
+              ) : null}
+            </div>
+            {latestAdd ? <div className="mt-1 truncate text-[10px] font-bold text-slate-500" aria-live="polite">{status} · complete Pokémon cards only</div> : null}
+            <div className="mt-2 h-1 overflow-hidden rounded-full bg-white/10" role="progressbar" aria-label="Recognition progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress}>
+              <div className="h-full bg-gradient-to-r from-cyan-400 to-emerald-300 transition-[width]" style={{ width: `${progress}%` }} />
+            </div>
+            {error ? <div className="mt-2 rounded-xl border border-rose-400/35 bg-rose-400/10 px-3 py-2.5 text-xs font-bold text-rose-100">{error}</div> : null}
+          </div>
+        </div>
+
+        <aside className="hidden min-h-0 border-l border-white/10 bg-black/15 lg:flex lg:flex-col">
+          <div className="border-b border-white/10 p-4">
+            <div className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Latest result</div>
+            {latestAdd ? (
+              <div className="mt-3 flex gap-3">
+                <div className="aspect-[63/88] w-16 shrink-0 overflow-hidden rounded-lg bg-white/5">
+                  {latestImage ? <img src={latestImage} alt="" className="h-full w-full object-cover" /> : null}
+                </div>
+                <div className="min-w-0 self-center">
+                  <div className="truncate font-black">{latestAdd.card.name}</div>
+                  <div className="mt-1 text-xs text-slate-400">{latestAdd.card.set_name || latestAdd.card.set_id || "Unknown set"}</div>
+                  <div className="mt-1 text-xs font-bold text-cyan-200">{collectorLabel(latestAdd.card)} · {latestAdd.confidence}%</div>
+                  <div className="mt-2 line-clamp-2 text-[10px] text-emerald-200/70">{latestAdd.message}</div>
+                </div>
+              </div>
+            ) : (
+              <div className="mt-3 rounded-xl border border-dashed border-white/10 p-4 text-xs leading-relaxed text-slate-500">Pass a complete card through the guide. Accepted matches appear here without interrupting the camera.</div>
+            )}
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto p-4">
+            <div className="flex items-center justify-between">
+              <div className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Session history</div>
+              <div className="text-[10px] font-bold text-slate-600">Newest first</div>
+            </div>
+            <div className="mt-3 space-y-2">
+              {recentAdds.slice(1).map((item) => (
+                <div key={item.id} className="flex items-center gap-2 rounded-xl border border-white/8 bg-white/[0.025] p-2.5">
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-xs font-black">{item.card.name}</div>
+                    <div className="truncate text-[10px] text-slate-500">{item.card.set_name || item.card.set_id || "Unknown set"} · {collectorLabel(item.card)}</div>
+                  </div>
+                  <div className="text-[10px] font-black text-emerald-300">{item.confidence}%</div>
+                </div>
+              ))}
+              {recentAdds.length <= 1 ? <div className="py-5 text-center text-xs text-slate-600">No earlier cards this session</div> : null}
+            </div>
+          </div>
+        </aside>
+      </div>
+
+      {diagnostics ? (
+        <div className="border-t border-fuchsia-300/20 bg-fuchsia-950/10 p-4 sm:p-5">
+          <div className="flex flex-wrap items-center gap-2">
             <div className="min-w-[220px] flex-1">
               <div className="text-xs font-black text-cyan-100">Whole-catalogue visual index</div>
               <div className="mt-1 text-[11px] text-slate-400">
                 {visualIndexStatus
                   ? `${visualIndexStatus.indexed.toLocaleString()} of ${visualIndexStatus.total.toLocaleString()} reference images indexed`
-                  : "Load the index status, then build it once after installing the V51 migration."}
+                  : "Loading visual index status…"}
               </div>
               {visualIndexStatus?.total ? <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/10"><div className="h-full bg-cyan-300 transition-all" style={{ width: `${Math.min(100, visualIndexStatus.indexed / visualIndexStatus.total * 100)}%` }} /></div> : null}
             </div>
-            <button type="button" onClick={() => void buildVisualIndex()} className={`rounded-xl px-4 py-2 text-xs font-black ${buildingVisualIndex ? "border border-amber-300/40 bg-amber-300/10 text-amber-100" : "bg-cyan-300 text-slate-950 hover:bg-cyan-200"}`}>
-              {buildingVisualIndex ? "Pause visual build" : visualIndexStatus && visualIndexStatus.indexed >= visualIndexStatus.total && visualIndexStatus.total > 0 ? "Recheck index" : "Build / resume visual index"}
+            <button type="button" onClick={() => void buildVisualIndex()} className={`rounded-xl px-3 py-2 text-xs font-black ${buildingVisualIndex ? "border border-amber-300/40 bg-amber-300/10 text-amber-100" : "bg-cyan-300 text-slate-950 hover:bg-cyan-200"}`}>
+              {buildingVisualIndex ? "Pause build" : visualIndexStatus && visualIndexStatus.indexed >= visualIndexStatus.total && visualIndexStatus.total > 0 ? "Recheck index" : "Build / resume index"}
             </button>
+            <button type="button" onClick={downloadBenchmarkRecords} className="rounded-xl border border-fuchsia-300/30 bg-fuchsia-300/5 px-3 py-2 text-xs font-black text-fuchsia-100 hover:bg-fuchsia-300/10">Export benchmark</button>
+            {activeDebug ? <button type="button" onClick={() => downloadDiagnosticSnapshot(activeDebug)} className="rounded-xl border border-cyan-300/30 bg-cyan-300/5 px-3 py-2 text-xs font-black text-cyan-100 hover:bg-cyan-300/10">Export current scan</button> : null}
+            <button type="button" onClick={clearBenchmarkRecords} className="rounded-xl border border-white/10 bg-black/25 px-3 py-2 text-xs font-bold text-slate-400 hover:text-white">Clear benchmark</button>
           </div>
-        ) : null}
-      </div>
-
-      <div className="grid gap-5 p-5 sm:p-6 lg:grid-cols-[minmax(0,1.3fr)_minmax(300px,.7fr)]">
-        <div>
-          <div ref={viewportRef} className="relative aspect-video overflow-hidden rounded-3xl border border-white/10 bg-black shadow-inner">
-            <video ref={videoRef} muted playsInline className={`h-full w-full object-cover ${cameraOpen ? "opacity-100" : "opacity-0"}`} />
-            {!cameraOpen ? (
-              <div className="absolute inset-0 grid place-items-center bg-[radial-gradient(circle_at_50%_45%,rgba(34,211,238,.12),transparent_42%)] p-8 text-center">
-                <div>
-                  <div className="mx-auto grid h-16 w-16 place-items-center rounded-2xl border border-cyan-300/30 bg-cyan-300/10 text-3xl">▣</div>
-                  <div className="mt-4 text-lg font-black">Camera conveyor is paused</div>
-                  <div className="mt-1 text-sm text-slate-400">Opening your rear camera automatically…</div>
-                </div>
-              </div>
-            ) : null}
-            <div ref={guideRef} className={`pointer-events-none absolute left-1/2 top-1/2 aspect-[63/88] h-[88%] max-w-[82%] -translate-x-1/2 -translate-y-1/2 rounded-[5%] border-2 transition ${phase === "tracking" || phase === "card-entering" ? "border-amber-300 shadow-[0_0_35px_rgba(253,224,71,.35)]" : phase === "waiting-removal" || phase === "queued" ? "border-emerald-300 shadow-[0_0_35px_rgba(110,231,183,.3)]" : "border-cyan-300/75 shadow-[0_0_30px_rgba(34,211,238,.2)]"}`}>
-              <span className="absolute -left-0.5 -top-0.5 h-8 w-8 rounded-tl-xl border-l-4 border-t-4 border-white" />
-              <span className="absolute -right-0.5 -top-0.5 h-8 w-8 rounded-tr-xl border-r-4 border-t-4 border-white" />
-              <span className="absolute -bottom-0.5 -left-0.5 h-8 w-8 rounded-bl-xl border-b-4 border-l-4 border-white" />
-              <span className="absolute -bottom-0.5 -right-0.5 h-8 w-8 rounded-br-xl border-b-4 border-r-4 border-white" />
-            </div>
-            {cameraOpen ? <div className="absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full border border-white/10 bg-black/75 px-4 py-2 text-center text-xs font-black backdrop-blur">{headline}</div> : null}
-          </div>
-
-          <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/10"><div className="h-full bg-gradient-to-r from-cyan-400 to-fuchsia-400 transition-all" style={{ width: `${progress}%` }} /></div>
-          <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <div className="text-sm font-black text-white">{status}</div>
-              <div className="mt-0.5 text-xs text-slate-500">{cameraOpen ? "Only a complete 63:88 trading card inside the guide can trigger recognition." : "Portrait photos with the full card visible work best."}</div>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {cameraOpen ? (
-                <>
-                  <button type="button" onClick={captureNow} disabled={disabled} className="rounded-xl bg-cyan-300 px-4 py-2.5 text-sm font-black text-slate-950 hover:bg-cyan-200 disabled:opacity-50">Capture now</button>
-                  <button type="button" onClick={stopCamera} className="rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm font-black hover:bg-white/10">Stop</button>
-                </>
-              ) : (
-                <button type="button" onClick={startCamera} disabled={disabled} className="rounded-xl bg-cyan-300 px-5 py-2.5 text-sm font-black text-slate-950 hover:bg-cyan-200 disabled:opacity-50">Start camera</button>
-              )}
-              <label className="cursor-pointer rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm font-black hover:bg-white/10">
-                Test image<input type="file" accept="image/*" className="sr-only" onChange={uploadImage} disabled={disabled} />
-              </label>
-            </div>
-          </div>
-          {error ? <div className="mt-4 rounded-2xl border border-rose-400/35 bg-rose-400/10 p-4 text-sm font-bold text-rose-100">{error}</div> : null}
-          {diagnostics && activeDebug ? <DebugPanel snapshot={activeDebug} /> : null}
+          {activeDebug ? <DebugPanel snapshot={activeDebug} /> : null}
         </div>
-
-        <aside className="space-y-4">
-          <div className="rounded-2xl border border-white/10 bg-white/[0.035] p-4">
-            <div className="flex items-center justify-between gap-3"><h3 className="font-black">Recognition lane</h3><span className="rounded-full bg-cyan-300/10 px-2.5 py-1 text-xs font-black text-cyan-200">{pendingCount} pending</span></div>
-            <ol className="mt-4 space-y-3 text-xs text-slate-300">
-              <li><span className="mr-2 font-black text-cyan-300">1</span> Detect and rectify the card boundary</li>
-              <li><span className="mr-2 font-black text-cyan-300">2</span> Search every indexed card by artwork and layout</li>
-              <li><span className="mr-2 font-black text-cyan-300">3</span> Use name, number, set and HP only to verify</li>
-              <li><span className="mr-2 font-black text-cyan-300">4</span> Auto-add only after independent evidence agrees</li>
-            </ol>
-          </div>
-          {recentAdds.length ? (
-            <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/5 p-4">
-              <h3 className="font-black text-emerald-100">Recently added</h3>
-              <div className="mt-3 space-y-2">{recentAdds.map((item) => <div key={item.id} className="rounded-xl border border-white/10 bg-black/20 p-3"><div className="text-sm font-black">{item.card.name} · {collectorLabel(item.card)}</div><div className="mt-1 text-[11px] text-emerald-200/70">{item.message}</div></div>)}</div>
-            </div>
-          ) : null}
-          <div className="rounded-2xl border border-amber-400/20 bg-amber-400/5 p-4 text-xs text-amber-100/80">
-            <div className="font-black text-amber-100">Safe intake policy</div>
-            <p className="mt-2 leading-relaxed">A plausible name alone never adds inventory. Automatic intake requires at least three agreeing signals and either exact number + set, or exact number + strong artwork.</p>
-          </div>
-        </aside>
-      </div>
+      ) : null}
 
       {review.length ? (
-        <div className="border-t border-white/10 bg-black/20 p-5 sm:p-6">
-          <div className="flex flex-wrap items-end justify-between gap-2"><div><div className="text-xs font-black uppercase tracking-[0.2em] text-amber-300">Human checkpoint</div><h3 className="mt-1 text-xl font-black">Confirm uncertain scans</h3></div><button type="button" onClick={() => setReview([])} className="text-xs font-bold text-slate-400 hover:text-white">Clear queue</button></div>
+        <div className="border-t border-amber-300/20 bg-amber-950/10 p-4 sm:p-5">
+          <div className="flex flex-wrap items-end justify-between gap-2"><div><div className="text-xs font-black uppercase tracking-[0.2em] text-amber-300">Review · {review.length}</div><h3 className="mt-1 text-lg font-black">Uncertain scans were not added</h3><p className="mt-1 text-xs text-slate-400">Keep scanning; confirm these whenever convenient.</p></div><button type="button" onClick={() => setReview([])} className="text-xs font-bold text-slate-400 hover:text-white">Clear review</button></div>
           <div className="mt-4 grid gap-4 xl:grid-cols-2">
             {review.map((item) => (
               <article key={item.id} className="rounded-2xl border border-white/10 bg-[#081522] p-4">
