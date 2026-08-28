@@ -53,6 +53,7 @@ function activatePersonalisedCopy(scope: Element, name: string): () => void {
     if (parentTag === "SCRIPT" || parentTag === "STYLE" || parentTag === "NOSCRIPT") return;
 
     const current = node.data;
+    if (containsMascotName(current, name)) return;
     if (containsNebu(current)) {
       if (!originalText.has(node)) originalText.set(node, current);
       node.data = personaliseNebuName(current, name);
@@ -65,6 +66,7 @@ function activatePersonalisedCopy(scope: Element, name: string): () => void {
     let originals = originalAttributes.get(element);
     for (const attribute of COPY_ATTRIBUTES) {
       const current = element.getAttribute(attribute);
+      if (current && containsMascotName(current, name)) continue;
       if (current && containsNebu(current)) {
         if (!originals) {
           originals = new Map<string, string>();

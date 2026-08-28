@@ -13,6 +13,7 @@ type NebuPerformanceSpriteProps = {
   rows?: number;
   className?: string;
   label?: string;
+  smooth?: boolean;
 };
 
 function clampFrame(frame: number, frameCount: number): number {
@@ -28,6 +29,7 @@ export default function NebuPerformanceSprite({
   rows = 4,
   className = "",
   label,
+  smooth = false,
 }: NebuPerformanceSpriteProps) {
   const safeColumns = Math.max(1, Math.round(columns));
   const safeRows = Math.max(1, Math.round(rows));
@@ -49,6 +51,7 @@ export default function NebuPerformanceSprite({
     <span
       className={`${styles.viewport} ${className}`.trim()}
       data-static={frozenFrame === null ? "false" : "true"}
+      data-smooth={smooth ? "true" : "false"}
       data-frame={frozenFrame ?? undefined}
       role={label ? "img" : undefined}
       aria-label={label}

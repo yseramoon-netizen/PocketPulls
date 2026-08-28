@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { Suspense, type FormEvent, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import type { Provider } from "@supabase/supabase-js";
@@ -18,6 +19,25 @@ import {
 import { supabase } from "@/lib/supabase";
 
 type SocialProvider = "google" | "discord";
+
+async function settleWithin<T>(
+  request: PromiseLike<T>,
+  timeoutMs: number,
+  message: string,
+): Promise<T> {
+  let timer: number | null = null;
+
+  try {
+    return await Promise.race([
+      Promise.resolve(request),
+      new Promise<T>((_, reject) => {
+        timer = window.setTimeout(() => reject(new Error(message)), timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timer !== null) window.clearTimeout(timer);
+  }
+}
 
 function GoogleIcon() {
   return (
@@ -60,7 +80,11 @@ function PlayerSignInContent() {
 
     async function checkPlayerSession() {
       try {
-        const { data, error: sessionError } = await supabase.auth.getSession();
+        const { data, error: sessionError } = await settleWithin(
+          supabase.auth.getSession(),
+          4_000,
+          "Session check timed out.",
+        );
         if (sessionError || !data.session) {
           if (active) {
             setPendingRegistration(readPendingRegistration());
@@ -119,14 +143,22 @@ function PlayerSignInContent() {
     try {
       // Clear a stale browser-only player session before beginning PKCE. This
       // does not touch any separately stored Ancient Pulls admin session.
-      await supabase.auth.signOut({ scope: "local" });
-      const { data, error: oauthError } = await supabase.auth.signInWithOAuth({
-        provider: provider as Provider,
-        options: {
-          redirectTo: buildAuthCallbackUrl(nextPath),
-          skipBrowserRedirect: true,
-        },
-      });
+      await settleWithin(
+        supabase.auth.signOut({ scope: "local" }),
+        2_000,
+        "Local session cleanup timed out.",
+      ).catch(() => undefined);
+      const { data, error: oauthError } = await settleWithin(
+        supabase.auth.signInWithOAuth({
+          provider: provider as Provider,
+          options: {
+            redirectTo: buildAuthCallbackUrl(nextPath),
+            skipBrowserRedirect: true,
+          },
+        }),
+        10_000,
+        "Provider sign-in took too long. Try again.",
+      );
 
       if (oauthError) throw oauthError;
       if (!data.url) throw new Error("Supabase did not return a provider sign-in URL.");
@@ -154,10 +186,14 @@ function PlayerSignInContent() {
     setSigningIn(true);
     setError("");
     try {
-      const { data, error: signInError } = await supabase.auth.signInWithPassword({
-        email: cleanEmail,
-        password,
-      });
+      const { data, error: signInError } = await settleWithin(
+        supabase.auth.signInWithPassword({
+          email: cleanEmail,
+          password,
+        }),
+        15_000,
+        "Sign-in took too long. Check your connection and try again.",
+      );
 
       if (signInError || !data.session) {
         const details = getAuthErrorDetails(signInError, "Nebu could not sign you in.");
@@ -182,26 +218,171 @@ function PlayerSignInContent() {
   }
 
   if (checking) {
-    return <main className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden bg-[#02030d] px-5 text-white"><div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(124,58,237,0.2),transparent_34%),linear-gradient(180deg,#070922_0%,#02030d_100%)]" /><div className="relative z-10 flex flex-col items-center"><div className="relative flex h-28 w-28 items-center justify-center"><div className="absolute inset-1 animate-spin rounded-full border border-transparent border-r-cyan-100/45 border-t-yellow-100/80 [animation-duration:2.6s]" /><img src="/ancient-pulls/celestial-cat.webp" alt="" draggable={false} className="relative h-20 w-20 animate-[bounce_3.5s_ease-in-out_infinite] object-contain" /></div><p className="mt-5 text-sm font-black text-yellow-50/70">Checking your constellation...</p></div></main>;
+    return (
+      <main className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden bg-[#02030d] px-5 text-white">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(103,232,249,0.1),transparent_35%),linear-gradient(180deg,#06081d_0%,#02030d_100%)]" />
+        <div className="relative z-10 flex flex-col items-center">
+          <div className="relative flex h-20 w-20 items-center justify-center">
+            <div className="absolute inset-1 animate-spin rounded-full border border-transparent border-r-cyan-100/40 border-t-yellow-100/70 [animation-duration:2.6s]" />
+            <Image
+              src="/ancient-pulls/celestial-cat.webp"
+              alt=""
+              width={56}
+              height={56}
+              priority
+              draggable={false}
+              className="relative h-14 w-14 object-contain"
+            />
+          </div>
+          <p className="mt-5 text-sm font-black text-white/68">Checking session</p>
+        </div>
+      </main>
+    );
   }
 
   return (
-    <main className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden bg-[#02030d] px-4 py-10 text-white">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(124,58,237,0.2),transparent_34%),radial-gradient(circle_at_78%_24%,rgba(34,211,238,0.12),transparent_30%),radial-gradient(circle_at_20%_75%,rgba(250,204,21,0.07),transparent_28%),linear-gradient(180deg,#070922_0%,#030513_55%,#02030d_100%)]" />
-      {Array.from({ length: 18 }, (_, index) => <span key={index} aria-hidden="true" className="pointer-events-none absolute animate-pulse rounded-full bg-yellow-100/70 shadow-[0_0_10px_rgba(254,249,195,0.65)]" style={{ left: `${(index * 37 + 8) % 94}%`, top: `${(index * 53 + 7) % 88}%`, width: `${2 + (index % 3)}px`, height: `${2 + (index % 3)}px`, animationDelay: `${(index % 7) * 240}ms` }} />)}
-      <section className="relative z-10 grid w-full max-w-5xl overflow-hidden rounded-[2.5rem] border border-violet-100/15 bg-[#080a25]/90 shadow-[0_40px_140px_rgba(0,0,0,0.58)] backdrop-blur-3xl lg:grid-cols-[0.9fr_1.1fr]">
-        <div className="relative hidden min-h-[42rem] items-center justify-center overflow-hidden border-r border-white/10 lg:flex"><div className="absolute h-[26rem] w-[26rem] animate-spin rounded-full border border-yellow-100/15 [animation-duration:18s]" /><div className="absolute h-[20rem] w-[31rem] animate-spin rounded-[50%] border border-cyan-100/10 [animation-direction:reverse] [animation-duration:24s]" /><div className="absolute h-64 w-64 rounded-full bg-yellow-200/12 blur-[70px]" /><img src="/ancient-pulls/celestial-cat.webp" alt="Nebu" draggable={false} className="relative z-10 w-64 animate-[bounce_4.5s_ease-in-out_infinite] object-contain drop-shadow-[0_30px_42px_rgba(0,0,0,0.5)]" /></div>
-        <div className="p-6 sm:p-9 lg:p-12">
-          <p className="text-xs font-black uppercase tracking-[0.22em] text-yellow-100/45">Ancient Pulls · Nebu</p>
-          <h1 className="mt-3 text-4xl font-black tracking-tight sm:text-5xl">Return to your wishes</h1>
-          <p className="mt-4 max-w-xl text-sm font-semibold leading-7 text-white/45">Choose a path into your constellation. Player and admin sessions remain separate.</p>
-          {pendingRegistration ? <div className="mt-6 rounded-2xl border border-cyan-100/20 bg-cyan-300/[0.08] p-5"><p className="text-xs font-black uppercase tracking-[0.14em] text-cyan-100/70">Email confirmation still pending</p><p className="mt-2 break-all text-sm font-black text-white">{pendingRegistration.email}</p><p className="mt-2 text-xs font-semibold leading-5 text-white/60">If you confirmed on another device, try signing in below. This reminder clears as soon as Supabase accepts the confirmation.</p><button type="button" onClick={() => void handleResendVerification()} disabled={resending} className="mt-4 flex min-h-11 w-full items-center justify-center rounded-xl bg-cyan-100 px-4 text-sm font-black text-[#101427] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50">{resending ? "Sending verification..." : "Resend verification email"}</button>{resendMessage ? <p className="mt-3 text-xs font-bold text-cyan-50">{resendMessage}</p> : null}<button type="button" onClick={() => { clearPendingRegistration(); setPendingRegistration(null); setResendMessage(""); setError(""); }} disabled={resending} className="mt-3 w-full text-center text-xs font-black text-white/55 underline decoration-white/25 underline-offset-4 hover:text-white">I already confirmed it — hide this reminder</button></div> : null}
-          {error ? <div role="alert" className="mt-6 rounded-2xl border border-red-200/20 bg-red-400/[0.08] px-5 py-4 text-sm font-bold leading-6 text-red-100">{error}</div> : null}
-          <div className="mt-7 grid gap-3"><button type="button" disabled={isBusy} onClick={() => void handleSocialSignIn("google")} className="flex min-h-14 w-full items-center justify-center gap-3 rounded-2xl border border-white/14 bg-white/[0.07] px-5 text-sm font-black text-white transition hover:border-yellow-100/35 hover:bg-white/[0.11] disabled:cursor-not-allowed disabled:opacity-50"><GoogleIcon />{socialProvider === "google" ? "Opening Google..." : "Continue with Google"}</button><button type="button" disabled={isBusy} onClick={() => void handleSocialSignIn("discord")} className="flex min-h-14 w-full items-center justify-center gap-3 rounded-2xl border border-indigo-200/25 bg-[#5865f2]/[0.16] px-5 text-sm font-black text-indigo-50 transition hover:border-indigo-100/50 hover:bg-[#5865f2]/[0.25] disabled:cursor-not-allowed disabled:opacity-50"><DiscordIcon />{socialProvider === "discord" ? "Opening Discord..." : "Continue with Discord"}</button></div>
-          <div className="my-7 flex items-center gap-4" aria-hidden="true"><div className="h-px flex-1 bg-white/10" /><span className="text-[11px] font-black uppercase tracking-[0.28em] text-white/35">or</span><div className="h-px flex-1 bg-white/10" /></div>
-          <form onSubmit={handleSubmit} className="space-y-5"><label className="block"><span className="text-sm font-black">Trainer email</span><input type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="username" disabled={isBusy} className="mt-2 min-h-14 w-full rounded-2xl border border-white/10 bg-white/[0.045] px-4 text-sm font-bold text-white outline-none placeholder:text-white/20 focus:border-cyan-100/30 disabled:opacity-50" placeholder="trainer@example.com" /></label><label className="block"><span className="text-sm font-black">Password</span><div className="relative mt-2"><input type={showPassword ? "text" : "password"} value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" disabled={isBusy} className="min-h-14 w-full rounded-2xl border border-white/10 bg-white/[0.045] px-4 pr-20 text-sm font-bold text-white outline-none placeholder:text-white/20 focus:border-cyan-100/30 disabled:opacity-50" placeholder="Password" /><button type="button" onClick={() => setShowPassword((value) => !value)} disabled={isBusy} className="absolute inset-y-0 right-0 px-5 text-xs font-black uppercase tracking-[0.1em] text-white/35 hover:text-white disabled:opacity-50">{showPassword ? "Hide" : "Show"}</button></div></label><button type="submit" disabled={isBusy} className="flex min-h-14 w-full items-center justify-center rounded-2xl bg-gradient-to-r from-yellow-200 via-cyan-100 to-violet-200 px-5 text-sm font-black text-[#111329] shadow-[0_18px_50px_rgba(103,232,249,0.12)] transition hover:brightness-105 disabled:opacity-50">{signingIn ? "Nebu is opening the way..." : "Sign in to Ancient Pulls"}</button><Link href="/forgot-password" className="flex min-h-11 w-full items-center justify-center text-sm font-black text-yellow-50/65 underline decoration-yellow-100/25 underline-offset-4 transition hover:text-yellow-50">Forgot password?</Link></form>
-          <div className="mt-5 flex flex-wrap items-center justify-between gap-3 text-xs font-black"><Link href="/create-account" className="text-cyan-100/60 hover:text-white">Create a trainer account</Link><Link href="/admin/sign-in" className="text-emerald-100/40 hover:text-white">Ancient Pulls admin sign-in</Link></div>
+    <main className="relative flex min-h-[100dvh] items-start justify-center overflow-x-hidden bg-[#02030d] px-4 py-6 text-white sm:items-center sm:py-8">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(103,232,249,0.1),transparent_34%),radial-gradient(circle_at_82%_78%,rgba(124,58,237,0.08),transparent_32%),linear-gradient(180deg,#06081d_0%,#02030d_100%)]" />
+
+      <section className="relative z-10 w-full max-w-[30rem] rounded-2xl border border-white/10 bg-[#080b20]/94 p-5 shadow-[0_28px_100px_rgba(0,0,0,0.55)] backdrop-blur-2xl sm:p-7">
+        <div className="flex items-center gap-3">
+          <div className="flex h-14 w-14 flex-none items-center justify-center rounded-2xl border border-cyan-100/12 bg-white/[0.035]">
+            <Image
+              src="/ancient-pulls/celestial-cat.webp"
+              alt=""
+              width={44}
+              height={44}
+              priority
+              draggable={false}
+              className="h-11 w-11 object-contain"
+            />
+          </div>
+          <div>
+            <p className="text-[0.62rem] font-black uppercase tracking-[0.18em] text-cyan-100/45">
+              Ancient Pulls
+            </p>
+            <h1 className="mt-1 text-2xl font-black tracking-tight">Welcome back</h1>
+          </div>
         </div>
+
+        {pendingRegistration ? (
+          <div className="mt-5 rounded-xl border border-cyan-100/18 bg-cyan-300/[0.06] p-4">
+            <p className="text-xs font-black text-cyan-50/80">Confirm your email</p>
+            <p className="mt-1 truncate text-xs font-semibold text-white/55">{pendingRegistration.email}</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => void handleResendVerification()}
+                disabled={resending}
+                className="min-h-10 rounded-lg bg-cyan-100 px-3 text-xs font-black text-[#101427] disabled:opacity-50"
+              >
+                {resending ? "Sending..." : "Resend email"}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  clearPendingRegistration();
+                  setPendingRegistration(null);
+                  setResendMessage("");
+                  setError("");
+                }}
+                disabled={resending}
+                className="min-h-10 rounded-lg border border-white/10 px-3 text-xs font-black text-white/55 disabled:opacity-50"
+              >
+                Dismiss
+              </button>
+            </div>
+            {resendMessage ? <p className="mt-2 text-xs font-bold text-cyan-50/70">{resendMessage}</p> : null}
+          </div>
+        ) : null}
+
+        {error ? (
+          <div role="alert" className="mt-5 rounded-xl border border-red-200/18 bg-red-400/[0.07] px-4 py-3 text-sm font-bold leading-6 text-red-100">
+            {error}
+          </div>
+        ) : null}
+
+        <div className="mt-5 grid grid-cols-2 gap-3">
+          <button
+            type="button"
+            disabled={isBusy}
+            onClick={() => void handleSocialSignIn("google")}
+            className="flex min-h-12 items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.045] px-3 text-sm font-black transition hover:bg-white/[0.075] disabled:opacity-50"
+          >
+            <GoogleIcon />
+            {socialProvider === "google" ? "Opening..." : "Google"}
+          </button>
+          <button
+            type="button"
+            disabled={isBusy}
+            onClick={() => void handleSocialSignIn("discord")}
+            className="flex min-h-12 items-center justify-center gap-2 rounded-xl border border-indigo-200/18 bg-[#5865f2]/[0.11] px-3 text-sm font-black text-indigo-50 transition hover:bg-[#5865f2]/[0.18] disabled:opacity-50"
+          >
+            <DiscordIcon />
+            {socialProvider === "discord" ? "Opening..." : "Discord"}
+          </button>
+        </div>
+
+        <div className="my-5 flex items-center gap-3" aria-hidden="true">
+          <div className="h-px flex-1 bg-white/8" />
+          <span className="text-[0.6rem] font-black uppercase tracking-[0.18em] text-white/28">or</span>
+          <div className="h-px flex-1 bg-white/8" />
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <label className="block">
+            <span className="text-xs font-black text-white/68">Email</span>
+            <input
+              type="email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              autoComplete="username"
+              disabled={isBusy}
+              className="mt-2 min-h-12 w-full rounded-xl border border-white/10 bg-white/[0.035] px-4 text-base font-bold text-white outline-none placeholder:text-white/20 focus:border-cyan-100/30 disabled:opacity-50"
+              placeholder="trainer@example.com"
+            />
+          </label>
+
+          <label className="block">
+            <span className="text-xs font-black text-white/68">Password</span>
+            <div className="relative mt-2">
+              <input
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                autoComplete="current-password"
+                disabled={isBusy}
+                className="min-h-12 w-full rounded-xl border border-white/10 bg-white/[0.035] px-4 pr-16 text-base font-bold text-white outline-none placeholder:text-white/20 focus:border-cyan-100/30 disabled:opacity-50"
+                placeholder="Password"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((value) => !value)}
+                disabled={isBusy}
+                className="absolute inset-y-0 right-0 px-4 text-[0.65rem] font-black uppercase tracking-[0.08em] text-white/38 hover:text-white disabled:opacity-50"
+              >
+                {showPassword ? "Hide" : "Show"}
+              </button>
+            </div>
+          </label>
+
+          <button
+            type="submit"
+            disabled={isBusy}
+            className="flex min-h-12 w-full items-center justify-center rounded-xl bg-gradient-to-r from-yellow-200 via-cyan-100 to-violet-200 px-5 text-sm font-black text-[#111329] transition hover:brightness-105 disabled:opacity-50"
+          >
+            {signingIn ? "Signing in..." : "Sign in"}
+          </button>
+        </form>
+
+        <div className="mt-4 flex items-center justify-between gap-3 text-xs font-black">
+          <Link href="/forgot-password" className="text-white/48 hover:text-white">Forgot password?</Link>
+          <Link href="/create-account" className="text-cyan-100/66 hover:text-white">Create account</Link>
+        </div>
+
+        <Link href="/admin/sign-in" className="mt-5 block border-t border-white/8 pt-4 text-center text-[0.68rem] font-black text-white/28 hover:text-white/60">
+          Admin sign-in
+        </Link>
       </section>
     </main>
   );

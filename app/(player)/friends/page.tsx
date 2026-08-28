@@ -689,7 +689,7 @@ export default function FriendsPage() {
       <PlayerPageHeader
         eyebrow="Trainer connections"
         title="Friends"
-        description="Search by Trainer ID or username, manage requests and open your friends’ trainer profiles."
+        description="Find trainers and manage requests."
       />
 
       <PlayerErrorBanner

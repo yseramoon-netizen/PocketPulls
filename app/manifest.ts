@@ -5,10 +5,10 @@ import type {
 export default function manifest():
   MetadataRoute.Manifest {
   return {
-    name: "ancientpulls",
-    short_name: "ancientpulls",
+    name: "Ancient Pulls",
+    short_name: "Ancient Pulls",
     description:
-      "Open wishes, collect real Pokemon cards and explore the ancientpulls constellation.",
+      "Make wishes, build your binder and explore your constellation.",
     start_url: "/wishes",
     display: "standalone",
     background_color: "#05071d",

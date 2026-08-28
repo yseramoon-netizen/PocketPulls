@@ -102,24 +102,47 @@
   animation: dustDrift 26s linear infinite;
 }
 
-.ancientGlyphBandTop,
-.ancientGlyphBandBottom {
+.asterismRailTop,
+.asterismRailBottom {
   position: absolute;
   right: 0;
   left: 0;
   z-index: 8;
-  height: 34px;
-  border-block: 1px solid rgba(245, 184, 59, 0.22);
-  opacity: calc(0.14 + var(--tier) * 0.018);
+  display: flex;
+  height: 24px;
+  align-items: center;
+  justify-content: space-around;
+  border-block: 1px solid color-mix(in srgb, var(--wish-primary) 18%, transparent);
+  opacity: calc(0.15 + var(--tier) * 0.016);
   pointer-events: none;
   background:
-    linear-gradient(90deg, transparent 0 2%, #f5b83b 2% 2.3%, transparent 2.3% 5%, #31d8d1 5% 5.2%, transparent 5.2% 8%) 0 7px / 104px 3px repeat-x,
-    linear-gradient(90deg, transparent 0 4%, #ffe187 4% 4.4%, transparent 4.4% 9%) 0 19px / 86px 6px repeat-x,
-    rgba(5, 6, 25, 0.84);
+    linear-gradient(90deg, transparent, color-mix(in srgb, var(--wish-primary) 34%, transparent), transparent) center / 100% 1px no-repeat,
+    rgba(5, 6, 25, 0.76);
 }
 
-.ancientGlyphBandTop { top: 0; }
-.ancientGlyphBandBottom { bottom: 0; transform: rotate(180deg); }
+.asterismRailTop span,
+.asterismRailBottom span {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--wish-primary);
+  box-shadow: 0 0 8px var(--wish-glow);
+  animation: railStarBreath 2.2s ease-in-out infinite alternate;
+}
+
+.asterismRailTop span:nth-child(3n),
+.asterismRailBottom span:nth-child(3n + 1) {
+  width: 5px;
+  height: 5px;
+}
+
+.asterismRailTop span:nth-child(even),
+.asterismRailBottom span:nth-child(odd) {
+  animation-delay: 600ms;
+}
+
+.asterismRailTop { top: 0; }
+.asterismRailBottom { bottom: 0; transform: rotate(180deg); }
 
 .ancientFrame {
   z-index: 9;
@@ -250,7 +273,7 @@
 .overlay[data-tier="2"] .omen { display: none; }
 
 .relicSeal,
-.glyphOrbit,
+.asterismOrbit,
 .cardSilhouette,
 .impact {
   position: absolute;
@@ -283,23 +306,20 @@
 .relicInner { inset: 34%; background: radial-gradient(circle, #fff 0 4%, var(--wish-primary) 22%, transparent 68%); filter: drop-shadow(0 0 14px var(--wish-glow)); }
 .relicStar { position: absolute; top: 50%; left: 50%; color: #fff; font-size: clamp(1rem, calc(0.8rem + var(--tier) * 0.2rem), 2.4rem); text-shadow: 0 0 20px var(--wish-glow); transform: translate(-50%, -50%); }
 
-.glyphOrbit {
+.asterismOrbit {
   width: clamp(160px, calc(135px + var(--tier) * 26px), 360px);
   aspect-ratio: 1;
+  color: var(--wish-primary);
   opacity: 0;
   transform: translate(-50%, -50%);
-  animation: glyphsAwaken 700ms calc(var(--impact-at) - 1250ms) ease-out both, glyphsCollapse 560ms calc(var(--impact-at) - 280ms) ease-in forwards;
+  animation: asterismAwakens 700ms calc(var(--impact-at) - 1250ms) ease-out both, asterismCollapses 560ms calc(var(--impact-at) - 280ms) ease-in forwards;
 }
 
-.glyphOrbit span {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  color: var(--wish-primary);
-  font-size: clamp(0.62rem, 1.5vw, 1rem);
-  text-shadow: 0 0 12px var(--wish-glow);
-  transform: rotate(var(--glyph-angle)) translateX(calc(74px + var(--tier) * 11px)) rotate(var(--glyph-counter-angle));
-  animation: glyphPulse 1.15s var(--glyph-delay) ease-in-out infinite alternate;
+.asterismOrbit > svg {
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 0 16px var(--wish-glow));
+  animation: asterismTurns 10s linear infinite;
 }
 
 .cardSilhouette {
@@ -316,9 +336,89 @@
   animation: silhouetteEmerges 740ms calc(var(--impact-at) - 920ms) ease-out both, silhouetteStill 420ms calc(var(--impact-at) - 240ms) linear forwards, silhouetteGone 1ms var(--card-at) linear forwards;
 }
 
-.cardSilhouette span { position: absolute; top: 50%; left: 50%; color: var(--wish-primary); font-size: clamp(2rem, 7vw, 4rem); opacity: 0.7; filter: drop-shadow(0 0 22px var(--wish-glow)); transform: translate(-50%, -50%); }
+.cardSilhouette > svg { position: absolute; top: 50%; left: 50%; width: 68%; color: var(--wish-primary); opacity: 0.7; filter: drop-shadow(0 0 22px var(--wish-glow)); transform: translate(-50%, -50%); }
 .overlay[data-tier="1"] .cardSilhouette,
 .overlay[data-tier="2"] .cardSilhouette { display: none; }
+
+.cosmicRift {
+  position: absolute;
+  z-index: 38;
+  top: 42%;
+  left: 50%;
+  width: clamp(16rem, 42vw, 35rem);
+  aspect-ratio: 1;
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, -50%) scale(0.42) rotate(-16deg);
+  animation:
+    cosmicRiftArrives 1.35s calc(var(--impact-at) - 1450ms) cubic-bezier(0.15, 0.8, 0.22, 1.08) both,
+    cosmicRiftCollapses 700ms calc(var(--card-at) - 120ms) ease-in forwards;
+}
+
+.cosmicRiftOuter,
+.cosmicRiftInner,
+.cosmicRiftCore,
+.cosmicRiftSigil,
+.cosmicComets {
+  position: absolute;
+  inset: 0;
+}
+
+.cosmicRiftOuter,
+.cosmicRiftInner {
+  border-radius: 50%;
+}
+
+.cosmicRiftOuter {
+  border: 2px solid rgba(103, 232, 249, 0.76);
+  background: conic-gradient(from 12deg, transparent, rgba(34, 211, 238, 0.2), transparent 24%, rgba(232, 121, 249, 0.3), transparent 58%, rgba(253, 230, 138, 0.2), transparent);
+  box-shadow: 0 0 30px rgba(103, 232, 249, 0.4), inset 0 0 55px rgba(139, 92, 246, 0.28);
+  animation: cosmicRiftTurns 5.5s linear infinite;
+}
+
+.cosmicRiftInner {
+  inset: 15%;
+  border: 1px solid rgba(232, 121, 249, 0.72);
+  box-shadow: 0 0 26px rgba(217, 70, 239, 0.42), inset 0 0 34px rgba(34, 211, 238, 0.24);
+  animation: cosmicRiftTurns 3.8s linear infinite reverse;
+}
+
+.cosmicRiftSigil {
+  inset: 19%;
+  width: 62%;
+  height: 62%;
+  margin: auto;
+  color: #cffafe;
+  opacity: 0.78;
+}
+
+.cosmicRiftCore {
+  inset: 39%;
+  border-radius: 50%;
+  background: radial-gradient(circle, #fff 0 8%, #67e8f9 24%, #8b5cf6 56%, transparent 72%);
+  box-shadow: 0 0 32px #67e8f9, 0 0 72px rgba(168, 85, 247, 0.8);
+  animation: cosmicCoreBreath 900ms ease-in-out infinite alternate;
+}
+
+.cosmicComets {
+  animation: cosmicRiftTurns 7s linear infinite;
+}
+
+.cosmicComets i {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 42%;
+  height: 2px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, #67e8f9);
+  box-shadow: 0 0 10px rgba(103, 232, 249, 0.8);
+  transform-origin: left center;
+}
+
+.cosmicComets i:nth-child(1) { transform: rotate(14deg) translateX(40%); }
+.cosmicComets i:nth-child(2) { transform: rotate(142deg) translateX(38%); }
+.cosmicComets i:nth-child(3) { transform: rotate(256deg) translateX(44%); }
 
 .impact { z-index: 42; inset: auto; }
 .impactFlash { position: fixed; inset: 0; opacity: 0; background: radial-gradient(circle at 50% 42%, #fff 0, var(--wish-primary) 8%, var(--wish-glow) 22%, transparent 53%); animation: impactFlash 920ms var(--impact-at) ease-out both; }
@@ -423,7 +523,8 @@
 .sequenceSkipped .darkening,
 .sequenceSkipped .omen,
 .sequenceSkipped .relicSeal,
-.sequenceSkipped .glyphOrbit,
+.sequenceSkipped .asterismOrbit,
+.sequenceSkipped .cosmicRift,
 .sequenceSkipped .cardSilhouette,
 .sequenceSkipped .impact { display: none; }
 .sequenceSkipped .cardScene { opacity: 1; animation: none; transform: translate3d(-50%, -50%, 0) scale(1) rotateY(0); }
@@ -454,6 +555,51 @@
   background: radial-gradient(circle, rgba(103,232,249,.78), rgba(139,92,246,.48) 34%, transparent 70%);
 }
 
+.overlay[data-cosmic-mode="true"] .sky {
+  background:
+    radial-gradient(circle at 50% 38%, rgba(103, 232, 249, 0.23), transparent 22%),
+    radial-gradient(circle at 19% 62%, rgba(217, 70, 239, 0.2), transparent 34%),
+    radial-gradient(circle at 84% 24%, rgba(59, 130, 246, 0.2), transparent 31%),
+    linear-gradient(180deg, #03051e 0%, #11083a 52%, #01020b 100%);
+}
+
+.overlay[data-cosmic-mode="true"] .asterismRailTop,
+.overlay[data-cosmic-mode="true"] .asterismRailBottom {
+  border-color: rgba(103, 232, 249, 0.25);
+  opacity: 0.38;
+  background:
+    linear-gradient(90deg, transparent, rgba(103, 232, 249, 0.48), rgba(232, 121, 249, 0.42), transparent) center / 100% 1px no-repeat,
+    rgba(3, 4, 22, 0.72);
+}
+
+.overlay[data-cosmic-mode="true"] .ancientFrame {
+  border-color: rgba(103, 232, 249, 0.3);
+  box-shadow:
+    inset 0 0 52px rgba(124, 58, 237, 0.08),
+    0 0 28px rgba(34, 211, 238, 0.08);
+}
+
+.overlay[data-cosmic-mode="true"] .cardScene {
+  animation: cosmicCardReveal 1.25s var(--card-at) cubic-bezier(0.12, 0.86, 0.2, 1.08) both;
+}
+
+.overlay[data-cosmic-mode="true"] .cardFrame {
+  border-color: #a5f3fc;
+  box-shadow:
+    0 0 0 1px rgba(232, 121, 249, 0.26),
+    0 0 34px rgba(103, 232, 249, 0.55),
+    0 0 78px rgba(124, 58, 237, 0.4),
+    0 28px 75px rgba(0, 0, 0, 0.72);
+}
+
+.overlay[data-cosmic-mode="true"] .preparing img {
+  image-rendering: auto;
+}
+
+.overlay[data-cosmic-mode="true"] .wishAgainButton {
+  background: linear-gradient(110deg, #a5f3fc, #c4b5fd 48%, #f0abfc);
+}
+
 .overlay[data-family="legendary"] .ancientFrame { border-width: 2px; box-shadow: inset 0 0 50px color-mix(in srgb, var(--wish-glow) 11%, transparent), 0 0 28px color-mix(in srgb, var(--wish-glow) 18%, transparent); }
 .overlay[data-family="legendary"] .stars { animation-duration: 5.2s; }
 .overlay[data-tier="9"] .sequence:not(.sequenceSkipped) { animation: legendaryStillness 520ms calc(var(--impact-at) - 520ms) linear both, sequenceShake 920ms var(--impact-at) cubic-bezier(.36,.07,.19,.97) both; }
@@ -470,9 +616,14 @@
 @keyframes sealAwakens { 0% { opacity: 0; transform: translate(-50%,-50%) scale(.35) rotate(-25deg); } 35% { opacity: .5; } 100% { opacity: calc(.42 + var(--tier) * .055); transform: translate(-50%,-50%) scale(1) rotate(0); } }
 @keyframes sealBreaks { to { opacity: 0; filter: blur(5px); transform: translate(-50%,-50%) scale(1.9) rotate(18deg); } }
 @keyframes orbit { to { transform: rotate(360deg); } }
-@keyframes glyphsAwaken { from { opacity: 0; transform: translate(-50%,-50%) scale(.7) rotate(-12deg); } to { opacity: .82; transform: translate(-50%,-50%) scale(1) rotate(0); } }
-@keyframes glyphsCollapse { to { opacity: 0; filter: blur(2px); transform: translate(-50%,-50%) scale(.36) rotate(16deg); } }
-@keyframes glyphPulse { from { opacity: .35; filter: brightness(.85); } to { opacity: 1; filter: brightness(1.35); } }
+@keyframes asterismAwakens { from { opacity: 0; transform: translate(-50%,-50%) scale(.7) rotate(-12deg); } to { opacity: .82; transform: translate(-50%,-50%) scale(1) rotate(0); } }
+@keyframes asterismCollapses { to { opacity: 0; filter: blur(2px); transform: translate(-50%,-50%) scale(.36) rotate(16deg); } }
+@keyframes asterismTurns { to { transform: rotate(360deg); } }
+@keyframes railStarBreath { from { opacity: .3; transform: scale(.7); } to { opacity: 1; transform: scale(1.25); } }
+@keyframes cosmicRiftArrives { 0% { opacity: 0; filter: blur(8px); transform: translate(-50%,-50%) scale(.42) rotate(-16deg); } 55% { opacity: .9; filter: blur(0); } 100% { opacity: 1; transform: translate(-50%,-50%) scale(1) rotate(0); } }
+@keyframes cosmicRiftCollapses { to { opacity: 0; filter: brightness(2) blur(5px); transform: translate(-50%,-50%) scale(.08) rotate(28deg); } }
+@keyframes cosmicRiftTurns { to { transform: rotate(360deg); } }
+@keyframes cosmicCoreBreath { from { opacity: .62; transform: scale(.78); } to { opacity: 1; transform: scale(1.18); } }
 @keyframes silhouetteEmerges { from { opacity: 0; transform: translate(-50%,-50%) scale(.74) rotateY(76deg); } to { opacity: .94; transform: translate(-50%,-50%) scale(1) rotateY(0); } }
 @keyframes silhouetteStill { to { opacity: 1; filter: brightness(.62); } }
 @keyframes silhouetteGone { to { visibility: hidden; opacity: 0; } }
@@ -481,6 +632,7 @@
 @keyframes rayBurst { 0% { opacity: 0; transform: rotate(var(--ray-angle)) translateX(12px) scaleX(.1); } 8% { opacity: .9; } 100% { opacity: 0; transform: rotate(var(--ray-angle)) translateX(20px) scaleX(1); } }
 @keyframes particleBurst { 0% { opacity: 0; transform: rotate(var(--particle-angle)) translateX(0) scale(1); } 8% { opacity: 1; } 100% { opacity: 0; transform: rotate(var(--particle-angle)) translateX(var(--particle-distance)) scale(0); } }
 @keyframes cardReveal { 0% { opacity: 0; transform: translate3d(-50%,-50%,0) scale(.72) rotateY(88deg); } 48% { opacity: 1; transform: translate3d(-50%,-50%,0) scale(1.06) rotateY(-9deg); } 74% { opacity: 1; transform: translate3d(-50%,-50%,0) scale(.98) rotateY(3deg); } 100% { opacity: 1; transform: translate3d(-50%,-50%,0) scale(1) rotateY(0); } }
+@keyframes cosmicCardReveal { 0% { opacity: 0; filter: blur(10px) brightness(2); transform: translate3d(-50%,-50%,0) scale(1.5) rotateZ(-8deg) rotateY(24deg); } 52% { opacity: 1; filter: blur(0) brightness(1.15); transform: translate3d(-50%,-50%,0) scale(.94) rotateZ(2deg) rotateY(-5deg); } 76% { transform: translate3d(-50%,-50%,0) scale(1.03) rotateZ(-1deg) rotateY(2deg); } 100% { opacity: 1; filter: none; transform: translate3d(-50%,-50%,0) scale(1) rotateZ(0) rotateY(0); } }
 @keyframes infoAppears { to { opacity: 1; transform: none; } }
 @keyframes landscapeInfoAppears { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
 @keyframes shine { from { background-position: 180% 0; } to { background-position: -80% 0; } }
@@ -490,18 +642,19 @@
 @keyframes sequenceShake { 0%,100% { transform: translate3d(0,0,0); } 14% { transform: translate3d(calc(var(--shake-distance) * -.7),calc(var(--shake-distance) * .2),0); } 28% { transform: translate3d(var(--shake-distance),calc(var(--shake-distance) * -.28),0); } 44% { transform: translate3d(calc(var(--shake-distance) * -.76),calc(var(--shake-distance) * .24),0); } 62% { transform: translate3d(calc(var(--shake-distance) * .55),calc(var(--shake-distance) * -.16),0); } 78% { transform: translate3d(calc(var(--shake-distance) * -.24),0,0); } }
 
 @media (max-width: 700px) {
-  .ancientGlyphBandTop,
-  .ancientGlyphBandBottom { height: 23px; opacity: .15; }
+  .asterismRailTop,
+  .asterismRailBottom { height: 18px; opacity: .15; }
   .ancientFrame { inset: 5px; border-radius: 12px; }
   .soundButton,
   .skipButton { top: max(.7rem, env(safe-area-inset-top)); min-height: 2.45rem; padding: 0 .75rem; font-size: .58rem; }
   .omen { top: max(3.9rem, calc(env(safe-area-inset-top) + 3rem)); font-size: .58rem; letter-spacing: .15em; }
   .relicSeal,
-  .glyphOrbit,
+  .asterismOrbit,
   .cardSilhouette,
-  .impact { top: 35%; }
+  .impact,
+  .cosmicRift { top: 35%; }
   .cardSilhouette { width: min(56vw, 205px); border-radius: .95rem; }
-  .glyphOrbit span { transform: rotate(var(--glyph-angle)) translateX(calc(56px + var(--tier) * 7px)) rotate(var(--glyph-counter-angle)); }
+  .cosmicRift { width: min(86vw, 25rem); }
   .cardScene { top: 34%; width: min(54vw, 205px); }
   .cardFrame { border-radius: .95rem; }
   .cardInfo { bottom: max(.6rem, env(safe-area-inset-bottom)); }
@@ -516,9 +669,10 @@
 
 @media (max-height: 680px) and (orientation: landscape) {
   .relicSeal,
-  .glyphOrbit,
+  .asterismOrbit,
   .cardSilhouette,
   .impact,
+  .cosmicRift,
   .cardScene { top: 43%; }
   .cardScene { left: 36%; width: min(25vw, 188px); }
   .cardInfo { top: 18%; right: 3%; bottom: auto; left: 57%; width: 38%; transform: translateY(18px); animation: landscapeInfoAppears 600ms var(--info-at) ease-out both; }
@@ -526,8 +680,9 @@
 }
 
 .overlay[data-low-effects="true"] .holoDust,
-.overlay[data-low-effects="true"] .glyphOrbit,
+.overlay[data-low-effects="true"] .asterismOrbit,
 .overlay[data-low-effects="true"] .impactRays,
+.overlay[data-low-effects="true"] .cosmicComets,
 .overlay[data-low-effects="true"] .premiumCardShine { display: none; }
 
 @media (prefers-reduced-motion: reduce) {
@@ -537,5 +692,11 @@
   .preparing img,
   .cardGlow,
   .cardShine,
-  .premiumCardShine { animation: none !important; }
+  .premiumCardShine,
+  .cosmicRiftOuter,
+  .cosmicRiftInner,
+  .cosmicRiftCore,
+  .cosmicComets,
+  .asterismRailTop span,
+  .asterismRailBottom span { animation: none !important; }
 }

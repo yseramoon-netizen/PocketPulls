@@ -30,6 +30,10 @@
   backface-visibility: hidden;
 }
 
+.viewport[data-smooth="true"] .sheet {
+  image-rendering: auto;
+}
+
 .staticSheet {
   transform:
     translate3d(

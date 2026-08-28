@@ -170,7 +170,7 @@ export default function LeaderboardPage() {
       <PlayerPageHeader
         eyebrow="The trainers beneath the stars"
         title="Leaderboard"
-        description="Rankings reward the whole journey: card value, physical cards, unique discoveries and completed wishes all contribute to the score."
+        description="See the top Ancient Pulls trainers."
         actions={
           <PlayerSecondaryButton
             onClick={() => void loadLeaderboard()}
@@ -540,8 +540,6 @@ function LeaderboardTableRow({
       className={`border-b border-white/[0.055] text-sm ${
         player.rank === 1
           ? "border-y border-yellow-100/30 bg-yellow-200/[0.07] shadow-[inset_0_1px_0_rgba(253,230,138,0.12),inset_0_-1px_0_rgba(253,230,138,0.12)]"
-          : player.cosmicIssueNumber
-          ? "bg-gradient-to-r from-cyan-300/[0.055] via-violet-300/[0.075] to-transparent shadow-[inset_3px_0_0_rgba(103,232,249,0.35)]"
           : player.isCurrentUser
           ? "bg-violet-300/[0.08]"
           : "hover:bg-white/[0.025]"

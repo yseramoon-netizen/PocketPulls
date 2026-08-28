@@ -20,8 +20,12 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "ancientpulls",
+  title: {
+    default: "Ancient Pulls",
+    template: "%s | Ancient Pulls",
+  },
   description: "Make wishes, build your binder and explore your constellation.",
+  applicationName: "Ancient Pulls",
   icons: {
     icon: {
       url: "/ancient-pulls/golden-star-tab.svg",

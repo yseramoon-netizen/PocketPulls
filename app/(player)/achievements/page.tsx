@@ -194,7 +194,6 @@ export default function AchievementsPage() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [exclusiveSkins, setExclusiveSkins] = useState<NebuSkinKey[]>([]);
   const [exclusiveSkinsLoading, setExclusiveSkinsLoading] = useState(true);
-  const [cosmicIssueNumber, setCosmicIssueNumber] = useState<number | null>(null);
 
   const loadAchievements = useCallback(async () => {
     setLoading(true);
@@ -228,7 +227,6 @@ export default function AchievementsPage() {
 
       if (!session?.access_token) {
         setExclusiveSkins([]);
-        setCosmicIssueNumber(null);
         return;
       }
 
@@ -242,12 +240,11 @@ export default function AchievementsPage() {
 
       if (!response.ok) {
         setExclusiveSkins([]);
-        setCosmicIssueNumber(null);
         return;
       }
 
       const payload = (await response.json().catch(() => null)) as
-        | { skins?: unknown[]; cosmicIssueNumber?: unknown }
+        | { skins?: unknown[] }
         | null;
 
       setExclusiveSkins(
@@ -255,13 +252,8 @@ export default function AchievementsPage() {
           ? payload.skins.filter(isNebuSkinKey)
           : [],
       );
-      const issue = Number(payload?.cosmicIssueNumber);
-      setCosmicIssueNumber(
-        Number.isFinite(issue) && issue > 0 ? Math.floor(issue) : null,
-      );
     } catch {
       setExclusiveSkins([]);
-      setCosmicIssueNumber(null);
     } finally {
       setExclusiveSkinsLoading(false);
     }
@@ -426,7 +418,7 @@ export default function AchievementsPage() {
       <PlayerPageHeader
         eyebrow="Milestones beneath the stars"
         title="Badges"
-        description="Complete milestones, unlock badges and claim free wishes. Harder badges give bigger rewards."
+        description="Complete milestones and claim wish rewards."
         actions={
           <>
             {claimable.length > 0 ? (
@@ -497,7 +489,6 @@ export default function AchievementsPage() {
           loading={loading}
           exclusiveSkins={exclusiveSkins}
           exclusiveSkinsLoading={exclusiveSkinsLoading}
-          cosmicIssueNumber={cosmicIssueNumber}
         />
       </div>
 

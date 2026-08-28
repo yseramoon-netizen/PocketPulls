@@ -209,7 +209,7 @@ export default function HistoryPage() {
       <PlayerPageHeader
         eyebrow="Nebu remembers"
         title="Wish History"
-        description="Every pull has a timestamp, a value and a place in your story. Search your past wishes or return to the night sky that remembers them visually."
+        description="Search every completed wish."
         actions={
           <>
             <Link

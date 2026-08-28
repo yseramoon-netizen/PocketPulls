@@ -5,8 +5,8 @@ import type {
   ReactNode,
 } from "react";
 
+import AsterismSigil from "@/components/player/AsterismSigil";
 import NebuPortrait from "@/components/player/NebuPortrait";
-import UnownText from "@/components/player/UnownText";
 import { getPlayerRarityTheme } from "@/lib/player/rarity";
 
 export function PlayerPageHeader({
@@ -21,29 +21,23 @@ export function PlayerPageHeader({
   actions?: ReactNode;
 }) {
   return (
-    <header className="relative overflow-hidden rounded-[2rem] border border-violet-200/15 bg-[#090b27]/76 p-5 shadow-[0_24px_90px_rgba(0,0,0,0.24)] backdrop-blur-xl sm:p-7">
-      <h1 className="sr-only">{title}</h1>
-      <div className="pointer-events-none absolute inset-x-8 top-0 h-[2px] bg-gradient-to-r from-violet-300/20 via-cyan-200/55 to-yellow-200/25" />
-      <div className="pointer-events-none absolute -right-20 -top-20 h-52 w-52 rounded-full bg-cyan-300/[0.1] blur-[80px]" />
-      <div className="pointer-events-none absolute -bottom-24 left-12 h-52 w-52 rounded-full bg-violet-400/[0.11] blur-[80px]" />
-      <div className="pointer-events-none absolute left-[35%] top-[-8rem] h-44 w-44 rounded-full bg-pink-300/[0.035] blur-[76px]" />
-      <div className="pointer-events-none absolute bottom-[-8rem] right-[26%] h-40 w-40 rounded-full bg-cyan-300/[0.035] blur-[72px]" />
+    <header data-player-page-header className="relative overflow-hidden rounded-2xl border border-white/[0.09] bg-[#080b20]/88 p-5 shadow-[0_18px_60px_rgba(0,0,0,0.22)] backdrop-blur-xl sm:p-6">
+      <div data-player-surface-line className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-cyan-200/42 to-transparent" />
+      <div data-cosmic-page-sigil aria-hidden="true">
+        <AsterismSigil seed={`${eyebrow}:${title}`} points={7} />
+      </div>
 
-      <div className="relative flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+      <div className="relative flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div className="min-w-0">
-          <p className="text-xs font-black uppercase tracking-[0.22em] text-cyan-100/42">
+          <p className="text-[0.65rem] font-black uppercase tracking-[0.18em] text-cyan-100/46">
             {eyebrow}
           </p>
 
-          <div className="mt-4 max-w-full overflow-hidden">
-            <UnownText
-              text={title}
-              size="clamp(2.15rem, 5vw, 4.15rem)"
-              tone="holo"
-            />
-          </div>
+          <h1 className="mt-2 text-3xl font-black tracking-[-0.04em] text-white sm:text-4xl">
+            {title}
+          </h1>
 
-          <p className="mt-5 max-w-3xl text-sm font-semibold leading-7 text-white/48 sm:text-base">
+          <p className="mt-3 max-w-2xl text-sm font-semibold leading-6 text-white/45">
             {description}
           </p>
         </div>
@@ -89,19 +83,18 @@ export function PlayerStatCard({
 
   return (
     <article
-      className={`relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br ${accents[accent]} to-[#090b27]/84 p-5 shadow-[inset_0_0_0_1px_rgba(103,232,249,0.035),0_18px_50px_rgba(0,0,0,0.16)] backdrop-blur-xl`}
+      data-player-stat-card
+      className={`relative overflow-hidden rounded-xl border border-white/[0.09] bg-gradient-to-br ${accents[accent]} to-[#080b20]/88 p-4 shadow-[0_14px_40px_rgba(0,0,0,0.14)]`}
     >
-      <div className="pointer-events-none absolute inset-x-4 top-0 h-px bg-gradient-to-r from-violet-300/18 via-cyan-200/42 to-yellow-200/18" />
-
       <p className="relative text-[0.58rem] font-black uppercase tracking-[0.16em] opacity-48">
         {label}
       </p>
 
-      <p className="relative mt-3 truncate text-2xl font-black text-white">
+      <p className="relative mt-2 truncate text-2xl font-black text-white">
         {value}
       </p>
 
-      <p className="relative mt-2 text-xs font-semibold leading-5 text-white/32">
+      <p className="relative mt-1.5 text-xs font-semibold leading-5 text-white/34">
         {detail}
       </p>
     </article>
@@ -117,13 +110,10 @@ export function PlayerPanel({
 }) {
   return (
     <article
-      className={`relative overflow-hidden rounded-[2rem] border border-white/10 bg-[#090b27]/82 shadow-[inset_0_0_0_1px_rgba(103,232,249,0.035),0_24px_80px_rgba(0,0,0,0.22)] backdrop-blur-xl ${className}`}
+      data-player-panel
+      className={`relative overflow-hidden rounded-2xl border border-white/[0.09] bg-[#080b20]/88 shadow-[0_18px_60px_rgba(0,0,0,0.2)] backdrop-blur-xl ${className}`}
     >
-      <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-violet-300/18 via-cyan-200/42 to-yellow-200/18" />
-      <div className="pointer-events-none absolute -right-20 -top-20 h-44 w-44 rounded-full bg-violet-400/[0.07] blur-[75px]" />
-      <div className="pointer-events-none absolute -bottom-20 left-12 h-44 w-44 rounded-full bg-cyan-300/[0.06] blur-[75px]" />
-      <div className="pointer-events-none absolute -left-20 top-[35%] h-36 w-36 rounded-full bg-pink-300/[0.025] blur-[65px]" />
-      <div className="pointer-events-none absolute -bottom-20 right-20 h-36 w-36 rounded-full bg-cyan-300/[0.025] blur-[65px]" />
+      <div data-player-surface-line className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-cyan-200/28 to-transparent" />
 
       <div className="relative h-full">
         {children}
@@ -175,6 +165,7 @@ export function PlayerPrimaryButton({
 }) {
   return (
     <button
+      data-player-primary-button
       type={type}
       onClick={onClick}
       disabled={disabled}
@@ -219,37 +210,23 @@ export function PlayerEmptyState({
   description: string;
   action?: ReactNode;
 }) {
-  const titleSize =
-    title.length > 24
-      ? "clamp(0.78rem, 2.2vw, 1.12rem)"
-      : title.length > 16
-        ? "clamp(0.92rem, 2.6vw, 1.35rem)"
-        : "clamp(1.08rem, 3vw, 1.6rem)";
-
   return (
-    <PlayerPanel className="mt-6 flex min-h-[22rem] flex-col items-center justify-center px-6 py-10 text-center sm:min-h-[24rem]">
-      <div className="relative mx-auto flex h-24 w-24 flex-none items-center justify-center">
+    <PlayerPanel className="mt-6 flex min-h-[18rem] flex-col items-center justify-center px-6 py-9 text-center">
+      <div className="relative mx-auto flex h-20 w-20 flex-none items-center justify-center">
         <div className="absolute inset-3 rounded-full bg-cyan-200/10 blur-2xl" />
-        <div className="absolute inset-5 animate-pulse rounded-full bg-yellow-100/[0.06] blur-xl" />
 
         <NebuPortrait
           alt=""
           draggable={false}
-          className="relative z-10 block h-20 w-20 object-contain opacity-100"
+          className="relative z-10 block h-16 w-16 object-contain opacity-100"
         />
       </div>
 
-      <div className="mt-5 flex w-full max-w-[34rem] justify-center overflow-hidden px-1">
-        <UnownText
-          text={title}
-          size={titleSize}
-          tone="ancient"
-          centred
-          wrap={false}
-        />
-      </div>
+      <h2 className="mt-4 text-xl font-black tracking-tight text-white sm:text-2xl">
+        {title}
+      </h2>
 
-      <p className="mx-auto mt-4 max-w-md text-sm font-semibold leading-7 text-white/40">
+      <p className="mx-auto mt-3 max-w-md text-sm font-semibold leading-6 text-white/42">
         {description}
       </p>
 
@@ -341,14 +318,12 @@ export function CardArtwork({
       ) : (
         <div className="relative z-10 flex h-full w-full flex-col items-center justify-center gap-4 p-5 text-center">
           <span
-            className="text-7xl"
+            className="h-12 w-12 rounded-full border border-white/10"
             style={{
-              color: theme.primary,
-              filter: `drop-shadow(0 0 22px ${theme.glow})`,
+              background: theme.background,
+              boxShadow: `0 0 26px ${theme.glow}`,
             }}
-          >
-            *
-          </span>
+          />
 
           <strong className="text-sm text-white/80">
             {name}

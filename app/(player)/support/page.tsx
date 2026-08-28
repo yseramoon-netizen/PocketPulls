@@ -247,7 +247,7 @@ export default function SupportPage() {
 
   return (
     <div className="mx-auto w-full max-w-[1180px] px-4 py-7 sm:px-6 lg:px-8 lg:py-10">
-      <PlayerPageHeader eyebrow="Player care" title="Support" description="Report a wrong card, payment, shipping or condition problem with a private photo and a permanent message history." />
+      <PlayerPageHeader eyebrow="Player care" title="Support" description="Report a problem and follow every reply." />
 
       {error ? <div className="mt-4"><PlayerErrorBanner message={error} /></div> : null}
       {notice ? <div className="mt-4 rounded-2xl border border-emerald-200/15 bg-emerald-200/[.06] p-4 text-sm font-bold text-emerald-50/75">{notice}</div> : null}
@@ -265,7 +265,7 @@ export default function SupportPage() {
         <PlayerPanel className="min-h-[24rem] p-4 sm:p-5 lg:p-6">
           {creating ? (
             <form onSubmit={createTicket} className="space-y-4">
-              <div><h2 className="text-xl font-black">Tell us what happened</h2><p className="mt-1 text-xs font-semibold text-white/40">Never include passwords or payment-card details.</p></div>
+              <div><h2 className="text-xl font-black">Tell us what happened</h2><p className="mt-1 text-xs font-semibold text-white/40">Don’t include passwords or card details.</p></div>
               <label className="block text-xs font-black text-white/60">Problem type<select value={category} onChange={(event) => setCategory(event.target.value)} className="mt-1.5 min-h-12 w-full rounded-xl border border-white/10 bg-[#0a0d2b] px-3 text-base text-white outline-none focus:border-cyan-100/30 sm:text-sm">{CATEGORIES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
               <label className="block text-xs font-black text-white/60">Subject<input required minLength={5} maxLength={120} value={subject} onChange={(event) => setSubject(event.target.value)} className="mt-1.5 min-h-12 w-full rounded-xl border border-white/10 bg-black/20 px-3 text-base text-white outline-none focus:border-cyan-100/30 sm:text-sm" /></label>
               <label className="block text-xs font-black text-white/60">What happened?<textarea required minLength={10} maxLength={4000} rows={6} value={body} onChange={(event) => setBody(event.target.value)} className="mt-1.5 w-full rounded-xl border border-white/10 bg-black/20 p-3 text-base text-white outline-none focus:border-cyan-100/30 sm:text-sm" /></label>

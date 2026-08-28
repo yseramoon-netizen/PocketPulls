@@ -12,8 +12,8 @@ import {
   useState,
 } from "react";
 
+import AsterismSigil from "@/components/player/AsterismSigil";
 import NebuPortrait from "@/components/player/NebuPortrait";
-import UnownText from "@/components/player/UnownText";
 import { supabase } from "@/lib/supabase";
 
 const PlayerPreferencesPanel = dynamic(
@@ -632,15 +632,11 @@ export default function PlayerNav({
           top-0
           z-50
           border-b
-          border-violet-200/15
-          bg-[#07091f]/95
-          shadow-[0_12px_45px_rgba(0,0,0,0.24)]
+          border-white/[0.08]
+          bg-[#060819]/96
+          shadow-[0_10px_34px_rgba(0,0,0,0.22)]
           backdrop-blur-2xl
         "
-        style={{
-          backgroundImage:
-            "linear-gradient(112deg,rgba(34,211,238,0.08),rgba(7,9,31,0.96) 24%,rgba(124,58,237,0.12) 52%,rgba(103,232,249,0.07) 76%,rgba(250,204,21,0.035))",
-        }}
       >
         <div
           className="
@@ -660,7 +656,7 @@ export default function PlayerNav({
           className="
             mx-auto
             flex
-            min-h-[4.5rem]
+            min-h-[4rem]
             w-full
             max-w-[1760px]
             items-center
@@ -684,7 +680,7 @@ export default function PlayerNav({
               flex-none
               items-center
               justify-center
-              rounded-2xl
+              rounded-xl
               border
               border-white/10
               bg-white/[0.055]
@@ -736,8 +732,8 @@ export default function PlayerNav({
               className="
                 relative
                 flex
-                h-12
-                w-12
+                h-10
+                w-10
                 flex-none
                 items-center
                 justify-center
@@ -770,8 +766,8 @@ export default function PlayerNav({
                 className="
                   relative
                   z-10
-                  h-12
-                  w-12
+                  h-10
+                  w-10
                   max-w-none
                   object-contain
                   drop-shadow-[0_0_10px_rgba(103,232,249,0.28)]
@@ -781,28 +777,15 @@ export default function PlayerNav({
             </div>
 
             <div className="hidden min-w-0 sm:block">
-              <UnownText
-                text="ancientpulls"
-                size="1rem"
-                tone="holo"
-                wrap={false}
-              />
-
-              <p
-                className="
-                  mt-1
-                  hidden
-                  text-[0.55rem]
-                  font-black
-                  uppercase
-                  tracking-[0.18em]
-                  text-cyan-100/35
-                  lg:block
-                "
-              >
-                Ancient wishes · real cards
+              <p className="text-sm font-black tracking-[-0.02em] text-white">
+                Ancient Pulls
               </p>
             </div>
+
+            <span data-cosmic-nav-mark>
+              <AsterismSigil seed="cosmic-nebu-active" points={6} />
+              <span>Cosmic form</span>
+            </span>
           </Link>
 
           <div className="min-w-0 flex-1 sm:hidden">
@@ -895,7 +878,7 @@ export default function PlayerNav({
                   top-[calc(100%+0.75rem)]
                   z-[80]
                   w-64
-                  rounded-2xl
+                  rounded-xl
                   border
                   border-violet-200/15
                   bg-[#090b27]/98
@@ -1131,15 +1114,11 @@ export default function PlayerNav({
 
         <aside
           className={[
-            "absolute inset-y-0 left-0 flex w-[min(88vw,22rem)] flex-col border-r border-violet-200/15 bg-[#07091f]/98 shadow-[35px_0_110px_rgba(0,0,0,0.5)] transition-transform duration-300",
+            "absolute inset-y-0 left-0 flex w-[min(88vw,22rem)] flex-col border-r border-white/10 bg-[#060819]/[0.99] shadow-[35px_0_110px_rgba(0,0,0,0.5)] transition-transform duration-300",
             drawerOpen
               ? "translate-x-0"
               : "-translate-x-full",
           ].join(" ")}
-          style={{
-            backgroundImage:
-              "linear-gradient(155deg,rgba(168,91,42,0.16),rgba(8,6,29,0.99) 28%,rgba(117,72,181,0.15) 58%,rgba(53,209,197,0.1) 82%,rgba(207,66,95,0.12))",
-          }}
         >
           <div className="border-b border-white/10 p-5">
             <div className="flex items-start justify-between gap-4">
@@ -1199,7 +1178,7 @@ export default function PlayerNav({
                 flex
                 items-center
                 justify-between
-                rounded-2xl
+                rounded-xl
                 border
                 border-yellow-100/15
                 bg-yellow-200/[0.07]
@@ -1358,7 +1337,7 @@ function DrawerLink({
       href={item.href}
       onClick={onNavigate}
       className={[
-        "relative flex min-h-12 items-center gap-3 rounded-2xl border px-3 py-2 transition",
+        "relative flex min-h-12 items-center gap-3 rounded-xl border px-3 py-2 transition",
         active
           ? "border-cyan-100/20 bg-cyan-200/[0.09] text-cyan-50"
           : "border-transparent text-white/52 hover:border-white/10 hover:bg-white/[0.05] hover:text-white",

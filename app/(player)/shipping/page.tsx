@@ -565,7 +565,7 @@ export default function ShippingPage() {
       <PlayerPageHeader
         eyebrow="From your constellation to your door"
         title="Shipping Centre"
-        description="Build your collection until free shipping unlocks, save your delivery address and send every available physical card into the packing queue."
+        description="Manage delivery details and send available cards."
         actions={
           <>
             <PlayerSecondaryButton

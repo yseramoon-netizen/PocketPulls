@@ -572,7 +572,7 @@ export default function ProfilePage() {
       <PlayerPageHeader
         eyebrow="Your trainer identity"
         title="Profile"
-        description="Choose how you appear across ancientpulls, select the card that represents you and decide whether your profile can appear publicly in the rankings."
+        description="Manage your public trainer identity."
         actions={
           <PlayerSecondaryButton
             onClick={() => void loadProfile()}
@@ -688,12 +688,9 @@ export default function ProfilePage() {
                   </p>
 
                   {cosmicIssueNumber ? (
-                    <div className="mt-3 flex w-fit items-center gap-2 rounded-full border border-cyan-100/30 bg-gradient-to-r from-cyan-200/[0.1] via-violet-200/[0.1] to-yellow-100/[0.08] px-3 py-1.5 shadow-[0_0_24px_rgba(34,211,238,0.13)]">
-                      <span className="text-cyan-100">✦</span>
-                      <span className="text-[0.58rem] font-black uppercase tracking-[0.12em] text-cyan-50">
-                        Cosmic Sovereign · #{String(cosmicIssueNumber).padStart(6, "0")}
-                      </span>
-                    </div>
+                    <p className="mt-3 inline-flex rounded-full border border-cyan-100/30 bg-cyan-200/[0.08] px-3 py-1.5 text-[0.58rem] font-black uppercase tracking-[0.12em] text-cyan-50 shadow-[0_0_20px_rgba(34,211,238,0.12)]">
+                      ✦ Cosmic Nebu #{String(cosmicIssueNumber).padStart(6, "0")}
+                    </p>
                   ) : null}
 
                   {trainerCode ? (

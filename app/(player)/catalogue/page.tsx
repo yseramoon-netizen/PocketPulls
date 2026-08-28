@@ -10,7 +10,6 @@ import {
   useState,
 } from "react";
 
-import UnownText from "@/components/player/UnownText";
 import { formatMarketValue } from "@/lib/player/format";
 import { supabase } from "@/lib/supabase";
 
@@ -926,29 +925,17 @@ function CatalogueHero({
   onRefresh: () => void;
 }) {
   return (
-    <header className="relative overflow-hidden rounded-[2rem] border border-violet-200/15 bg-[#090b27]/82 shadow-[inset_0_0_0_1px_rgba(103,232,249,0.035)] p-6 shadow-[0_30px_100px_rgba(0,0,0,0.28)] backdrop-blur-xl sm:p-8">
-      <h1 className="sr-only">Card Catalogue</h1>
-      <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-cyan-300/[0.08] blur-[100px]" />
-      <div className="pointer-events-none absolute -bottom-28 left-[16%] h-72 w-72 rounded-full bg-violet-400/[0.09] blur-[100px]" />
-
-      <div className="relative flex flex-col gap-7 xl:flex-row xl:items-end xl:justify-between">
+    <header className="rounded-2xl border border-white/10 bg-[#090b27]/88 p-5 shadow-[0_24px_70px_rgba(0,0,0,0.22)] backdrop-blur-lg sm:p-7">
+      <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
         <div>
           <p className="text-xs font-black uppercase tracking-[0.22em] text-cyan-100/40">
-            The ancientpulls archive
+            Card archive
           </p>
-
-          <div className="mt-4 max-w-full overflow-hidden">
-            <UnownText
-              text="Card Catalogue"
-              size="clamp(2.1rem, 5vw, 4rem)"
-              tone="holo"
-            />
-          </div>
-
-          <p className="mt-4 max-w-3xl text-sm font-semibold leading-7 text-white/45 sm:text-base">
-            Explore every card recorded by ancientpulls. Values are
-            shown for reference, while live stock tells you which
-            physical cards can currently answer a wish.
+          <h1 className="mt-2 text-3xl font-black tracking-[-0.035em] text-white sm:text-4xl">
+            Card Catalogue
+          </h1>
+          <p className="mt-2 max-w-2xl text-sm font-semibold leading-6 text-white/45">
+            Browse recorded cards, values and live availability.
           </p>
         </div>
 
@@ -958,13 +945,11 @@ function CatalogueHero({
           disabled={refreshing}
           className="min-h-12 flex-none rounded-xl border border-white/10 bg-white/[0.05] px-5 text-sm font-black text-white/65 transition hover:-translate-y-0.5 hover:bg-white/10 hover:text-white disabled:cursor-wait disabled:opacity-50 disabled:hover:translate-y-0"
         >
-          {refreshing
-            ? "Reading the archive..."
-            : "Refresh catalogue"}
+          {refreshing ? "Refreshing…" : "Refresh"}
         </button>
       </div>
 
-      <div className="relative mt-7 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <OverviewCard
           label="Known cards"
           value={loading ? "—" : formatWholeNumber(overview.totalCards)}

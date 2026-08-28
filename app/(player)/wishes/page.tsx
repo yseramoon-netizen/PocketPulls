@@ -35,16 +35,6 @@ type InventoryRow = {
   reserved_quantity: number | null;
 };
 
-type OrderRow = {
-  amount_pence: number | null;
-  status: string | null;
-};
-
-type WishPurchaseOrderRow = {
-  amount_pence: number | null;
-  status: string | null;
-};
-
 type WishRow = {
   id: string;
   card_id: string | number;
@@ -96,8 +86,6 @@ type DashboardData = {
   availableCards: number;
   reservedCards: number;
   collectionValue: number;
-  amountSpentPence: number;
-  leaderboardScore: number;
   shippingThreshold: number;
   recentWishes: RecentWish[];
 };
@@ -109,8 +97,6 @@ const EMPTY_DASHBOARD: DashboardData = {
   availableCards: 0,
   reservedCards: 0,
   collectionValue: 0,
-  amountSpentPence: 0,
-  leaderboardScore: 0,
   shippingThreshold: 100,
   recentWishes: [],
 };
@@ -222,8 +208,6 @@ export default function WishesPage() {
       const [
         walletResult,
         inventoryResult,
-        ordersResult,
-        wishPurchaseOrdersResult,
         wishesResult,
         shippingSettingsResult,
       ] = await Promise.all([
@@ -237,18 +221,6 @@ export default function WishesPage() {
           .from("player_inventory")
           .select("card_id,quantity,reserved_quantity")
           .eq("user_id", user.id),
-
-        supabase
-          .from("player_orders")
-          .select("amount_pence,status")
-          .eq("user_id", user.id)
-          .eq("status", "paid"),
-
-        supabase
-          .from("wish_purchase_orders")
-          .select("amount_pence,status")
-          .eq("user_id", user.id)
-          .eq("status", "paid"),
 
         supabase
           .from("player_wishes")
@@ -274,15 +246,6 @@ export default function WishesPage() {
         throw inventoryResult.error;
       }
 
-      if (ordersResult.error) {
-        throw ordersResult.error;
-      }
-
-      // V15 originally revoked this table from authenticated players while
-      // the dashboard still queried it. V16 fixes the RLS policy in SQL, but
-      // the dashboard also degrades gracefully until that migration is run.
-      const purchaseLedgerReadable = !wishPurchaseOrdersResult.error;
-
       if (wishesResult.error) {
         throw wishesResult.error;
       }
@@ -295,13 +258,6 @@ export default function WishesPage() {
 
       const inventory =
         (inventoryResult.data as unknown as InventoryRow[] | null) || [];
-
-      const orders =
-        (ordersResult.data as unknown as OrderRow[] | null) || [];
-
-      const wishPurchaseOrders = purchaseLedgerReadable
-        ? (wishPurchaseOrdersResult.data as unknown as WishPurchaseOrderRow[] | null) || []
-        : [];
 
       const recentWishRows =
         (wishesResult.data as unknown as WishRow[] | null) || [];
@@ -358,22 +314,7 @@ export default function WishesPage() {
         collectionValue += quantity * cardValue;
       }
 
-      const amountSpentPence =
-        orders.reduce(
-          (total, order) => total + toWholeNumber(order.amount_pence),
-          0,
-        ) +
-        wishPurchaseOrders.reduce(
-          (total, order) => total + toWholeNumber(order.amount_pence),
-          0,
-        );
-
       const totalWishCount = toWholeNumber(wishesResult.count);
-
-      const leaderboardScore =
-        Math.round(collectionValue * 100) +
-        totalCards * 25 +
-        totalWishCount * 10;
 
       const shippingThreshold = Math.max(
         1,
@@ -412,8 +353,6 @@ export default function WishesPage() {
         availableCards,
         reservedCards,
         collectionValue,
-        amountSpentPence,
-        leaderboardScore,
         shippingThreshold,
         recentWishes,
       };
@@ -638,19 +577,19 @@ export default function WishesPage() {
   }
 
   return (
-    <section className="relative mx-auto w-full max-w-[1600px] px-4 py-8 sm:px-6 lg:px-8 lg:py-12">
+    <section className="relative mx-auto w-full max-w-[1440px] px-4 py-7 sm:px-6 lg:px-8 lg:py-10">
       <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p className="text-xs font-black uppercase tracking-[0.22em] text-yellow-100/45">
-            Nebu&apos;s Wish Sanctuary
+          <p className="text-[0.65rem] font-black uppercase tracking-[0.18em] text-yellow-100/45">
+            Wish chamber
           </p>
 
           <h1 className="mt-3 text-4xl font-black tracking-tight text-white sm:text-5xl">
             Make a Wish
           </h1>
 
-          <p className="mt-4 max-w-2xl text-sm font-semibold leading-7 text-white/45 sm:text-base">
-            Reveal genuine trading cards, grow your ancientpulls collection and recharge wishes whenever you want to keep the constellation moving.
+          <p className="mt-3 max-w-xl text-sm font-semibold leading-6 text-white/45">
+            Spend one wish to reveal your next card.
           </p>
         </div>
 
@@ -660,7 +599,7 @@ export default function WishesPage() {
           disabled={refreshing}
           className="min-h-11 rounded-xl border border-white/10 bg-white/[0.05] px-5 text-sm font-black text-white/65 transition hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
         >
-          {refreshing ? "Refreshing..." : "Refresh dashboard"}
+          {refreshing ? "Refreshing..." : "Refresh"}
         </button>
       </div>
 
@@ -680,7 +619,7 @@ export default function WishesPage() {
         </div>
       ) : null}
 
-      <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+      <div className="mt-6 grid gap-3 sm:grid-cols-3 lg:gap-4">
         <MetricCard
           label="Wish balance"
           value={formatWholeNumber(dashboard.wishBalance)}
@@ -702,19 +641,6 @@ export default function WishesPage() {
           accent="violet"
         />
 
-        <MetricCard
-          label="Amount spent"
-          value={formatMoney(dashboard.amountSpentPence / 100)}
-          detail="Completed purchases"
-          accent="pink"
-        />
-
-        <MetricCard
-          label="Trainer score"
-          value={formatWholeNumber(dashboard.leaderboardScore)}
-          detail="Collection and wish score"
-          accent="emerald"
-        />
       </div>
 
       <div className="mt-6 grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
@@ -829,7 +755,7 @@ function WishChamber({
   const hasWishes = wishBalance > 0;
 
   return (
-    <article data-onboarding-target="wish" className="relative overflow-hidden rounded-[2rem] border border-yellow-200/15 bg-[#090b27]/85 p-6 shadow-[0_30px_100px_rgba(0,0,0,0.3)] backdrop-blur-xl sm:p-8">
+    <article data-onboarding-target="wish" className="relative overflow-hidden rounded-2xl border border-yellow-200/15 bg-[#080b20]/88 p-6 shadow-[0_24px_80px_rgba(0,0,0,0.26)] backdrop-blur-xl sm:p-7">
       <div className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-yellow-200/10 blur-[90px]" />
       <div className="pointer-events-none absolute -bottom-24 left-10 h-64 w-64 rounded-full bg-violet-400/10 blur-[90px]" />
 
@@ -848,7 +774,6 @@ function WishChamber({
             className="relative z-10 h-36 w-36 object-contain drop-shadow-[0_18px_24px_rgba(0,0,0,0.45)]"
           />
 
-          <span className="absolute text-8xl text-yellow-100/15">*</span>
         </div>
 
         <div className="relative min-w-0 flex-1">
@@ -862,7 +787,7 @@ function WishChamber({
               className="inline-flex min-h-9 items-center gap-2 rounded-full border border-cyan-100/15 bg-cyan-100/[0.065] px-3.5 text-[0.62rem] font-black uppercase tracking-[0.11em] text-cyan-50/75 transition hover:border-cyan-100/30 hover:bg-cyan-100/[0.11] hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-200"
             >
               <span aria-hidden="true">✦</span>
-              View prizes &amp; odds
+              Prizes &amp; odds
             </button>
           </div>
 
@@ -872,10 +797,8 @@ function WishChamber({
 
           <p className="mt-4 max-w-xl text-sm font-semibold leading-7 text-white/45">
             {hasWishes
-              ? `You have ${formatWholeNumber(wishBalance)} wish${
-                  wishBalance === 1 ? "" : "es"
-                } available. Spend one to reveal a real card from the ancientpulls stock pool.`
-              : "Purchase or receive wish credits to open real cards from the ancientpulls stock pool."}
+              ? `${formatWholeNumber(wishBalance)} wish${wishBalance === 1 ? "" : "es"} available. Each reveals one card.`
+              : "Get wishes to reveal cards."}
           </p>
 
           <div className="mt-6 flex flex-col gap-3 sm:flex-row">
@@ -887,14 +810,14 @@ function WishChamber({
                 disabled={makingWish}
                 className="min-h-13 flex-1 rounded-xl bg-gradient-to-r from-yellow-200 via-cyan-100 to-violet-200 px-5 text-sm font-black text-[#111329] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-55"
               >
-                {makingWish ? "Nebu is choosing..." : "Make 1 Wish ✦"}
+                {makingWish ? "Choosing..." : "Make a wish"}
               </button>
             ) : (
               <Link
                 href="/wishes/shop"
                 className="flex min-h-13 flex-1 items-center justify-center rounded-xl bg-gradient-to-r from-yellow-200 via-cyan-100 to-violet-200 px-5 text-sm font-black text-[#111329] transition hover:brightness-105"
               >
-                Get Wishes
+              Get wishes
               </Link>
             )}
 
@@ -902,7 +825,7 @@ function WishChamber({
               href={hasWishes ? "/wishes/shop" : "/catalogue"}
               className="flex min-h-13 flex-1 items-center justify-center rounded-xl border border-white/10 bg-white/[0.05] px-5 text-sm font-black text-white/70 transition hover:bg-white/10 hover:text-white"
             >
-              {hasWishes ? "Wish Shop" : "Browse the catalogue"}
+              {hasWishes ? "Recharge" : "Catalogue"}
             </Link>
           </div>
 

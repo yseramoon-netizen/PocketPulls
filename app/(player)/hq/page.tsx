@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import UnownText from "@/components/player/UnownText";
+import CosmicNebuNexus from "@/components/player/CosmicNebuNexus";
 import { formatMarketValue } from "@/lib/player/format";
 import { supabase } from "@/lib/supabase";
 
@@ -254,19 +254,17 @@ export default function TrainerHqPage() {
   }
 
   return (
-    <section className="relative mx-auto w-full max-w-[1600px] px-4 py-8 sm:px-6 lg:px-8 lg:py-12">
+    <section className="relative mx-auto w-full max-w-[1440px] px-4 py-7 sm:px-6 lg:px-8 lg:py-10">
       <header className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h1 className="sr-only">Trainer HQ</h1>
-          <p className="text-xs font-black uppercase tracking-[0.22em] text-cyan-100/45">
-            The centre of your archive
+          <p className="text-[0.65rem] font-black uppercase tracking-[0.18em] text-cyan-100/45">
+            Trainer overview
           </p>
-          <div className="mt-3">
-            <UnownText text="Trainer HQ" size="2.65rem" tone="holo" />
-          </div>
-          <p className="mt-4 text-base font-semibold text-white/48">
-            {greeting()}, {data.trainerName}. Everything waiting for you is in
-            one place.
+          <h1 className="mt-2 text-3xl font-black tracking-[-0.04em] text-white sm:text-4xl">
+            Trainer HQ
+          </h1>
+          <p className="mt-3 text-sm font-semibold text-white/45">
+            {greeting()}, {data.trainerName}.
           </p>
         </div>
 
@@ -278,7 +276,9 @@ export default function TrainerHqPage() {
         </div>
       ) : null}
 
-      <div className="mt-8 grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <CosmicNebuNexus trainerName={data.trainerName} />
+
+      <div className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
           <MetricCard
             glyph="✦"
             label="Wishes"
@@ -326,10 +326,10 @@ export default function TrainerHqPage() {
         className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4"
       >
         {[
-          ["/wishes", "✦", "Make a wish", "Reveal your next card"],
-          ["/collection", "▣", "Open Binder", "Browse every owned card"],
-          ["/friends", "♢", "Trainer circle", "Friends and requests"],
-          ["/shipping", "S", "Shipping", "Cards and delivery status"],
+          ["/wishes", "✦", "Make a wish", "Reveal a card"],
+          ["/collection", "▣", "Open Binder", "Owned cards"],
+          ["/friends", "♢", "Friends", "Connections"],
+          ["/shipping", "S", "Shipping", "Delivery status"],
         ].map(([href, glyph, title, detail]) => (
           <Link
             key={href}
@@ -380,7 +380,7 @@ function MetricCard({
   return (
     <Link
       href={href}
-      className={`group flex min-h-[11.8rem] flex-col rounded-[1.65rem] border bg-gradient-to-br ${tones[tone]} to-transparent p-4 transition hover:-translate-y-0.5 hover:brightness-110 sm:p-5`}
+      className={`group flex min-h-[8.75rem] flex-col rounded-xl border bg-gradient-to-br ${tones[tone]} to-transparent p-4 transition hover:-translate-y-0.5 hover:brightness-110`}
     >
       <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/[0.045] text-lg font-black">
         {glyph}
@@ -398,7 +398,7 @@ function MetricCard({
 
 function RecentPull({ data }: { data: TrainerHqData }) {
   return (
-    <article className="overflow-hidden rounded-[2rem] border border-violet-200/15 bg-[#090b27]/88">
+    <article className="overflow-hidden rounded-2xl border border-violet-200/15 bg-[#080b20]/88">
       <div className="flex items-center justify-between gap-4 border-b border-white/[0.08] px-5 py-4">
         <div>
           <p className="text-[0.61rem] font-black uppercase tracking-[0.17em] text-violet-100/40">
@@ -456,7 +456,7 @@ function RecentPull({ data }: { data: TrainerHqData }) {
             Your first star is waiting
           </h3>
           <p className="mt-2 max-w-sm text-sm font-semibold leading-6 text-white/35">
-            Make a wish and your newest card will appear here.
+            Your latest card will appear here.
           </p>
         </div>
       )}
@@ -466,13 +466,6 @@ function RecentPull({ data }: { data: TrainerHqData }) {
 
 function ActivityPanel({ data }: { data: TrainerHqData }) {
   const items = [
-    {
-      href: "/wishes/shop",
-      glyph: "✦",
-      title: "Nebu’s Vault of Stars",
-      detail: "One daily login star after launch",
-      ready: false,
-    },
     {
       href: "/friends",
       glyph: "♢",
@@ -501,7 +494,7 @@ function ActivityPanel({ data }: { data: TrainerHqData }) {
   ];
 
   return (
-    <article className="rounded-[2rem] border border-cyan-200/15 bg-[#090b27]/88 p-5">
+    <article className="rounded-2xl border border-cyan-200/15 bg-[#080b20]/88 p-5">
       <p className="text-[0.61rem] font-black uppercase tracking-[0.17em] text-cyan-100/40">
         Live activity
       </p>
@@ -546,7 +539,7 @@ function ProgressPanel({
   shippingProgress: number;
 }) {
   return (
-    <article className="rounded-[2rem] border border-yellow-200/15 bg-[#090b27]/88 p-5">
+    <article className="rounded-2xl border border-yellow-200/15 bg-[#080b20]/88 p-5">
       <p className="text-[0.61rem] font-black uppercase tracking-[0.17em] text-yellow-100/40">
         Archive progress
       </p>
@@ -613,16 +606,16 @@ function SmallMilestone({ label, complete }: { label: string; complete: boolean 
 
 function TrainerHqLoading() {
   return (
-    <section className="mx-auto w-full max-w-[1600px] animate-pulse px-4 py-10 sm:px-6 lg:px-8">
+    <section className="mx-auto w-full max-w-[1440px] animate-pulse px-4 py-8 sm:px-6 lg:px-8">
       <div className="h-4 w-40 rounded bg-white/[0.06]" />
       <div className="mt-4 h-12 w-72 rounded-xl bg-white/[0.07]" />
       <div className="mt-8 grid gap-6 xl:grid-cols-[1.28fr_0.72fr]">
-        <div className="h-[25rem] rounded-[2.35rem] border border-white/[0.06] bg-white/[0.035]" />
+        <div className="h-[25rem] rounded-2xl border border-white/[0.06] bg-white/[0.035]" />
         <div className="grid grid-cols-2 gap-4">
           {Array.from({ length: 4 }, (_, index) => (
             <div
               key={index}
-              className="min-h-[11.8rem] rounded-[1.65rem] border border-white/[0.06] bg-white/[0.03]"
+              className="min-h-[8.75rem] rounded-xl border border-white/[0.06] bg-white/[0.03]"
             />
           ))}
         </div>

@@ -88,7 +88,7 @@ export default function OrdersPage() {
 
   return (
     <div className="mx-auto w-full max-w-[1180px] px-4 py-7 sm:px-6 lg:px-8 lg:py-10">
-      <PlayerPageHeader eyebrow="Physical fulfilment" title="Your cards & orders" description="The exact physical variant, condition and shipping trail for every successful wish." />
+      <PlayerPageHeader eyebrow="Fulfilment" title="Cards & Orders" description="Track physical cards and deliveries." />
 
       {error ? <div className="mt-4"><PlayerErrorBanner message={error} /></div> : null}
 

@@ -1182,7 +1182,7 @@ export default function TradePage() {
       <PlayerPageHeader
         eyebrow="Protected card exchange"
         title="Trade Cards"
-        description="Drag cards into your offer. Both trainers lock their offers, wait through the three-second safety countdown, then both must press Trade before any collection changes."
+        description="Exchange cards safely with friends."
       />
 
       <PlayerErrorBanner

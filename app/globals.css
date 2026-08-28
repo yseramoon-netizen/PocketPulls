@@ -122,6 +122,111 @@ html[data-nebu-skin="cosmic_nebu"] {
   --nebu-ghost-filter: saturate(1.15) contrast(1.12) brightness(1.07);
   --nebu-performance-accent: #67e8f9;
   --nebu-performance-soft: rgba(103, 232, 249, 0.34);
+  --cosmic-cyan: #67e8f9;
+  --cosmic-violet: #a78bfa;
+  --cosmic-pink: #e879f9;
+  --cosmic-gold: #fde68a;
+}
+
+[data-cosmic-nav-mark],
+[data-cosmic-page-sigil] {
+  display: none;
+}
+
+html[data-nebu-skin="cosmic_nebu"] .unknown-pulls-shell {
+  background: #01020c;
+}
+
+html[data-nebu-skin="cosmic_nebu"] [data-player-nav] {
+  border-color: rgba(103, 232, 249, 0.16);
+  background:
+    radial-gradient(circle at 50% 0%, rgba(124, 58, 237, 0.16), transparent 42%),
+    rgba(3, 5, 22, 0.94);
+  box-shadow:
+    0 10px 40px rgba(0, 0, 0, 0.28),
+    0 1px 0 rgba(232, 121, 249, 0.08);
+}
+
+html[data-nebu-skin="cosmic_nebu"] [data-cosmic-nav-mark] {
+  display: inline-flex;
+  min-height: 1.65rem;
+  align-items: center;
+  gap: 0.3rem;
+  border: 1px solid rgba(103, 232, 249, 0.17);
+  border-radius: 999px;
+  padding: 0 0.55rem 0 0.3rem;
+  color: rgba(207, 250, 254, 0.72);
+  background: linear-gradient(100deg, rgba(34, 211, 238, 0.07), rgba(168, 85, 247, 0.11));
+  font-size: 0.48rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+html[data-nebu-skin="cosmic_nebu"] [data-cosmic-nav-mark] > svg {
+  width: 1.2rem;
+  height: 1.2rem;
+  color: var(--cosmic-cyan);
+}
+
+html[data-nebu-skin="cosmic_nebu"] [data-player-page-header],
+html[data-nebu-skin="cosmic_nebu"] [data-player-panel] {
+  border-color: rgba(103, 232, 249, 0.14);
+  background:
+    linear-gradient(128deg, rgba(8, 12, 45, 0.94), rgba(19, 10, 52, 0.86) 64%, rgba(7, 22, 50, 0.9));
+  box-shadow:
+    0 18px 64px rgba(0, 0, 0, 0.24),
+    inset 0 0 0 1px rgba(232, 121, 249, 0.025);
+}
+
+html[data-nebu-skin="cosmic_nebu"] [data-player-stat-card] {
+  border-color: rgba(167, 139, 250, 0.15);
+  box-shadow:
+    0 14px 42px rgba(0, 0, 0, 0.2),
+    inset 0 1px rgba(103, 232, 249, 0.045);
+}
+
+html[data-nebu-skin="cosmic_nebu"] [data-player-surface-line] {
+  background: linear-gradient(90deg, transparent, var(--cosmic-cyan), var(--cosmic-pink), transparent);
+  opacity: 0.55;
+}
+
+html[data-nebu-skin="cosmic_nebu"] [data-cosmic-page-sigil] {
+  position: absolute;
+  top: 50%;
+  right: clamp(1rem, 4vw, 3rem);
+  display: block;
+  width: clamp(6rem, 11vw, 9rem);
+  color: rgba(103, 232, 249, 0.2);
+  opacity: 0.82;
+  transform: translateY(-50%) rotate(8deg);
+}
+
+html[data-nebu-skin="cosmic_nebu"] [data-player-primary-button] {
+  border-color: rgba(255, 255, 255, 0.18);
+  background: linear-gradient(105deg, #a5f3fc, #c4b5fd 48%, #f0abfc);
+  box-shadow: 0 0 30px rgba(103, 232, 249, 0.16);
+}
+
+html[data-nebu-skin="cosmic_nebu"] .unknown-pulls-shell ::selection {
+  color: #fff;
+  background: rgba(168, 85, 247, 0.48);
+}
+
+@media (max-width: 640px) {
+  html[data-nebu-skin="cosmic_nebu"] [data-cosmic-nav-mark] span {
+    display: none;
+  }
+
+  html[data-nebu-skin="cosmic_nebu"] [data-cosmic-nav-mark] {
+    padding-right: 0.3rem;
+  }
+
+  html[data-nebu-skin="cosmic_nebu"] [data-cosmic-page-sigil] {
+    right: -1rem;
+    width: 7rem;
+    opacity: 0.48;
+  }
 }
 
 html {
@@ -172,6 +277,11 @@ img[src="/ancient-pulls/celestial-cat.webp"] {
 .nebu-portrait-themed {
   image-rendering: pixelated;
   filter: var(--nebu-portrait-filter, var(--nebu-image-filter));
+}
+
+.nebu-portrait-themed[data-nebu-portrait-skin="cosmic_nebu"],
+img[src*="/skins/cosmic-nebu/"] {
+  image-rendering: auto;
 }
 
 /* iOS automatically zooms pages when a focused form control is below 16px. */

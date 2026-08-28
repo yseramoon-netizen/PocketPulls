@@ -3,12 +3,12 @@
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import type { Session } from "@supabase/supabase-js";
 
 import PlayerNav from "@/components/player/PlayerNav";
 import PurchaseConsentGate from "@/components/player/PurchaseConsentGate";
-import UnownText from "@/components/player/UnownText";
 import UnknownPullsBackdrop from "@/components/player/UnknownPullsBackdrop";
 import {
   applyNebuSkin,
@@ -137,6 +137,27 @@ function normaliseWishBalance(value: unknown): number {
   return Math.max(0, Math.floor(parsed));
 }
 
+async function settleWithin<T>(
+  request: PromiseLike<T>,
+  timeoutMs: number,
+  message: string,
+): Promise<T> {
+  let timer: number | null = null;
+
+  try {
+    return await Promise.race([
+      Promise.resolve(request),
+      new Promise<T>((_, reject) => {
+        timer = window.setTimeout(() => reject(new Error(message)), timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timer !== null) {
+      window.clearTimeout(timer);
+    }
+  }
+}
+
 export default function PlayerLayout({ children }: PlayerLayoutProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -170,24 +191,29 @@ export default function PlayerLayout({ children }: PlayerLayoutProps) {
       }
 
     try {
-      const [profileResult, walletResult, consentResult, launchResult] = await Promise.all([
-        supabase
-          .from("player_profiles")
-          .select(
-            "user_id,username,display_name,avatar_url,is_banned,ban_reason,banned_at",
-          )
-          .eq("user_id", session.user.id)
-          .maybeSingle(),
+      const [profileResult, walletResult, consentResult, launchResult] =
+        await settleWithin(
+          Promise.all([
+            supabase
+              .from("player_profiles")
+              .select(
+                "user_id,username,display_name,avatar_url,is_banned,ban_reason,banned_at",
+              )
+              .eq("user_id", session.user.id)
+              .maybeSingle(),
 
-        supabase
-          .from("player_wallets")
-          .select("user_id,wish_balance")
-          .eq("user_id", session.user.id)
-          .maybeSingle(),
+            supabase
+              .from("player_wallets")
+              .select("user_id,wish_balance")
+              .eq("user_id", session.user.id)
+              .maybeSingle(),
 
-        supabase.rpc("get_player_purchase_consent"),
-        supabase.rpc("get_player_launch_state"),
-      ]);
+            supabase.rpc("get_player_purchase_consent"),
+            supabase.rpc("get_player_launch_state"),
+          ]),
+          10_000,
+          "Ancient Pulls took too long to open. Check your connection and try again.",
+        );
 
       if (profileResult.error) {
         throw new Error(
@@ -342,7 +368,11 @@ export default function PlayerLayout({ children }: PlayerLayoutProps) {
       const {
         data: { session },
         error,
-      } = await supabase.auth.getSession();
+      } = await settleWithin(
+        supabase.auth.getSession(),
+        4_000,
+        "Your session check took too long. Try again.",
+      );
 
       if (error) {
         throw new Error(
@@ -579,7 +609,7 @@ export default function PlayerLayout({ children }: PlayerLayoutProps) {
         wishBalance={player.wishBalance}
       />
 
-      <main className="relative z-10 min-h-[calc(100dvh-5rem)] pb-[env(safe-area-inset-bottom)]">
+      <main data-player-main className="relative z-10 min-h-[calc(100dvh-5rem)] pb-[env(safe-area-inset-bottom)]">
         {player.launchState.maintenance ? (
           <div className="mx-auto mt-3 w-[calc(100%-2rem)] max-w-[1180px] rounded-2xl border border-amber-200/20 bg-amber-200/[0.09] px-4 py-3 text-center text-sm font-black text-amber-50/80">
             {player.launchState.message || "Ancient Pulls is temporarily paused for maintenance. Your existing cards and records remain safe."}
@@ -606,58 +636,20 @@ export default function PlayerLayout({ children }: PlayerLayoutProps) {
           --ancient-violet: #7548b5;
         }
 
-        .unknown-pulls-shell main header,
-        .unknown-pulls-shell main article {
-          background-image:
-            radial-gradient(
-              circle at 4% 10%,
-              rgba(207, 66, 95, 0.075),
-              transparent 25%
-            ),
-            radial-gradient(
-              circle at 94% 8%,
-              rgba(53, 209, 197, 0.075),
-              transparent 24%
-            ),
-            radial-gradient(
-              circle at 75% 100%,
-              rgba(62, 182, 111, 0.05),
-              transparent 28%
-            ),
-            linear-gradient(
-              135deg,
-              rgba(229, 169, 63, 0.055),
-              transparent 30%,
-              rgba(117, 72, 181, 0.055) 68%,
-              rgba(168, 91, 42, 0.045)
-            );
-          border-color: rgba(229, 169, 63, 0.18);
-          box-shadow:
-            inset 0 0 0 1px rgba(53, 209, 197, 0.035),
-            inset 0 0 38px rgba(207, 66, 95, 0.025),
-            0 24px 80px rgba(0, 0, 0, 0.22);
-        }
-
         .unknown-pulls-shell main input,
         .unknown-pulls-shell main select,
         .unknown-pulls-shell main textarea {
-          border-color: rgba(229, 169, 63, 0.16);
-          background-image:
-            linear-gradient(
-              135deg,
-              rgba(168, 91, 42, 0.07),
-              rgba(53, 209, 197, 0.025) 48%,
-              rgba(117, 72, 181, 0.06)
-            );
+          border-color: rgba(255, 255, 255, 0.1);
+          background-color: rgba(255, 255, 255, 0.035);
+          background-image: none;
         }
 
         .unknown-pulls-shell main input:focus,
         .unknown-pulls-shell main select:focus,
         .unknown-pulls-shell main textarea:focus {
-          border-color: rgba(53, 209, 197, 0.34);
+          border-color: rgba(103, 232, 249, 0.34);
           box-shadow:
-            0 0 0 2px rgba(53, 209, 197, 0.075),
-            0 0 22px rgba(207, 66, 95, 0.045);
+            0 0 0 2px rgba(103, 232, 249, 0.075);
         }
 
         .unknown-pulls-shell ::selection {
@@ -724,43 +716,25 @@ function PlayerLoadingScreen() {
       <UnknownPullsBackdrop />
 
       <div className="relative z-10 flex max-w-sm flex-col items-center text-center">
-        <div className="relative flex h-28 w-28 items-center justify-center">
-          <div className="absolute inset-2 animate-pulse rounded-full bg-yellow-200/15 blur-2xl" />
+        <div className="relative flex h-20 w-20 items-center justify-center">
+          <div className="absolute inset-1 animate-spin rounded-full border border-transparent border-r-cyan-100/38 border-t-yellow-100/65 [animation-duration:2.5s]" />
 
-          <div className="absolute inset-0 animate-spin rounded-full border border-transparent border-r-cyan-100/40 border-t-yellow-100/70 [animation-duration:2.5s]" />
-
-          <img
+          <Image
             src="/ancient-pulls/celestial-cat.webp"
             alt=""
+            width={56}
+            height={56}
+            priority
             draggable={false}
             onError={(event) => {
               event.currentTarget.style.display = "none";
             }}
-            className="relative h-20 w-20 object-contain drop-shadow-[0_12px_16px_rgba(0,0,0,0.4)]"
-          />
-
-          <span className="absolute text-5xl text-yellow-100/20">*</span>
-        </div>
-
-        <p className="mt-6 text-xs font-black uppercase tracking-[0.22em] text-yellow-100/45">
-          The ancient archive is waking
-        </p>
-
-        <div className="mt-4">
-          <UnownText
-            text="ancientpulls"
-            size="2rem"
-            tone="holo"
-            centred
+            className="relative h-14 w-14 object-contain drop-shadow-[0_10px_14px_rgba(0,0,0,0.36)]"
           />
         </div>
 
-        <p className="mt-4 text-sm font-black text-white/72">
-          Preparing your wishes
-        </p>
-
-        <p className="mt-3 text-sm font-semibold leading-6 text-white/35">
-          Loading your trainer profile and wish balance.
+        <p className="mt-5 text-sm font-black text-white/72">
+          Opening Ancient Pulls
         </p>
       </div>
     </main>
@@ -868,27 +842,15 @@ function PlayerErrorScreen({
     <main className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden bg-[#02030d] px-4 py-12 text-white">
       <UnknownPullsBackdrop />
 
-      <section className="relative z-10 w-full max-w-lg overflow-hidden rounded-[2rem] border border-violet-200/15 bg-[#090b27]/95 shadow-[0_35px_120px_rgba(0,0,0,0.65)] backdrop-blur-2xl">
-        <div className="h-1 bg-gradient-to-r from-[#d44860] via-[#e7ad46] to-[#42d2c7]" />
+      <section className="relative z-10 w-full max-w-lg overflow-hidden rounded-2xl border border-white/10 bg-[#080b20]/95 shadow-[0_28px_90px_rgba(0,0,0,0.55)] backdrop-blur-2xl">
+        <div className="h-px bg-gradient-to-r from-transparent via-cyan-100/45 to-transparent" />
 
         <div className="p-6 sm:p-8">
-          <p className="text-xs font-black uppercase tracking-[0.2em] text-cyan-100/42">
-            Wish interrupted
-          </p>
+          <h1 className="text-2xl font-black tracking-tight text-white">
+            Couldn&apos;t open your account
+          </h1>
 
-          <div className="mt-4">
-            <UnownText
-              text="Wish Interrupted"
-              size="1.55rem"
-              tone="ancient"
-            />
-          </div>
-
-          <p className="mt-4 text-xl font-black text-white">
-            Your trainer profile could not be opened.
-          </p>
-
-          <p className="mt-4 text-sm font-semibold leading-6 text-white/55">
+          <p className="mt-3 text-sm font-semibold leading-6 text-white/55">
             {message}
           </p>
 
