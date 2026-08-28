@@ -13,6 +13,12 @@ import styles from "./NebuWishSummon.module.css";
 
 const KEYPOSE_SHEET =
   "/ancient-pulls/wish/nebu-cinematic/nebu-keyposes-v2.webp";
+const FOUNDER_KEYPOSE_SHEETS: Readonly<
+  Partial<Record<NebuSkinKey, string>>
+> = {
+  sherry: "/ancient-pulls/wish/nebu-cinematic/sherry-keyposes-v1.png",
+  bubbles: "/ancient-pulls/wish/nebu-cinematic/bubbles-keyposes-v1.png",
+};
 const SHEET_COLUMNS = 4;
 const SHEET_ROWS = 2;
 const POSE_WIDTH = 768;
@@ -43,8 +49,10 @@ const NEBU_ATLAS_FILTERS: Readonly<Record<NebuSkinKey, string>> = {
   sunstone: "sepia(0.62) saturate(1.65) hue-rotate(338deg) brightness(1.08)",
   royal: "hue-rotate(48deg) saturate(1.42) brightness(1.06)",
   pearl: "grayscale(0.82) saturate(0.7) brightness(1.2) contrast(0.96)",
-  sherry: "brightness(0.54) contrast(1.38) saturate(1.25) hue-rotate(58deg)",
-  bubbles: "saturate(1.04) contrast(1.04)",
+  // Founder characters use dedicated hand-authored pose sheets. Never pass
+  // them through the global badge filters or their eyes/coats drift.
+  sherry: "none",
+  bubbles: "none",
   cosmic_nebu: "saturate(1.16) contrast(1.08)",
 };
 
@@ -115,6 +123,7 @@ type RenderEnvironment = {
   centerX: number;
   centerY: number;
   tierIntensity: number;
+  nebuSkin: NebuSkinKey;
   reducedMotion: boolean;
   lowEffects: boolean;
   theme: Theme;
@@ -162,8 +171,9 @@ const BLACK_HOLE_THEME: Theme = {
 export function getNebuSummonSprite(
   _tier: number,
   _blackHole = false,
+  nebuSkin: NebuSkinKey = "midnight",
 ): string {
-  return KEYPOSE_SHEET;
+  return FOUNDER_KEYPOSE_SHEETS[nebuSkin] || KEYPOSE_SHEET;
 }
 
 function clamp(value: number, minimum = 0, maximum = 1): number {
@@ -329,6 +339,213 @@ function readTheme(element: HTMLElement): Theme {
       [250, 204, 82],
     ),
   };
+}
+
+type FounderCoat = 0 | 1 | 2;
+
+const BUBBLES_WHITE: FounderCoat = 0;
+const BUBBLES_BLACK: FounderCoat = 1;
+const BUBBLES_GOLD: FounderCoat = 2;
+const FOUNDER_ATLAS_CACHE = new Map<"sherry" | "bubbles", HTMLCanvasElement>();
+
+const FOUNDER_EYE_MASKS: ReadonlyArray<
+  readonly [centerX: number, centerY: number, radiusX: number, radiusY: number]
+> = [
+  [450, 406, 80, 60],
+  [366, 376, 75, 60],
+  [365, 370, 70, 55],
+  [277, 405, 70, 50],
+  [445, 370, 105, 55],
+  [408, 262, 80, 60],
+  [434, 287, 132, 96],
+  [354, 319, 92, 68],
+] as const;
+
+function founderEyeMaskAt(
+  pose: number,
+  localX: number,
+  localY: number,
+): number {
+  const mask = FOUNDER_EYE_MASKS[pose] || FOUNDER_EYE_MASKS[0];
+  const distance =
+    ((localX - mask[0]) / mask[2]) ** 2 +
+    ((localY - mask[1]) / mask[3]) ** 2;
+  return 1 - smoothstep(inverseLerp(0.34, 1, distance));
+}
+
+function bubblesCoatAt(
+  pose: number,
+  localX: number,
+  localY: number,
+): FounderCoat {
+  const x = localX / POSE_WIDTH;
+  const y = localY / POSE_HEIGHT;
+  const faceWhite =
+    y < 0.43 &&
+    Math.abs(x - 0.49) < lerp(0.075, 0.13, smoothstep(y / 0.43));
+  const chestWhite =
+    y >= 0.34 &&
+    Math.abs(x - 0.49) < lerp(0.08, 0.15, smoothstep((y - 0.34) / 0.48));
+
+  if (faceWhite || chestWhite) return BUBBLES_WHITE;
+
+  // Broad, softly interlocked fields create the black-and-gold mask running
+  // from the eyes over the back and tail. The source luminance is retained,
+  // so drawn fur, shadows, and pose silhouettes survive the palette transfer.
+  const field =
+    Math.sin(x * 12.8 + y * 5.3 + pose * 1.71) * 0.54 +
+    Math.sin(x * 25.2 - y * 9.4 + pose * 0.83) * 0.29 +
+    Math.cos(x * 7.1 + y * 17.6 - pose * 1.13) * 0.25;
+  const backBias = smoothstep(inverseLerp(0.26, 0.68, x + y * 0.42));
+
+  if (field + backBias * 0.24 > 0.34) return BUBBLES_BLACK;
+  if (field - backBias * 0.12 < -0.22) return BUBBLES_GOLD;
+  return BUBBLES_WHITE;
+}
+
+function founderToneDetail(
+  sourceValue: number,
+  lift = 0,
+): number {
+  return clamp(
+    Math.pow(clamp((sourceValue + lift) / 0.68), 0.58),
+  );
+}
+
+function createFounderAtlas(
+  image: HTMLImageElement,
+  nebuSkin: "sherry" | "bubbles",
+): CanvasImageSource {
+  const cached = FOUNDER_ATLAS_CACHE.get(nebuSkin);
+  if (
+    cached &&
+    cached.width === image.naturalWidth &&
+    cached.height === image.naturalHeight
+  ) {
+    return cached;
+  }
+
+  const atlas = document.createElement("canvas");
+  atlas.width = image.naturalWidth;
+  atlas.height = image.naturalHeight;
+  const atlasContext = atlas.getContext("2d", {
+    alpha: true,
+    willReadFrequently: true,
+  });
+  if (!atlasContext) return image;
+
+  atlasContext.drawImage(image, 0, 0);
+  const pixels = atlasContext.getImageData(0, 0, atlas.width, atlas.height);
+  const data = pixels.data;
+
+  for (let y = 0; y < atlas.height; y += 1) {
+    const poseRow = Math.floor(y / POSE_HEIGHT);
+    const localY = y % POSE_HEIGHT;
+
+    for (let x = 0; x < atlas.width; x += 1) {
+      const offset = (y * atlas.width + x) * 4;
+      if (data[offset + 3] < 8) continue;
+
+      const red = data[offset];
+      const green = data[offset + 1];
+      const blue = data[offset + 2];
+      const r = red / 255;
+      const g = green / 255;
+      const b = blue / 255;
+      const value = Math.max(r, g, b);
+      const minimum = Math.min(r, g, b);
+      const delta = value - minimum;
+      const saturation = value > 0 ? delta / value : 0;
+      let hue = 0;
+      if (delta > 0.0001) {
+        if (value === r) hue = ((g - b) / delta) % 6;
+        else if (value === g) hue = (b - r) / delta + 2;
+        else hue = (r - g) / delta + 4;
+        hue = ((hue / 6) + 1) % 1;
+      }
+      const pose = poseRow * SHEET_COLUMNS + Math.floor(x / POSE_WIDTH);
+      const localX = x % POSE_WIDTH;
+      const eyeMask = founderEyeMaskAt(pose, localX, localY);
+      const warmDetail =
+        hue >= 0.025 && hue <= 0.19 && saturation > 0.34 && value > 0.28;
+      const midnightFur =
+        saturation > 0.12 &&
+        value < 0.78 &&
+        hue >= 0.5 &&
+        hue <= 0.86;
+
+      if (eyeMask > 0.18 && warmDetail) {
+        const detail = founderToneDetail(value, 0.12);
+        const sherryEye = nebuSkin === "sherry";
+        const eyeDarkRed = sherryEye ? 4 : 31;
+        const eyeDarkGreen = sherryEye ? 38 : 49;
+        const eyeDarkBlue = sherryEye ? 18 : 7;
+        const eyeLightRed = sherryEye ? 102 : 185;
+        const eyeLightGreen = sherryEye ? 255 : 225;
+        const eyeLightBlue = sherryEye ? 159 : 82;
+        const mix = eyeMask * smoothstep(inverseLerp(0.28, 0.78, saturation));
+        data[offset] = Math.round(lerp(red, lerp(eyeDarkRed, eyeLightRed, detail), mix));
+        data[offset + 1] = Math.round(lerp(green, lerp(eyeDarkGreen, eyeLightGreen, detail), mix));
+        data[offset + 2] = Math.round(lerp(blue, lerp(eyeDarkBlue, eyeLightBlue, detail), mix));
+        continue;
+      }
+
+      if (!midnightFur && !(nebuSkin === "bubbles" && warmDetail && localY > 340 && value < 0.9)) {
+        continue;
+      }
+
+      let darkRed: number;
+      let darkGreen: number;
+      let darkBlue: number;
+      let lightRed: number;
+      let lightGreen: number;
+      let lightBlue: number;
+      let lift = 0;
+      if (nebuSkin === "sherry") {
+        darkRed = 2;
+        darkGreen = 7;
+        darkBlue = 5;
+        lightRed = 64;
+        lightGreen = 84;
+        lightBlue = 73;
+      } else {
+        const coat = bubblesCoatAt(pose, localX, localY);
+        if (coat === BUBBLES_BLACK) {
+          darkRed = 7;
+          darkGreen = 7;
+          darkBlue = 6;
+          lightRed = 74;
+          lightGreen = 65;
+          lightBlue = 54;
+        } else if (coat === BUBBLES_GOLD) {
+          darkRed = 83;
+          darkGreen = 38;
+          darkBlue = 9;
+          lightRed = 245;
+          lightGreen = 169;
+          lightBlue = 63;
+          lift = 0.09;
+        } else {
+          darkRed = 76;
+          darkGreen = 72;
+          darkBlue = 66;
+          lightRed = 255;
+          lightGreen = 250;
+          lightBlue = 237;
+          lift = 0.2;
+        }
+      }
+
+      const detail = founderToneDetail(value, lift);
+      data[offset] = Math.round(lerp(darkRed, lightRed, detail));
+      data[offset + 1] = Math.round(lerp(darkGreen, lightGreen, detail));
+      data[offset + 2] = Math.round(lerp(darkBlue, lightBlue, detail));
+    }
+  }
+
+  atlasContext.putImageData(pixels, 0, 0);
+  FOUNDER_ATLAS_CACHE.set(nebuSkin, atlas);
+  return atlas;
 }
 
 function createSkinnedAtlas(
@@ -882,6 +1099,7 @@ function regularPoseAt(
   swipeAtMs: number,
   impactAtMs: number,
   reducedMotion: boolean,
+  protectedEnding = false,
 ): PoseMoment {
   const strainStartsAt = stageMomentsMs[0] ?? Math.max(720, swipeAtMs - 1000);
   const raiseStartsAt = Math.max(320, strainStartsAt - 470);
@@ -935,6 +1153,12 @@ function regularPoseAt(
       to: 6,
       mix: inverseLerp(anticipateAtMs, impactAtMs - 86, elapsedMs),
     };
+  }
+
+  if (protectedEnding) {
+    // Bubbles sees the meteor coming, but her personal shield means she never
+    // needs to take Nebu's direct-impact cover pose.
+    return { from: 6, to: 6, mix: 0 };
   }
 
   // The protective crouch is an anticipation accent, never a held end state.
@@ -1225,6 +1449,210 @@ function drawImpact(
     }
   }
   context.restore();
+}
+
+type BubbleShieldState = {
+  centerX: number;
+  centerY: number;
+  radius: number;
+  scaleX: number;
+  scaleY: number;
+  formation: number;
+  impactProgress: number;
+  opacity: number;
+};
+
+function bubbleShieldStateAt(
+  elapsedMs: number,
+  impactAtMs: number,
+  centerX: number,
+  centerY: number,
+  radius: number,
+  reducedMotion: boolean,
+): BubbleShieldState | null {
+  const appearsAtMs = impactAtMs - 270;
+  if (elapsedMs < appearsAtMs || elapsedMs >= impactAtMs + 780) return null;
+
+  const formation = smoothstep(inverseLerp(appearsAtMs, impactAtMs - 28, elapsedMs));
+  const impactProgress = inverseLerp(impactAtMs, impactAtMs + 720, elapsedMs);
+  const pop = reducedMotion
+    ? 0
+    : Math.sin(inverseLerp(appearsAtMs, impactAtMs + 40, elapsedMs) * Math.PI * 1.35) *
+      (1 - formation) * 0.08;
+  const wobble = impactProgress > 0 && !reducedMotion
+    ? Math.sin(impactProgress * Math.PI * 10.5) * Math.exp(-impactProgress * 4.5) * 0.065
+    : 0;
+
+  return {
+    centerX,
+    centerY,
+    radius: radius * lerp(0.72, 1, formation) * (1 + pop),
+    scaleX: 1 + wobble,
+    scaleY: 1 - wobble * 0.72,
+    formation,
+    impactProgress,
+    opacity: formation * (1 - smoothstep(inverseLerp(0.72, 1, impactProgress))),
+  };
+}
+
+function drawBubbleShieldBack(
+  context: CanvasRenderingContext2D,
+  elapsedMs: number,
+  impactAtMs: number,
+  centerX: number,
+  centerY: number,
+  radius: number,
+  environment: RenderEnvironment,
+): void {
+  const state = bubbleShieldStateAt(
+    elapsedMs,
+    impactAtMs,
+    centerX,
+    centerY,
+    radius,
+    environment.reducedMotion,
+  );
+  if (!state || state.opacity <= 0.001) return;
+
+  context.save();
+  context.translate(state.centerX, state.centerY);
+  context.scale(state.scaleX, state.scaleY);
+  context.globalCompositeOperation = "screen";
+
+  const glass = context.createRadialGradient(
+    -state.radius * 0.3,
+    -state.radius * 0.38,
+    state.radius * 0.04,
+    0,
+    0,
+    state.radius,
+  );
+  glass.addColorStop(0, `rgba(255,255,255,${0.12 * state.opacity})`);
+  glass.addColorStop(0.28, `rgba(186,250,255,${0.055 * state.opacity})`);
+  glass.addColorStop(0.7, `rgba(115,214,255,${0.045 * state.opacity})`);
+  glass.addColorStop(1, `rgba(210,168,255,${0.15 * state.opacity})`);
+  context.fillStyle = glass;
+  context.beginPath();
+  context.arc(0, 0, state.radius, 0, TAU);
+  context.fill();
+
+  const lowerCaustic = context.createLinearGradient(
+    0,
+    state.radius * 0.12,
+    0,
+    state.radius,
+  );
+  lowerCaustic.addColorStop(0, "rgba(82,210,255,0)");
+  lowerCaustic.addColorStop(1, `rgba(80,205,255,${0.12 * state.opacity})`);
+  context.fillStyle = lowerCaustic;
+  context.beginPath();
+  context.ellipse(0, state.radius * 0.55, state.radius * 0.78, state.radius * 0.28, 0, 0, TAU);
+  context.fill();
+  context.restore();
+}
+
+function drawBubbleShieldFront(
+  context: CanvasRenderingContext2D,
+  elapsedMs: number,
+  impactAtMs: number,
+  centerX: number,
+  centerY: number,
+  radius: number,
+  impactX: number,
+  impactY: number,
+  environment: RenderEnvironment,
+): void {
+  const state = bubbleShieldStateAt(
+    elapsedMs,
+    impactAtMs,
+    centerX,
+    centerY,
+    radius,
+    environment.reducedMotion,
+  );
+  if (!state || state.opacity <= 0.001) return;
+
+  const impact = state.impactProgress;
+  context.save();
+  context.globalCompositeOperation = "screen";
+  context.translate(state.centerX, state.centerY);
+  context.scale(state.scaleX, state.scaleY);
+
+  const rim = context.createLinearGradient(
+    -state.radius,
+    -state.radius,
+    state.radius,
+    state.radius,
+  );
+  rim.addColorStop(0, `rgba(255,255,255,${0.82 * state.opacity})`);
+  rim.addColorStop(0.28, `rgba(109,231,255,${0.34 * state.opacity})`);
+  rim.addColorStop(0.67, `rgba(205,160,255,${0.46 * state.opacity})`);
+  rim.addColorStop(1, `rgba(255,241,181,${0.7 * state.opacity})`);
+  context.strokeStyle = rim;
+  context.lineWidth = lerp(1.4, 3.4, state.formation) + (1 - impact) * 0.8;
+  context.shadowBlur = 22;
+  context.shadowColor = `rgba(120,225,255,${0.72 * state.opacity})`;
+  context.beginPath();
+  context.arc(0, 0, state.radius, 0, TAU);
+  context.stroke();
+
+  context.lineCap = "round";
+  context.strokeStyle = `rgba(255,255,255,${0.72 * state.opacity})`;
+  context.lineWidth = lerp(5, 2, state.formation);
+  context.beginPath();
+  context.arc(0, 0, state.radius * 0.86, Math.PI * 1.07, Math.PI * 1.45);
+  context.stroke();
+  context.strokeStyle = `rgba(118,233,255,${0.42 * state.opacity})`;
+  context.lineWidth = 1.6;
+  context.beginPath();
+  context.arc(0, 0, state.radius * 0.93, Math.PI * 0.08, Math.PI * 0.52);
+  context.stroke();
+  context.restore();
+
+  if (impact > 0 && impact < 1) {
+    const ripple = easeOutCubic(impact);
+    const flash = 1 - smoothstep(inverseLerp(0, 0.34, impact));
+    context.save();
+    context.globalCompositeOperation = "screen";
+    drawEllipseGlow(
+      context,
+      impactX,
+      impactY,
+      lerp(24, radius * 0.72, ripple),
+      lerp(18, radius * 0.28, ripple),
+      WHITE,
+      flash * 0.78,
+    );
+
+    for (let ring = 0; ring < 3; ring += 1) {
+      const delayed = smoothstep(inverseLerp(ring * 0.055, 0.82, impact));
+      const ringRadius = lerp(8, radius * (0.58 + ring * 0.13), delayed);
+      context.strokeStyle = ring === 1
+        ? `rgba(220,174,255,${(1 - delayed) * 0.58})`
+        : `rgba(137,238,255,${(1 - delayed) * 0.7})`;
+      context.lineWidth = lerp(4.2, 0.8, delayed);
+      context.beginPath();
+      context.ellipse(impactX, impactY, ringRadius, ringRadius * 0.34, -0.48, 0, TAU);
+      context.stroke();
+    }
+
+    if (!environment.lowEffects) {
+      const bubbleCount = 11;
+      for (let index = 0; index < bubbleCount; index += 1) {
+        const angle = lerp(Math.PI * 0.9, Math.PI * 2.12, deterministic(index, 101));
+        const travel = easeOutCubic(impact) * lerp(30, radius * 0.78, deterministic(index, 102));
+        const bubbleX = impactX + Math.cos(angle) * travel;
+        const bubbleY = impactY + Math.sin(angle) * travel - impact * impact * radius * 0.16;
+        const bubbleRadius = lerp(1.6, 6.2, deterministic(index, 103)) * (1 - impact * 0.44);
+        context.strokeStyle = `rgba(188,246,255,${(1 - impact) * 0.62})`;
+        context.lineWidth = 1;
+        context.beginPath();
+        context.arc(bubbleX, bubbleY, bubbleRadius, 0, TAU);
+        context.stroke();
+      }
+    }
+    context.restore();
+  }
 }
 
 type BlackHoleField = {
@@ -1567,6 +1995,7 @@ function renderRegular(
   impactAtMs: number,
   environment: RenderEnvironment,
 ): void {
+  const protectedByBubble = environment.nebuSkin === "bubbles";
   const struggle = struggleSampleAt(elapsedMs, stageMomentsMs, swipeAtMs);
   const struggleStartedAt = stageMomentsMs[0] ?? Math.max(720, swipeAtMs - 1000);
   const isStruggling = elapsedMs >= struggleStartedAt && elapsedMs < swipeAtMs;
@@ -1582,6 +2011,7 @@ function renderRegular(
     swipeAtMs,
     impactAtMs,
     environment.reducedMotion,
+    protectedByBubble,
   );
   const breath = environment.reducedMotion ? 0 : Math.sin(elapsedMs * 0.0031) * 0.009;
   const strainEnvelope = Math.sin(struggle.progress * Math.PI);
@@ -1589,7 +2019,9 @@ function renderRegular(
     ? Math.sin(struggle.frameIndex * 1.87) * strainEnvelope *
       lerp(0.55, 2.35, visibleIntensity) * (environment.reducedMotion ? 0.18 : 1)
     : 0;
-  const impactFade = 1 - easeInCubic(inverseLerp(impactAtMs, impactAtMs + 230, elapsedMs));
+  const impactFade = protectedByBubble
+    ? 1 - easeInCubic(inverseLerp(impactAtMs + 330, impactAtMs + 690, elapsedMs))
+    : 1 - easeInCubic(inverseLerp(impactAtMs, impactAtMs + 230, elapsedMs));
   const swipeKick = elapsedMs >= swipeAtMs && elapsedMs < swipeAtMs + 300
     ? Math.sin(inverseLerp(swipeAtMs, swipeAtMs + 300, elapsedMs) * Math.PI)
     : 0;
@@ -1648,6 +2080,21 @@ function renderRegular(
   }
   drawGrounding(context, transform, environment, impactFade, activeTheme);
 
+  const shieldRadius = environment.characterHeight * 0.455;
+  const shieldCenterX = environment.centerX;
+  const shieldCenterY = environment.centerY - environment.characterHeight * 0.015;
+  if (protectedByBubble) {
+    drawBubbleShieldBack(
+      context,
+      elapsedMs,
+      impactAtMs,
+      shieldCenterX,
+      shieldCenterY,
+      shieldRadius,
+      environment,
+    );
+  }
+
   drawMotionEcho(
     context,
     image,
@@ -1691,8 +2138,12 @@ function renderRegular(
   }
 
   const imageScale = environment.characterHeight / POSE_HEIGHT;
-  const impactX = environment.centerX;
-  const impactY = environment.centerY - imageScale * 44;
+  const impactX = protectedByBubble
+    ? shieldCenterX + shieldRadius * 0.23
+    : environment.centerX;
+  const impactY = protectedByBubble
+    ? shieldCenterY - shieldRadius * 0.91
+    : environment.centerY - imageScale * 44;
   drawMeteor(
     context,
     elapsedMs,
@@ -1702,14 +2153,28 @@ function renderRegular(
     impactY,
     environment,
   );
-  drawImpact(
-    context,
-    elapsedMs,
-    impactAtMs,
-    impactX,
-    impactY,
-    environment,
-  );
+  if (protectedByBubble) {
+    drawBubbleShieldFront(
+      context,
+      elapsedMs,
+      impactAtMs,
+      shieldCenterX,
+      shieldCenterY,
+      shieldRadius,
+      impactX,
+      impactY,
+      environment,
+    );
+  } else {
+    drawImpact(
+      context,
+      elapsedMs,
+      impactAtMs,
+      impactX,
+      impactY,
+      environment,
+    );
+  }
 }
 
 function renderBlackHole(
@@ -1937,7 +2402,7 @@ export default function NebuWishSummon({
     const reducedMotion = mediaQuery.matches;
     const image = new Image();
     image.decoding = "async";
-    image.src = KEYPOSE_SHEET;
+    image.src = getNebuSummonSprite(tier, blackHole, nebuSkin);
 
     let animationFrame = 0;
     let disposed = false;
@@ -2001,6 +2466,7 @@ export default function NebuWishSummon({
         centerX: width * 0.5,
         centerY,
         tierIntensity,
+        nebuSkin,
         reducedMotion,
         lowEffects,
         theme,
