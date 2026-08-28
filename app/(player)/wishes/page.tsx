@@ -181,6 +181,44 @@ export default function WishesPage() {
   const [wishReveal, setWishReveal] = useState<WishReveal | null>(null);
   const [forceFullSequence, setForceFullSequence] = useState(false);
   const [wishDetailsOpen, setWishDetailsOpen] = useState(false);
+  const [founderPreviewEnabled, setFounderPreviewEnabled] = useState(false);
+
+  const loadFounderPreviewAccess = useCallback(async () => {
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!session?.access_token) {
+        setFounderPreviewEnabled(false);
+        return;
+      }
+
+      const response = await fetch("/api/player/nebu-entitlements", {
+        method: "GET",
+        cache: "no-store",
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (!response.ok) {
+        setFounderPreviewEnabled(false);
+        return;
+      }
+
+      const payload = (await response.json().catch(() => null)) as
+        | { skins?: unknown[] }
+        | null;
+      const skins = Array.isArray(payload?.skins) ? payload.skins : [];
+
+      setFounderPreviewEnabled(
+        skins.includes("sherry") || skins.includes("bubbles"),
+      );
+    } catch {
+      setFounderPreviewEnabled(false);
+    }
+  }, []);
 
   const loadDashboard = useCallback(async (background = false) => {
     if (background) {
@@ -408,11 +446,14 @@ export default function WishesPage() {
 
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => {
-      void loadDashboard(false);
+      void Promise.all([
+        loadDashboard(false),
+        loadFounderPreviewAccess(),
+      ]);
     });
 
     return () => window.cancelAnimationFrame(frame);
-  }, [loadDashboard]);
+  }, [loadDashboard, loadFounderPreviewAccess]);
 
   const replayLatestWish = useCallback(() => {
     const latest = dashboard.recentWishes[0];
@@ -593,14 +634,36 @@ export default function WishesPage() {
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={() => void loadDashboard(true)}
-          disabled={refreshing}
-          className="min-h-11 rounded-xl border border-white/10 bg-white/[0.05] px-5 text-sm font-black text-white/65 transition hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          {refreshing ? "Refreshing..." : "Refresh"}
-        </button>
+        <div className="flex flex-wrap items-center gap-3">
+          {founderPreviewEnabled ? (
+            <Link
+              href="/wishes/preview"
+              className="group inline-flex min-h-11 items-center gap-2.5 rounded-xl border border-yellow-100/25 bg-gradient-to-r from-yellow-200/[0.13] via-cyan-100/[0.09] to-violet-200/[0.13] px-4 text-xs font-black uppercase tracking-[0.11em] text-yellow-50 shadow-[0_10px_36px_rgba(250,204,21,0.08)] transition hover:-translate-y-0.5 hover:border-yellow-100/45 hover:brightness-125 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-yellow-200"
+            >
+              <span
+                aria-hidden="true"
+                className="text-base text-yellow-100 transition group-hover:rotate-12 group-hover:scale-110"
+              >
+                ✦
+              </span>
+              Preview rarities
+            </Link>
+          ) : null}
+
+          <button
+            type="button"
+            onClick={() => {
+              void Promise.all([
+                loadDashboard(true),
+                loadFounderPreviewAccess(),
+              ]);
+            }}
+            disabled={refreshing}
+            className="min-h-11 rounded-xl border border-white/10 bg-white/[0.05] px-5 text-sm font-black text-white/65 transition hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {refreshing ? "Refreshing..." : "Refresh"}
+          </button>
+        </div>
       </div>
 
       {errorMessage ? (
@@ -884,10 +947,10 @@ function ShippingProgress({
       </div>
 
       <Link
-        href="/orders?panel=shipping"
+        href="/shipping"
         className="mt-6 flex min-h-12 w-full items-center justify-center rounded-xl border border-cyan-100/15 bg-cyan-200/[0.07] px-5 text-sm font-black text-cyan-50 transition hover:bg-cyan-200/10"
       >
-        Choose cards to ship
+        View shipping
       </Link>
     </article>
   );
