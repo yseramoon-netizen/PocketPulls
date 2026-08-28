@@ -10,7 +10,7 @@ import {
 import styles from "./NebuWishSummon.module.css";
 
 const KEYPOSE_SHEET =
-  "/ancient-pulls/wish/nebu-cinematic/nebu-keyposes-v1.webp";
+  "/ancient-pulls/wish/nebu-cinematic/nebu-keyposes-v2.webp";
 const SHEET_COLUMNS = 4;
 const SHEET_ROWS = 2;
 const POSE_WIDTH = 768;
@@ -470,7 +470,9 @@ function drawMeteor(
   const directionLength = Math.max(1, Math.hypot(directionX, directionY));
   const unitX = directionX / directionLength;
   const unitY = directionY / directionLength;
-  const tailLength = lerp(150, 310, environment.tierIntensity);
+  const approachScale = lerp(0.82, 2.65, easeInCubic(progress));
+  const tailLength = lerp(190, 340, environment.tierIntensity) *
+    lerp(0.82, 1.22, smoothstep(progress));
   const tailX = x - unitX * tailLength;
   const tailY = y - unitY * tailLength;
 
@@ -484,8 +486,9 @@ function drawMeteor(
   tailGradient.addColorStop(1, rgba(environment.theme.secondary, 0));
   context.strokeStyle = tailGradient;
   context.lineCap = "round";
-  context.lineWidth = lerp(10, 18, environment.tierIntensity);
-  context.shadowBlur = 25;
+  context.lineWidth = lerp(12, 22, environment.tierIntensity) *
+    lerp(0.82, 1.38, progress);
+  context.shadowBlur = lerp(24, 46, progress);
   context.shadowColor = rgba(environment.theme.glow, 0.9);
   context.beginPath();
   context.moveTo(x, y);
@@ -513,7 +516,8 @@ function drawMeteor(
     }
   }
 
-  const coreRadius = lerp(13, 24, environment.tierIntensity) *
+  const coreRadius = lerp(18, 32, environment.tierIntensity) *
+    approachScale *
     (0.92 + Math.sin(elapsedMs * 0.021) * 0.08);
   drawEllipseGlow(
     context,
@@ -936,17 +940,20 @@ export default function NebuWishSummon({
       context.clearRect(0, 0, width, height);
       if (!loaded) return;
 
+      const compactStage = width < 700;
       const characterHeight = Math.min(
-        Math.max(height * 0.62, 430),
-        680,
-        width * 1.08,
+        Math.max(height * (compactStage ? 0.38 : 0.44), compactStage ? 270 : 300),
+        compactStage ? 410 : 500,
+        width * (compactStage ? 0.82 : 0.62),
       );
+      const stageFloorY = height * (compactStage ? 0.875 : 0.865);
+      const centerY = stageFloorY - 344 * (characterHeight / POSE_HEIGHT);
       const environment: RenderEnvironment = {
         width,
         height,
         characterHeight,
         centerX: width * 0.5,
-        centerY: height * (width < 700 ? 0.54 : 0.515),
+        centerY,
         tierIntensity,
         reducedMotion,
         lowEffects,
