@@ -1,0 +1,165 @@
+.universe {
+  overflow: hidden;
+  margin-top: 1.5rem;
+  border: 1px solid rgba(165, 243, 252, 0.14);
+  border-radius: 2rem;
+  background: rgba(3, 4, 18, 0.78);
+  box-shadow: 0 1.8rem 5rem rgba(0, 0, 0, 0.34);
+}
+
+.universeHeader {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.universeHeader p {
+  margin: 0;
+  color: rgba(165, 243, 252, 0.44);
+  font-size: 0.58rem;
+  font-weight: 950;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.universeHeader h2 {
+  margin: 0.35rem 0 0;
+  color: #fff;
+  font-size: clamp(1.35rem, 3vw, 2rem);
+  font-weight: 950;
+  letter-spacing: -0.035em;
+}
+
+.universeHeader > span {
+  color: rgba(255, 255, 255, 0.32);
+  font-size: 0.68rem;
+  font-weight: 750;
+}
+
+.canvasShell {
+  position: relative;
+  min-height: clamp(31rem, 64vh, 48rem);
+  background: #02030d;
+}
+
+.canvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  outline: none;
+  touch-action: manipulation;
+}
+
+.canvas:focus-visible {
+  box-shadow: inset 0 0 0 2px rgba(165, 243, 252, 0.6);
+}
+
+.mapLegend {
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.9rem;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0.8rem;
+  background: rgba(2, 3, 13, 0.72);
+  backdrop-filter: blur(9px);
+  color: rgba(255, 255, 255, 0.45);
+  font-size: 0.55rem;
+  font-weight: 850;
+}
+
+.mapLegend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.mapLegend i {
+  display: block;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+}
+
+.blackHoleKey { border: 1px solid #fde68a; background: #000; box-shadow: 0 0 0.45rem rgba(253, 230, 138, 0.58); }
+.galaxyKey { background: linear-gradient(135deg, #67e8f9, #a78bfa); box-shadow: 0 0 0.45rem rgba(103, 232, 249, 0.5); }
+.currentKey { border: 2px solid #fff; background: transparent; }
+
+.focusCard {
+  position: absolute;
+  right: 1rem;
+  bottom: 1rem;
+  display: grid;
+  min-width: min(22rem, calc(100% - 2rem));
+  border: 1px solid rgba(165, 243, 252, 0.2);
+  border-radius: 1rem;
+  padding: 0.85rem 1rem;
+  cursor: pointer;
+  text-align: left;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(103, 232, 249, 0.12), transparent 42%),
+    rgba(5, 7, 24, 0.86);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 1rem 2.8rem rgba(0, 0, 0, 0.35);
+  transition: border-color 160ms ease, transform 160ms ease;
+}
+
+.focusCard:hover,
+.focusCard:focus-visible {
+  border-color: rgba(165, 243, 252, 0.48);
+  outline: none;
+  transform: translateY(-2px);
+}
+
+.focusCard span {
+  color: rgba(165, 243, 252, 0.54);
+  font-size: 0.54rem;
+  font-weight: 950;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.focusCard strong {
+  margin-top: 0.25rem;
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 950;
+}
+
+.focusCard small {
+  margin-top: 0.25rem;
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 0.62rem;
+  font-weight: 750;
+}
+
+.mapHint {
+  position: absolute;
+  right: 1rem;
+  bottom: 1rem;
+  margin: 0;
+  color: rgba(255, 255, 255, 0.28);
+  font-size: 0.62rem;
+  font-weight: 800;
+}
+
+@media (max-width: 700px) {
+  .universe { border-radius: 1.5rem; }
+  .universeHeader { align-items: flex-start; flex-direction: column; padding: 1rem; }
+  .universeHeader > span { font-size: 0.62rem; }
+  .canvasShell { min-height: 32rem; }
+  .mapLegend { top: 0.65rem; left: 0.65rem; max-width: calc(100% - 1.3rem); }
+  .focusCard { right: 0.65rem; bottom: 0.65rem; min-width: calc(100% - 1.3rem); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .focusCard { transition: none; }
+}

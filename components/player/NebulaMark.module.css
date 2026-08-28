@@ -1,0 +1,195 @@
+.nebula {
+  --nebula-primary: #67e8f9;
+  --nebula-secondary: #a78bfa;
+  --nebula-core: #fff;
+  --nebula-relative-scale: 1;
+  position: relative;
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 7rem;
+  aspect-ratio: 1;
+  isolation: isolate;
+  transform: scale(var(--nebula-relative-scale));
+  transform-origin: center;
+}
+
+.nebula[data-size="small"] { width: 2.75rem; }
+.nebula[data-size="large"] { width: clamp(13rem, 24vw, 19rem); }
+
+.outerGlow,
+.cloudOne,
+.cloudTwo,
+.cloudThree,
+.orbitOne,
+.orbitTwo,
+.stars,
+.core,
+.primeStar {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.outerGlow {
+  inset: 5%;
+  opacity: 0.34;
+  background: radial-gradient(circle, var(--nebula-primary), transparent 68%);
+  animation: nebula-breathe 4.8s ease-in-out infinite alternate;
+}
+
+.cloudOne {
+  inset: 11%;
+  opacity: 0.76;
+  background:
+    radial-gradient(ellipse at 34% 38%, color-mix(in srgb, var(--nebula-primary) 84%, transparent) 0 12%, transparent 42%),
+    radial-gradient(ellipse at 67% 58%, color-mix(in srgb, var(--nebula-secondary) 82%, transparent) 0 15%, transparent 48%),
+    radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--nebula-primary) 24%, transparent), transparent 64%);
+  box-shadow: 0 0 2.4rem color-mix(in srgb, var(--nebula-primary) 28%, transparent);
+  animation: nebula-turn 20s linear infinite;
+}
+
+.cloudTwo {
+  inset: 19% 7%;
+  border-radius: 44% 56% 62% 38%;
+  opacity: 0.68;
+  background:
+    radial-gradient(ellipse at 26% 50%, color-mix(in srgb, var(--nebula-secondary) 75%, transparent), transparent 44%),
+    radial-gradient(ellipse at 71% 46%, color-mix(in srgb, var(--nebula-primary) 70%, transparent), transparent 45%);
+  transform: rotate(-24deg);
+  animation: nebula-drift 6.8s ease-in-out infinite alternate;
+}
+
+.cloudThree {
+  inset: 24% 16%;
+  border: 1px solid color-mix(in srgb, var(--nebula-core) 24%, transparent);
+  opacity: 0.64;
+  background: conic-gradient(
+    from 120deg,
+    transparent,
+    color-mix(in srgb, var(--nebula-primary) 36%, transparent),
+    transparent 34%,
+    color-mix(in srgb, var(--nebula-secondary) 34%, transparent),
+    transparent 74%
+  );
+  animation: nebula-turn 13s linear infinite reverse;
+}
+
+.orbitOne,
+.orbitTwo {
+  inset: 8%;
+  border: 1px solid color-mix(in srgb, var(--nebula-primary) 32%, transparent);
+  border-right-color: transparent;
+  border-left-color: transparent;
+  transform: rotate(23deg) scaleY(0.54);
+}
+
+.orbitTwo {
+  inset: 16%;
+  border-color: color-mix(in srgb, var(--nebula-secondary) 28%, transparent);
+  border-top-color: transparent;
+  transform: rotate(-41deg) scaleY(0.68);
+}
+
+.stars {
+  inset: 0;
+}
+
+.stars i {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: var(--star-size);
+  height: var(--star-size);
+  border-radius: 50%;
+  opacity: 0.74;
+  background: var(--nebula-core);
+  box-shadow: 0 0 0.35rem var(--nebula-primary);
+  transform: rotate(var(--star-angle)) translateX(var(--star-distance));
+  transform-origin: 0 0;
+  animation: nebula-star 2.4s var(--star-delay) ease-in-out infinite alternate;
+}
+
+.core {
+  z-index: 4;
+  display: grid;
+  width: 31%;
+  aspect-ratio: 1;
+  overflow: hidden;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--nebula-core) 68%, transparent);
+  background: #0b0b25;
+  box-shadow:
+    0 0 0 0.22rem color-mix(in srgb, var(--nebula-primary) 16%, transparent),
+    0 0 1.4rem color-mix(in srgb, var(--nebula-primary) 70%, transparent),
+    0 0 2.8rem color-mix(in srgb, var(--nebula-secondary) 40%, transparent);
+  color: var(--nebula-core);
+  font-size: clamp(0.72rem, 0.45rem + 1vw, 1.55rem);
+  font-weight: 950;
+}
+
+.core img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.nebula[data-size="small"] .cloudThree,
+.nebula[data-size="small"] .orbitOne,
+.nebula[data-size="small"] .orbitTwo,
+.nebula[data-size="small"] .stars i:nth-child(n + 9) {
+  display: none;
+}
+
+.nebula[data-size="small"] .core {
+  width: 48%;
+  font-size: 0.68rem;
+}
+
+.nebula[data-current="true"]::after {
+  position: absolute;
+  inset: -2%;
+  border: 1px solid color-mix(in srgb, var(--nebula-primary) 38%, transparent);
+  border-radius: 50%;
+  content: "";
+  box-shadow: 0 0 1.3rem color-mix(in srgb, var(--nebula-primary) 22%, transparent);
+}
+
+.nebula[data-prime="true"] .outerGlow {
+  opacity: 0.54;
+  background:
+    radial-gradient(circle, rgba(255, 255, 255, 0.9) 0 2%, transparent 12%),
+    radial-gradient(circle, var(--nebula-primary), color-mix(in srgb, var(--nebula-secondary) 42%, transparent) 38%, transparent 70%);
+}
+
+.nebula[data-prime="true"] .orbitOne,
+.nebula[data-prime="true"] .orbitTwo {
+  border-width: 2px;
+}
+
+.primeStar {
+  z-index: 6;
+  top: 7%;
+  right: 11%;
+  color: #fff7c2;
+  font-size: clamp(0.85rem, 2vw, 1.7rem);
+  text-shadow: 0 0 0.85rem #fde68a, 0 0 1.6rem var(--nebula-primary);
+  animation: prime-star 2.2s ease-in-out infinite alternate;
+}
+
+@keyframes nebula-turn { to { transform: rotate(360deg); } }
+@keyframes nebula-drift { to { transform: rotate(-17deg) scale(1.08, 0.94); opacity: 0.82; } }
+@keyframes nebula-breathe { to { opacity: 0.52; transform: scale(1.08); } }
+@keyframes nebula-star { to { opacity: 1; filter: brightness(1.45); } }
+@keyframes prime-star { to { opacity: 0.62; transform: scale(0.82) rotate(8deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .outerGlow,
+  .cloudOne,
+  .cloudTwo,
+  .cloudThree,
+  .stars i,
+  .primeStar {
+    animation: none;
+  }
+}

@@ -134,8 +134,8 @@ const MORE_ITEMS: readonly [
   },
   {
     href: "/leaderboard",
-    label: "Ranks",
-    glyph: "▥",
+    label: "Universe",
+    glyph: "◎",
   },
   {
     href: "/shipping",

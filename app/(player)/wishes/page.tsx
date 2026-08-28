@@ -1048,8 +1048,8 @@ function QuickLinks() {
     },
     {
       href: "/leaderboard",
-      title: "Leaderboard",
-      detail: "Compare trainer scores",
+      title: "Universe",
+      detail: "Explore every trainer galaxy",
     },
     {
       href: "/profile",

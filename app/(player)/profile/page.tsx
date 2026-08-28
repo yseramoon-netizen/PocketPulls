@@ -330,7 +330,9 @@ export default function ProfilePage() {
   }, []);
 
   useEffect(() => {
-    void loadProfile();
+    const frame = window.requestAnimationFrame(() => {
+      void loadProfile();
+    });
 
     const handleProfileUpdated = () => {
       void loadProfile();
@@ -365,6 +367,7 @@ export default function ProfilePage() {
     );
 
     return () => {
+      window.cancelAnimationFrame(frame);
       window.removeEventListener(
         "pocketpulls:profile-updated",
         handleProfileUpdated,
@@ -857,9 +860,8 @@ export default function ProfilePage() {
                   </strong>
 
                   <span className="mt-1 block text-xs font-semibold leading-5 text-white/32">
-                    Allow your display name, avatar and
-                    collection score to appear on the
-                    leaderboard.
+                    Show your name, avatar, stellar mass and
+                    wish constellation in the public Universe.
                   </span>
                 </span>
               </label>

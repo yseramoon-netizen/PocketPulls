@@ -1,0 +1,239 @@
+.overlay {
+  position: fixed;
+  z-index: 130;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgba(1, 2, 12, 0.86);
+  backdrop-filter: blur(14px);
+}
+
+.dialog {
+  --dialog-primary: #67e8f9;
+  --dialog-secondary: #a78bfa;
+  display: flex;
+  width: min(94rem, 100%);
+  max-height: calc(100dvh - 2rem);
+  overflow: hidden;
+  flex-direction: column;
+  border: 1px solid color-mix(in srgb, var(--dialog-primary) 28%, transparent);
+  border-radius: 1.8rem;
+  background: #050617;
+  box-shadow:
+    0 0 5rem color-mix(in srgb, var(--dialog-primary) 12%, transparent),
+    0 2rem 8rem rgba(0, 0, 0, 0.62);
+}
+
+.dialogHeader {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.2rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background:
+    radial-gradient(circle at 0 0, color-mix(in srgb, var(--dialog-primary) 10%, transparent), transparent 38%),
+    rgba(8, 9, 29, 0.94);
+}
+
+.ownerIdentity {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.ownerAvatar {
+  display: grid;
+  width: 3.2rem;
+  height: 3.2rem;
+  flex: none;
+  overflow: hidden;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--dialog-primary) 48%, transparent);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.05);
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 950;
+  box-shadow: 0 0 1.4rem color-mix(in srgb, var(--dialog-primary) 18%, transparent);
+}
+
+.ownerAvatar img { width: 100%; height: 100%; object-fit: cover; }
+
+.ownerIdentity p {
+  margin: 0;
+  color: color-mix(in srgb, var(--dialog-primary) 66%, white);
+  font-size: 0.52rem;
+  font-weight: 950;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.ownerIdentity h2 {
+  margin: 0.16rem 0 0;
+  overflow: hidden;
+  color: #fff;
+  font-size: clamp(1.1rem, 2.5vw, 1.55rem);
+  font-weight: 950;
+  letter-spacing: -0.03em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ownerIdentity > div:last-child > span {
+  display: block;
+  margin-top: 0.1rem;
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.34);
+  font-size: 0.62rem;
+  font-weight: 750;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dialogHeader > button {
+  display: grid;
+  width: 2.65rem;
+  height: 2.65rem;
+  flex: none;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0.8rem;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.04);
+  font-size: 1.35rem;
+}
+
+.dialogBody {
+  display: grid;
+  min-height: 0;
+  flex: 1;
+  grid-template-columns: minmax(0, 1fr) minmax(16rem, 21rem);
+}
+
+.skyPanel {
+  position: relative;
+  min-height: min(68vh, 46rem);
+  overflow: hidden;
+  background: #02030d;
+}
+
+.constellationCanvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: min(68vh, 46rem);
+  touch-action: manipulation;
+}
+
+.constellationCanvas:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--dialog-primary) 68%, white);
+  outline-offset: -2px;
+}
+
+.loadingSky {
+  display: grid;
+  min-height: min(68vh, 46rem);
+  place-items: center;
+  padding: 2rem;
+  color: rgba(255, 255, 255, 0.36);
+  background:
+    radial-gradient(circle, color-mix(in srgb, var(--dialog-primary) 12%, transparent), transparent 38%),
+    #02030d;
+  font-size: 0.78rem;
+  font-weight: 850;
+  text-align: center;
+}
+
+.skyReadout {
+  position: absolute;
+  right: 0.8rem;
+  bottom: 0.8rem;
+  left: 0.8rem;
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  pointer-events: none;
+  color: rgba(255, 255, 255, 0.32);
+  font-size: 0.54rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.starInspector {
+  min-height: 0;
+  overflow-y: auto;
+  padding: 1.15rem;
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+  background:
+    radial-gradient(circle at 50% 0, color-mix(in srgb, var(--dialog-secondary) 10%, transparent), transparent 34%),
+    #08091d;
+}
+
+.inspectorEyebrow,
+.rarity {
+  margin: 0;
+  color: color-mix(in srgb, var(--dialog-primary) 70%, white);
+  font-size: 0.53rem;
+  font-weight: 950;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.cardArtwork {
+  display: grid;
+  width: min(100%, 14rem);
+  aspect-ratio: 0.716;
+  overflow: hidden;
+  place-items: center;
+  margin: 1rem auto;
+  border: 1px solid color-mix(in srgb, var(--dialog-primary) 34%, transparent);
+  border-radius: 1rem;
+  background: #03040f;
+  box-shadow: 0 1.4rem 3.5rem rgba(0, 0, 0, 0.44);
+}
+
+.cardArtwork img { width: 100%; height: 100%; object-fit: contain; }
+.cardArtwork span { color: var(--dialog-primary); font-size: 3rem; }
+
+.starInspector h3 {
+  margin: 0.55rem 0 0;
+  color: #fff;
+  font-size: 1.25rem;
+  font-weight: 950;
+  line-height: 1.1;
+}
+
+.cardMeta,
+.starDate,
+.emptyInspector {
+  color: rgba(255, 255, 255, 0.38);
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1.55;
+}
+
+.cardMeta { margin: 0.45rem 0 0; }
+.cardValue { display: block; margin-top: 0.8rem; color: #fff7c2; font-size: 1rem; font-weight: 950; }
+.starDate { margin: 0.75rem 0 0; }
+.emptyInspector { margin-top: 1rem; }
+
+@media (max-width: 800px) {
+  .overlay { align-items: end; padding: 0; }
+  .dialog { max-height: 96dvh; border-radius: 1.35rem 1.35rem 0 0; }
+  .dialogBody { display: block; overflow-y: auto; }
+  .skyPanel,
+  .constellationCanvas,
+  .loadingSky { min-height: 56vh; height: 56vh; }
+  .starInspector { border-top: 1px solid rgba(255, 255, 255, 0.08); border-left: 0; }
+  .cardArtwork { width: min(52vw, 12rem); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .overlay { backdrop-filter: none; }
+}
