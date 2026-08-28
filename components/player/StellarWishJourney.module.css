@@ -13,6 +13,7 @@
 .nebulaVeil,
 .farStars,
 .nearStars,
+.summoningHalo,
 .celestialCamera,
 .observatory,
 .finalWhiteout {
@@ -66,6 +67,41 @@
   background-position: 21px 11px, 113px 89px;
   background-size: 239px 211px, 307px 251px;
   animation: nearStarDrift 18s linear infinite;
+}
+
+.summoningHalo {
+  z-index: 3;
+  top: auto;
+  right: 10%;
+  bottom: -18%;
+  left: 10%;
+  height: 62%;
+  opacity: 0.42;
+  background: radial-gradient(ellipse at 50% 74%, color-mix(in srgb, var(--wish-primary) 24%, transparent), color-mix(in srgb, var(--wish-secondary) 8%, transparent) 35%, transparent 68%);
+  transform: translateZ(0);
+  animation: summoningHaloBreath 2.6s ease-in-out infinite alternate;
+}
+
+.summonHost {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  pointer-events: none;
+}
+
+.scene[data-cosmic-discovery="true"] .summonHost {
+  animation: summonHandsOff 360ms var(--stellar-cosmic-transform-at) ease-in both;
+}
+
+.cosmicTransformStage {
+  position: absolute;
+  z-index: 34;
+  top: 50%;
+  left: 50%;
+  width: clamp(14rem, 31vw, 21rem);
+  aspect-ratio: 1;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
 }
 
 .celestialCamera {
@@ -627,13 +663,22 @@
 .finalWhiteout {
   z-index: 60;
   opacity: 0;
-  background: radial-gradient(circle at 50% 41%, #fff 0 2%, var(--wish-primary) 8%, color-mix(in srgb, var(--wish-secondary) 58%, transparent) 20%, transparent 56%);
+  background: radial-gradient(circle at 50% 50%, #fff 0 2%, var(--wish-primary) 8%, color-mix(in srgb, var(--wish-secondary) 58%, transparent) 20%, transparent 56%);
   animation: stellarWhiteout 820ms var(--stellar-impact-at) ease-out both;
 }
 
 @keyframes nebulaBreath {
   from { opacity: 0.22; transform: scale(0.98) translate3d(-1%, 0, 0); }
   to { opacity: 0.4; transform: scale(1.04) translate3d(1%, -1%, 0); }
+}
+
+@keyframes summoningHaloBreath {
+  from { opacity: .28; transform: scaleX(.94) translateZ(0); }
+  to { opacity: .52; transform: scaleX(1.06) translateZ(0); }
+}
+
+@keyframes summonHandsOff {
+  to { opacity: 0; filter: brightness(2.8); transform: scale(.72); }
 }
 
 @keyframes farStarDrift { to { background-position: -127px 113px, -108px 208px; } }
@@ -714,6 +759,11 @@
     gap: .34rem;
   }
 
+  .cosmicTransformStage {
+    top: 52%;
+    width: min(72vw, 19rem);
+  }
+
   .cosmicNebuConstellation {
     top: 35%;
     width: 76vw;
@@ -747,6 +797,7 @@
   .cosmicBinder,
   .binderOrbit { top: 43%; }
   .nebuStage { bottom: 1%; width: 8rem; }
+  .cosmicTransformStage { top: 54%; width: 14rem; }
   .pyramid { height: 48vh; }
   .cosmicAwakening p,
   .binderAwakening p { top: 10%; }

@@ -1,10 +1,11 @@
 "use client";
 
-/* eslint-disable @next/next/no-img-element -- Nebu art is preloaded by the cinematic before this timed scene mounts. */
+/* eslint-disable @next/next/no-img-element -- Timed cinematic art is preloaded before this scene mounts. */
 
 import type { CSSProperties } from "react";
 
 import AsterismSigil from "./AsterismSigil";
+import NebuWishSummon from "./NebuWishSummon";
 import styles from "./StellarWishJourney.module.css";
 
 type StellarWishJourneyProps = {
@@ -17,7 +18,6 @@ type StellarWishJourneyProps = {
   cosmicTransformAtMs: number | null;
   binderFormAtMs: number | null;
   binderOpenAtMs: number | null;
-  nebuPortrait: string;
   cosmicNebuPortrait: string;
   equippedCosmicNebu?: boolean;
   cosmicDiscovery?: boolean;
@@ -26,23 +26,6 @@ type StellarWishJourneyProps = {
   lowEffects?: boolean;
   seed: string;
 };
-
-type Point = {
-  x: number;
-  y: number;
-};
-
-const STAR_PATH: readonly Point[] = [
-  { x: 13, y: 76 },
-  { x: 26, y: 61 },
-  { x: 40, y: 68 },
-  { x: 53, y: 48 },
-  { x: 67, y: 56 },
-  { x: 80, y: 39 },
-  { x: 68, y: 24 },
-  { x: 45, y: 27 },
-  { x: 51, y: 10 },
-] as const;
 
 const TIER_NAMES = [
   "Common",
@@ -56,10 +39,8 @@ const TIER_NAMES = [
   "Crown Rare",
 ] as const;
 
-const STAR_FRAGMENTS = Array.from({ length: 18 }, (_, index) => index);
-
 function clampTier(tier: number): number {
-  return Math.max(1, Math.min(STAR_PATH.length, Math.round(tier)));
+  return Math.max(1, Math.min(TIER_NAMES.length, Math.round(tier)));
 }
 
 export default function StellarWishJourney({
@@ -72,7 +53,6 @@ export default function StellarWishJourney({
   cosmicTransformAtMs,
   binderFormAtMs,
   binderOpenAtMs,
-  nebuPortrait,
   cosmicNebuPortrait,
   equippedCosmicNebu = false,
   cosmicDiscovery = false,
@@ -82,19 +62,10 @@ export default function StellarWishJourney({
   seed,
 }: StellarWishJourneyProps) {
   const finalTier = clampTier(tier);
-  const visiblePath = STAR_PATH.slice(0, finalTier);
-  const pathPoints = visiblePath.map((point) => `${point.x},${point.y}`).join(" ");
-  const firstStageAtMs = stageMomentsMs[0] ?? 800;
   const finalStageAtMs = stageMomentsMs[finalTier - 1] ?? specialAtMs - 400;
-  const journeyDurationMs = Math.max(520, finalStageAtMs - firstStageAtMs);
   const dualDiscovery = cosmicDiscovery && cosmicBinderDiscovery;
-  const initialPortrait = equippedCosmicNebu
-    ? cosmicNebuPortrait
-    : nebuPortrait;
   const rootStyle = {
-    "--stellar-first-stage-at": `${firstStageAtMs}ms`,
     "--stellar-final-stage-at": `${finalStageAtMs}ms`,
-    "--stellar-journey-duration": `${journeyDurationMs}ms`,
     "--stellar-special-at": `${specialAtMs}ms`,
     "--stellar-collapse-at": `${collapseAtMs}ms`,
     "--stellar-impact-at": `${impactAtMs}ms`,
@@ -121,84 +92,7 @@ export default function StellarWishJourney({
       <div className={styles.nebulaVeil} />
       <div className={styles.farStars} />
       <div className={styles.nearStars} />
-
-      <div className={styles.celestialCamera}>
-        <svg
-          className={styles.constellationMap}
-          viewBox="0 0 100 100"
-          preserveAspectRatio="xMidYMid meet"
-        >
-          {finalTier > 1 ? (
-            <polyline
-              className={styles.constellationPath}
-              points={pathPoints}
-              pathLength="1"
-            />
-          ) : null}
-          {visiblePath.map((point, index) => (
-            <g
-              key={`${point.x}-${point.y}`}
-              className={styles.constellationNode}
-              data-final={index === finalTier - 1 ? "true" : "false"}
-              style={
-                {
-                  "--node-at": `${stageMomentsMs[index] ?? finalStageAtMs}ms`,
-                  "--node-x": `${point.x}%`,
-                  "--node-y": `${point.y}%`,
-                } as CSSProperties
-              }
-            >
-              <circle className={styles.nodeHalo} cx={point.x} cy={point.y} r="4.8" />
-              <circle className={styles.nodeCore} cx={point.x} cy={point.y} r={index === finalTier - 1 ? "1.45" : "0.82"} />
-            </g>
-          ))}
-        </svg>
-
-        <div className={styles.wishStar}>
-          <span className={styles.starHalo} />
-          <span className={styles.starFlames}>
-            {Array.from({ length: 10 }, (_, index) => (
-              <i
-                key={index}
-                style={
-                  {
-                    "--flame-angle": `${index * 36}deg`,
-                    "--flame-delay": `${index * -127}ms`,
-                  } as CSSProperties
-                }
-              />
-            ))}
-          </span>
-          <span className={styles.starSurface} />
-          <span className={styles.starCore} />
-          <span className={styles.supernovaRing} />
-          <span className={styles.supernovaRingSecond} />
-        </div>
-
-        {blackHole ? (
-          <div className={styles.blackHole}>
-            <span className={styles.blackHoleLens} />
-            <span className={styles.blackHoleDisk} />
-            <span className={styles.blackHoleCore} />
-          </div>
-        ) : null}
-
-        <div className={styles.starFragments}>
-          {STAR_FRAGMENTS.slice(0, lowEffects ? 7 : STAR_FRAGMENTS.length).map((index) => (
-            <i
-              key={index}
-              style={
-                {
-                  "--fragment-angle": `${index * 20 + (index % 3) * 5}deg`,
-                  "--fragment-distance": `${82 + (index % 6) * 24}px`,
-                  "--fragment-delay": `${(index % 5) * 16}ms`,
-                  "--fragment-size": `${2 + (index % 4) * 0.9}px`,
-                } as CSSProperties
-              }
-            />
-          ))}
-        </div>
-      </div>
+      <div className={styles.summoningHalo} />
 
       <div className={styles.observatory}>
         <div className={styles.mountains} />
@@ -207,24 +101,27 @@ export default function StellarWishJourney({
         <div className={styles.foreground} />
       </div>
 
-      <div className={styles.nebuStage}>
-        <span className={styles.nebuShadow} />
-        <span className={styles.nebuGaze} />
-        <img
-          src={initialPortrait}
-          alt=""
-          draggable={false}
-          className={styles.nebuPortrait}
+      <div className={styles.summonHost}>
+        <NebuWishSummon
+          tier={finalTier}
+          specialAtMs={specialAtMs}
+          impactAtMs={impactAtMs}
+          cardRevealAtMs={cardRevealAtMs}
+          blackHole={blackHole}
+          lowEffects={lowEffects}
         />
-        {cosmicDiscovery ? (
+      </div>
+
+      {cosmicDiscovery ? (
+        <div className={styles.cosmicTransformStage}>
           <img
             src={cosmicNebuPortrait}
             alt=""
             draggable={false}
             className={styles.cosmicNebuPortrait}
           />
-        ) : null}
-      </div>
+        </div>
+      ) : null}
 
       <div className={styles.rarityPulse}>
         {TIER_NAMES.map((name, index) => (
@@ -232,6 +129,7 @@ export default function StellarWishJourney({
             key={name}
             data-reached={index < finalTier ? "true" : "false"}
             data-final={index === finalTier - 1 ? "true" : "false"}
+            title={name}
             style={
               {
                 "--pulse-at": `${stageMomentsMs[index] ?? finalStageAtMs}ms`,

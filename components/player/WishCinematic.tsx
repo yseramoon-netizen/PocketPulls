@@ -28,6 +28,7 @@ import {
 import { supabase } from "@/lib/supabase";
 
 import AsterismSigil from "./AsterismSigil";
+import { getNebuSummonSprite } from "./NebuWishSummon";
 import StellarWishJourney from "./StellarWishJourney";
 import {
   primeWishAudio,
@@ -477,6 +478,10 @@ export default function WishCinematic({
       ...(config.usesWorldScene
         ? [
             ...WORLD_SPRITES,
+            getNebuSummonSprite(
+              config.tier,
+              config.blackHole && !cosmicDiscovery && !cosmicBinderDiscovery,
+            ),
             nebuHeatAssets.portrait,
             ...(cosmicDiscovery || equippedCosmicNebu
               ? [cosmicHeatAssets.portrait]
@@ -701,7 +706,6 @@ export default function WishCinematic({
                 cosmicTransformAtMs={timeline.cosmicTransformAtMs}
                 binderFormAtMs={timeline.binderFormAtMs}
                 binderOpenAtMs={timeline.binderOpenAtMs}
-                nebuPortrait={nebuHeatAssets.portrait}
                 cosmicNebuPortrait={cosmicHeatAssets.portrait}
                 equippedCosmicNebu={equippedCosmicNebu}
                 cosmicDiscovery={cosmicDiscovery}
