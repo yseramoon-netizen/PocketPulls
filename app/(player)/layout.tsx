@@ -57,6 +57,11 @@ type PlayerShellData = {
   banReason: string | null;
   bannedAt: string | null;
   purchaseConsentAccepted: boolean;
+  launchState: {
+    maintenance: boolean;
+    message: string;
+    beta: boolean;
+  };
 };
 
 type PurchaseConsentRow = {
@@ -71,6 +76,8 @@ const LEGAL_PATHS = new Set([
   "/odds",
   "/faq",
   "/help",
+  "/privacy",
+  "/returns",
 ]);
 
 function getErrorMessage(error: unknown, fallback: string): string {
@@ -163,7 +170,7 @@ export default function PlayerLayout({ children }: PlayerLayoutProps) {
       }
 
     try {
-      const [profileResult, walletResult, consentResult] = await Promise.all([
+      const [profileResult, walletResult, consentResult, launchResult] = await Promise.all([
         supabase
           .from("player_profiles")
           .select(
@@ -179,6 +186,7 @@ export default function PlayerLayout({ children }: PlayerLayoutProps) {
           .maybeSingle(),
 
         supabase.rpc("get_player_purchase_consent"),
+        supabase.rpc("get_player_launch_state"),
       ]);
 
       if (profileResult.error) {
@@ -208,6 +216,15 @@ export default function PlayerLayout({ children }: PlayerLayoutProps) {
         );
       }
 
+      if (launchResult.error) {
+        throw new Error(
+          getErrorMessage(
+            launchResult.error,
+            "Launch Control could not be checked. Run the V66 release migration.",
+          ),
+        );
+      }
+
       const profile =
         profileResult.data as unknown as PlayerProfileRow | null;
 
@@ -220,6 +237,15 @@ export default function PlayerLayout({ children }: PlayerLayoutProps) {
 
       const consent =
         consentRaw as unknown as PurchaseConsentRow | null;
+
+      const launchRaw = Array.isArray(launchResult.data)
+        ? launchResult.data[0]
+        : launchResult.data;
+      const launch = (launchRaw || {}) as {
+        maintenance_mode?: unknown;
+        maintenance_message?: unknown;
+        beta_mode?: unknown;
+      };
 
       if (!profile) {
         throw new Error(
@@ -261,6 +287,13 @@ export default function PlayerLayout({ children }: PlayerLayoutProps) {
             ? profile.banned_at.trim()
             : null,
         purchaseConsentAccepted: consent?.accepted === true,
+        launchState: {
+          maintenance: launch.maintenance_mode === true,
+          message: typeof launch.maintenance_message === "string"
+            ? launch.maintenance_message.trim()
+            : "",
+          beta: launch.beta_mode === true,
+        },
       };
 
       if (!mountedRef.current) {
@@ -547,6 +580,15 @@ export default function PlayerLayout({ children }: PlayerLayoutProps) {
       />
 
       <main className="relative z-10 min-h-[calc(100dvh-5rem)] pb-[env(safe-area-inset-bottom)]">
+        {player.launchState.maintenance ? (
+          <div className="mx-auto mt-3 w-[calc(100%-2rem)] max-w-[1180px] rounded-2xl border border-amber-200/20 bg-amber-200/[0.09] px-4 py-3 text-center text-sm font-black text-amber-50/80">
+            {player.launchState.message || "Ancient Pulls is temporarily paused for maintenance. Your existing cards and records remain safe."}
+          </div>
+        ) : player.launchState.beta ? (
+          <div className="mx-auto mt-3 w-fit max-w-[calc(100%-2rem)] rounded-full border border-cyan-100/15 bg-cyan-100/[0.055] px-3 py-1.5 text-center text-[10px] font-black uppercase tracking-[0.14em] text-cyan-50/55">
+            Founder beta
+          </div>
+        ) : null}
         {children}
       </main>
 

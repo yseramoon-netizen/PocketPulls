@@ -29,6 +29,8 @@ type AdminSessionResponse = {
   admin: {
     userId: string;
     email: string;
+    aal: "aal1" | "aal2" | null;
+    mfaRequired: boolean;
   };
 };
 
@@ -52,19 +54,17 @@ export default function AdminLayout({
   const pathname = usePathname();
   const router = useRouter();
 
-  const [allowed, setAllowed] =
-    useState(false);
-
-  const [checking, setChecking] =
-    useState(true);
-
   const isSignIn =
     pathname === "/admin/sign-in";
 
+  const [verifiedPathname, setVerifiedPathname] =
+    useState<string | null>(null);
+
+  const allowed =
+    verifiedPathname === pathname;
+
   useEffect(() => {
     if (isSignIn) {
-      setAllowed(true);
-      setChecking(false);
       return;
     }
 
@@ -95,7 +95,8 @@ export default function AdminLayout({
 
         if (
           session.admin.userId !==
-          gate.userId
+          gate.userId ||
+          session.admin.aal !== "aal2"
         ) {
           throw new Error(
             "The active admin did not match the account that unlocked the administrator gateway.",
@@ -103,8 +104,7 @@ export default function AdminLayout({
         }
 
         if (active) {
-          setAllowed(true);
-          setChecking(false);
+          setVerifiedPathname(pathname);
         }
       } catch {
         clearAdminGate();
@@ -131,7 +131,7 @@ export default function AdminLayout({
           active
         ) {
           clearAdminGate();
-          setAllowed(false);
+          setVerifiedPathname(null);
           router.replace(
             getSignInPath(pathname),
           );
@@ -153,7 +153,7 @@ export default function AdminLayout({
     return children;
   }
 
-  if (checking || !allowed) {
+  if (!allowed) {
     return (
       <main className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden bg-[#03130d] px-5 text-white">
         <ForestBackground />

@@ -16,12 +16,17 @@ const LINKS = [
   { href: "/player-protection", label: "Player Protection" },
   { href: "/faq", label: "FAQ" },
   { href: "/terms", label: "Terms" },
+  { href: "/returns", label: "Returns" },
+  { href: "/privacy", label: "Privacy" },
+  { href: "/support", label: "Support" },
 ] as const;
 
 const NEW_TAB_LINKS = new Set([
   "/rules",
   "/player-protection",
   "/terms",
+  "/returns",
+  "/privacy",
 ]);
 
 export function TrustShell({

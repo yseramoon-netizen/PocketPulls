@@ -5,6 +5,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 
@@ -27,6 +28,10 @@ type StorePackage = {
 type StoreResponse = {
   ok: true;
   ordersOpen: boolean;
+  ordersMessage: string | null;
+  betaMode: boolean;
+  spentTodayPence: number;
+  spendLimitPence: number;
   firstRechargeAvailable: boolean;
   firstRechargeDiscountPercent: number;
   packages: StorePackage[];
@@ -150,6 +155,10 @@ export default function WishShopPage() {
   const [successMessage, setSuccessMessage] = useState("");
   const [selectedPackageId, setSelectedPackageId] = useState("constellation");
   const [starBursts, setStarBursts] = useState(0);
+  const checkoutRequestRef = useRef<{
+    packageId: string;
+    requestId: string;
+  } | null>(null);
 
   const triggerTwinkle = useCallback(() => {
     setStarBursts((current) => current + 1);
@@ -249,11 +258,16 @@ export default function WishShopPage() {
     setSuccessMessage("");
 
     try {
+      const requestId =
+        checkoutRequestRef.current?.packageId === packageId
+          ? checkoutRequestRef.current.requestId
+          : crypto.randomUUID();
+      checkoutRequestRef.current = { packageId, requestId };
       const response = await playerFetch<CheckoutResponse>(
         "/api/player/wishes/checkout",
         {
           method: "POST",
-          body: JSON.stringify({ packageId }),
+          body: JSON.stringify({ packageId, requestId }),
         },
       );
 
@@ -368,7 +382,9 @@ export default function WishShopPage() {
         </header>
 
         {!loading && store && !store.ordersOpen ? (
-          <div className={styles.errorBanner}>{ORDERS_NOT_READY_MESSAGE}</div>
+          <div className={styles.errorBanner}>
+            {store.ordersMessage || ORDERS_NOT_READY_MESSAGE}
+          </div>
         ) : null}
         {errorMessage && errorMessage !== ORDERS_NOT_READY_MESSAGE ? (
           <div className={styles.errorBanner}>{errorMessage}</div>

@@ -25,7 +25,10 @@ import {
   clearBenchmarkRecords,
   downloadBenchmarkRecords,
   downloadDiagnosticSnapshot,
+  recordAutoPrediction,
   recordBenchmarkDecision,
+  SCANNER_VERSION,
+  verifyBenchmarkPrediction,
 } from "@/lib/scanner/benchmark";
 import { CardIdentifier, shouldAutomaticallyAccept } from "@/lib/scanner/identify";
 import type {
@@ -50,7 +53,10 @@ type CardScannerProps = {
   resetKey?: number;
   autoStart?: boolean;
   onSelect: (card: ScannerPokemonCard) => void;
-  onAutoAdd?: (card: ScannerPokemonCard) => Promise<ScannerAutoAddResult>;
+  onAutoAdd?: (
+    card: ScannerPokemonCard,
+    context: { requestId: string; confidence: number; automatic: boolean },
+  ) => Promise<ScannerAutoAddResult>;
   autoIntakeLabel?: string;
   intakeControls?: ReactNode;
   onClose?: () => void;
@@ -67,6 +73,7 @@ type ReviewItem = {
   id: string;
   preview: string;
   identification: ScannerIdentification;
+  benchmarkCaseId: string | null;
 };
 
 type RecentAdd = {
@@ -74,6 +81,8 @@ type RecentAdd = {
   card: ScannerPokemonCard;
   message: string;
   confidence: number;
+  benchmarkCaseId: string | null;
+  benchmarkVerified: boolean;
 };
 
 type VisualIndexStatus = {
@@ -90,11 +99,11 @@ type ScreenWakeLock = {
   release: () => Promise<void>;
 };
 
-const VERSION = "53.0-multi-algorithm-print-verification";
+const VERSION = SCANNER_VERSION;
 const SAMPLE_MS = 80;
 const CALIBRATION_FRAMES = 6;
 const MAX_TRACKED_FRAMES = 4;
-const MAX_QUEUE = 10;
+const MAX_QUEUE = 12;
 const CARD_ASPECT = 63 / 88;
 
 function phaseCopy(phase: ScannerMachinePhase): string {
@@ -333,6 +342,7 @@ export default function CardScanner({
   const [choosing, setChoosing] = useState<string | null>(null);
   const [visualIndexStatus, setVisualIndexStatus] = useState<VisualIndexStatus | null>(null);
   const [buildingVisualIndex, setBuildingVisualIndex] = useState(false);
+  const [queueSaturated, setQueueSaturated] = useState(false);
 
   useEffect(() => {
     disabledRef.current = disabled;
@@ -418,12 +428,14 @@ export default function CardScanner({
   const handleIdentification = useCallback(async (capture: QueuedCapture, result: ScannerIdentification) => {
     if (capture.session !== sessionRef.current) return;
     const best = result.candidates[0];
+    let benchmarkCaseId: string | null = null;
     setActiveDebug(result.debug);
     if (!result.debug.visualIndex.ready) {
       setReview((items) => [{
         id: capture.id,
         preview: capture.frames[0]?.preview || "",
         identification: result,
+        benchmarkCaseId: null,
       }, ...items].slice(0, 10));
       setStatus("Visual index is not ready");
       setError(result.debug.visualIndex.error
@@ -432,15 +444,24 @@ export default function CardScanner({
       return;
     }
     if (best && onAutoAdd && shouldAutomaticallyAccept(result.candidates)) {
+      benchmarkCaseId = diagnostics
+        ? recordAutoPrediction(result).caseId
+        : null;
       try {
         if (capture.session !== sessionRef.current) return;
-        const added = await onAutoAdd(best.card);
+        const added = await onAutoAdd(best.card, {
+          requestId: capture.id,
+          confidence: best.confidence,
+          automatic: true,
+        });
         if (capture.session !== sessionRef.current) return;
         setRecentAdds((items) => [{
           id: capture.id,
           card: best.card,
           message: added.message,
           confidence: best.confidence,
+          benchmarkCaseId,
+          benchmarkVerified: false,
         }, ...items].slice(0, 1));
         setAddedCount((count) => count + 1);
         navigator.vibrate?.(35);
@@ -455,9 +476,10 @@ export default function CardScanner({
       id: capture.id,
       preview: capture.frames[0]?.preview || "",
       identification: result,
+      benchmarkCaseId,
     }, ...items].slice(0, 10));
     setStatus(best ? `${best.card.name} needs confirmation` : "No safe match — try another angle");
-  }, [onAutoAdd]);
+  }, [diagnostics, onAutoAdd]);
 
   const drainQueue = useCallback(async () => {
     if (processingRef.current) return;
@@ -480,6 +502,7 @@ export default function CardScanner({
           setStatus("Scanner needs attention");
         }
         setPendingCount(queueRef.current.length);
+        if (queueRef.current.length < MAX_QUEUE) setQueueSaturated(false);
       }
     } finally {
       processingRef.current = false;
@@ -498,7 +521,12 @@ export default function CardScanner({
       frames: ranked,
       captureMs,
     };
-    if (queueRef.current.length >= MAX_QUEUE) queueRef.current.shift();
+    if (queueRef.current.length >= MAX_QUEUE) {
+      setQueueSaturated(true);
+      setError("Recognition is at capacity. Hold this card in place until the queue count falls — no capture was discarded.");
+      setStatus("Intake paused — recognition catching up");
+      return;
+    }
     queueRef.current.push(item);
     setPendingCount(queueRef.current.length + (processingRef.current ? 1 : 0));
     setPhase("queued");
@@ -523,6 +551,7 @@ export default function CardScanner({
     absenceRef.current = 0;
     trackedRef.current = [];
     setPendingCount(0);
+    setQueueSaturated(false);
     setCameraOpen(false);
     setPhase("off");
     setStatus("Camera stopped");
@@ -610,6 +639,11 @@ export default function CardScanner({
       const cardGeometry = sceneChanged ? detectCardInGuide(video, crop) : null;
       const cardPresent = Boolean(cardGeometry);
       if (currentPhase === "searching") {
+        if (queueRef.current.length >= MAX_QUEUE) {
+          setQueueSaturated(true);
+          setStatus("Intake paused — recognition catching up");
+          return;
+        }
         cardShapePresenceRef.current = cardPresent ? cardShapePresenceRef.current + 1 : 0;
         if (cardShapePresenceRef.current >= 2) {
           trackedRef.current = [];
@@ -717,14 +751,27 @@ export default function CardScanner({
   const chooseCandidate = useCallback(async (item: ReviewItem, candidate: ScannerCandidate) => {
     setChoosing(item.id);
     try {
-      recordBenchmarkDecision(item.identification, candidate.card.id);
+      if (item.benchmarkCaseId) {
+        verifyBenchmarkPrediction(
+          item.benchmarkCaseId,
+          String(item.identification.candidates[0]?.card.id) === String(candidate.card.id),
+        );
+      } else {
+        recordBenchmarkDecision(item.identification, candidate.card.id);
+      }
       if (onAutoAdd) {
-        const added = await onAutoAdd(candidate.card);
+        const added = await onAutoAdd(candidate.card, {
+          requestId: item.id,
+          confidence: candidate.confidence,
+          automatic: false,
+        });
         setRecentAdds((items) => [{
           id: item.id,
           card: candidate.card,
           message: added.message,
           confidence: candidate.confidence,
+          benchmarkCaseId: null,
+          benchmarkVerified: true,
         }, ...items].slice(0, 1));
         setAddedCount((count) => count + 1);
         navigator.vibrate?.(35);
@@ -749,6 +796,7 @@ export default function CardScanner({
       setReview([]);
       setRecentAdds([]);
       setAddedCount(0);
+      setQueueSaturated(false);
       setActiveDebug(null);
       setError(null);
       if (autoStart && !disabledRef.current) void startCamera();
@@ -774,6 +822,14 @@ export default function CardScanner({
   }, [pendingCount, phase]);
 
   const latestAdd = recentAdds[0] ?? null;
+
+  const verifyLatestBenchmark = useCallback((correct: boolean) => {
+    if (!latestAdd?.benchmarkCaseId) return;
+    verifyBenchmarkPrediction(latestAdd.benchmarkCaseId, correct);
+    setRecentAdds((items) => items.map((item) =>
+      item.id === latestAdd.id ? { ...item, benchmarkVerified: true } : item,
+    ));
+  }, [latestAdd]);
   const latestImage = latestAdd
     ? latestAdd.card.image_url || latestAdd.card.image_url_large
     : null;
@@ -876,6 +932,7 @@ export default function CardScanner({
               <div className="absolute right-2.5 top-2.5 flex items-center gap-2 rounded-full border border-white/10 bg-black/75 px-3 py-2 text-[10px] font-black backdrop-blur">
                 <span className="text-emerald-300">✓ {addedCount}</span>
                 {pendingCount ? <span className="text-cyan-200">◌ {pendingCount}</span> : null}
+                {queueSaturated ? <span className="text-rose-300">Paused</span> : null}
                 {review.length ? <span className="text-amber-300">! {review.length}</span> : null}
               </div>
             ) : null}
@@ -941,6 +998,15 @@ export default function CardScanner({
             <button type="button" onClick={clearBenchmarkRecords} className="rounded-xl border border-white/10 bg-black/25 px-3 py-2 text-xs font-bold text-slate-400 hover:text-white">Clear benchmark</button>
           </div>
           {activeDebug ? <DebugPanel snapshot={activeDebug} /> : null}
+          {latestAdd?.benchmarkCaseId && !latestAdd.benchmarkVerified ? (
+            <div className="mt-4 rounded-2xl border border-amber-300/25 bg-amber-300/[0.06] p-4">
+              <div className="text-sm font-black text-amber-50">Benchmark check: was the latest automatic match correct?</div>
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <button type="button" onClick={() => verifyLatestBenchmark(true)} className="min-h-11 rounded-xl bg-emerald-300 px-3 text-xs font-black text-emerald-950">Yes, exact card</button>
+                <button type="button" onClick={() => verifyLatestBenchmark(false)} className="min-h-11 rounded-xl border border-rose-300/30 bg-rose-300/10 px-3 text-xs font-black text-rose-100">No, wrong card</button>
+              </div>
+            </div>
+          ) : null}
         </div>
       ) : null}
 

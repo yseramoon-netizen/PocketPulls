@@ -24,8 +24,8 @@ export default function RulesPage() {
         </CompactList>
       </Section>
 
-      <Section title="Summonable does not always mean already in the warehouse">
-        <p>Some cards may be listed in the summon catalogue before ancientpulls physically holds a copy. If one is allocated to you, it is recorded in your account and must be sourced before it can be dispatched.</p>
+      <Section title="Every result is physically backed">
+        <p>A wish can only allocate a card design with available physical stock. One held copy is reserved inside the same server transaction that records the result and spends the wish.</p>
       </Section>
 
       <Section title="Values are references, not promises">

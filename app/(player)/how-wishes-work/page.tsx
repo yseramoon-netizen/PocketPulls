@@ -28,8 +28,8 @@ export default function HowWishesWorkPage() {
 
       <Section title="5. We fulfil the physical card">
         <CompactList>
-          <li>If the card is already physically held, it can be allocated from stock immediately.</li>
-          <li>If it is not currently held, your result is recorded and the card is marked for sourcing when shipment is requested.</li>
+          <li>Only designs with available physical stock can compete.</li>
+          <li>One exact held copy is reserved before your result is committed.</li>
           <li>Your shipment is prepared once the required physical cards are ready.</li>
         </CompactList>
       </Section>

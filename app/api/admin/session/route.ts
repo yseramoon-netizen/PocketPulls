@@ -14,8 +14,11 @@ export async function GET(
     const {
       user,
       email,
+      aal,
     } =
-      await requireAdmin(request);
+      await requireAdmin(request, {
+        requireMfa: false,
+      });
 
     return Response.json(
       {
@@ -23,6 +26,8 @@ export async function GET(
         admin: {
           userId: user.id,
           email,
+          aal,
+          mfaRequired: true,
         },
       },
       {

@@ -186,6 +186,7 @@ function formatDate(value: string): string {
 
 export default function WishesPage() {
   const replayHandledRef = useRef(false);
+  const wishRequestIdRef = useRef<string | null>(null);
   const [dashboard, setDashboard] = useState<DashboardData>(EMPTY_DASHBOARD);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -535,7 +536,12 @@ export default function WishesPage() {
     const nebuSkinBeforeWish = readNebuSkin();
 
     try {
-      const { data, error } = await supabase.rpc("make_player_wish");
+      const requestId = wishRequestIdRef.current || crypto.randomUUID();
+      wishRequestIdRef.current = requestId;
+
+      const { data, error } = await supabase.rpc("make_player_wish", {
+        p_idempotency_key: requestId,
+      });
 
       if (error) {
         throw error;
@@ -548,6 +554,7 @@ export default function WishesPage() {
       }
 
       const result = row as Record<string, unknown>;
+      wishRequestIdRef.current = null;
       const nextBalance = toWholeNumber(result.wish_balance);
       const wishId = String(result.wish_id ?? "");
       const cosmicDiscovery = wishId

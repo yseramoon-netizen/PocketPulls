@@ -39,12 +39,38 @@ const CARDS = [
     title: "Terms",
     body: "The full terms for using ancientpulls and purchasing wishes.",
   },
+  {
+    href: "/returns",
+    glyph: "↺",
+    title: "Returns & Cancellations",
+    body: "How to cancel unused credits, return a card or report a fault.",
+  },
+  {
+    href: "/privacy",
+    glyph: "◉",
+    title: "Privacy",
+    body: "What account information is used, why, and your data rights.",
+  },
+  {
+    href: "/orders",
+    glyph: "▰",
+    title: "Your cards & orders",
+    body: "Exact variants, fulfilment status and parcel tracking.",
+  },
+  {
+    href: "/support",
+    glyph: "◇",
+    title: "Contact Support",
+    body: "Open a private case and attach photos from your phone.",
+  },
 ] as const;
 
 const NEW_TAB_LINKS = new Set([
   "/rules",
   "/player-protection",
   "/terms",
+  "/returns",
+  "/privacy",
 ]);
 
 export default function HelpPage() {

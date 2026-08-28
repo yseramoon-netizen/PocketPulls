@@ -141,7 +141,14 @@ export default function PurchaseConsentGate({
               <Link className="font-black text-cyan-100 underline decoration-cyan-100/30 underline-offset-2" href="/player-protection" target="_blank" rel="noreferrer">
                 Player Protection
               </Link>
-              {" "}information.
+              {" "}information, the{" "}
+              <Link className="font-black text-cyan-100 underline decoration-cyan-100/30 underline-offset-2" href="/returns" target="_blank" rel="noreferrer">
+                Returns policy
+              </Link>
+              {" "}and the{" "}
+              <Link className="font-black text-cyan-100 underline decoration-cyan-100/30 underline-offset-2" href="/privacy" target="_blank" rel="noreferrer">
+                Privacy notice
+              </Link>.
             </span>
           </ConsentRow>
         </div>

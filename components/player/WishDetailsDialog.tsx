@@ -144,7 +144,9 @@ export default function WishDetailsDialog({ open, onClose }: WishDetailsDialogPr
 
   useEffect(() => {
     if (!open) return;
-    void loadDetails();
+    const loadTimer = window.setTimeout(() => {
+      void loadDetails();
+    }, 0);
 
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -154,6 +156,7 @@ export default function WishDetailsDialog({ open, onClose }: WishDetailsDialogPr
     window.addEventListener("keydown", handleKeyDown);
 
     return () => {
+      window.clearTimeout(loadTimer);
       document.body.style.overflow = previousOverflow;
       window.removeEventListener("keydown", handleKeyDown);
     };
@@ -203,7 +206,7 @@ export default function WishDetailsDialog({ open, onClose }: WishDetailsDialogPr
           <article className={styles.cosmicPrize}>
             <div className={styles.cosmicGlow} aria-hidden="true" />
             <img
-              src="/ancient-pulls/skins/cosmic-nebu-v2/portrait.webp"
+              src="/ancient-pulls/skins/cosmic-nebu/portrait.webp"
               alt="Cosmic Nebu, the ultimate Ancient Pulls discovery"
               draggable={false}
             />
@@ -212,16 +215,9 @@ export default function WishDetailsDialog({ open, onClose }: WishDetailsDialogPr
               <h3>Cosmic Nebu</h3>
               <strong>1 in 100,000 · 0.001% per completed wish</strong>
               <span>
-                A permanent numbered celestial entity, awarded alongside your card without
-                changing its odds. Its stellar body, site ambience, camera escort and twelve
-                rarity reactions belong only to the trainer who discovers it.
+                An independent permanent cosmetic discovery. Cosmic Nebu is awarded alongside
+                your card, receives a chronological issue number, and never changes card odds.
               </span>
-              <div className={styles.cosmicFeatures}>
-                <i>Living plasma form</i>
-                <i>3D camera escort</i>
-                <i>Owner-only ambience</i>
-                <i>12 unique states</i>
-              </div>
               {cosmicIssueNumber ? (
                 <div className={styles.ownedBadge}>
                   Discovered · #{String(cosmicIssueNumber).padStart(6, "0")}
@@ -297,7 +293,7 @@ export default function WishDetailsDialog({ open, onClose }: WishDetailsDialogPr
           )}
 
           <p className={styles.disclaimer}>
-            Market values can move. Physical warehouse quantity affects fulfilment only; it does
+            Market values can move. Physical copy count does
             not secretly change the published rarity odds. The reveal animation never rerolls a result.
           </p>
         </div>

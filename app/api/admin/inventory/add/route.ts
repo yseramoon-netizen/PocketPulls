@@ -12,684 +12,190 @@ type AddInventoryBody = {
   quantity?: unknown;
   location?: unknown;
   finish?: unknown;
+  condition?: unknown;
+  language?: unknown;
+  requestId?: unknown;
+  source?: unknown;
 };
 
-type InventoryRow = {
-  id: string | number;
-  quantity:
-    | number
-    | string
-    | null;
-  location: string | null;
-  status: string | null;
-  finish?: string | null;
-};
+const ALLOWED_FINISHES = new Set(["normal", "holo", "reverse_holo"]);
+const ALLOWED_CONDITIONS = new Set([
+  "mint",
+  "near_mint",
+  "excellent",
+  "good",
+  "played",
+  "poor",
+]);
 
-type MasterCardRow = {
-  id: string | number;
-  name: string | null;
-  set_name: string | null;
-  card_no: string | null;
-};
-
-const ALLOWED_FINISHES =
-  new Set([
-    "normal",
-    "holo",
-    "reverse_holo",
-  ]);
-
-function readString(
-  value: unknown,
-): string {
-  return typeof value ===
-      "string"
-    ? value.trim()
-    : typeof value ===
-        "number"
-      ? String(value)
-      : "";
+function readString(value: unknown, maximum = 500): string {
+  if (typeof value === "string") return value.trim().slice(0, maximum);
+  if (typeof value === "number") return String(value);
+  return "";
 }
 
-function readQuantity(
-  value: unknown,
-): number {
-  const parsed =
-    Number(value);
-
-  if (!Number.isFinite(parsed)) {
-    return 0;
-  }
-
-  return Math.max(
-    1,
-    Math.min(
-      9999,
-      Math.floor(parsed),
-    ),
-  );
-}
-
-function toNumber(
-  value: unknown,
-): number {
-  const parsed =
-    Number(value);
-
+function readQuantity(value: unknown): number {
+  const parsed = Number(value);
   return Number.isFinite(parsed)
-    ? parsed
+    ? Math.max(1, Math.min(9999, Math.floor(parsed)))
     : 0;
 }
 
-function isMissingColumnError(
-  error: unknown,
-  column: string,
-): boolean {
-  if (
-    typeof error !== "object" ||
-    error === null
-  ) {
-    return false;
-  }
-
-  const record =
-    error as Record<
-      string,
-      unknown
-    >;
-
-  const text = [
-    record.message,
-    record.details,
-    record.hint,
-    record.code,
-  ]
-    .filter(
-      (value) =>
-        typeof value ===
-        "string",
-    )
-    .join(" ")
-    .toLowerCase();
-
-  return (
-    text.includes(
-      column.toLowerCase(),
-    ) &&
-    (
-      text.includes(
-        "does not exist",
-      ) ||
-      text.includes(
-        "schema cache",
-      ) ||
-      text.includes(
-        "column",
-      )
-    )
-  );
+function readFinish(value: unknown): string {
+  const finish = readString(value, 40).toLowerCase();
+  return ALLOWED_FINISHES.has(finish) ? finish : "normal";
 }
 
-export async function GET(
-  request: Request,
-) {
+function readCondition(value: unknown): string {
+  const condition = readString(value, 40).toLowerCase().replace(/\s+/g, "_");
+  return ALLOWED_CONDITIONS.has(condition) ? condition : "near_mint";
+}
+
+function noStore(payload: unknown, status = 200): Response {
+  return Response.json(payload, {
+    status,
+    headers: { "Cache-Control": "no-store" },
+  });
+}
+
+export async function GET(request: Request) {
   try {
-    const {
-      admin,
-    } =
-      await requireAdmin(request);
-
-    const url =
-      new URL(request.url);
-
-    const cardId =
-      readString(
-        url.searchParams.get(
-          "cardId",
-        ),
-      );
-
-    const requestedFinish =
-      readString(
-        url.searchParams.get(
-          "finish",
-        ),
-      ).toLowerCase();
-
-    const finish =
-      ALLOWED_FINISHES.has(
-        requestedFinish,
-      )
-        ? requestedFinish
-        : "normal";
+    const { admin } = await requireAdmin(request);
+    const url = new URL(request.url);
+    const cardId = readString(url.searchParams.get("cardId"), 100);
+    const finish = readFinish(url.searchParams.get("finish"));
+    const condition = readCondition(url.searchParams.get("condition"));
+    const language = readString(url.searchParams.get("language"), 40) || "English";
+    const location = readString(url.searchParams.get("location"), 160);
 
     if (!cardId) {
-      return Response.json(
-        {
-          ok: false,
-          error: {
-            code:
-              "card_id_missing",
-            message:
-              "A card ID is required.",
-          },
-        },
-        {
-          status: 400,
-        },
-      );
+      return noStore({
+        ok: false,
+        error: { code: "card_id_missing", message: "A card ID is required." },
+      }, 400);
     }
 
-    let finishSupported = true;
-
-    let result: {
-      data: unknown;
-      error: unknown;
-    } = await admin
+    let query = admin
       .from("inventory")
-      .select(
-        "id,quantity,location,status,finish",
-      )
-      .eq(
-        "card_id",
-        cardId,
-      )
-      .eq(
-        "finish",
-        finish,
-      )
-      .order(
-        "created_at",
-        {
-          ascending: true,
-        },
-      )
+      .select("id,quantity,location,status,finish,card_condition,card_language")
+      .eq("card_id", cardId)
+      .eq("finish", finish)
+      .eq("card_condition", condition)
+      .ilike("card_language", language);
+
+    if (location) query = query.eq("location", location);
+
+    const result = await query
+      .order("created_at", { ascending: true })
       .limit(1)
       .maybeSingle();
 
-    if (
-      result.error &&
-      isMissingColumnError(
-        result.error,
-        "finish",
-      )
-    ) {
-      finishSupported = false;
+    if (result.error) throw result.error;
 
-      result =
-        await admin
-          .from("inventory")
-          .select(
-            "id,quantity,location,status",
-          )
-          .eq(
-            "card_id",
-            cardId,
-          )
-          .order(
-            "created_at",
-            {
-              ascending: true,
-            },
-          )
-          .limit(1)
-          .maybeSingle();
-    }
-
-    if (result.error) {
-      throw result.error;
-    }
-
-    const inventory =
-      result.data as
-        | InventoryRow
-        | null;
-
-    return Response.json(
-      {
-        ok: true,
-        inventory: inventory
-          ? {
-              id:
-                String(
-                  inventory.id,
-                ),
-              quantity:
-                toNumber(
-                  inventory.quantity,
-                ),
-              location:
-                inventory.location,
-              status:
-                inventory.status,
-              finish:
-                finishSupported
-                  ? inventory.finish ||
-                    finish
-                  : "normal",
-            }
-          : null,
-      },
-      {
-        headers: {
-          "Cache-Control":
-            "no-store",
-        },
-      },
-    );
+    return noStore({
+      ok: true,
+      inventory: result.data
+        ? {
+            id: String(result.data.id),
+            quantity: Math.max(0, Number(result.data.quantity) || 0),
+            location: result.data.location,
+            status: result.data.status,
+            finish: result.data.finish || finish,
+            condition: result.data.card_condition || condition,
+            language: result.data.card_language || language,
+          }
+        : null,
+    });
   } catch (error: unknown) {
-    return adminErrorResponse(
-      error,
-    );
+    return adminErrorResponse(error);
   }
 }
 
-export async function POST(
-  request: Request,
-) {
+export async function POST(request: Request) {
   try {
-    const {
-      user,
-      email,
-      admin,
-    } =
-      await requireAdmin(request);
-
+    const { user, email, admin } = await requireAdmin(request);
     let body: AddInventoryBody;
 
     try {
-      body =
-        (await request.json()) as AddInventoryBody;
+      body = await request.json() as AddInventoryBody;
     } catch {
-      return Response.json(
-        {
-          ok: false,
-          error: {
-            code:
-              "invalid_request_body",
-            message:
-              "The inventory request was not valid JSON.",
-          },
+      return noStore({
+        ok: false,
+        error: {
+          code: "invalid_request_body",
+          message: "The inventory request was not valid JSON.",
         },
-        {
-          status: 400,
+      }, 400);
+    }
+
+    const cardId = readString(body.cardId, 100);
+    const quantity = readQuantity(body.quantity);
+    const location = readString(body.location, 160) || "Main Inventory";
+    const finish = readFinish(body.finish);
+    const condition = readCondition(body.condition);
+    const language = readString(body.language, 40) || "English";
+    const requestId = readString(body.requestId, 160);
+    const requestedSource = readString(body.source, 30).toLowerCase();
+    const source = requestedSource === "scanner" || requestedSource === "scanner_review"
+      ? requestedSource
+      : "manual";
+
+    if (!cardId || quantity < 1) {
+      return noStore({
+        ok: false,
+        error: {
+          code: "invalid_inventory_item",
+          message: "Select a card and enter a valid quantity.",
         },
-      );
+      }, 400);
     }
 
-    const cardId =
-      readString(body.cardId);
-
-    const quantity =
-      readQuantity(
-        body.quantity,
-      );
-
-    const location =
-      readString(
-        body.location,
-      ) ||
-      "Main Inventory";
-
-    const requestedFinish =
-      readString(
-        body.finish,
-      ).toLowerCase();
-
-    const finish =
-      ALLOWED_FINISHES.has(
-        requestedFinish,
-      )
-        ? requestedFinish
-        : "normal";
-
-    if (!cardId) {
-      return Response.json(
-        {
-          ok: false,
-          error: {
-            code:
-              "card_id_missing",
-            message:
-              "Select a card before adding inventory.",
-          },
+    if (!/^[A-Za-z0-9:_-]{16,160}$/.test(requestId)) {
+      return noStore({
+        ok: false,
+        error: {
+          code: "inventory_request_id_missing",
+          message: "This inventory request cannot be safely retried. Reopen the scanner and try again.",
         },
-        {
-          status: 400,
-        },
-      );
+      }, 400);
     }
 
-    const cardResult =
-      await admin
-        .from("pokemon_cards")
-        .select(
-          "id,name,set_name,card_no",
-        )
-        .eq("id", cardId)
-        .maybeSingle();
+    const result = await admin.rpc("admin_add_inventory_idempotent", {
+      p_admin_user_id: user.id,
+      p_admin_email: email,
+      p_card_id: cardId,
+      p_quantity: quantity,
+      p_location: location,
+      p_finish: finish,
+      p_card_condition: condition,
+      p_card_language: language,
+      p_idempotency_key: requestId,
+      p_source: source,
+    });
 
-    const card =
-      (
-        cardResult.data || null
-      ) as
-        | MasterCardRow
-        | null;
-
-    const cardError =
-      cardResult.error;
-
-    if (
-      cardError ||
-      !card
-    ) {
-      return Response.json(
-        {
-          ok: false,
-          error: {
-            code:
-              "card_not_found",
-            message:
-              cardError?.message ||
-              "The selected card is not in the master database.",
-          },
-        },
-        {
-          status: 404,
-        },
-      );
+    if (result.error) throw result.error;
+    const row = Array.isArray(result.data) ? result.data[0] : result.data;
+    if (!row?.inventory_id) {
+      throw new Error("The inventory transaction returned no record.");
     }
 
-    const cardName =
-      typeof card.name === "string" &&
-      card.name.trim()
-        ? card.name.trim()
-        : "Unknown card";
-
-    let finishSupported = true;
-
-    let currentQuery =
-      admin
-        .from("inventory")
-        .select(
-          "id,quantity,location,status,finish",
-        )
-        .eq(
-          "card_id",
-          cardId,
-        )
-        .eq(
-          "finish",
-          finish,
-        )
-        .order(
-          "created_at",
-          {
-            ascending: true,
-          },
-        )
-        .limit(1);
-
-    let currentResult =
-      await currentQuery
-        .maybeSingle();
-
-    if (
-      currentResult.error &&
-      isMissingColumnError(
-        currentResult.error,
-        "finish",
-      )
-    ) {
-      finishSupported = false;
-
-      currentResult =
-        await admin
-          .from("inventory")
-          .select(
-            "id,quantity,location,status",
-          )
-          .eq(
-            "card_id",
-            cardId,
-          )
-          .order(
-            "created_at",
-            {
-              ascending: true,
-            },
-          )
-          .limit(1)
-          .maybeSingle();
-    }
-
-    if (
-      currentResult.error
-    ) {
-      throw currentResult.error;
-    }
-
-    const current =
-      currentResult.data as
-        | InventoryRow
-        | null;
-
-    const finalQuantity =
-      toNumber(
-        current?.quantity,
-      ) + quantity;
-
-    let inventoryId:
-      | string
-      | number;
-
-    const basePayload:
-      Record<string, unknown> = {
-        quantity:
-          finalQuantity,
-        location,
-        status:
-          "in_stock",
-        added_by:
-          email,
-        added_by_user_id:
-          user.id,
-      };
-
-    if (finishSupported) {
-      basePayload.finish =
-        finish;
-    }
-
-    async function updateExisting(
-      payload:
-        Record<string, unknown>,
-    ) {
-      const inventoryTable =
-        admin.from(
-          "inventory",
-        ) as any;
-
-      return inventoryTable
-        .update(payload)
-        .eq(
-          "id",
-          current!.id,
-        );
-    }
-
-    async function insertNew(
-      payload:
-        Record<string, unknown>,
-    ) {
-      const inventoryTable =
-        admin.from(
-          "inventory",
-        ) as any;
-
-      return inventoryTable
-        .insert({
-          card_id: cardId,
-          ...payload,
-        })
-        .select("id")
-        .single();
-    }
-
-    if (current) {
-      inventoryId =
-        current.id;
-
-      let updateResult =
-        await updateExisting(
-          basePayload,
-        );
-
-      if (
-        updateResult.error &&
-        isMissingColumnError(
-          updateResult.error,
-          "added_by_user_id",
-        )
-      ) {
-        const {
-          added_by_user_id:
-            _ignored,
-          ...fallbackPayload
-        } = basePayload;
-
-        updateResult =
-          await updateExisting(
-            fallbackPayload,
-          );
-      }
-
-      if (updateResult.error) {
-        throw updateResult.error;
-      }
-    } else {
-      let insertResult =
-        await insertNew(
-          basePayload,
-        );
-
-      if (
-        insertResult.error &&
-        isMissingColumnError(
-          insertResult.error,
-          "added_by_user_id",
-        )
-      ) {
-        const {
-          added_by_user_id:
-            _ignored,
-          ...fallbackPayload
-        } = basePayload;
-
-        insertResult =
-          await insertNew(
-            fallbackPayload,
-          );
-      }
-
-      if (
-        insertResult.error ||
-        !insertResult.data
-      ) {
-        throw (
-          insertResult.error ||
-          new Error(
-            "Inventory insert returned no row.",
-          )
-        );
-      }
-
-      inventoryId =
-        (
-          insertResult.data as {
-            id:
-              | string
-              | number;
-          }
-        ).id;
-    }
-
-    /*
-     * This audit table is separate from the
-     * physical quantity record. Failure to
-     * write audit history must not undo a
-     * valid inventory addition.
-     */
-    const auditTable =
-      admin.from(
-        "admin_inventory_events",
-      ) as any;
-
-    const auditResult =
-      await auditTable
-        .insert({
-          admin_user_id:
-            user.id,
-          admin_email:
-            email,
-          inventory_id:
-            String(inventoryId),
-          card_id:
-            String(cardId),
-          finish,
-          quantity_delta:
-            quantity,
-          final_quantity:
-            finalQuantity,
-          event_type:
-            "inventory_add",
-          metadata: {
-            card_name:
-              cardName,
-            location,
-          },
-        });
-
-    if (
-      auditResult.error
-    ) {
-      console.warn(
-        "Inventory audit write failed:",
-        auditResult.error.message,
-      );
-    }
-
-    return Response.json(
-      {
-        ok: true,
-        result: {
-          inventoryId:
-            String(inventoryId),
-          cardId:
-            String(cardId),
-          cardName,
-          quantityAdded:
-            quantity,
-          finalQuantity,
-          location,
-          finish:
-            finishSupported
-              ? finish
-              : "normal",
-          adminEmail:
-            email,
-        },
+    return noStore({
+      ok: true,
+      result: {
+        inventoryId: String(row.inventory_id),
+        cardId: String(row.card_id),
+        cardName: readString(row.card_name, 300) || "Unknown card",
+        quantityAdded: Number(row.quantity_added) || quantity,
+        finalQuantity: Number(row.final_quantity) || quantity,
+        location: readString(row.location, 160) || location,
+        finish: readFinish(row.finish),
+        condition: readCondition(row.card_condition),
+        language: readString(row.card_language, 40) || language,
+        adminEmail: email,
+        source,
       },
-      {
-        headers: {
-          "Cache-Control":
-            "no-store",
-        },
-      },
-    );
+    });
   } catch (error: unknown) {
-    return adminErrorResponse(
-      error,
-    );
+    return adminErrorResponse(error);
   }
 }

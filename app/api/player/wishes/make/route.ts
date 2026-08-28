@@ -67,7 +67,24 @@ export async function POST(request: Request) {
     );
   }
 
-  const { data, error } = await client.rpc("make_player_wish");
+  let requestId = request.headers.get("idempotency-key")?.trim() || "";
+
+  if (!requestId) {
+    const body = await request.json().catch(() => null) as { requestId?: unknown } | null;
+    requestId = typeof body?.requestId === "string" ? body.requestId.trim() : "";
+  }
+
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(requestId)) {
+    return jsonError(
+      "A valid wish request ID is required.",
+      400,
+      "wish_request_id_invalid",
+    );
+  }
+
+  const { data, error } = await client.rpc("make_player_wish", {
+    p_idempotency_key: requestId,
+  });
 
   if (error) {
     const message = error.message?.trim() || "Nebu could not complete that wish.";

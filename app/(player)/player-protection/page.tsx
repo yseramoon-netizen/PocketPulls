@@ -18,7 +18,7 @@ export default function PlayerProtectionPage() {
       <Section title="When you make a wish">
         <CompactList>
           <li>The result is allocated server-side.</li>
-          <li>Physical warehouse quantity does not secretly change rarity odds.</li>
+          <li>Only physically available designs can be allocated; live odds exclude empty tiers.</li>
           <li>The reveal animation cannot upgrade or downgrade the result.</li>
           <li>The completed wish and card result are recorded in your account.</li>
         </CompactList>
@@ -26,9 +26,9 @@ export default function PlayerProtectionPage() {
 
       <Section title="Physical fulfilment">
         <CompactList>
-          <li>Some summonable cards may already be held by ancientpulls.</li>
-          <li>Others may be sourced after they are pulled.</li>
-          <li>A sourced-on-demand card must be physically obtained before it can be dispatched.</li>
+          <li>Every completed result reserves a copy already held by ancientpulls.</li>
+          <li>Finish, condition and language are recorded against the physical result.</li>
+          <li>Uncertain scanner matches require review and do not enter the wish pool automatically.</li>
         </CompactList>
       </Section>
 
@@ -40,7 +40,7 @@ export default function PlayerProtectionPage() {
       </Section>
 
       <Section title="Problems with an order">
-        <p>If a card cannot be sourced, is materially misdescribed, arrives damaged, is missing, or a payment/allocation appears to have failed, contact support. Nothing in these rules is intended to remove statutory consumer rights that apply to you.</p>
+        <p>If a card is materially misdescribed, arrives damaged, is missing, or a payment/allocation appears to have failed, use in-account Support. Nothing in these rules is intended to remove statutory consumer rights that apply to you.</p>
       </Section>
 
       <InfoCallout title="No cash-out" tone="emerald">

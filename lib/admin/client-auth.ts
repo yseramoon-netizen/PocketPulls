@@ -9,7 +9,21 @@ export type AdminGate = {
   userId: string;
   email: string;
   verifiedAt: number;
+  aal2: true;
 };
+
+function tokenHasAal2(token: string): boolean {
+  try {
+    const payload = token.split(".")[1];
+    if (!payload) return false;
+    const normalised = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = normalised.padEnd(Math.ceil(normalised.length / 4) * 4, "=");
+    const decoded = JSON.parse(window.atob(padded)) as { aal?: unknown };
+    return decoded.aal === "aal2";
+  } catch {
+    return false;
+  }
+}
 
 export class AdminClientError extends Error {
   readonly status: number;
@@ -52,7 +66,8 @@ export function readAdminGate(): AdminGate | null {
       typeof value.email !== "string" ||
       !value.email.trim() ||
       typeof value.verifiedAt !== "number" ||
-      !Number.isFinite(value.verifiedAt)
+      !Number.isFinite(value.verifiedAt) ||
+      value.aal2 !== true
     ) {
       throw new Error(
         "Invalid admin gate.",
@@ -63,6 +78,7 @@ export function readAdminGate(): AdminGate | null {
       userId: value.userId,
       email: value.email,
       verifiedAt: value.verifiedAt,
+      aal2: true,
     };
   } catch {
     window.sessionStorage.removeItem(
@@ -116,7 +132,8 @@ async function getAccessToken(
 
     if (
       error ||
-      !data.session?.access_token
+      !data.session?.access_token ||
+      !tokenHasAal2(data.session.access_token)
     ) {
       clearAdminGate();
       throw new AdminClientError(
@@ -148,7 +165,8 @@ async function getAccessToken(
 
   if (
     error ||
-    !data.session?.access_token
+    !data.session?.access_token ||
+    !tokenHasAal2(data.session.access_token)
   ) {
     clearAdminGate();
     throw new AdminClientError(

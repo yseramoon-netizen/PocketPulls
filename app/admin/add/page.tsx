@@ -42,12 +42,22 @@ type CardFinish =
   | "holo"
   | "reverse_holo";
 
+type CardCondition =
+  | "mint"
+  | "near_mint"
+  | "excellent"
+  | "good"
+  | "played"
+  | "poor";
+
 type AddResult = {
   cardName: string;
   quantityAdded: number;
   finalQuantity: number;
   location: string;
   finish: CardFinish;
+  condition: CardCondition;
+  language: string;
 };
 
 type AddInventoryApiResponse = {
@@ -60,6 +70,8 @@ type AddInventoryApiResponse = {
     finalQuantity: number;
     location: string;
     finish: CardFinish;
+    condition: CardCondition;
+    language: string;
     adminEmail: string;
   };
 };
@@ -127,6 +139,19 @@ const CARD_SELECT = `
 
 const LAST_LOCATION_KEY =
   "pocketpulls:last-inventory-location";
+const LAST_CONDITION_KEY = "ancient-pulls:last-card-condition";
+const LAST_LANGUAGE_KEY = "ancient-pulls:last-card-language";
+
+const CONDITION_OPTIONS: Array<{ value: CardCondition; label: string }> = [
+  { value: "mint", label: "Mint" },
+  { value: "near_mint", label: "Near Mint" },
+  { value: "excellent", label: "Excellent" },
+  { value: "good", label: "Good" },
+  { value: "played", label: "Played" },
+  { value: "poor", label: "Poor" },
+];
+
+const LANGUAGE_OPTIONS = ["English", "Japanese", "French", "German", "Italian", "Spanish", "Korean"];
 
 function getFinishLabel(
   finish: CardFinish,
@@ -357,6 +382,19 @@ export default function AddCardsPage() {
   const [finish, setFinish] =
     useState<CardFinish>("normal");
 
+  const [condition, setCondition] = useState<CardCondition>(() => {
+    if (typeof window === "undefined") return "near_mint";
+    const stored = window.localStorage.getItem(LAST_CONDITION_KEY) as CardCondition | null;
+    return CONDITION_OPTIONS.some((option) => option.value === stored)
+      ? stored as CardCondition
+      : "near_mint";
+  });
+
+  const [language, setLanguage] = useState(() => {
+    if (typeof window === "undefined") return "English";
+    return window.localStorage.getItem(LAST_LANGUAGE_KEY) || "English";
+  });
+
   const [location, setLocation] =
     useState(() => {
       if (typeof window === "undefined") {
@@ -397,6 +435,8 @@ export default function AddCardsPage() {
 
   const selectedCardRef =
     useRef<HTMLDivElement | null>(null);
+
+  const manualRequestIdRef = useRef("");
 
   useEffect(() => {
     let active = true;
@@ -613,6 +653,7 @@ export default function AddCardsPage() {
         setSelectedCard(card);
         setQuantity(1);
         setFinish("normal");
+        manualRequestIdRef.current = "";
         setResult(null);
         setError("");
         setSearchResults([]);
@@ -814,7 +855,10 @@ export default function AddCardsPage() {
   }
 
   const handleScannerAutoAdd = useCallback(
-    async (card: ScannerPokemonCard): Promise<ScannerAutoAddResult> => {
+    async (
+      card: ScannerPokemonCard,
+      context: { requestId: string; confidence: number; automatic: boolean },
+    ): Promise<ScannerAutoAddResult> => {
       const safeLocation = location.trim() || "Main Inventory";
 
       const response = await adminFetch<AddInventoryApiResponse>(
@@ -826,6 +870,10 @@ export default function AddCardsPage() {
             quantity: 1,
             location: safeLocation,
             finish,
+            condition,
+            language,
+            requestId: `scanner:${context.requestId}`,
+            source: context.automatic ? "scanner" : "scanner_review",
           }),
         },
       );
@@ -843,13 +891,15 @@ export default function AddCardsPage() {
         finalQuantity: added.finalQuantity,
         location: added.location,
         finish: added.finish,
+        condition: added.condition,
+        language: added.language,
       });
 
       return {
         message: `${added.cardName} · ${added.finalQuantity} now in ${added.location}`,
       };
     },
-    [finish, location],
+    [condition, finish, language, location],
   );
 
   async function addToInventory(
@@ -882,6 +932,10 @@ export default function AddCardsPage() {
     setResult(null);
 
     try {
+      if (!manualRequestIdRef.current) {
+        manualRequestIdRef.current = `manual:${crypto.randomUUID()}`;
+      }
+
       const response =
         await adminFetch<AddInventoryApiResponse>(
           "/api/admin/inventory/add",
@@ -897,6 +951,10 @@ export default function AddCardsPage() {
               location:
                 safeLocation,
               finish,
+              condition,
+              language,
+              requestId: manualRequestIdRef.current,
+              source: "manual",
             }),
           },
         );
@@ -920,9 +978,12 @@ export default function AddCardsPage() {
           added.location,
         finish:
           added.finish,
+        condition: added.condition,
+        language: added.language,
       });
 
       setQuantity(1);
+      manualRequestIdRef.current = "";
     } catch (
       addError: unknown
     ) {
@@ -945,6 +1006,7 @@ export default function AddCardsPage() {
     setSelectedCard(null);
     setQuantity(1);
     setFinish("normal");
+    manualRequestIdRef.current = "";
     setResult(null);
     setError("");
   }
@@ -1045,6 +1107,36 @@ export default function AddCardsPage() {
                   autoComplete="off"
                   className="mt-1.5 min-h-12 w-full rounded-xl border border-white/12 bg-black/25 px-4 text-sm font-bold text-white outline-none placeholder:text-white/25 focus:border-emerald-300/45 disabled:opacity-50"
                 />
+
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <label className="block">
+                    <span className="text-[10px] font-black uppercase tracking-[0.14em] text-white/40">Condition</span>
+                    <select
+                      value={condition}
+                      onChange={(event) => {
+                        const next = event.target.value as CardCondition;
+                        setCondition(next);
+                        window.localStorage.setItem(LAST_CONDITION_KEY, next);
+                      }}
+                      className="mt-1.5 min-h-12 w-full rounded-xl border border-white/12 bg-[#071a14] px-3 text-sm font-bold text-white outline-none focus:border-emerald-300/45"
+                    >
+                      {CONDITION_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                    </select>
+                  </label>
+                  <label className="block">
+                    <span className="text-[10px] font-black uppercase tracking-[0.14em] text-white/40">Language</span>
+                    <select
+                      value={language}
+                      onChange={(event) => {
+                        setLanguage(event.target.value);
+                        window.localStorage.setItem(LAST_LANGUAGE_KEY, event.target.value);
+                      }}
+                      className="mt-1.5 min-h-12 w-full rounded-xl border border-white/12 bg-[#071a14] px-3 text-sm font-bold text-white outline-none focus:border-emerald-300/45"
+                    >
+                      {LANGUAGE_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
+                    </select>
+                  </label>
+                </div>
               </div>
 
               <button
@@ -1158,7 +1250,7 @@ export default function AddCardsPage() {
                   >
                     Added {result.quantityAdded} x{" "}
                     {getFinishLabel(result.finish)}{" "}
-                    {result.cardName}. New stock:{" "}
+                    {result.cardName} · {result.condition.replace(/_/g, " ")} · {result.language}. New stock:{" "}
                     {result.finalQuantity} in{" "}
                     {result.location}.
                   </p>
@@ -2435,7 +2527,7 @@ export default function AddCardsPage() {
             onClose={() => setScannerOpen(false)}
             onSelect={handleScannerSelection}
             onAutoAdd={handleScannerAutoAdd}
-            autoIntakeLabel={`${getFinishLabel(finish)} · ${location.trim() || "Main Inventory"}`}
+            autoIntakeLabel={`${getFinishLabel(finish)} · ${condition.replace(/_/g, " ")} · ${language}`}
             intakeControls={(
               <div>
                 <div className="text-[10px] font-black uppercase tracking-[0.14em] text-white/45">Scan destination</div>
@@ -2464,6 +2556,31 @@ export default function AddCardsPage() {
                   aria-label="Storage location"
                   className="mt-2 min-h-11 w-full rounded-lg border border-white/10 bg-black/25 px-3 text-xs font-bold text-white outline-none placeholder:text-white/25 focus:border-emerald-300/45"
                 />
+                <div className="mt-2 grid grid-cols-2 gap-1.5">
+                  <select
+                    value={condition}
+                    onChange={(event) => {
+                      const next = event.target.value as CardCondition;
+                      setCondition(next);
+                      window.localStorage.setItem(LAST_CONDITION_KEY, next);
+                    }}
+                    aria-label="Card condition"
+                    className="min-h-11 rounded-lg border border-white/10 bg-[#071522] px-2 text-[11px] font-bold text-white"
+                  >
+                    {CONDITION_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                  </select>
+                  <select
+                    value={language}
+                    onChange={(event) => {
+                      setLanguage(event.target.value);
+                      window.localStorage.setItem(LAST_LANGUAGE_KEY, event.target.value);
+                    }}
+                    aria-label="Card language"
+                    className="min-h-11 rounded-lg border border-white/10 bg-[#071522] px-2 text-[11px] font-bold text-white"
+                  >
+                    {LANGUAGE_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
+                  </select>
+                </div>
               </div>
             )}
           />

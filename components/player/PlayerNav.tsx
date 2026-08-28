@@ -113,6 +113,8 @@ const MORE_ITEMS: readonly [
   NavItem,
   NavItem,
   NavItem,
+  NavItem,
+  NavItem,
 ] = [
   {
     href: "/constellation",
@@ -144,6 +146,16 @@ const MORE_ITEMS: readonly [
     href: "/wishes/shop",
     label: "Recharge",
     glyph: "✦",
+  },
+  {
+    href: "/orders",
+    label: "Orders",
+    glyph: "▰",
+  },
+  {
+    href: "/support",
+    label: "Support",
+    glyph: "◇",
   },
   {
     href: "/help",
@@ -196,6 +208,8 @@ const DRAWER_GROUPS: NavGroup[] = [
       MORE_ITEMS[4],
       MORE_ITEMS[5],
       MORE_ITEMS[6],
+      MORE_ITEMS[7],
+      MORE_ITEMS[8],
       PROFILE_ITEM,
     ],
   },

@@ -13,56 +13,29 @@ import {
   areOrdersOpen,
   ORDERS_NOT_READY_MESSAGE,
 } from "@/lib/player/orders";
+import { getPlayerPurchaseGate } from "@/lib/launch/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
+/* eslint-disable @typescript-eslint/no-explicit-any -- V66 purchase tables and RPCs are newer than the generated Supabase schema */
+
 type CheckoutBody = {
   packageId?: unknown;
+  requestId?: unknown;
 };
 
 type LooseDatabase = {
   from(table: string): any;
+  rpc(
+    name: string,
+    parameters?: Record<string, unknown>,
+  ): Promise<{ data: any; error: any }>;
 };
 
 function readPackageId(value: unknown): string {
   return typeof value === "string" ? value.trim().slice(0, 80) : "";
-}
-
-async function createPendingOrder(
-  database: LooseDatabase,
-  input: {
-    userId: string;
-    packageId: string;
-    wishes: number;
-    baseAmountPence: number;
-    firstRecharge: boolean;
-    amountPence: number;
-  },
-) {
-  const discountPence = Math.max(0, input.baseAmountPence - input.amountPence);
-
-  const result = await database
-    .from("wish_purchase_orders")
-    .insert({
-      user_id: input.userId,
-      package_id: input.packageId,
-      wishes: input.wishes,
-      base_amount_pence: input.baseAmountPence,
-      discount_pence: discountPence,
-      amount_pence: input.amountPence,
-      currency: "gbp",
-      first_recharge: input.firstRecharge,
-      status: "pending",
-    })
-    .select("id")
-    .single();
-
-  return result as {
-    data: { id?: unknown } | null;
-    error: { code?: string; message?: string } | null;
-  };
 }
 
 async function createStripeCheckout(input: {
@@ -76,6 +49,7 @@ async function createStripeCheckout(input: {
   wishes: number;
   amountPence: number;
   firstRecharge: boolean;
+  idempotencyKey: string;
 }) {
   const body = new URLSearchParams();
   body.set("mode", "payment");
@@ -116,6 +90,7 @@ async function createStripeCheckout(input: {
     headers: {
       Authorization: `Bearer ${input.secret}`,
       "Content-Type": "application/x-www-form-urlencoded",
+      "Idempotency-Key": input.idempotencyKey,
     },
     body,
     cache: "no-store",
@@ -156,10 +131,15 @@ export async function POST(request: Request) {
     }
 
     const packageId = readPackageId(body.packageId);
+    const requestId = readPackageId(body.requestId);
     const wishPackage = getWishPackage(packageId);
 
     if (!wishPackage) {
       throw new Error("Choose a valid wish package.");
+    }
+
+    if (!/^[A-Za-z0-9_-]{16,100}$/.test(requestId)) {
+      throw new Error("Checkout request ID is missing or invalid.");
     }
 
     const stripeSecret = process.env.STRIPE_SECRET_KEY?.trim();
@@ -184,6 +164,23 @@ export async function POST(request: Request) {
     const token = getBearerToken(request);
     const user = await getVerifiedUser(service, token);
 
+    const launchGate = await getPlayerPurchaseGate(database, user);
+
+    if (!launchGate.allowed) {
+      return Response.json(
+        {
+          ok: false,
+          error: {
+            message: launchGate.reason || ORDERS_NOT_READY_MESSAGE,
+          },
+        },
+        {
+          status: 503,
+          headers: { "Cache-Control": "no-store" },
+        },
+      );
+    }
+
     const consentResult = await database
       .from("player_legal_consents")
       .select("user_id")
@@ -204,70 +201,52 @@ export async function POST(request: Request) {
       );
     }
 
-    const [paidResult, reservationResult] = await Promise.all([
-      database
-        .from("wish_purchase_orders")
-        .select("id")
-        .eq("user_id", user.id)
-        .eq("status", "paid")
-        .limit(1),
-      database
-        .from("wish_purchase_orders")
-        .select("id")
-        .eq("user_id", user.id)
-        .eq("first_recharge", true)
-        .in("status", ["pending", "paid"])
-        .limit(1),
-    ]);
+    const orderResult = await database.rpc(
+      "create_guarded_wish_purchase_order",
+      {
+        p_user_id: user.id,
+        p_email: user.email || "",
+        p_package_id: wishPackage.id,
+        p_wishes: wishPackage.wishes,
+        p_base_amount_pence: wishPackage.amountPence,
+        p_first_recharge_amount_pence: applyFirstRechargeDiscount(
+          wishPackage.amountPence,
+        ),
+        p_client_request_id: requestId,
+      },
+    );
 
-    if (paidResult.error) {
-      throw paidResult.error;
-    }
+    if (orderResult.error) throw orderResult.error;
 
-    if (reservationResult.error) {
-      throw reservationResult.error;
-    }
+    const orderRow = Array.isArray(orderResult.data)
+      ? orderResult.data[0]
+      : orderResult.data;
+    const orderId = typeof orderRow?.order_id === "string"
+      ? orderRow.order_id
+      : "";
+    const firstRecharge = orderRow?.first_recharge === true;
+    const amountPence = Number(orderRow?.amount_pence);
+    const existingCheckoutUrl =
+      typeof orderRow?.existing_checkout_url === "string"
+        ? orderRow.existing_checkout_url.trim()
+        : "";
 
-    const hasPaidRecharge = Array.isArray(paidResult.data) && paidResult.data.length > 0;
-    const hasReservedFirstRecharge =
-      Array.isArray(reservationResult.data) && reservationResult.data.length > 0;
-
-    let firstRecharge = !hasPaidRecharge && !hasReservedFirstRecharge;
-    let amountPence = firstRecharge
-      ? applyFirstRechargeDiscount(wishPackage.amountPence)
-      : wishPackage.amountPence;
-
-    let orderResult = await createPendingOrder(database, {
-      userId: user.id,
-      packageId: wishPackage.id,
-      wishes: wishPackage.wishes,
-      baseAmountPence: wishPackage.amountPence,
-      firstRecharge,
-      amountPence,
-    });
-
-    if (orderResult.error?.code === "23505" && firstRecharge) {
-      firstRecharge = false;
-      amountPence = wishPackage.amountPence;
-      orderResult = await createPendingOrder(database, {
-        userId: user.id,
-        packageId: wishPackage.id,
-        wishes: wishPackage.wishes,
-        baseAmountPence: wishPackage.amountPence,
-        firstRecharge,
-        amountPence,
-      });
-    }
-
-    if (orderResult.error) {
-      throw orderResult.error;
-    }
-
-    const orderId =
-      typeof orderResult.data?.id === "string" ? orderResult.data.id : "";
-
-    if (!orderId) {
+    if (!orderId || !Number.isFinite(amountPence) || amountPence < 1) {
       throw new Error("The wish order could not be created.");
+    }
+
+    if (existingCheckoutUrl) {
+      return Response.json(
+        {
+          ok: true,
+          checkoutUrl: existingCheckoutUrl,
+          orderId,
+          firstRecharge,
+          wishes: wishPackage.wishes,
+          amountPence,
+        },
+        { headers: { "Cache-Control": "no-store" } },
+      );
     }
 
     try {
@@ -282,6 +261,7 @@ export async function POST(request: Request) {
         wishes: wishPackage.wishes,
         amountPence,
         firstRecharge,
+        idempotencyKey: `ancient-pulls-order-${orderId}`,
       });
 
       const updateResult = await database
@@ -315,7 +295,13 @@ export async function POST(request: Request) {
     } catch (stripeError: unknown) {
       await database
         .from("wish_purchase_orders")
-        .update({ status: "failed" })
+        .update({
+          failure_reason:
+            stripeError instanceof Error
+              ? stripeError.message.slice(0, 1000)
+              : "Stripe checkout creation failed.",
+          updated_at: new Date().toISOString(),
+        })
         .eq("id", orderId)
         .eq("status", "pending");
       throw stripeError;

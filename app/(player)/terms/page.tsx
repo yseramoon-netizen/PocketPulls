@@ -23,7 +23,7 @@ export default function TermsPage() {
       </Section>
 
       <Section title="3. Odds and catalogue changes">
-        <p>Rarity chances are configured independently from physical warehouse quantity. Adding or removing cards inside a rarity tier can change the individual cards available within that tier without automatically changing the tier&apos;s displayed chance. If an enabled rarity tier contains no summonable cards, the active odds may be renormalised across the remaining enabled tiers.</p>
+        <p>Only card designs backed by available physical stock can be allocated. Rarity-tier weights are configured separately from the number of copies held, but a tier with no physically available card is excluded and the displayed live odds are recalculated across the remaining active tiers.</p>
       </Section>
 
       <Section title="4. Prices and payments">
@@ -35,8 +35,8 @@ export default function TermsPage() {
         </CompactList>
       </Section>
 
-      <Section title="5. Card result, sourcing and shipping">
-        <p>After a successful wish, the allocated card result is recorded in your Collection. Some summonable cards are physically held before allocation; others may be sourced after allocation. Where sourcing is required, {BUSINESS_NAME} must obtain a genuine matching card before dispatch. A shipping request may therefore remain in preparation while outstanding cards are sourced.</p>
+      <Section title="5. Card result and shipping">
+        <p>Before a successful wish is recorded, one genuine physical copy already held by {BUSINESS_NAME} is reserved to that result. Its finish, condition and language are recorded in your card timeline. A different card cannot be silently substituted. Cards remain held for your account until they enter an available shipping flow.</p>
       </Section>
 
       <Section title="6. Market values">
@@ -44,7 +44,7 @@ export default function TermsPage() {
       </Section>
 
       <Section title="7. Cancellations, returns and fulfilment problems">
-        <p>Nothing in these terms removes statutory rights that cannot lawfully be excluded. Contact support if a payment, card allocation, sourcing, delivery or description is wrong. If an allocated card cannot reasonably be sourced, {BUSINESS_NAME} will contact you and provide the remedy required by applicable consumer law rather than silently substituting a different card.</p>
+        <p>Nothing in these terms removes statutory rights that cannot lawfully be excluded. The separate Returns &amp; Cancellations page explains the operating policy. Contact in-account Support if a payment, allocation, condition, delivery or description is wrong.</p>
       </Section>
 
       <Section title="8. Technical failures">

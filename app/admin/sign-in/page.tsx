@@ -58,7 +58,12 @@ async function verifyAdminToken(accessToken: string) {
   const payload = (await response.json().catch(() => null)) as
     | {
         ok?: boolean;
-        admin?: { userId?: string; email?: string };
+        admin?: {
+          userId?: string;
+          email?: string;
+          aal?: "aal1" | "aal2" | null;
+          mfaRequired?: boolean;
+        };
         error?: { message?: string };
       }
     | null;
@@ -72,8 +77,18 @@ async function verifyAdminToken(accessToken: string) {
   return {
     userId: payload.admin.userId,
     email: payload.admin.email.toLowerCase(),
+    aal: payload.admin.aal || null,
   };
 }
+
+type VerifiedAdmin = Awaited<ReturnType<typeof verifyAdminToken>>;
+
+type MfaState = {
+  mode: "challenge" | "enrol";
+  factorId: string;
+  qrCode: string | null;
+  secret: string | null;
+};
 
 function AdminSignInContent() {
   const router = useRouter();
@@ -86,6 +101,76 @@ function AdminSignInContent() {
   const [checking, setChecking] = useState(true);
   const [signingIn, setSigningIn] = useState(false);
   const [error, setError] = useState("");
+  const [verifiedAdmin, setVerifiedAdmin] = useState<VerifiedAdmin | null>(null);
+  const [mfa, setMfa] = useState<MfaState | null>(null);
+  const [mfaCode, setMfaCode] = useState("");
+
+  async function completeAdminSignIn(
+    admin: VerifiedAdmin,
+    accessToken: string,
+  ) {
+    const refreshed = admin.aal === "aal2"
+      ? admin
+      : await verifyAdminToken(accessToken);
+
+    if (refreshed.aal !== "aal2") {
+      throw new Error("Two-factor verification did not produce an AAL2 administrator session.");
+    }
+
+    writeAdminGate({
+      userId: refreshed.userId,
+      email: refreshed.email,
+      verifiedAt: Date.now(),
+      aal2: true,
+    });
+
+    router.replace(nextPath);
+    router.refresh();
+  }
+
+  async function prepareMfa(admin: VerifiedAdmin) {
+    setVerifiedAdmin(admin);
+    setMfaCode("");
+
+    const factors = await adminSupabase.auth.mfa.listFactors();
+    if (factors.error) throw factors.error;
+
+    const verifiedTotp = factors.data?.totp?.[0];
+    if (verifiedTotp) {
+      setMfa({
+        mode: "challenge",
+        factorId: verifiedTotp.id,
+        qrCode: null,
+        secret: null,
+      });
+      return;
+    }
+
+    const unverified = factors.data?.all?.filter(
+      (factor) => factor.factor_type === "totp" && factor.status !== "verified",
+    ) || [];
+
+    for (const factor of unverified) {
+      await adminSupabase.auth.mfa.unenroll({ factorId: factor.id });
+    }
+
+    const enrolment = await adminSupabase.auth.mfa.enroll({
+      factorType: "totp",
+      friendlyName: "Ancient Pulls Admin",
+      issuer: "Ancient Pulls",
+    });
+
+    if (enrolment.error || !enrolment.data) {
+      throw enrolment.error || new Error("The authenticator could not be enrolled.");
+    }
+
+    setMfa({
+      mode: "enrol",
+      factorId: enrolment.data.id,
+      qrCode: enrolment.data.totp.qr_code,
+      secret: enrolment.data.totp.secret,
+    });
+  }
 
   useEffect(() => {
     let active = true;
@@ -104,17 +189,27 @@ function AdminSignInContent() {
         const admin = await verifyAdminToken(data.session.access_token);
         const gate = readAdminGate();
 
-        if (!gate || gate.userId !== admin.userId) {
-          writeAdminGate({
-            userId: admin.userId,
-            email: admin.email,
-            verifiedAt: Date.now(),
-          });
+        if (admin.aal === "aal2") {
+          if (!gate || gate.userId !== admin.userId) {
+            writeAdminGate({
+              userId: admin.userId,
+              email: admin.email,
+              verifiedAt: Date.now(),
+              aal2: true,
+            });
+          }
+
+          if (active) {
+            router.replace(nextPath);
+            router.refresh();
+          }
+          return;
         }
 
+        clearAdminGate();
         if (active) {
-          router.replace(nextPath);
-          router.refresh();
+          await prepareMfa(admin);
+          setChecking(false);
         }
       } catch {
         clearAdminGate();
@@ -161,18 +256,48 @@ function AdminSignInContent() {
         throw new Error("The verified administrator did not match the account entered.");
       }
 
-      writeAdminGate({
-        userId: admin.userId,
-        email: admin.email,
-        verifiedAt: Date.now(),
-      });
-
-      router.replace(nextPath);
-      router.refresh();
+      if (admin.aal === "aal2") {
+        await completeAdminSignIn(admin, data.session.access_token);
+      } else {
+        clearAdminGate();
+        await prepareMfa(admin);
+        setSigningIn(false);
+      }
     } catch (failure: unknown) {
       console.error("Admin sign-in error:", failure);
       clearAdminGate();
       await adminSupabase.auth.signOut({ scope: "local" }).catch(() => undefined);
+      setError(getErrorMessage(failure));
+      setSigningIn(false);
+    }
+  }
+
+  async function handleMfaSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!mfa || !verifiedAdmin || signingIn) return;
+
+    const code = mfaCode.replace(/\D/g, "").slice(0, 8);
+    if (code.length < 6) {
+      setError("Enter the six-digit code from your authenticator app.");
+      return;
+    }
+
+    setSigningIn(true);
+    setError("");
+
+    try {
+      const verification = await adminSupabase.auth.mfa.challengeAndVerify({
+        factorId: mfa.factorId,
+        code,
+      });
+
+      if (verification.error || !verification.data?.access_token) {
+        throw verification.error || new Error("Two-factor verification failed.");
+      }
+
+      await completeAdminSignIn(verifiedAdmin, verification.data.access_token);
+    } catch (failure: unknown) {
       setError(getErrorMessage(failure));
       setSigningIn(false);
     }
@@ -221,6 +346,68 @@ function AdminSignInContent() {
             </div>
           ) : null}
 
+          {mfa ? (
+            <form onSubmit={handleMfaSubmit} className="mt-7 space-y-5">
+              <div className="rounded-2xl border border-cyan-100/15 bg-cyan-100/[0.055] p-5 text-center">
+                <p className="text-xs font-black uppercase tracking-[0.16em] text-cyan-50/55">
+                  {mfa.mode === "enrol" ? "Secure this administrator" : "Authenticator required"}
+                </p>
+                <h2 className="mt-2 text-xl font-black text-white">
+                  {mfa.mode === "enrol" ? "Set up two-factor authentication" : "Enter your two-factor code"}
+                </h2>
+                {mfa.mode === "enrol" && mfa.qrCode ? (
+                  <>
+                    {/* Supabase returns an in-memory SVG data URL for this one-time QR. */}
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={mfa.qrCode}
+                      alt="Ancient Pulls authenticator QR code"
+                      className="mx-auto mt-5 h-48 w-48 rounded-2xl bg-white p-3"
+                    />
+                    <p className="mt-4 text-xs font-semibold leading-5 text-white/55">
+                      Scan this with Google Authenticator, Microsoft Authenticator, 1Password or another TOTP app.
+                    </p>
+                    {mfa.secret ? (
+                      <details className="mt-3 text-left">
+                        <summary className="cursor-pointer text-xs font-black text-cyan-100/65">
+                          Enter a setup key instead
+                        </summary>
+                        <code className="mt-2 block break-all rounded-xl bg-black/30 p-3 text-xs text-white/70">
+                          {mfa.secret}
+                        </code>
+                      </details>
+                    ) : null}
+                  </>
+                ) : (
+                  <p className="mt-3 text-sm font-semibold text-white/55">
+                    Open the authenticator linked to {verifiedAdmin?.email || "this administrator"}.
+                  </p>
+                )}
+              </div>
+
+              <label className="block">
+                <span className="text-sm font-black text-white">Authenticator code</span>
+                <input
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  value={mfaCode}
+                  onChange={(event) => setMfaCode(event.target.value.replace(/\D/g, "").slice(0, 8))}
+                  disabled={signingIn}
+                  autoFocus
+                  className="mt-2 min-h-14 w-full rounded-2xl border border-white/10 bg-black/25 px-4 text-center text-2xl font-black tracking-[0.35em] text-white outline-none focus:border-cyan-200/40"
+                  placeholder="000000"
+                />
+              </label>
+
+              <button
+                type="submit"
+                disabled={signingIn || mfaCode.replace(/\D/g, "").length < 6}
+                className="flex min-h-14 w-full items-center justify-center rounded-2xl bg-gradient-to-r from-cyan-100 via-emerald-100 to-lime-100 px-5 text-sm font-black text-[#082117] disabled:opacity-50"
+              >
+                {signingIn ? "Verifying..." : "Verify and enter admin vault"}
+              </button>
+            </form>
+          ) : (
           <form onSubmit={handleSubmit} className="mt-7 space-y-5">
             <label className="block">
               <span className="text-sm font-black text-white">Admin email</span>
@@ -265,6 +452,7 @@ function AdminSignInContent() {
               {signingIn ? "Opening the vault..." : "Enter admin vault"}
             </button>
           </form>
+          )}
 
           <div className="mt-6 text-center">
             <Link href="/sign-in" className="text-xs font-black text-emerald-100/45 hover:text-white">

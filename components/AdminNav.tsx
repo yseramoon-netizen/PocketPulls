@@ -48,6 +48,11 @@ const ADMIN_ITEMS: AdminNavItem[] = [
     label: "Players",
     shortLabel: "Players",
   },
+  {
+    href: "/admin/launch",
+    label: "Launch Control",
+    shortLabel: "Launch",
+  },
 ];
 
 function isActive(
@@ -108,7 +113,8 @@ export default function AdminNav() {
   }
 
   useEffect(() => {
-    setMobileOpen(false);
+    const frame = window.requestAnimationFrame(() => setMobileOpen(false));
+    return () => window.cancelAnimationFrame(frame);
   }, [pathname]);
 
   return (

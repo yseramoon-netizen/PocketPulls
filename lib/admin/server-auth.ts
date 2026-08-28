@@ -3,6 +3,7 @@ import {
   type User,
 } from "@supabase/supabase-js";
 
+/* eslint-disable @typescript-eslint/no-explicit-any -- administrator routes cover tables and RPCs introduced after the generated Supabase schema */
 type AuthErrorLike = {
   message?: string;
   status?: number;
@@ -16,72 +17,40 @@ type AuthResult<T> = Promise<{
 
 export type ServerAdminClient = {
   auth: {
-    getUser(
-      token?: string,
-    ): AuthResult<{
-      user: User | null;
-    }>;
-
-    resend(
-      credentials: {
-        type: "signup";
-        email: string;
-        options?: {
-          emailRedirectTo?: string;
-        };
-      },
-    ): AuthResult<Record<string, unknown>>;
-
+    getUser(token?: string): AuthResult<{ user: User | null }>;
+    resend(credentials: {
+      type: "signup";
+      email: string;
+      options?: { emailRedirectTo?: string };
+    }): AuthResult<Record<string, unknown>>;
     admin: {
-      getUserById(
-        userId: string,
-      ): AuthResult<{
-        user: User | null;
-      }>;
-
+      getUserById(userId: string): AuthResult<{ user: User | null }>;
       updateUserById(
         userId: string,
-        attributes: {
-          user_metadata?: Record<
-            string,
-            unknown
-          >;
-        },
-      ): AuthResult<{
-        user: User | null;
-      }>;
-
-      listUsers(
-        parameters?: {
-          page?: number;
-          perPage?: number;
-        },
-      ): AuthResult<{
+        attributes: { user_metadata?: Record<string, unknown> },
+      ): AuthResult<{ user: User | null }>;
+      listUsers(parameters?: { page?: number; perPage?: number }): AuthResult<{
         users: User[];
         aud?: string;
       }>;
     };
   };
-
-  from(
-    relation: string,
-  ): any;
-
+  from(relation: string): any;
   rpc(
     functionName: string,
-    arguments_?:
-      | Record<string, unknown>
-      | undefined,
-  ): Promise<{
-    data: any;
-    error: any;
-  }>;
+    arguments_?: Record<string, unknown>,
+  ): Promise<{ data: any; error: any }>;
 };
 
 export type AdminContext = {
   user: User;
   email: string;
   admin: ServerAdminClient;
+  aal: "aal1" | "aal2" | null;
+};
+
+type RequireAdminOptions = {
+  requireMfa?: boolean;
 };
 
 export class AdminAccessError extends Error {
@@ -170,6 +139,28 @@ function getBearerToken(
   }
 
   return token;
+}
+
+function readAuthenticatorLevel(
+  token: string,
+): "aal1" | "aal2" | null {
+  try {
+    const payloadPart = token.split(".")[1];
+
+    if (!payloadPart) {
+      return null;
+    }
+
+    const payload = JSON.parse(
+      Buffer.from(payloadPart, "base64url").toString("utf8"),
+    ) as { aal?: unknown };
+
+    return payload.aal === "aal1" || payload.aal === "aal2"
+      ? payload.aal
+      : null;
+  } catch {
+    return null;
+  }
 }
 
 function getConfiguredAdminEmails(): Set<string> {
@@ -315,6 +306,7 @@ async function isDatabaseAdmin(
 
 export async function requireAdmin(
   request: Request,
+  options: RequireAdminOptions = {},
 ): Promise<AdminContext> {
   const token =
     getBearerToken(request);
@@ -375,10 +367,22 @@ export async function requireAdmin(
     );
   }
 
+  const aal = readAuthenticatorLevel(token);
+  const requireMfa = options.requireMfa ?? true;
+
+  if (requireMfa && aal !== "aal2") {
+    throw new AdminAccessError(
+      "Administrator two-factor verification is required. Return to the admin sign-in page.",
+      401,
+      "admin_mfa_required",
+    );
+  }
+
   return {
     user: data.user,
     email,
     admin,
+    aal,
   };
 }
 
