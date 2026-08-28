@@ -67,8 +67,7 @@ type WishCinematicProps = {
 
 const IMAGE_PRELOAD_TIMEOUT_MS = 2600;
 const WORLD_SPRITES = [
-  "/ancient-pulls/scene/pyramid-right-v1.webp",
-  "/ancient-pulls/scene/distant-mountains-village-v1.webp",
+  "/ancient-pulls/wish/nebu-cinematic/celestial-observatory-v1.webp",
 ] as const;
 
 // Kept as a public compatibility helper for the existing cinematic laboratory.
