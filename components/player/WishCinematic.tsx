@@ -1,5 +1,7 @@
 "use client";
 
+/* eslint-disable @next/next/no-img-element -- Timed cinematic art is explicitly preloaded and must not be wrapped or deferred. */
+
 import {
   type CSSProperties,
   useCallback,
@@ -25,8 +27,8 @@ import {
 } from "@/lib/player/nebu";
 import { supabase } from "@/lib/supabase";
 
-import AncientCatPullScene from "./AncientCatPullScene";
 import AsterismSigil from "./AsterismSigil";
+import StellarWishJourney from "./StellarWishJourney";
 import {
   primeWishAudio,
   startWishAudio,
@@ -89,12 +91,11 @@ function formatMoney(value: number | null | undefined): string {
 }
 
 type WishRevealTimeline = {
-  escalationStartMs: number;
-  stepDurationsMs: readonly number[];
-  travelDurationsMs: readonly number[];
-  blackHoleTravelStartMs: number | null;
-  blackHoleTravelDurationMs: number;
+  stageMomentsMs: readonly number[];
+  specialAtMs: number;
   cosmicTransformAtMs: number | null;
+  binderFormAtMs: number | null;
+  binderOpenAtMs: number | null;
   collapseAtMs: number;
   impactAtMs: number;
   cardAtMs: number;
@@ -102,52 +103,31 @@ type WishRevealTimeline = {
   durationMs: number;
 };
 
-const SUN_RISE_DELAY_MS = 260;
-const SUN_RISE_DURATION_MS = 2000;
-const SUPERNOVA_DURATION_MS = 1500;
-const BLACK_HOLE_TRAVEL_DURATION_MS = 5000;
-const COSMIC_TRANSFORMATION_HOLD_MS = 6500;
-const WORLD_RARITY_STAGE_DURATIONS_MS = [
-  2000,
-  3000,
-  4000,
-  4000,
-  4000,
-  4000,
-  4000,
-  4000,
-  4000,
+const STELLAR_STAGE_MOMENTS_MS = [
+  850,
+  1900,
+  3250,
+  4850,
+  6600,
+  8350,
+  10100,
+  11850,
+  13600,
 ] as const;
-
-function buildWorldTravelDurations(
-  stepDurationsMs: readonly number[],
-): readonly number[] {
-  return stepDurationsMs.map((duration, index) => {
-    if (index === 0) return 0;
-    const nextTier = index + 1;
-    const travelShare = Math.min(0.81, 0.6 + (nextTier - 2) * 0.03);
-    return Math.max(1200, Math.round(duration * travelShare));
-  });
-}
-
-function buildLegacyEscalationSteps(config: WishRevealConfig): readonly number[] {
-  const available = Math.max(450, config.timings.cardAtMs - 620);
-  const step = Math.max(150, Math.floor(available / config.tier));
-  return Array.from({ length: 9 }, () => step);
-}
 
 function buildRevealTimeline(
   config: WishRevealConfig,
   cosmicDiscovery: boolean,
+  cosmicBinderDiscovery: boolean,
 ): WishRevealTimeline {
   if (!config.usesWorldScene) {
+    const stageStep = Math.max(180, Math.floor(config.timings.impactAtMs / config.tier));
     return {
-      escalationStartMs: 520,
-      stepDurationsMs: buildLegacyEscalationSteps(config),
-      travelDurationsMs: [],
-      blackHoleTravelStartMs: null,
-      blackHoleTravelDurationMs: BLACK_HOLE_TRAVEL_DURATION_MS,
+      stageMomentsMs: Array.from({ length: config.tier }, (_, index) => 240 + index * stageStep),
+      specialAtMs: Math.max(300, config.timings.impactAtMs - 420),
       cosmicTransformAtMs: null,
+      binderFormAtMs: null,
+      binderOpenAtMs: null,
       collapseAtMs: Math.max(0, config.timings.cardAtMs - 680),
       impactAtMs: config.timings.impactAtMs,
       cardAtMs: config.timings.cardAtMs,
@@ -156,74 +136,114 @@ function buildRevealTimeline(
     };
   }
 
-  const escalationStartMs = SUN_RISE_DELAY_MS + SUN_RISE_DURATION_MS;
-  const travelDurationsMs = buildWorldTravelDurations(
-    WORLD_RARITY_STAGE_DURATIONS_MS,
-  );
-  if (cosmicDiscovery) {
-    const cosmicTransformAtMs = escalationStartMs + 3920;
-    const cardAtMs = escalationStartMs + COSMIC_TRANSFORMATION_HOLD_MS;
-    const infoAtMs = cardAtMs + 720;
+  const safeTier = Math.max(1, Math.min(9, Math.round(config.tier)));
+  const stageMomentsMs = STELLAR_STAGE_MOMENTS_MS.slice(0, safeTier);
+  const finalStageAtMs = stageMomentsMs[safeTier - 1] ?? 850;
+  const specialAtMs = finalStageAtMs + 420;
+  const dualDiscovery = cosmicDiscovery && cosmicBinderDiscovery;
+
+  if (dualDiscovery) {
+    const cosmicTransformAtMs = specialAtMs + 1180;
+    const binderFormAtMs = specialAtMs + 2050;
+    const binderOpenAtMs = specialAtMs + 3220;
+    const collapseAtMs = binderOpenAtMs + 420;
+    const impactAtMs = binderOpenAtMs + 760;
+    const cardAtMs = binderOpenAtMs + 1260;
+    const infoAtMs = cardAtMs + 900;
 
     return {
-      escalationStartMs,
-      stepDurationsMs: WORLD_RARITY_STAGE_DURATIONS_MS,
-      travelDurationsMs,
-      blackHoleTravelStartMs: null,
-      blackHoleTravelDurationMs: BLACK_HOLE_TRAVEL_DURATION_MS,
+      stageMomentsMs,
+      specialAtMs,
       cosmicTransformAtMs,
-      collapseAtMs: cosmicTransformAtMs,
-      impactAtMs: cosmicTransformAtMs + 820,
+      binderFormAtMs,
+      binderOpenAtMs,
+      collapseAtMs,
+      impactAtMs,
       cardAtMs,
       infoAtMs,
-      durationMs: infoAtMs + 1180,
+      durationMs: infoAtMs + 1750,
     };
   }
 
-  const finalRarityCompletedAtMs =
-    escalationStartMs +
-    WORLD_RARITY_STAGE_DURATIONS_MS
-      .slice(0, config.tier)
-      .reduce((total, duration) => total + duration, 0);
+  if (cosmicDiscovery) {
+    const cosmicTransformAtMs = specialAtMs + 1350;
+    const collapseAtMs = cosmicTransformAtMs + 760;
+    const impactAtMs = cosmicTransformAtMs + 1120;
+    const cardAtMs = cosmicTransformAtMs + 1760;
+    const infoAtMs = cardAtMs + 860;
+
+    return {
+      stageMomentsMs,
+      specialAtMs,
+      cosmicTransformAtMs,
+      binderFormAtMs: null,
+      binderOpenAtMs: null,
+      collapseAtMs,
+      impactAtMs,
+      cardAtMs,
+      infoAtMs,
+      durationMs: infoAtMs + 1600,
+    };
+  }
+
+  if (cosmicBinderDiscovery) {
+    const binderFormAtMs = specialAtMs + 260;
+    const binderOpenAtMs = specialAtMs + 1420;
+    const collapseAtMs = binderOpenAtMs + 340;
+    const impactAtMs = binderOpenAtMs + 680;
+    const cardAtMs = binderOpenAtMs + 1120;
+    const infoAtMs = cardAtMs + 820;
+
+    return {
+      stageMomentsMs,
+      specialAtMs,
+      cosmicTransformAtMs: null,
+      binderFormAtMs,
+      binderOpenAtMs,
+      collapseAtMs,
+      impactAtMs,
+      cardAtMs,
+      infoAtMs,
+      durationMs: infoAtMs + 1450,
+    };
+  }
 
   if (config.blackHole) {
-    const blackHoleTravelStartMs = finalRarityCompletedAtMs;
-    const blackHoleArrivalAtMs = blackHoleTravelStartMs + BLACK_HOLE_TRAVEL_DURATION_MS;
-    const collapseAtMs = blackHoleArrivalAtMs + 860;
-    const cardAtMs = collapseAtMs + SUPERNOVA_DURATION_MS;
-    const infoAtMs = cardAtMs + 720;
+    const collapseAtMs = specialAtMs + 2600;
+    const impactAtMs = specialAtMs + 3050;
+    const cardAtMs = specialAtMs + 3650;
+    const infoAtMs = cardAtMs + 820;
 
     return {
-      escalationStartMs,
-      stepDurationsMs: WORLD_RARITY_STAGE_DURATIONS_MS,
-      travelDurationsMs,
-      blackHoleTravelStartMs,
-      blackHoleTravelDurationMs: BLACK_HOLE_TRAVEL_DURATION_MS,
+      stageMomentsMs,
+      specialAtMs,
       cosmicTransformAtMs: null,
+      binderFormAtMs: null,
+      binderOpenAtMs: null,
       collapseAtMs,
-      impactAtMs: collapseAtMs + Math.round(SUPERNOVA_DURATION_MS * 0.48),
+      impactAtMs,
       cardAtMs,
       infoAtMs,
-      durationMs: infoAtMs + 1180,
+      durationMs: infoAtMs + 1350,
     };
   }
 
-  const collapseAtMs = finalRarityCompletedAtMs + 720;
-  const cardAtMs = collapseAtMs + SUPERNOVA_DURATION_MS;
-  const infoAtMs = cardAtMs + 560;
+  const collapseAtMs = specialAtMs + 620;
+  const impactAtMs = specialAtMs + 980;
+  const cardAtMs = specialAtMs + 1290;
+  const infoAtMs = cardAtMs + 620;
 
   return {
-    escalationStartMs,
-    stepDurationsMs: WORLD_RARITY_STAGE_DURATIONS_MS,
-    travelDurationsMs,
-    blackHoleTravelStartMs: null,
-    blackHoleTravelDurationMs: BLACK_HOLE_TRAVEL_DURATION_MS,
+    stageMomentsMs,
+    specialAtMs,
     cosmicTransformAtMs: null,
+    binderFormAtMs: null,
+    binderOpenAtMs: null,
     collapseAtMs,
-    impactAtMs: collapseAtMs + Math.round(SUPERNOVA_DURATION_MS * 0.48),
+    impactAtMs,
     cardAtMs,
     infoAtMs,
-    durationMs: infoAtMs + 960,
+    durationMs: infoAtMs + 1150,
   };
 }
 
@@ -257,7 +277,14 @@ export default function WishCinematic({
   const [skipped, setSkipped] = useState(false);
   const [mobileEffects, setMobileEffects] = useState(false);
   const [runNumber, setRunNumber] = useState(0);
-  const [muted, setMuted] = useState(false);
+  const [muted, setMuted] = useState(() => {
+    if (typeof window === "undefined") return false;
+    try {
+      return window.localStorage.getItem("pocketpulls-wish-muted") === "true";
+    } catch {
+      return false;
+    }
+  });
   const [nebuSkin, setNebuSkin] = useState<NebuSkinKey>(DEFAULT_NEBU_SKIN);
 
   const config = useMemo(
@@ -266,37 +293,31 @@ export default function WishCinematic({
   );
   const cosmicDiscovery = Boolean(cosmicIssueNumber);
   const cosmicBinderDiscovery = Boolean(cosmicBinderIssueNumber);
+  const dualDiscovery = cosmicDiscovery && cosmicBinderDiscovery;
   const timeline = useMemo(
-    () => buildRevealTimeline(config, cosmicDiscovery),
-    [config, cosmicDiscovery],
+    () => buildRevealTimeline(config, cosmicDiscovery, cosmicBinderDiscovery),
+    [config, cosmicBinderDiscovery, cosmicDiscovery],
   );
   const audioTravelWindows = useMemo(() => {
-    if (cosmicDiscovery) return [];
+    const windows = timeline.stageMomentsMs.slice(1).map((moment, index) => {
+      const previous = timeline.stageMomentsMs[index] ?? 0;
+      return {
+        startAtMs: previous + 120,
+        durationMs: Math.max(520, moment - previous - 220),
+        intensity: index + 2,
+      };
+    });
 
-    const windows = Array.from(
-      { length: Math.max(0, config.tier - 1) },
-      (_, index) => {
-        const nextTier = index + 2;
-        return {
-          startAtMs: timeline.escalationStartMs + timeline.stepDurationsMs
-            .slice(0, nextTier - 1)
-            .reduce((total, duration) => total + duration, 0),
-          durationMs: timeline.travelDurationsMs[nextTier - 1] ?? 1800,
-          intensity: nextTier,
-        };
-      },
-    );
-
-    if (timeline.blackHoleTravelStartMs !== null) {
+    if (config.blackHole && !cosmicDiscovery && !cosmicBinderDiscovery) {
       windows.push({
-        startAtMs: timeline.blackHoleTravelStartMs,
-        durationMs: timeline.blackHoleTravelDurationMs,
+        startAtMs: timeline.specialAtMs,
+        durationMs: Math.max(800, timeline.collapseAtMs - timeline.specialAtMs - 180),
         intensity: 9,
       });
     }
 
     return windows;
-  }, [config.tier, cosmicDiscovery, timeline]);
+  }, [config.blackHole, cosmicBinderDiscovery, cosmicDiscovery, timeline]);
   const sceneNebuSkin = cosmicDiscovery
     ? cosmicSourceSkin || (nebuSkin === "cosmic_nebu" ? DEFAULT_NEBU_SKIN : nebuSkin)
     : nebuSkin;
@@ -310,6 +331,15 @@ export default function WishCinematic({
   );
   const equippedCosmicNebu = !cosmicDiscovery && nebuSkin === "cosmic_nebu";
   const cosmicMode = equippedCosmicNebu || cosmicDiscovery;
+  const preparingCopy = dualDiscovery
+    ? "Nebu hears two impossible answers..."
+    : cosmicDiscovery
+      ? "The sky has chosen Nebu..."
+      : cosmicBinderDiscovery
+        ? "A sealed archive is answering..."
+        : equippedCosmicNebu
+          ? "Cosmic Nebu is bending the constellation..."
+          : "Nebu is reading the constellation...";
   const lowEffects = preferences.lowVisualEffects || preferences.dataSaver;
   const particleCount = getWishRevealParticleCount(config, {
     mobile: mobileEffects,
@@ -360,14 +390,6 @@ export default function WishCinematic({
     return () => window.removeEventListener(NEBU_SKIN_CHANGE_EVENT, handleSkinChange);
   }, []);
 
-  useEffect(() => {
-    try {
-      setMuted(window.localStorage.getItem("pocketpulls-wish-muted") === "true");
-    } catch {
-      // Browser storage is optional.
-    }
-  }, []);
-
   const stopAudio = useCallback(() => {
     audioSessionRef.current?.stop();
     audioSessionRef.current = null;
@@ -402,6 +424,7 @@ export default function WishCinematic({
     onClose();
   }, [onClose, stopAudio]);
 
+  /* eslint-disable react-hooks/set-state-in-effect -- Opening a new card starts a fresh, externally keyed cinematic timeline. */
   useEffect(() => {
     if (!open || !card) {
       clearTimers();
@@ -451,13 +474,12 @@ export default function WishCinematic({
 
     const preloadSources = [
       card.imageUrl,
-      ...(config.usesWorldScene && !lowEffects
+      ...(config.usesWorldScene
         ? [
             ...WORLD_SPRITES,
-            nebuHeatAssets.walkSheet,
-            nebuHeatAssets.reactionSheet,
-            ...(cosmicDiscovery
-              ? [cosmicHeatAssets.portrait, cosmicHeatAssets.reactionSheet]
+            nebuHeatAssets.portrait,
+            ...(cosmicDiscovery || equippedCosmicNebu
+              ? [cosmicHeatAssets.portrait]
               : []),
           ]
         : []),
@@ -495,16 +517,15 @@ export default function WishCinematic({
     config,
     cosmicDiscovery,
     cosmicHeatAssets.portrait,
-    cosmicHeatAssets.reactionSheet,
-    lowEffects,
-    nebuHeatAssets.reactionSheet,
-    nebuHeatAssets.walkSheet,
+    equippedCosmicNebu,
+    nebuHeatAssets.portrait,
     open,
     reportFinished,
     revealFromPreferences,
     stopAudio,
     timeline.durationMs,
   ]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   useEffect(() => {
     if (!open || !ready || skipped) return;
@@ -521,7 +542,13 @@ export default function WishCinematic({
           {
             impactAtMs: timeline.impactAtMs,
             revealAtMs: timeline.cardAtMs,
-            mode: cosmicDiscovery ? "cosmic" : "journey",
+            mode: dualDiscovery
+              ? "convergence"
+              : cosmicDiscovery
+                ? "cosmic"
+                : cosmicBinderDiscovery
+                  ? "binder"
+                  : "journey",
             travelWindows: audioTravelWindows,
           },
         );
@@ -534,7 +561,28 @@ export default function WishCinematic({
       cancelled = true;
       stopAudio();
     };
-  }, [audioTravelWindows, config, cosmicDiscovery, muted, open, preferences.sfxVolume, ready, runNumber, skipped, stopAudio, timeline.cardAtMs, timeline.impactAtMs]);
+  }, [audioTravelWindows, config, cosmicBinderDiscovery, cosmicDiscovery, dualDiscovery, muted, open, preferences.sfxVolume, ready, runNumber, skipped, stopAudio, timeline.cardAtMs, timeline.impactAtMs]);
+
+  useEffect(() => {
+    if (!open || !ready || skipped || lowEffects || typeof navigator.vibrate !== "function") return;
+
+    const pattern = dualDiscovery
+      ? [34, 34, 56, 34, 110]
+      : cosmicDiscovery
+        ? [42, 42, 92]
+        : cosmicBinderDiscovery
+          ? [28, 32, 72]
+          : config.tier >= 7
+            ? [24, 26, 42]
+            : config.tier >= 4
+              ? [20, 24, 30]
+              : [18];
+    const timer = window.setTimeout(() => {
+      navigator.vibrate(pattern);
+    }, timeline.impactAtMs);
+
+    return () => window.clearTimeout(timer);
+  }, [config.tier, cosmicBinderDiscovery, cosmicDiscovery, dualDiscovery, lowEffects, open, ready, skipped, timeline.impactAtMs]);
 
   useEffect(() => {
     audioSessionRef.current?.setMuted(muted);
@@ -598,6 +646,7 @@ export default function WishCinematic({
       data-sun-sequence={isolatedSunSequence ? "true" : "false"}
       data-cosmic-discovery={cosmicDiscovery ? "true" : "false"}
       data-cosmic-binder-discovery={cosmicBinderDiscovery ? "true" : "false"}
+      data-dual-discovery={dualDiscovery ? "true" : "false"}
       data-cosmic-mode={cosmicMode ? "true" : "false"}
       data-low-effects={lowEffects ? "true" : "false"}
       role="dialog"
@@ -633,7 +682,7 @@ export default function WishCinematic({
         <div className={styles.preparing}>
           <div className={styles.preparingGlow} />
           <img src={nebuHeatAssets.portrait} alt={equippedCosmicNebu ? "Cosmic Nebu" : "Nebu"} draggable={false} className={styles.preparingNebu} />
-          <p>{cosmicDiscovery ? "The sky has chosen Nebu..." : equippedCosmicNebu ? "Cosmic Nebu is bending the constellation..." : "Nebu is reading the constellation..."}</p>
+          <p>{preparingCopy}</p>
         </div>
       ) : (
         <div
@@ -642,29 +691,24 @@ export default function WishCinematic({
         >
           {config.usesWorldScene && !skipped ? (
             <div className={styles.catScene}>
-              <AncientCatPullScene
+              <StellarWishJourney
                 tier={config.tier}
-                escalationStartMs={timeline.escalationStartMs}
-                stepDurationsMs={timeline.stepDurationsMs}
-                travelDurationsMs={timeline.travelDurationsMs}
+                stageMomentsMs={timeline.stageMomentsMs}
+                specialAtMs={timeline.specialAtMs}
                 collapseAtMs={timeline.collapseAtMs}
+                impactAtMs={timeline.impactAtMs}
                 cardRevealAtMs={timeline.cardAtMs}
-                walkSheet={nebuHeatAssets.walkSheet}
-                reactionSheet={nebuHeatAssets.reactionSheet}
-                walkColumns={nebuHeatAssets.walkColumns}
-                walkRows={nebuHeatAssets.walkRows}
-                reactionColumns={nebuHeatAssets.reactionColumns}
-                reactionRows={nebuHeatAssets.reactionRows}
-                cosmic={equippedCosmicNebu}
-                cosmicDiscovery={cosmicDiscovery}
-                cosmicReactionSheet={cosmicHeatAssets.reactionSheet}
-                cosmicReactionColumns={cosmicHeatAssets.reactionColumns}
-                cosmicReactionRows={cosmicHeatAssets.reactionRows}
                 cosmicTransformAtMs={timeline.cosmicTransformAtMs}
-                blackHole={config.blackHole}
-                blackHoleTravelStartMs={timeline.blackHoleTravelStartMs}
-                blackHoleTravelDurationMs={timeline.blackHoleTravelDurationMs}
+                binderFormAtMs={timeline.binderFormAtMs}
+                binderOpenAtMs={timeline.binderOpenAtMs}
+                nebuPortrait={nebuHeatAssets.portrait}
+                cosmicNebuPortrait={cosmicHeatAssets.portrait}
+                equippedCosmicNebu={equippedCosmicNebu}
+                cosmicDiscovery={cosmicDiscovery}
+                cosmicBinderDiscovery={cosmicBinderDiscovery}
+                blackHole={config.blackHole && !cosmicDiscovery && !cosmicBinderDiscovery}
                 lowEffects={lowEffects}
+                seed={cardKey}
               />
             </div>
           ) : null}
@@ -684,31 +728,7 @@ export default function WishCinematic({
             </div>
           ) : null}
 
-          {cosmicMode && !skipped ? (
-            <div className={styles.cosmicRift} aria-hidden="true">
-              <span className={styles.cosmicRiftOuter} />
-              <span className={styles.cosmicRiftInner} />
-              <AsterismSigil seed={`${cardKey}:cosmic-rift`} points={9} className={styles.cosmicRiftSigil} />
-              <span className={styles.cosmicRiftCore} />
-              <span className={styles.cosmicComets}><i /><i /><i /></span>
-            </div>
-          ) : null}
-
-          {cosmicBinderIssueNumber ? (
-            <div className={styles.cosmicBinderArtifact} aria-hidden="true">
-              <div className={styles.cosmicBinderCover}>
-                <AsterismSigil
-                  seed={`${cardKey}:cosmic-binder`}
-                  points={9}
-                  className={styles.cosmicBinderSigil}
-                />
-                <span className={styles.cosmicBinderSpine} />
-                <span className={styles.cosmicBinderClasp} />
-              </div>
-            </div>
-          ) : null}
-
-          {!cosmicDiscovery ? (
+          {!config.usesWorldScene ? (
             <div className={styles.impact} aria-hidden="true">
               <div className={styles.impactFlash} />
               <div className={styles.impactRing} />

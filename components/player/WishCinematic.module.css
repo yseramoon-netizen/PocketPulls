@@ -714,6 +714,33 @@
     0 0 30px rgba(34, 211, 238, 0.08);
 }
 
+.overlay[data-cosmic-binder-discovery="true"] .cardScene {
+  animation: binderCardReveal 1.22s var(--card-at) cubic-bezier(0.12, 0.86, 0.2, 1.08) both;
+}
+
+.overlay[data-cosmic-binder-discovery="true"] .cardFrame {
+  border-color: #fff7c2;
+  box-shadow:
+    0 0 0 1px rgba(165, 243, 252, 0.28),
+    0 0 34px rgba(34, 211, 238, 0.48),
+    0 0 76px rgba(217, 70, 239, 0.35),
+    0 28px 75px rgba(0, 0, 0, 0.72);
+}
+
+.overlay[data-dual-discovery="true"] .cardScene {
+  animation: convergenceCardReveal 1.42s var(--card-at) cubic-bezier(0.1, 0.9, 0.18, 1.08) both;
+}
+
+.overlay[data-dual-discovery="true"] .cardFrame {
+  border-color: #fff;
+  box-shadow:
+    0 0 0 1px rgba(255, 247, 194, 0.46),
+    0 0 30px rgba(103, 232, 249, 0.68),
+    0 0 68px rgba(217, 70, 239, 0.48),
+    0 0 104px rgba(255, 247, 194, 0.22),
+    0 28px 75px rgba(0, 0, 0, 0.74);
+}
+
 .overlay[data-family="legendary"] .ancientFrame { border-width: 2px; box-shadow: inset 0 0 50px color-mix(in srgb, var(--wish-glow) 11%, transparent), 0 0 28px color-mix(in srgb, var(--wish-glow) 18%, transparent); }
 .overlay[data-family="legendary"] .stars { animation-duration: 5.2s; }
 .overlay[data-tier="9"] .sequence:not(.sequenceSkipped) { animation: legendaryStillness 520ms calc(var(--impact-at) - 520ms) linear both, sequenceShake 920ms var(--impact-at) cubic-bezier(.36,.07,.19,.97) both; }
@@ -747,6 +774,8 @@
 @keyframes particleBurst { 0% { opacity: 0; transform: rotate(var(--particle-angle)) translateX(0) scale(1); } 8% { opacity: 1; } 100% { opacity: 0; transform: rotate(var(--particle-angle)) translateX(var(--particle-distance)) scale(0); } }
 @keyframes cardReveal { 0% { opacity: 0; transform: translate3d(-50%,-50%,0) scale(.72) rotateY(88deg); } 48% { opacity: 1; transform: translate3d(-50%,-50%,0) scale(1.06) rotateY(-9deg); } 74% { opacity: 1; transform: translate3d(-50%,-50%,0) scale(.98) rotateY(3deg); } 100% { opacity: 1; transform: translate3d(-50%,-50%,0) scale(1) rotateY(0); } }
 @keyframes cosmicCardReveal { 0% { opacity: 0; filter: blur(10px) brightness(2); transform: translate3d(-50%,-50%,0) scale(1.5) rotateZ(-8deg) rotateY(24deg); } 52% { opacity: 1; filter: blur(0) brightness(1.15); transform: translate3d(-50%,-50%,0) scale(.94) rotateZ(2deg) rotateY(-5deg); } 76% { transform: translate3d(-50%,-50%,0) scale(1.03) rotateZ(-1deg) rotateY(2deg); } 100% { opacity: 1; filter: none; transform: translate3d(-50%,-50%,0) scale(1) rotateZ(0) rotateY(0); } }
+@keyframes binderCardReveal { 0% { opacity: 0; filter: brightness(2.4); transform: translate3d(-50%,-50%,0) scale(.28) rotateY(-64deg) rotateZ(5deg); } 54% { opacity: 1; filter: brightness(1.2); transform: translate3d(-50%,-50%,0) scale(1.08) rotateY(8deg) rotateZ(-1deg); } 78% { transform: translate3d(-50%,-50%,0) scale(.98) rotateY(-3deg) rotateZ(0); } 100% { opacity: 1; filter: none; transform: translate3d(-50%,-50%,0) scale(1) rotateY(0) rotateZ(0); } }
+@keyframes convergenceCardReveal { 0% { opacity: 0; filter: blur(8px) brightness(3); transform: translate3d(-50%,-50%,0) scale(.18) rotateY(120deg) rotateZ(-10deg); } 42% { opacity: 1; filter: blur(0) brightness(1.45); transform: translate3d(-50%,-50%,0) scale(1.14) rotateY(-12deg) rotateZ(2deg); } 70% { transform: translate3d(-50%,-50%,0) scale(.97) rotateY(4deg) rotateZ(-1deg); } 100% { opacity: 1; filter: none; transform: translate3d(-50%,-50%,0) scale(1) rotateY(0) rotateZ(0); } }
 @keyframes cosmicBinderMaterialises { 0% { opacity: 0; filter: blur(9px) brightness(2); transform: translate(-50%, -50%) scale(.35) rotate(-16deg); } 64% { opacity: 1; filter: blur(0) brightness(1.3); transform: translate(-50%, -50%) scale(1.08) rotate(3deg); } 100% { opacity: 1; filter: none; transform: translate(-50%, -50%) scale(1) rotate(0); } }
 @keyframes cosmicBinderFloats { 0%, 100% { transform: translateY(-4px) rotateY(-10deg) rotateX(3deg); } 50% { transform: translateY(5px) rotateY(-3deg) rotateX(-2deg); } }
 @keyframes cosmicBinderShine { to { background-position: 0 0, 0 0, 0 0, 0 0, -260% 0; } }
