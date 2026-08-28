@@ -104,6 +104,7 @@ export default function StellarWishJourney({
       <div className={styles.summonHost}>
         <NebuWishSummon
           tier={finalTier}
+          stageMomentsMs={stageMomentsMs}
           specialAtMs={specialAtMs}
           impactAtMs={impactAtMs}
           cardRevealAtMs={cardRevealAtMs}
@@ -128,8 +129,6 @@ export default function StellarWishJourney({
           <span
             key={name}
             data-reached={index < finalTier ? "true" : "false"}
-            data-final={index === finalTier - 1 ? "true" : "false"}
-            title={name}
             style={
               {
                 "--pulse-at": `${stageMomentsMs[index] ?? finalStageAtMs}ms`,

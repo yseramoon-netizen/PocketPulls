@@ -157,11 +157,6 @@
   filter: drop-shadow(0 0 2px var(--wish-primary)) drop-shadow(0 0 5px var(--wish-glow));
 }
 
-.constellationNode[data-final="true"] .nodeHalo {
-  fill: color-mix(in srgb, var(--wish-primary) 24%, transparent);
-  stroke-width: 0.15;
-}
-
 .wishStar {
   position: absolute;
   z-index: 7;
@@ -451,12 +446,11 @@
 }
 
 .rarityPulse span[data-reached="true"] {
-  animation: rarityPointIgnites 480ms var(--pulse-at) ease-out both;
+  animation: rarityPointIgnites 480ms var(--pulse-at) ease-out forwards;
 }
 
-.rarityPulse span[data-final="true"] {
-  width: 0.58rem;
-  height: 0.58rem;
+.scene[data-black-hole="true"] .finalWhiteout {
+  display: none;
 }
 
 .cosmicAwakening,

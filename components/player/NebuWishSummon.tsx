@@ -16,9 +16,11 @@ const SHEET_ROWS = 2;
 const POSE_WIDTH = 768;
 const POSE_HEIGHT = 1024;
 const TAU = Math.PI * 2;
+const STRUGGLE_FRAME_MS = 1000 / 24;
 
 type NebuWishSummonProps = {
   tier: number;
+  stageMomentsMs: readonly number[];
   specialAtMs: number;
   impactAtMs: number;
   cardRevealAtMs: number;
@@ -34,6 +36,13 @@ type Theme = {
   primary: Rgb;
   secondary: Rgb;
   glow: Rgb;
+};
+
+type StruggleSample = {
+  levelIndex: number;
+  progress: number;
+  frameIndex: number;
+  sampledAtMs: number;
 };
 
 type PoseMoment = {
@@ -78,6 +87,33 @@ const PAW_POSITION_BY_POSE: Readonly<Record<number, readonly [number, number]>> 
   4: [572, 696],
 };
 
+const NEUTRAL_STRUGGLE_THEME: Theme = {
+  primary: [226, 232, 240],
+  secondary: [148, 163, 184],
+  glow: [241, 245, 249],
+};
+
+// Candidate colours escalate in a fixed public order. A colour means that
+// level has been reached, never that it is the final result. Only the swipe
+// swaps to the server-decided final theme.
+const STRUGGLE_THEMES: readonly Theme[] = [
+  { primary: [226, 232, 240], secondary: [148, 163, 184], glow: [248, 250, 252] },
+  { primary: [74, 222, 128], secondary: [16, 185, 129], glow: [167, 243, 208] },
+  { primary: [96, 165, 250], secondary: [37, 99, 235], glow: [191, 219, 254] },
+  { primary: [167, 139, 250], secondary: [124, 58, 237], glow: [221, 214, 254] },
+  { primary: [244, 114, 182], secondary: [219, 39, 119], glow: [251, 207, 232] },
+  { primary: [251, 191, 36], secondary: [245, 158, 11], glow: [254, 240, 138] },
+  { primary: [251, 113, 133], secondary: [249, 115, 22], glow: [254, 205, 211] },
+  { primary: [34, 211, 238], secondary: [217, 70, 239], glow: [207, 250, 254] },
+  { primary: [255, 247, 194], secondary: [192, 132, 252], glow: [255, 255, 255] },
+];
+
+const BLACK_HOLE_THEME: Theme = {
+  primary: [250, 204, 82],
+  secondary: [139, 92, 246],
+  glow: [125, 211, 252],
+};
+
 // Pose order: idle, raise, charged, strain, swipe, track, alarm, cover.
 
 export function getNebuSummonSprite(
@@ -113,6 +149,72 @@ function easeOutCubic(value: number): number {
 function smoothstep(value: number): number {
   const progress = clamp(value);
   return progress * progress * (3 - 2 * progress);
+}
+
+function mixRgb(from: Rgb, to: Rgb, progress: number): Rgb {
+  const amount = clamp(progress);
+  return [
+    Math.round(lerp(from[0], to[0], amount)),
+    Math.round(lerp(from[1], to[1], amount)),
+    Math.round(lerp(from[2], to[2], amount)),
+  ];
+}
+
+function mixTheme(from: Theme, to: Theme, progress: number): Theme {
+  return {
+    primary: mixRgb(from.primary, to.primary, progress),
+    secondary: mixRgb(from.secondary, to.secondary, progress),
+    glow: mixRgb(from.glow, to.glow, progress),
+  };
+}
+
+function struggleSampleAt(
+  elapsedMs: number,
+  stageMomentsMs: readonly number[],
+  terminalAtMs: number,
+): StruggleSample {
+  let levelIndex = 0;
+  for (let index = 1; index < stageMomentsMs.length; index += 1) {
+    if (elapsedMs < (stageMomentsMs[index] ?? terminalAtMs)) break;
+    levelIndex = index;
+  }
+
+  const startsAt = stageMomentsMs[levelIndex] ?? terminalAtMs;
+  const endsAt = stageMomentsMs[levelIndex + 1] ?? terminalAtMs;
+  const durationMs = Math.max(STRUGGLE_FRAME_MS, endsAt - startsAt);
+  const localMs = clamp(elapsedMs - startsAt, 0, durationMs);
+  const frameIndex = Math.max(0, Math.floor(localMs / STRUGGLE_FRAME_MS));
+  const sampledLocalMs = Math.min(durationMs, frameIndex * STRUGGLE_FRAME_MS);
+
+  return {
+    levelIndex,
+    progress: clamp(sampledLocalMs / durationMs),
+    frameIndex,
+    sampledAtMs: startsAt + sampledLocalMs,
+  };
+}
+
+function struggleThemeAt(sample: StruggleSample, blackHole: boolean): Theme {
+  const targetIndex = Math.max(
+    0,
+    Math.min(STRUGGLE_THEMES.length - 1, sample.levelIndex),
+  );
+  const from = targetIndex === 0
+    ? NEUTRAL_STRUGGLE_THEME
+    : STRUGGLE_THEMES[targetIndex - 1] ?? NEUTRAL_STRUGGLE_THEME;
+  let to = STRUGGLE_THEMES[targetIndex] ?? NEUTRAL_STRUGGLE_THEME;
+
+  // Crown's last charge deliberately becomes an unreadable white overload;
+  // the black hole itself remains the reveal.
+  if (blackHole && targetIndex === STRUGGLE_THEMES.length - 1) {
+    to = {
+      primary: [244, 247, 255],
+      secondary: [184, 196, 221],
+      glow: [255, 255, 255],
+    };
+  }
+
+  return mixTheme(from, to, smoothstep(sample.progress));
 }
 
 function deterministic(index: number, salt: number): number {
@@ -164,15 +266,18 @@ function readTheme(element: HTMLElement): Theme {
   const computed = window.getComputedStyle(element);
   return {
     primary: parseCssColor(
-      computed.getPropertyValue("--wish-primary"),
+      computed.getPropertyValue("--wish-final-primary") ||
+        computed.getPropertyValue("--wish-primary"),
       [250, 190, 58],
     ),
     secondary: parseCssColor(
-      computed.getPropertyValue("--wish-secondary"),
+      computed.getPropertyValue("--wish-final-secondary") ||
+        computed.getPropertyValue("--wish-secondary"),
       [124, 58, 237],
     ),
     glow: parseCssColor(
-      computed.getPropertyValue("--wish-glow"),
+      computed.getPropertyValue("--wish-final-glow") ||
+        computed.getPropertyValue("--wish-glow"),
       [250, 204, 82],
     ),
   };
@@ -206,6 +311,7 @@ function drawGrounding(
   transform: CharacterTransform,
   environment: RenderEnvironment,
   strength = 1,
+  theme: Theme = environment.theme,
 ): void {
   const imageScale = environment.characterHeight / POSE_HEIGHT;
   const groundY = transform.y + 344 * imageScale * transform.scale;
@@ -217,7 +323,7 @@ function drawGrounding(
     groundY + 3,
     radius * 1.48,
     radius * 0.3,
-    environment.theme.primary,
+    theme.primary,
     0.12 * strength * transform.alpha,
   );
 
@@ -317,10 +423,13 @@ function drawPawMagic(
   transform: CharacterTransform,
   environment: RenderEnvironment,
   strength: number,
+  theme: Theme,
+  visibleIntensity: number,
 ): void {
   const [x, y] = pawPosition(pose, transform, environment);
   const pulse = 0.9 + Math.sin(elapsedMs * 0.011) * 0.1;
-  const radius = environment.characterHeight * 0.09 * pulse;
+  const radius = environment.characterHeight *
+    lerp(0.068, 0.112, visibleIntensity) * pulse;
 
   context.save();
   context.globalCompositeOperation = "screen";
@@ -330,8 +439,8 @@ function drawPawMagic(
     y,
     radius * 1.75,
     radius * 1.75,
-    environment.theme.glow,
-    0.34 * strength,
+    theme.glow,
+    lerp(0.24, 0.48, visibleIntensity) * strength,
   );
 
   const orbitCount = environment.lowEffects ? 5 : 11;
@@ -343,7 +452,7 @@ function drawPawMagic(
     const sparkleAlpha = strength * (0.35 + (index % 3) * 0.18);
     context.fillStyle = index % 3 === 0
       ? `rgba(255, 255, 255, ${sparkleAlpha})`
-      : rgba(environment.theme.primary, sparkleAlpha);
+      : rgba(theme.primary, sparkleAlpha);
     context.beginPath();
     context.arc(sparkleX, sparkleY, 1 + (index % 3) * 0.7, 0, TAU);
     context.fill();
@@ -358,13 +467,21 @@ function drawAmbientMagic(
   centerX: number,
   centerY: number,
   strength: number,
+  theme: Theme = environment.theme,
+  visibleIntensity = environment.tierIntensity,
 ): void {
   if (strength <= 0.001) return;
   context.save();
   context.globalCompositeOperation = "screen";
 
   const fieldRadius = environment.characterHeight * 0.42;
-  for (let index = 0; index < environment.sparks.length; index += 1) {
+  const visibleCount = environment.lowEffects
+    ? environment.sparks.length
+    : Math.min(
+        environment.sparks.length,
+        Math.round(24 + visibleIntensity * (environment.sparks.length - 24)),
+      );
+  for (let index = 0; index < visibleCount; index += 1) {
     const seed = environment.sparks[index];
     if (!seed) continue;
     const life = (elapsedMs * 0.00016 * seed.speed + seed.phase) % 1;
@@ -375,23 +492,60 @@ function drawAmbientMagic(
     const alpha = Math.sin(life * Math.PI) * 0.48 * strength;
     context.fillStyle = index % 5 === 0
       ? `rgba(255, 255, 255, ${alpha})`
-      : rgba(index % 2 ? environment.theme.primary : environment.theme.secondary, alpha);
+      : rgba(index % 2 ? theme.primary : theme.secondary, alpha);
     context.beginPath();
-    context.arc(x, y, seed.size * (0.65 + environment.tierIntensity * 0.35), 0, TAU);
+    context.arc(x, y, seed.size * (0.65 + visibleIntensity * 0.35), 0, TAU);
     context.fill();
   }
 
   context.restore();
 }
 
+function drawCharacterAura(
+  context: CanvasRenderingContext2D,
+  image: HTMLImageElement,
+  pose: PoseMoment,
+  transform: CharacterTransform,
+  environment: RenderEnvironment,
+  theme: Theme,
+  strength: number,
+): void {
+  if (strength <= 0.001) return;
+
+  drawEllipseGlow(
+    context,
+    transform.x,
+    transform.y - environment.characterHeight * 0.035,
+    environment.characterHeight * lerp(0.24, 0.39, strength),
+    environment.characterHeight * lerp(0.28, 0.46, strength),
+    theme.glow,
+    0.075 + strength * 0.11,
+  );
+
+  context.save();
+  context.globalCompositeOperation = "screen";
+  context.shadowColor = rgba(theme.glow, 0.88);
+  context.shadowBlur = lerp(9, 34, strength);
+  context.filter = `saturate(${lerp(1.04, 1.36, strength)}) brightness(${lerp(1, 1.16, strength)})`;
+  drawPoseBlend(
+    context,
+    image,
+    pose,
+    { ...transform, alpha: transform.alpha * lerp(0.055, 0.2, strength) },
+    environment,
+  );
+  context.restore();
+}
+
 function regularPoseAt(
   elapsedMs: number,
+  stageMomentsMs: readonly number[],
   swipeAtMs: number,
   impactAtMs: number,
   reducedMotion: boolean,
 ): PoseMoment {
-  const raiseStartsAt = Math.max(360, Math.min(720, swipeAtMs - 760));
-  const strainStartsAt = Math.max(raiseStartsAt + 240, Math.min(1040, swipeAtMs - 420));
+  const strainStartsAt = stageMomentsMs[0] ?? Math.max(720, swipeAtMs - 1000);
+  const raiseStartsAt = Math.max(320, strainStartsAt - 470);
   const anticipateAtMs = impactAtMs - 215;
 
   if (elapsedMs < raiseStartsAt) return { from: 0, to: 0, mix: 0 };
@@ -404,10 +558,20 @@ function regularPoseAt(
   }
 
   if (elapsedMs < swipeAtMs) {
-    if (reducedMotion) return { from: 2, to: 2, mix: 0 };
-    const loop = ((elapsedMs - strainStartsAt) % 760) / 760;
-    if (loop < 0.5) return { from: 2, to: 3, mix: loop * 2 };
-    return { from: 3, to: 2, mix: (loop - 0.5) * 2 };
+    const sample = struggleSampleAt(elapsedMs, stageMomentsMs, swipeAtMs);
+    const range = reducedMotion ? 0.48 : 1;
+    if (sample.progress < 0.52) {
+      return {
+        from: 2,
+        to: 3,
+        mix: smoothstep(sample.progress / 0.52) * range,
+      };
+    }
+    return {
+      from: 3,
+      to: 2,
+      mix: smoothstep((sample.progress - 0.52) / 0.48) * range,
+    };
   }
 
   if (elapsedMs < swipeAtMs + 300) {
@@ -594,23 +758,88 @@ function drawImpact(
   context.restore();
 }
 
-function drawBlackHole(
+type BlackHoleField = {
+  x: number;
+  y: number;
+  radius: number;
+  engulf: number;
+};
+
+function drawBlackHoleField(
   context: CanvasRenderingContext2D,
   elapsedMs: number,
   specialAtMs: number,
   impactAtMs: number,
   environment: RenderEnvironment,
-): readonly [number, number, number] {
+): BlackHoleField {
   const x = environment.centerX;
   const y = environment.height * 0.205;
-  const reveal = easeOutCubic(inverseLerp(specialAtMs, specialAtMs + 840, elapsedMs));
-  const consume = inverseLerp(impactAtMs, impactAtMs + 300, elapsedMs);
-  const radius = lerp(4, Math.min(environment.width, environment.height) * 0.115, reveal) *
-    lerp(1, 0.08, easeInCubic(consume));
-  if (reveal <= 0 || consume >= 1) return [x, y, radius];
+  const reveal = easeOutCubic(
+    inverseLerp(specialAtMs + 160, specialAtMs + 1120, elapsedMs),
+  );
+  const pull = smoothstep(inverseLerp(specialAtMs, impactAtMs, elapsedMs));
+  const engulf = easeInCubic(
+    inverseLerp(impactAtMs - 950, impactAtMs + 80, elapsedMs),
+  );
+  const radius = reveal <= 0
+    ? 0
+    : lerp(3, Math.min(environment.width, environment.height) * 0.122, reveal);
+
+  if (pull > 0) {
+    context.save();
+    const vignette = context.createRadialGradient(
+      x,
+      y,
+      Math.max(1, radius * 0.4),
+      x,
+      y,
+      Math.hypot(environment.width, environment.height) * 0.78,
+    );
+    vignette.addColorStop(0, `rgba(0, 0, 0, ${0.08 + pull * 0.18})`);
+    vignette.addColorStop(0.5, `rgba(2, 1, 12, ${pull * 0.16})`);
+    vignette.addColorStop(1, `rgba(0, 0, 0, ${pull * 0.58})`);
+    context.fillStyle = vignette;
+    context.fillRect(0, 0, environment.width, environment.height);
+
+    if (!environment.reducedMotion) {
+      context.globalCompositeOperation = "screen";
+      const streakCount = environment.lowEffects ? 18 : 48;
+      const diagonal = Math.hypot(environment.width, environment.height);
+      for (let index = 0; index < streakCount; index += 1) {
+        const angle = deterministic(index, 61) * TAU;
+        const outerRadius = diagonal * (0.18 + deterministic(index, 62) * 0.62);
+        const drawIn = smoothstep(
+          (pull + deterministic(index, 63) * 0.34 - 0.18) / 1.16,
+        );
+        const innerRadius = lerp(outerRadius, radius * 0.72, drawIn);
+        const nextRadius = Math.max(radius * 0.55, innerRadius - lerp(12, 86, pull));
+        const bend = Math.sin(elapsedMs * 0.0011 + index) * radius * 0.12 * pull;
+        context.strokeStyle = rgba(
+          index % 4 === 0 ? BLACK_HOLE_THEME.primary :
+            index % 3 === 0 ? BLACK_HOLE_THEME.secondary : WHITE,
+          (0.025 + deterministic(index, 64) * 0.13) * pull,
+        );
+        context.lineWidth = 0.45 + deterministic(index, 65) * 1.35;
+        context.beginPath();
+        context.moveTo(
+          x + Math.cos(angle) * innerRadius,
+          y + Math.sin(angle) * innerRadius,
+        );
+        context.quadraticCurveTo(
+          x + Math.cos(angle + 0.08) * ((innerRadius + nextRadius) * 0.5) + bend,
+          y + Math.sin(angle + 0.08) * ((innerRadius + nextRadius) * 0.5),
+          x + Math.cos(angle + 0.16 * pull) * nextRadius,
+          y + Math.sin(angle + 0.16 * pull) * nextRadius,
+        );
+        context.stroke();
+      }
+    }
+    context.restore();
+  }
+
+  if (reveal <= 0) return { x, y, radius, engulf };
 
   context.save();
-  context.globalAlpha = 1 - consume;
   context.globalCompositeOperation = "screen";
 
   drawEllipseGlow(
@@ -619,8 +848,8 @@ function drawBlackHole(
     y,
     radius * 2.3,
     radius * 2.3,
-    environment.theme.secondary,
-    0.24 * reveal,
+    BLACK_HOLE_THEME.secondary,
+    0.2 * reveal,
   );
 
   context.translate(x, y);
@@ -628,10 +857,10 @@ function drawBlackHole(
   context.scale(1, 0.27);
   const disk = context.createRadialGradient(0, 0, radius * 0.4, 0, 0, radius * 1.7);
   disk.addColorStop(0, "rgba(255, 255, 255, 0)");
-  disk.addColorStop(0.34, rgba(environment.theme.primary, 0.9));
+  disk.addColorStop(0.34, rgba(BLACK_HOLE_THEME.primary, 0.92));
   disk.addColorStop(0.53, "rgba(255, 255, 255, 0.96)");
-  disk.addColorStop(0.72, rgba(environment.theme.secondary, 0.76));
-  disk.addColorStop(1, rgba(environment.theme.secondary, 0));
+  disk.addColorStop(0.72, rgba(BLACK_HOLE_THEME.secondary, 0.78));
+  disk.addColorStop(1, rgba(BLACK_HOLE_THEME.secondary, 0));
   context.fillStyle = disk;
   context.beginPath();
   context.arc(0, 0, radius * 1.8, 0, TAU);
@@ -639,25 +868,52 @@ function drawBlackHole(
   context.restore();
 
   context.save();
-  context.globalAlpha = 1 - consume;
+  context.globalCompositeOperation = "screen";
   const lens = context.createRadialGradient(x, y, radius * 0.28, x, y, radius * 1.22);
-  lens.addColorStop(0, "rgba(0, 0, 0, 1)");
-  lens.addColorStop(0.42, "rgba(0, 0, 0, 1)");
-  lens.addColorStop(0.53, rgba(environment.theme.primary, 0.74));
+  lens.addColorStop(0, "rgba(0, 0, 0, 0)");
+  lens.addColorStop(0.42, "rgba(0, 0, 0, 0)");
+  lens.addColorStop(0.53, rgba(BLACK_HOLE_THEME.primary, 0.74));
   lens.addColorStop(0.61, "rgba(255, 255, 255, 0.54)");
-  lens.addColorStop(0.69, rgba(environment.theme.secondary, 0.28));
-  lens.addColorStop(1, rgba(environment.theme.secondary, 0));
+  lens.addColorStop(0.69, rgba(BLACK_HOLE_THEME.secondary, 0.3));
+  lens.addColorStop(1, rgba(BLACK_HOLE_THEME.secondary, 0));
   context.fillStyle = lens;
   context.beginPath();
   context.arc(x, y, radius * 1.24, 0, TAU);
   context.fill();
-  context.fillStyle = "#000";
-  context.beginPath();
-  context.arc(x, y, radius * 0.47, 0, TAU);
-  context.fill();
   context.restore();
 
-  return [x, y, radius];
+  return { x, y, radius, engulf };
+}
+
+function drawEventHorizon(
+  context: CanvasRenderingContext2D,
+  field: BlackHoleField,
+  environment: RenderEnvironment,
+): void {
+  if (field.radius <= 0) return;
+  const diagonal = Math.hypot(environment.width, environment.height);
+  const apertureRadius = lerp(field.radius * 0.49, diagonal * 1.08, field.engulf);
+
+  context.save();
+  context.fillStyle = "#000";
+  context.shadowBlur = field.engulf < 0.92 ? lerp(16, 54, field.engulf) : 0;
+  context.shadowColor = rgba(BLACK_HOLE_THEME.primary, 0.7 * (1 - field.engulf));
+  context.beginPath();
+  context.arc(field.x, field.y, apertureRadius, 0, TAU);
+  context.fill();
+
+  if (field.engulf > 0.02 && field.engulf < 0.96) {
+    context.globalCompositeOperation = "screen";
+    context.strokeStyle = rgba(
+      BLACK_HOLE_THEME.primary,
+      Math.sin(field.engulf * Math.PI) * 0.72,
+    );
+    context.lineWidth = lerp(2.4, 0.8, field.engulf);
+    context.beginPath();
+    context.arc(field.x, field.y, apertureRadius * 1.012, 0, TAU);
+    context.stroke();
+  }
+  context.restore();
 }
 
 function drawSuction(
@@ -682,7 +938,7 @@ function drawSuction(
     const y = lerp(fromY + (deterministic(index, 44) - 0.5) * environment.characterHeight * 0.34, holeY, travel);
     const next = clamp(travel + 0.07);
     context.strokeStyle = rgba(
-      index % 2 ? environment.theme.primary : environment.theme.secondary,
+      index % 2 ? BLACK_HOLE_THEME.primary : BLACK_HOLE_THEME.secondary,
       Math.sin(phase * Math.PI) * 0.52 * suctionProgress,
     );
     context.lineWidth = 0.8 + deterministic(index, 45) * 2.2;
@@ -694,24 +950,149 @@ function drawSuction(
   context.restore();
 }
 
+function drawSpaghettifiedSinglePose(
+  context: CanvasRenderingContext2D,
+  image: HTMLImageElement,
+  pose: number,
+  transform: CharacterTransform,
+  environment: RenderEnvironment,
+  holeX: number,
+  holeY: number,
+  progress: number,
+  alpha: number,
+): void {
+  const safePose = Math.max(0, Math.min(SHEET_COLUMNS * SHEET_ROWS - 1, pose));
+  const sourceX = (safePose % SHEET_COLUMNS) * POSE_WIDTH;
+  const sourceY = Math.floor(safePose / SHEET_COLUMNS) * POSE_HEIGHT;
+  const scale = (environment.characterHeight / POSE_HEIGHT) * transform.scale;
+  const targetWidth = POSE_WIDTH * scale;
+  const slices = environment.lowEffects ? 20 : 36;
+  const sourceSliceHeight = POSE_HEIGHT / slices;
+  const targetSliceHeight = sourceSliceHeight * scale;
+  const fade = 1 - smoothstep(inverseLerp(0.82, 1, progress));
+  const cosine = Math.cos(transform.rotation);
+  const sine = Math.sin(transform.rotation);
+
+  context.save();
+  context.globalAlpha = transform.alpha * alpha * fade;
+
+  for (let index = 0; index < slices; index += 1) {
+    const normalized = (index + 0.5) / slices;
+    const topWeight = (1 - normalized) ** 0.68;
+    const pull = clamp(
+      progress * topWeight + progress ** 3 * (1 - topWeight),
+    );
+    const localY = (normalized - 0.5) * POSE_HEIGHT * scale;
+    const baseX = transform.x - localY * sine;
+    const baseY = transform.y + localY * cosine;
+    const swirl = Math.sin(index * 0.47 + progress * 12.4) *
+      environment.characterHeight * 0.045 * progress * (1 - pull);
+    const destinationX = lerp(baseX, holeX, pull) + swirl;
+    const destinationY = lerp(baseY, holeY, pull);
+    const widthScale = lerp(1, 0.035, pull * 0.96);
+    const stretch = 1 + progress * topWeight * (1 - pull * 0.52) * 5.4;
+
+    context.drawImage(
+      image,
+      sourceX,
+      sourceY + index * sourceSliceHeight,
+      POSE_WIDTH,
+      sourceSliceHeight,
+      destinationX - targetWidth * widthScale * 0.5,
+      destinationY - targetSliceHeight * stretch * 0.5,
+      targetWidth * widthScale,
+      targetSliceHeight * stretch + 0.8,
+    );
+  }
+  context.restore();
+}
+
+function drawSpaghettifiedPose(
+  context: CanvasRenderingContext2D,
+  image: HTMLImageElement,
+  moment: PoseMoment,
+  transform: CharacterTransform,
+  environment: RenderEnvironment,
+  holeX: number,
+  holeY: number,
+  progress: number,
+): void {
+  if (environment.reducedMotion || progress <= 0.015) {
+    drawPoseBlend(context, image, moment, transform, environment);
+    return;
+  }
+
+  const mix = smoothstep(inverseLerp(0.42, 0.58, moment.mix));
+  if (moment.from === moment.to || mix <= 0.001) {
+    drawSpaghettifiedSinglePose(
+      context,
+      image,
+      moment.from,
+      transform,
+      environment,
+      holeX,
+      holeY,
+      progress,
+      1,
+    );
+    return;
+  }
+
+  drawSpaghettifiedSinglePose(
+    context,
+    image,
+    moment.from,
+    transform,
+    environment,
+    holeX,
+    holeY,
+    progress,
+    1 - mix,
+  );
+  drawSpaghettifiedSinglePose(
+    context,
+    image,
+    moment.to,
+    transform,
+    environment,
+    holeX,
+    holeY,
+    progress,
+    mix,
+  );
+}
+
 function renderRegular(
   context: CanvasRenderingContext2D,
   image: HTMLImageElement,
   elapsedMs: number,
+  stageMomentsMs: readonly number[],
   swipeAtMs: number,
   meteorAtMs: number,
   impactAtMs: number,
   environment: RenderEnvironment,
 ): void {
+  const struggle = struggleSampleAt(elapsedMs, stageMomentsMs, swipeAtMs);
+  const struggleStartedAt = stageMomentsMs[0] ?? Math.max(720, swipeAtMs - 1000);
+  const isStruggling = elapsedMs >= struggleStartedAt && elapsedMs < swipeAtMs;
+  const visibleIntensity = elapsedMs >= swipeAtMs
+    ? environment.tierIntensity
+    : clamp((struggle.levelIndex + struggle.progress) / 8);
+  const activeTheme = elapsedMs >= swipeAtMs
+    ? environment.theme
+    : struggleThemeAt(struggle, false);
   const pose = regularPoseAt(
     elapsedMs,
+    stageMomentsMs,
     swipeAtMs,
     impactAtMs,
     environment.reducedMotion,
   );
   const breath = environment.reducedMotion ? 0 : Math.sin(elapsedMs * 0.0031) * 0.009;
-  const strain = elapsedMs >= Math.max(800, swipeAtMs - 900) && elapsedMs < swipeAtMs
-    ? Math.sin(elapsedMs * 0.052) * (environment.reducedMotion ? 0 : 1.8)
+  const strainEnvelope = Math.sin(struggle.progress * Math.PI);
+  const strain = isStruggling
+    ? Math.sin(struggle.frameIndex * 1.87) * strainEnvelope *
+      lerp(0.55, 2.35, visibleIntensity) * (environment.reducedMotion ? 0.18 : 1)
     : 0;
   const impactFade = 1 - easeInCubic(inverseLerp(impactAtMs, impactAtMs + 230, elapsedMs));
   const swipeKick = elapsedMs >= swipeAtMs && elapsedMs < swipeAtMs + 300
@@ -726,31 +1107,46 @@ function renderRegular(
   };
 
   const magicStrength = elapsedMs < swipeAtMs
-    ? smoothstep(inverseLerp(Math.max(620, swipeAtMs - 940), swipeAtMs - 80, elapsedMs))
+    ? isStruggling
+      ? clamp(0.42 + visibleIntensity * 0.42 + struggle.progress * 0.18)
+      : smoothstep(inverseLerp(struggleStartedAt - 420, struggleStartedAt, elapsedMs)) * 0.42
     : 1 - smoothstep(inverseLerp(swipeAtMs, swipeAtMs + 360, elapsedMs));
-  const ambientStrength = clamp(magicStrength * 0.82 + environment.tierIntensity * 0.12);
+  const ambientStrength = clamp(magicStrength * 0.82 + visibleIntensity * 0.12);
 
   drawAmbientMagic(
     context,
-    elapsedMs,
+    isStruggling ? struggle.sampledAtMs : elapsedMs,
     environment,
     transform.x,
     transform.y,
     ambientStrength,
+    activeTheme,
+    visibleIntensity,
   );
-  drawGrounding(context, transform, environment, impactFade);
+  drawGrounding(context, transform, environment, impactFade, activeTheme);
 
+  drawCharacterAura(
+    context,
+    image,
+    pose,
+    transform,
+    environment,
+    activeTheme,
+    magicStrength * lerp(0.34, 1, visibleIntensity),
+  );
   drawPoseBlend(context, image, pose, transform, environment);
 
   if (magicStrength > 0.01 && elapsedMs < swipeAtMs + 340) {
     const activePose = pose.mix < 0.5 ? pose.from : pose.to;
     drawPawMagic(
       context,
-      elapsedMs,
+      isStruggling ? struggle.sampledAtMs : elapsedMs,
       Math.max(1, Math.min(4, activePose)),
       transform,
       environment,
       magicStrength,
+      activeTheme,
+      visibleIntensity,
     );
   }
 
@@ -780,89 +1176,151 @@ function renderBlackHole(
   context: CanvasRenderingContext2D,
   image: HTMLImageElement,
   elapsedMs: number,
+  stageMomentsMs: readonly number[],
   specialAtMs: number,
   impactAtMs: number,
   environment: RenderEnvironment,
 ): void {
-  const warningAtMs = Math.max(520, specialAtMs - 260);
-  const suctionAtMs = specialAtMs + 880;
-  const suctionProgress = easeInCubic(inverseLerp(suctionAtMs, impactAtMs, elapsedMs));
+  const struggle = struggleSampleAt(elapsedMs, stageMomentsMs, specialAtMs);
+  const struggleStartedAt = stageMomentsMs[0] ?? Math.max(720, specialAtMs - 1000);
+  const isStruggling = elapsedMs >= struggleStartedAt && elapsedMs < specialAtMs;
+  const pullProgress = smoothstep(inverseLerp(specialAtMs, impactAtMs - 260, elapsedMs));
+  const spaghettifyProgress = smoothstep(
+    inverseLerp(specialAtMs + 720, impactAtMs - 360, elapsedMs),
+  );
   const holeX = environment.centerX;
   const holeY = environment.height * 0.205;
-
-  let pose: PoseMoment;
-  if (elapsedMs < warningAtMs) {
-    pose = { from: 0, to: 0, mix: 0 };
-  } else if (elapsedMs < specialAtMs + 420) {
+  let pose = regularPoseAt(
+    Math.min(elapsedMs, specialAtMs - 0.001),
+    stageMomentsMs,
+    specialAtMs,
+    impactAtMs,
+    environment.reducedMotion,
+  );
+  if (elapsedMs >= specialAtMs && elapsedMs < specialAtMs + 520) {
     pose = {
-      from: 0,
+      from: 2,
       to: 5,
-      mix: inverseLerp(warningAtMs, specialAtMs + 280, elapsedMs),
+      mix: inverseLerp(specialAtMs, specialAtMs + 520, elapsedMs),
     };
-  } else if (elapsedMs < suctionAtMs) {
+  } else if (elapsedMs >= specialAtMs + 520 && elapsedMs < specialAtMs + 1120) {
     pose = {
       from: 5,
       to: 6,
-      mix: inverseLerp(specialAtMs + 420, suctionAtMs, elapsedMs),
+      mix: inverseLerp(specialAtMs + 520, specialAtMs + 1120, elapsedMs),
     };
-  } else {
-    pose = suctionProgress < 0.38
-      ? { from: 6, to: 7, mix: suctionProgress / 0.38 }
-      : { from: 7, to: 6, mix: (suctionProgress - 0.38) / 0.62 };
+  } else if (elapsedMs >= specialAtMs + 1120) {
+    pose = {
+      from: 6,
+      to: 7,
+      mix: clamp(spaghettifyProgress * 0.72),
+    };
   }
 
-  const lift = easeInCubic(suctionProgress);
-  const orbit = environment.reducedMotion ? 0 : Math.sin(suctionProgress * Math.PI * 2.2) * 38 * suctionProgress;
-  const alpha = 1 - smoothstep(inverseLerp(0.78, 1, suctionProgress));
+  const gentleLift = easeInCubic(pullProgress);
+  const orbit = environment.reducedMotion
+    ? 0
+    : Math.sin(pullProgress * Math.PI * 3.2) * 14 * pullProgress;
   const transform: CharacterTransform = {
-    x: lerp(environment.centerX, holeX, lift) + orbit,
-    y: lerp(environment.centerY, holeY + 12, lift),
-    scale: lerp(1, 0.12, lift),
-    rotation: environment.reducedMotion ? 0 : lift * 2.15,
-    alpha,
+    x: environment.centerX + orbit,
+    y: lerp(environment.centerY, holeY + environment.characterHeight * 0.16, gentleLift * 0.58),
+    scale: lerp(1, 0.82, gentleLift),
+    rotation: environment.reducedMotion
+      ? 0
+      : Math.sin(pullProgress * Math.PI * 2.4) * 0.055 + pullProgress * 0.16,
+    alpha: 1,
   };
 
-  drawAmbientMagic(
-    context,
-    elapsedMs,
-    environment,
-    transform.x,
-    transform.y,
-    clamp(inverseLerp(specialAtMs, specialAtMs + 900, elapsedMs) * (1 - suctionProgress)),
-  );
-  drawSuction(
-    context,
-    elapsedMs,
-    suctionProgress,
-    transform.x,
-    transform.y,
-    holeX,
-    holeY,
-    environment,
-  );
-  if (suctionProgress < 0.42) {
-    drawGrounding(context, transform, environment, 1 - suctionProgress / 0.42);
-  }
-  drawPoseBlend(context, image, pose, transform, environment);
-  drawBlackHole(
+  const visibleIntensity = clamp((struggle.levelIndex + struggle.progress) / 8);
+  const struggleTheme = struggleThemeAt(struggle, true);
+  const preMagicStrength = isStruggling
+    ? clamp(0.42 + visibleIntensity * 0.42 + struggle.progress * 0.18)
+    : smoothstep(inverseLerp(struggleStartedAt - 420, struggleStartedAt, elapsedMs)) * 0.42;
+  const field = drawBlackHoleField(
     context,
     elapsedMs,
     specialAtMs,
     impactAtMs,
     environment,
   );
-  drawImpact(
+
+  drawAmbientMagic(
     context,
-    elapsedMs,
-    impactAtMs,
-    holeX,
-    holeY,
+    isStruggling ? struggle.sampledAtMs : elapsedMs,
     environment,
+    transform.x,
+    transform.y,
+    elapsedMs < specialAtMs
+      ? preMagicStrength
+      : clamp((1 - pullProgress) * 0.48 + pullProgress * 0.18),
+    elapsedMs < specialAtMs ? struggleTheme : BLACK_HOLE_THEME,
+    elapsedMs < specialAtMs ? visibleIntensity : 1,
   );
+
+  if (elapsedMs < specialAtMs) {
+    drawGrounding(context, transform, environment, 1, struggleTheme);
+    drawCharacterAura(
+      context,
+      image,
+      pose,
+      transform,
+      environment,
+      struggleTheme,
+      preMagicStrength * lerp(0.34, 1, visibleIntensity),
+    );
+    drawPoseBlend(context, image, pose, transform, environment);
+
+    if (preMagicStrength > 0.01) {
+      const activePose = pose.mix < 0.5 ? pose.from : pose.to;
+      drawPawMagic(
+        context,
+        struggle.sampledAtMs,
+        Math.max(1, Math.min(3, activePose)),
+        transform,
+        environment,
+        preMagicStrength,
+        struggleTheme,
+        visibleIntensity,
+      );
+    }
+  } else {
+    drawSuction(
+      context,
+      elapsedMs,
+      pullProgress,
+      transform.x,
+      transform.y,
+      holeX,
+      holeY,
+      environment,
+    );
+    if (pullProgress < 0.34) {
+      drawGrounding(
+        context,
+        transform,
+        environment,
+        1 - pullProgress / 0.34,
+        BLACK_HOLE_THEME,
+      );
+    }
+    drawSpaghettifiedPose(
+      context,
+      image,
+      pose,
+      transform,
+      environment,
+      holeX,
+      holeY,
+      spaghettifyProgress,
+    );
+  }
+
+  drawEventHorizon(context, field, environment);
 }
 
 export default function NebuWishSummon({
   tier,
+  stageMomentsMs,
   specialAtMs,
   impactAtMs,
   cardRevealAtMs,
@@ -872,19 +1330,18 @@ export default function NebuWishSummon({
   const rootRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const sparks = useMemo(
-    () => buildSparks(lowEffects ? 18 : 54 + Math.min(24, Math.max(0, tier - 1) * 3)),
-    [lowEffects, tier],
+    () => buildSparks(lowEffects ? 18 : 78),
+    [lowEffects],
   );
-  const swipeAtMs = useMemo(
-    () => Math.max(920, Math.min(specialAtMs, impactAtMs - 680)),
-    [impactAtMs, specialAtMs],
-  );
+  const swipeAtMs = specialAtMs;
   const meteorAtMs = swipeAtMs + 310;
   const rootStyle = {
     "--nebu-impact-at": `${impactAtMs}ms`,
     "--nebu-card-at": `${cardRevealAtMs}ms`,
+    "--nebu-reveal-at": `${specialAtMs}ms`,
     "--nebu-focus-at": `${Math.max(0, swipeAtMs - 720)}ms`,
-    "--nebu-tier-intensity": String(clamp((tier - 1) / 8)),
+    "--nebu-tier-intensity": "0",
+    "--nebu-final-intensity": String(clamp((tier - 1) / 8)),
   } as CSSProperties;
 
   useEffect(() => {
@@ -966,6 +1423,7 @@ export default function NebuWishSummon({
           context,
           image,
           elapsedMs,
+          stageMomentsMs,
           specialAtMs,
           impactAtMs,
           environment,
@@ -975,6 +1433,7 @@ export default function NebuWishSummon({
           context,
           image,
           elapsedMs,
+          stageMomentsMs,
           swipeAtMs,
           meteorAtMs,
           impactAtMs,
@@ -1024,6 +1483,7 @@ export default function NebuWishSummon({
     meteorAtMs,
     sparks,
     specialAtMs,
+    stageMomentsMs,
     swipeAtMs,
     tier,
   ]);

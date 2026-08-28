@@ -7,6 +7,7 @@
   contain: strict;
   isolation: isolate;
   transform: translateZ(0);
+  animation: revealNebuIntensity 1ms var(--nebu-reveal-at) steps(1, end) forwards;
 }
 
 .cinematicCanvas,
@@ -95,7 +96,7 @@
 }
 
 .summon[data-black-hole="true"] .impactBloom {
-  top: 20.5%;
+  display: none;
 }
 
 .opticalVignette {
@@ -158,6 +159,10 @@
     opacity: calc(0.29 + var(--nebu-tier-intensity) * 0.18);
     transform: translateZ(0) scale(1.045) rotate(1deg);
   }
+}
+
+@keyframes revealNebuIntensity {
+  to { --nebu-tier-intensity: var(--nebu-final-intensity); }
 }
 
 @keyframes focusFieldGather {

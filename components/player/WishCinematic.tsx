@@ -103,17 +103,28 @@ type WishRevealTimeline = {
   durationMs: number;
 };
 
-const STELLAR_STAGE_MOMENTS_MS = [
-  850,
-  1900,
-  3250,
-  4850,
-  6600,
-  8350,
-  10100,
-  11850,
-  13600,
-] as const;
+const STRUGGLE_START_AT_MS = 850;
+const STRUGGLE_BASE_CYCLE_MS = 1000;
+const STRUGGLE_SLOWDOWN = 1.2;
+
+function buildStruggleTimeline(tier: number): {
+  stageMomentsMs: readonly number[];
+  terminalAtMs: number;
+} {
+  const safeTier = Math.max(1, Math.min(9, Math.round(tier)));
+  const stageMomentsMs: number[] = [];
+  let cursor = STRUGGLE_START_AT_MS;
+
+  for (let index = 0; index < safeTier; index += 1) {
+    stageMomentsMs.push(Math.round(cursor));
+    cursor += STRUGGLE_BASE_CYCLE_MS * STRUGGLE_SLOWDOWN ** index;
+  }
+
+  return {
+    stageMomentsMs,
+    terminalAtMs: Math.round(cursor),
+  };
+}
 
 function buildRevealTimeline(
   config: WishRevealConfig,
@@ -136,10 +147,9 @@ function buildRevealTimeline(
     };
   }
 
-  const safeTier = Math.max(1, Math.min(9, Math.round(config.tier)));
-  const stageMomentsMs = STELLAR_STAGE_MOMENTS_MS.slice(0, safeTier);
-  const finalStageAtMs = stageMomentsMs[safeTier - 1] ?? 850;
-  const specialAtMs = finalStageAtMs + 420;
+  const struggle = buildStruggleTimeline(config.tier);
+  const stageMomentsMs = struggle.stageMomentsMs;
+  const specialAtMs = struggle.terminalAtMs;
   const dualDiscovery = cosmicDiscovery && cosmicBinderDiscovery;
 
   if (dualDiscovery) {
@@ -209,9 +219,9 @@ function buildRevealTimeline(
   }
 
   if (config.blackHole) {
-    const collapseAtMs = specialAtMs + 2600;
-    const impactAtMs = specialAtMs + 3050;
-    const cardAtMs = specialAtMs + 3650;
+    const collapseAtMs = specialAtMs + 2450;
+    const impactAtMs = specialAtMs + 3400;
+    const cardAtMs = specialAtMs + 3920;
     const infoAtMs = cardAtMs + 820;
 
     return {
@@ -627,13 +637,18 @@ export default function WishCinematic({
   if (!open || !card) return null;
 
   const rootStyle = {
-    "--wish-primary": config.primary,
-    "--wish-secondary": config.secondary,
-    "--wish-glow": config.glow,
+    "--wish-primary": skipped ? config.primary : "#e2e8f0",
+    "--wish-secondary": skipped ? config.secondary : "#94a3b8",
+    "--wish-glow": skipped ? config.glow : "rgba(226, 232, 240, 0.7)",
+    "--wish-final-primary": config.primary,
+    "--wish-final-secondary": config.secondary,
+    "--wish-final-glow": config.glow,
+    "--rarity-reveal-at": `${timeline.specialAtMs}ms`,
     "--impact-scale": String(config.impactScale),
     "--shake-distance": `${config.shakeDistance}px`,
     "--flash-strength": String(config.flashStrength),
-    "--tier": String(config.tier),
+    "--tier": String(skipped ? config.tier : 1),
+    "--final-tier": String(config.tier),
     "--collapse-at": `${timeline.collapseAtMs}ms`,
     "--collapse-duration": `${Math.max(1, timeline.cardAtMs - timeline.collapseAtMs)}ms`,
     "--impact-at": `${timeline.impactAtMs}ms`,
@@ -648,6 +663,7 @@ export default function WishCinematic({
       data-tier={config.tier}
       data-family={config.family}
       data-sun-sequence={isolatedSunSequence ? "true" : "false"}
+      data-concealed-rarity={isolatedSunSequence && !skipped ? "true" : "false"}
       data-cosmic-discovery={cosmicDiscovery ? "true" : "false"}
       data-cosmic-binder-discovery={cosmicBinderDiscovery ? "true" : "false"}
       data-dual-discovery={dualDiscovery ? "true" : "false"}

@@ -24,6 +24,21 @@
   text-rendering: geometricPrecision;
 }
 
+.overlay[data-concealed-rarity="true"] {
+  animation: revealRarityPalette 1ms var(--rarity-reveal-at) steps(1, end) forwards;
+}
+
+.overlay[data-concealed-rarity="true"][data-family="legendary"] .ancientFrame {
+  border-width: 1px;
+  box-shadow:
+    inset 0 0 50px rgba(226, 232, 240, 0.035),
+    0 0 28px rgba(226, 232, 240, 0.045);
+}
+
+.overlay[data-concealed-rarity="true"][data-family="legendary"] .stars {
+  animation-duration: 3.8s;
+}
+
 .sky,
 .stars,
 .ancientCardGhost,
@@ -774,7 +789,7 @@
 
 .overlay[data-family="legendary"] .ancientFrame { border-width: 2px; box-shadow: inset 0 0 50px color-mix(in srgb, var(--wish-glow) 11%, transparent), 0 0 28px color-mix(in srgb, var(--wish-glow) 18%, transparent); }
 .overlay[data-family="legendary"] .stars { animation-duration: 5.2s; }
-.overlay[data-tier="9"] .sequence:not(.sequenceSkipped) { animation: legendaryStillness 520ms calc(var(--impact-at) - 520ms) linear both, sequenceShake 920ms var(--impact-at) cubic-bezier(.36,.07,.19,.97) both; }
+.overlay[data-tier="9"] .sequence:not(.sequenceSkipped) { animation: legendaryStillness 520ms calc(var(--impact-at) - 520ms) linear, sequenceShake 920ms var(--impact-at) cubic-bezier(.36,.07,.19,.97) both; }
 
 @keyframes dustDrift { to { transform: translate3d(-110px, 65px, 0) rotate(3deg); } }
 @keyframes starsBreathe { from { filter: brightness(.82); } to { filter: brightness(1.18); } }
@@ -782,6 +797,20 @@
 @keyframes float { 0%,100% { transform: translate3d(0,-4px,0); } 50% { transform: translate3d(0,9px,0); } }
 @keyframes controlArrives { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: none; } }
 @keyframes darkenBrief { 0% { opacity: 0; } 55% { opacity: .24; } 100% { opacity: .08; } }
+@keyframes revealRarityPalette {
+  from {
+    --wish-primary: #e2e8f0;
+    --wish-secondary: #94a3b8;
+    --wish-glow: rgba(226, 232, 240, 0.7);
+    --tier: 1;
+  }
+  to {
+    --wish-primary: var(--wish-final-primary);
+    --wish-secondary: var(--wish-final-secondary);
+    --wish-glow: var(--wish-final-glow);
+    --tier: var(--final-tier);
+  }
+}
 @keyframes darkenUntilImpact { 0% { opacity: 0; } 62% { opacity: .52; } 92%,100% { opacity: .84; } }
 @keyframes omenAppears { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
 @keyframes omenLeaves { to { opacity: 0; transform: translateY(-5px); } }
