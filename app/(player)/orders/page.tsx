@@ -2,9 +2,9 @@
 
 /* eslint-disable @next/next/no-img-element -- canonical card images use catalogue hosts */
 
-import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import ShippingCentre from "@/components/player/ShippingCentre";
 import {
   PlayerErrorBanner,
   PlayerPageHeader,
@@ -88,7 +88,7 @@ export default function OrdersPage() {
 
   return (
     <div className="mx-auto w-full max-w-[1180px] px-4 py-7 sm:px-6 lg:px-8 lg:py-10">
-      <PlayerPageHeader eyebrow="Fulfilment" title="Cards & Orders" description="Track physical cards and deliveries." />
+      <PlayerPageHeader eyebrow="Fulfilment" title="Cards & Orders" description="Choose cards for shipping, manage delivery details and track every physical order in one place." />
 
       {error ? <div className="mt-4"><PlayerErrorBanner message={error} /></div> : null}
 
@@ -99,8 +99,16 @@ export default function OrdersPage() {
         <PlayerStatCard label="Delivered cards" value={String(stats.delivered)} detail="Completed fulfilment" accent="yellow" />
       </div>
 
-      <PlayerPanel className="mt-5">
-        <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-xl font-black">Fulfilment timeline</h2><p className="mt-1 text-xs font-semibold text-white/38">Server records, not the reveal animation, determine each result.</p></div><div className="flex gap-2"><Link href="/shipping" className="rounded-xl border border-cyan-100/15 bg-cyan-100/[.05] px-3 py-2 text-xs font-black text-cyan-50/70">Shipping</Link><Link href="/support" className="rounded-xl border border-white/10 bg-white/[.04] px-3 py-2 text-xs font-black text-white/60">Get help</Link></div></div>
+      <div className="mt-8 border-t border-white/[0.08] pt-8">
+        <ShippingCentre embedded />
+      </div>
+
+      <PlayerPanel className="mt-8">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-violet-100/40">Order archive</p>
+          <h2 className="mt-2 text-xl font-black">Fulfilment timeline</h2>
+          <p className="mt-1 text-xs font-semibold text-white/38">Server records, not the reveal animation, determine each result.</p>
+        </div>
 
         {loading ? <div className="py-16 text-center font-black text-white/35">Loading your cards…</div> : null}
         {!loading && !cards.length ? <div className="py-16 text-center"><div className="text-3xl">✦</div><h3 className="mt-3 text-lg font-black">No completed wishes yet</h3><p className="mt-2 text-sm font-semibold text-white/35">Your exact card and fulfilment record will appear here.</p></div> : null}

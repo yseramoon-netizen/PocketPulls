@@ -36,7 +36,7 @@ export default function ReturnsPage() {
       </Section>
 
       <InfoCallout title="Start inside your account" tone="emerald">
-        <p><Link href="/support" className="font-black underline underline-offset-4">Open Support</Link> or contact {supportLabel()}. Include the order, wish or shipment reference shown in <Link href="/orders" className="font-black underline underline-offset-4">Your cards &amp; orders</Link>.</p>
+        <p><Link href="/help" className="font-black underline underline-offset-4">Open Help</Link> and choose Contact Support, or contact {supportLabel()}. Include the order, wish or shipment reference shown in <Link href="/orders" className="font-black underline underline-offset-4">Your cards &amp; orders</Link>.</p>
       </InfoCallout>
     </TrustShell>
   );

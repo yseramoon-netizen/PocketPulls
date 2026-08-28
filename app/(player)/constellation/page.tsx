@@ -738,6 +738,8 @@ export default function ConstellationPage() {
   const [cameraOffset, setCameraOffset] = useState({ x: 0, y: 0 });
   const [travellingStarId, setTravellingStarId] = useState<string | null>(null);
   const [draggingSky, setDraggingSky] = useState(false);
+  const [archiveOpen, setArchiveOpen] = useState(false);
+  const [archiveQuery, setArchiveQuery] = useState("");
   const skyViewportRef = useRef<HTMLElement | null>(null);
   const skyPlaneRef = useRef<HTMLDivElement | null>(null);
   const skyCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -1842,6 +1844,50 @@ export default function ConstellationPage() {
     [stars],
   );
 
+  const latestPulls = useMemo(
+    () =>
+      [...stars]
+        .sort((left, right) => {
+          const leftTime = left.grantedAt ? new Date(left.grantedAt).getTime() : 0;
+          const rightTime = right.grantedAt ? new Date(right.grantedAt).getTime() : 0;
+          return rightTime - leftTime;
+        })
+        .slice(0, 12),
+    [stars],
+  );
+
+  const archiveResults = useMemo(() => {
+    const query = archiveQuery.trim().toLowerCase();
+    if (!query) return latestPulls;
+
+    return stars
+      .filter((star) =>
+        [star.name, star.setName, star.cardNumber || "", star.rarity]
+          .join(" ")
+          .toLowerCase()
+          .includes(query),
+      )
+      .sort((left, right) => left.name.localeCompare(right.name))
+      .slice(0, 60);
+  }, [archiveQuery, latestPulls, stars]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("archive")) setArchiveOpen(true);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    if (!archiveOpen) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setArchiveOpen(false);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [archiveOpen]);
+
   const rarestStar = useMemo(() => stars.reduce<ConstellationStar | null>(
     (best, star) => {
       if (!best || star.rank > best.rank) return star;
@@ -2127,6 +2173,104 @@ export default function ConstellationPage() {
         <div className="absolute left-1/2 top-4 z-50 w-[min(92vw,36rem)] -translate-x-1/2 rounded-2xl border border-red-200/15 bg-red-950/85 p-4 text-sm font-semibold text-red-100 shadow-2xl backdrop-blur-xl">
           {errorMessage}
         </div>
+      ) : null}
+
+      <button
+        type="button"
+        onClick={() => setArchiveOpen(true)}
+        className="absolute right-3 top-3 z-50 flex min-h-11 items-center gap-2 rounded-full border border-cyan-100/18 bg-[#080a25]/90 px-4 text-[0.68rem] font-black uppercase tracking-[0.13em] text-cyan-50/82 shadow-[0_15px_50px_rgba(0,0,0,0.35)] backdrop-blur-xl transition hover:border-cyan-100/35 hover:bg-[#10143a] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-100 sm:right-5 sm:top-5"
+      >
+        <span aria-hidden="true" className="text-base">⌕</span>
+        Find a card
+      </button>
+
+      {archiveOpen ? (
+        <>
+          <button
+            type="button"
+            aria-label="Close card archive"
+            onClick={() => setArchiveOpen(false)}
+            className="fixed inset-0 z-[69] cursor-default bg-[#02030c]/52 backdrop-blur-[2px]"
+          />
+          <aside
+            role="dialog"
+            aria-modal="true"
+            aria-label="Constellation card archive"
+            className="fixed bottom-0 right-0 top-0 z-[70] flex w-[min(94vw,28rem)] flex-col border-l border-cyan-100/14 bg-[#07091f]/97 shadow-[-30px_0_100px_rgba(0,0,0,0.55)] backdrop-blur-2xl"
+          >
+            <div className="border-b border-white/10 p-5 sm:p-6">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-[0.62rem] font-black uppercase tracking-[0.18em] text-cyan-100/48">Constellation archive</p>
+                  <h2 className="mt-2 text-2xl font-black text-white">Find your star</h2>
+                  <p className="mt-1 text-xs font-semibold text-white/36">Search an owned card and Nebu will take you straight to it.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setArchiveOpen(false)}
+                  aria-label="Close card archive"
+                  className="flex h-10 w-10 flex-none items-center justify-center rounded-xl border border-white/10 bg-white/[0.05] text-lg font-black text-white/60 transition hover:bg-white/10 hover:text-white"
+                >
+                  ×
+                </button>
+              </div>
+
+              <label className="mt-5 block">
+                <span className="sr-only">Search owned cards</span>
+                <input
+                  autoFocus
+                  type="search"
+                  value={archiveQuery}
+                  onChange={(event) => setArchiveQuery(event.target.value)}
+                  placeholder="Card, set, number or rarity..."
+                  className="min-h-12 w-full rounded-xl border border-white/12 bg-white/[0.055] px-4 text-sm font-semibold text-white outline-none transition placeholder:text-white/25 focus:border-cyan-100/28 focus:ring-2 focus:ring-cyan-100/10"
+                />
+              </label>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-4 sm:p-5">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <p className="text-[0.62rem] font-black uppercase tracking-[0.15em] text-white/36">
+                  {archiveQuery.trim() ? "Search results" : "Latest pulls"}
+                </p>
+                <span className="text-[0.65rem] font-black text-cyan-100/42">{archiveResults.length}</span>
+              </div>
+
+              {archiveResults.length ? (
+                <div className="space-y-2">
+                  {archiveResults.map((star) => (
+                    <button
+                      key={star.id}
+                      type="button"
+                      onClick={() => {
+                        setArchiveOpen(false);
+                        travelToStar(star);
+                      }}
+                      className="grid w-full grid-cols-[3.3rem_minmax(0,1fr)_auto] items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.035] p-3 text-left transition hover:border-cyan-100/24 hover:bg-cyan-200/[0.075] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-100"
+                    >
+                      <span className="aspect-[63/88] overflow-hidden rounded-lg border border-white/10 bg-black/20">
+                        {star.imageUrl ? <img src={star.imageUrl} alt="" loading="lazy" className="h-full w-full object-cover" /> : null}
+                      </span>
+                      <span className="min-w-0">
+                        <strong className="block truncate text-sm font-black text-white">{star.name}</strong>
+                        <span className="mt-1 block truncate text-[0.68rem] font-bold text-white/38">
+                          {star.setName}{star.cardNumber ? ` · #${star.cardNumber}` : ""}
+                        </span>
+                        <span className="mt-1 block text-[0.6rem] font-black uppercase tracking-[0.08em]" style={{ color: star.colour }}>{star.rarity}</span>
+                      </span>
+                      <span className="rounded-full border border-cyan-100/16 bg-cyan-100/[0.07] px-2.5 py-1 text-[0.58rem] font-black uppercase tracking-[0.08em] text-cyan-50/72">Travel</span>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-white/10 bg-white/[0.025] p-8 text-center">
+                  <p className="text-sm font-black text-white/62">No matching star</p>
+                  <p className="mt-2 text-xs font-semibold text-white/30">Try the card name, set or collector number.</p>
+                </div>
+              )}
+            </div>
+          </aside>
+        </>
       ) : null}
 
       {earthView && !loading && zodiacSign ? (

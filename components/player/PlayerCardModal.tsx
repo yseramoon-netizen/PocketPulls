@@ -177,11 +177,11 @@ export default function PlayerCardModal({
 
             {showShippingLink ? (
               <Link
-                href="/shipping"
+                href="/orders?panel=shipping"
                 onClick={onClose}
                 className="flex min-h-12 flex-1 items-center justify-center rounded-xl bg-gradient-to-r from-[#e7ad46] via-[#48d5ca] to-[#d84f78] px-5 text-sm font-black text-[#111329] transition hover:-translate-y-0.5 hover:brightness-110"
               >
-                Shipping centre
+                Choose for shipping
               </Link>
             ) : null}
           </div>

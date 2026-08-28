@@ -71,7 +71,6 @@ const PRIMARY_ITEMS: readonly [
   NavItem,
   NavItem,
   NavItem,
-  NavItem,
 ] = [
   {
     href: "/hq",
@@ -98,17 +97,9 @@ const PRIMARY_ITEMS: readonly [
     label: "Friends",
     glyph: "♢",
   },
-  {
-    href: "/trade",
-    label: "Trade",
-    glyph: "⇄",
-  },
 ];
 
 const MORE_ITEMS: readonly [
-  NavItem,
-  NavItem,
-  NavItem,
   NavItem,
   NavItem,
   NavItem,
@@ -122,11 +113,6 @@ const MORE_ITEMS: readonly [
     glyph: "✧",
   },
   {
-    href: "/history",
-    label: "History",
-    glyph: "◷",
-  },
-  {
     href: "/achievements",
     label: "Badges",
     glyph: "✪",
@@ -134,13 +120,8 @@ const MORE_ITEMS: readonly [
   },
   {
     href: "/leaderboard",
-    label: "Universe",
-    glyph: "◎",
-  },
-  {
-    href: "/shipping",
-    label: "Shipping",
-    glyph: "▰",
+    label: "Ranks",
+    glyph: "▥",
   },
   {
     href: "/wishes/shop",
@@ -149,13 +130,8 @@ const MORE_ITEMS: readonly [
   },
   {
     href: "/orders",
-    label: "Orders",
+    label: "Cards & Orders",
     glyph: "▰",
-  },
-  {
-    href: "/support",
-    label: "Support",
-    glyph: "◇",
   },
   {
     href: "/help",
@@ -190,8 +166,7 @@ const DRAWER_GROUPS: NavGroup[] = [
     label: "Social",
     items: [
       PRIMARY_ITEMS[4],
-      PRIMARY_ITEMS[5],
-      MORE_ITEMS[3],
+      MORE_ITEMS[2],
     ],
   },
   {
@@ -199,17 +174,14 @@ const DRAWER_GROUPS: NavGroup[] = [
     items: [
       MORE_ITEMS[0],
       MORE_ITEMS[1],
-      MORE_ITEMS[2],
     ],
   },
   {
     label: "Account",
     items: [
+      MORE_ITEMS[3],
       MORE_ITEMS[4],
       MORE_ITEMS[5],
-      MORE_ITEMS[6],
-      MORE_ITEMS[7],
-      MORE_ITEMS[8],
       PROFILE_ITEM,
     ],
   },

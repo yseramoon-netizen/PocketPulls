@@ -330,9 +330,7 @@ export default function ProfilePage() {
   }, []);
 
   useEffect(() => {
-    const frame = window.requestAnimationFrame(() => {
-      void loadProfile();
-    });
+    void loadProfile();
 
     const handleProfileUpdated = () => {
       void loadProfile();
@@ -367,7 +365,6 @@ export default function ProfilePage() {
     );
 
     return () => {
-      window.cancelAnimationFrame(frame);
       window.removeEventListener(
         "pocketpulls:profile-updated",
         handleProfileUpdated,
@@ -860,8 +857,9 @@ export default function ProfilePage() {
                   </strong>
 
                   <span className="mt-1 block text-xs font-semibold leading-5 text-white/32">
-                    Show your name, avatar, stellar mass and
-                    wish constellation in the public Universe.
+                    Allow your display name, avatar and
+                    collection score to appear on the
+                    leaderboard.
                   </span>
                 </span>
               </label>
@@ -967,10 +965,10 @@ export default function ProfilePage() {
               </Link>
 
               <Link
-                href="/history"
+                href="/constellation?archive=latest"
                 className="flex min-h-11 items-center justify-between rounded-xl border border-white/10 bg-white/[0.04] px-4 text-sm font-black text-white/55"
               >
-                View wish history
+                View latest pulls
                 <span>→</span>
               </Link>
             </div>

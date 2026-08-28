@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import {
   useCallback,
   useEffect,
@@ -18,6 +19,18 @@ import {
   PlayerStatCard,
 } from "@/components/player/PlayerUI";
 import { supabase } from "@/lib/supabase";
+
+const TradeRoom = dynamic(
+  () => import("@/components/player/TradeRoom"),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex min-h-[32rem] items-center justify-center font-black text-white/40">
+        Opening protected trade room...
+      </div>
+    ),
+  },
+);
 
 type FriendRow = {
   friendship_id:
@@ -348,6 +361,66 @@ export default function FriendsPage() {
     useState<string | null>(
       null,
     );
+
+  const [tradeOverlay, setTradeOverlay] = useState<{
+    friendId: string | null;
+    tradeId: string | null;
+  } | null>(null);
+
+  const closeTrade = useCallback(() => {
+    setTradeOverlay(null);
+    window.history.replaceState(null, "", "/friends");
+  }, []);
+
+  const openTrade = useCallback((friendId: string) => {
+    setTradeOverlay({ friendId, tradeId: null });
+    window.history.replaceState(
+      null,
+      "",
+      `/friends?friend=${encodeURIComponent(friendId)}`,
+    );
+  }, []);
+
+  const openTradeRoom = useCallback(() => {
+    setTradeOverlay({ friendId: null, tradeId: null });
+    window.history.replaceState(null, "", "/friends?trade=open");
+  }, []);
+
+  useEffect(() => {
+    const syncTradeOverlay = () => {
+      const params = new URLSearchParams(window.location.search);
+      const tradeId = params.get("trade");
+      const friendId = params.get("friend");
+      if (tradeId || friendId) {
+        setTradeOverlay({
+          friendId,
+          tradeId: tradeId === "open" ? null : tradeId,
+        });
+      } else {
+        setTradeOverlay(null);
+      }
+    };
+
+    syncTradeOverlay();
+    window.addEventListener("popstate", syncTradeOverlay);
+    return () => window.removeEventListener("popstate", syncTradeOverlay);
+  }, []);
+
+  useEffect(() => {
+    if (!tradeOverlay) return;
+
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") closeTrade();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [closeTrade, tradeOverlay]);
 
   const loadFriends =
     useCallback(
@@ -690,6 +763,11 @@ export default function FriendsPage() {
         eyebrow="Trainer connections"
         title="Friends"
         description="Find trainers and manage requests."
+        actions={
+          <PlayerPrimaryButton onClick={openTradeRoom}>
+            Open trade room
+          </PlayerPrimaryButton>
+        }
       />
 
       <PlayerErrorBanner
@@ -992,6 +1070,7 @@ export default function FriendsPage() {
                           },
                         )
                       }
+                      onTrade={() => openTrade(row.other_user_id)}
                     />
                   ),
                 )}
@@ -1000,6 +1079,19 @@ export default function FriendsPage() {
           </div>
         </PlayerPanel>
       </section>
+
+      {tradeOverlay ? (
+        <div className="fixed inset-0 z-[100] bg-[#02030b]/82 p-2 backdrop-blur-md sm:p-4" role="dialog" aria-modal="true" aria-label="Trade cards with a friend">
+          <div className="mx-auto h-full max-w-[1760px] overflow-y-auto rounded-[1.8rem] border border-cyan-100/16 bg-[#07091f] shadow-[0_30px_120px_rgba(0,0,0,0.72)]">
+            <TradeRoom
+              embedded
+              initialFriendId={tradeOverlay.friendId}
+              initialTradeId={tradeOverlay.tradeId}
+              onClose={closeTrade}
+            />
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }
@@ -1163,6 +1255,7 @@ function FriendCard({
   onRemove,
   onBlock,
   onUnblock,
+  onTrade,
 }: {
   row: FriendRow;
   busy: boolean;
@@ -1172,6 +1265,7 @@ function FriendCard({
   onRemove: () => void;
   onBlock: () => void;
   onUnblock: () => void;
+  onTrade: () => void;
 }) {
   return (
     <article className="rounded-2xl border border-white/10 bg-white/[0.035] p-4">
@@ -1200,14 +1294,13 @@ function FriendCard({
               View profile
             </Link>
 
-            <Link
-              href={`/trade?friend=${encodeURIComponent(
-                row.other_user_id,
-              )}`}
+            <button
+              type="button"
+              onClick={onTrade}
               className="inline-flex min-h-11 flex-1 items-center justify-center rounded-xl border border-cyan-100/20 bg-cyan-200/[0.1] px-4 text-sm font-black text-cyan-50 transition hover:bg-cyan-200/[0.16]"
             >
               Trade cards
-            </Link>
+            </button>
 
             <PlayerSecondaryButton
               onClick={onRemove}

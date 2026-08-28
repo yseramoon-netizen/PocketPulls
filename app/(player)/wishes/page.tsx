@@ -76,7 +76,6 @@ type WishReveal = {
   marketValue: number;
   wishBalance: number;
   cosmicIssueNumber: number | null;
-  cosmicBinderIssueNumber: number | null;
   cosmicSourceSkin: NebuSkinKey | null;
 };
 
@@ -384,7 +383,6 @@ export default function WishesPage() {
             marketValue: latest.valueAtWish,
             wishBalance: nextDashboard.wishBalance,
             cosmicIssueNumber: null,
-            cosmicBinderIssueNumber: null,
             cosmicSourceSkin: null,
           });
         } else {
@@ -440,7 +438,6 @@ export default function WishesPage() {
       marketValue: latest.valueAtWish,
       wishBalance: dashboard.wishBalance,
       cosmicIssueNumber: null,
-      cosmicBinderIssueNumber: null,
       cosmicSourceSkin: null,
     });
   }, [dashboard.recentWishes, dashboard.wishBalance]);
@@ -499,37 +496,20 @@ export default function WishesPage() {
       wishRequestIdRef.current = null;
       const nextBalance = toWholeNumber(result.wish_balance);
       const wishId = String(result.wish_id ?? "");
-      const [cosmicDiscovery, cosmicBinderDiscovery] = wishId
-        ? await Promise.all([
-            supabase
-              .from("cosmic_nebu_ownerships")
-              .select("issue_number")
-              .eq("discovery_pull_id", wishId)
-              .maybeSingle(),
-            supabase
-              .from("cosmic_binder_ownerships")
-              .select("issue_number")
-              .eq("discovery_pull_id", wishId)
-              .maybeSingle(),
-          ])
-        : [
-            { data: null, error: null },
-            { data: null, error: null },
-          ];
+      const cosmicDiscovery = wishId
+        ? await supabase
+            .from("cosmic_nebu_ownerships")
+            .select("issue_number")
+            .eq("discovery_pull_id", wishId)
+            .maybeSingle()
+        : { data: null, error: null };
       const cosmicIssueNumber = cosmicDiscovery.error
         ? 0
         : toWholeNumber(cosmicDiscovery.data?.issue_number);
-      const cosmicBinderIssueNumber = cosmicBinderDiscovery.error
-        ? 0
-        : toWholeNumber(cosmicBinderDiscovery.data?.issue_number);
 
       if (cosmicIssueNumber > 0) {
         applyNebuSkin("cosmic_nebu");
         void supabase.auth.updateUser({ data: { nebu_skin: "cosmic_nebu" } });
-      }
-
-      if (cosmicBinderIssueNumber > 0) {
-        window.dispatchEvent(new CustomEvent("pocketpulls:binder-updated"));
       }
 
       setWishReveal({
@@ -543,7 +523,6 @@ export default function WishesPage() {
         marketValue: toNumber(result.market_value),
         wishBalance: nextBalance,
         cosmicIssueNumber: cosmicIssueNumber > 0 ? cosmicIssueNumber : null,
-        cosmicBinderIssueNumber: cosmicBinderIssueNumber > 0 ? cosmicBinderIssueNumber : null,
         cosmicSourceSkin: cosmicIssueNumber > 0 ? nebuSkinBeforeWish : null,
       });
 
@@ -711,7 +690,6 @@ export default function WishesPage() {
           busy={makingWish}
           forceFullSequence={forceFullSequence}
           cosmicIssueNumber={wishReveal.cosmicIssueNumber}
-          cosmicBinderIssueNumber={wishReveal.cosmicBinderIssueNumber}
           cosmicSourceSkin={wishReveal.cosmicSourceSkin}
           onClose={() => {
             setWishReveal(null);
@@ -906,10 +884,10 @@ function ShippingProgress({
       </div>
 
       <Link
-        href="/shipping"
+        href="/orders?panel=shipping"
         className="mt-6 flex min-h-12 w-full items-center justify-center rounded-xl border border-cyan-100/15 bg-cyan-200/[0.07] px-5 text-sm font-black text-cyan-50 transition hover:bg-cyan-200/10"
       >
-        View shipping
+        Choose cards to ship
       </Link>
     </article>
   );
@@ -1048,8 +1026,8 @@ function QuickLinks() {
     },
     {
       href: "/leaderboard",
-      title: "Universe",
-      detail: "Explore every trainer galaxy",
+      title: "Leaderboard",
+      detail: "Compare trainer scores",
     },
     {
       href: "/profile",
