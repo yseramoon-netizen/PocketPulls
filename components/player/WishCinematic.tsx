@@ -713,6 +713,7 @@ export default function WishCinematic({
             <div className={styles.catScene}>
               <StellarWishJourney
                 tier={config.tier}
+                nebuSkin={sceneNebuSkin}
                 stageMomentsMs={timeline.stageMomentsMs}
                 specialAtMs={timeline.specialAtMs}
                 collapseAtMs={timeline.collapseAtMs}

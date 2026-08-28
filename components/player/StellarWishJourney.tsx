@@ -4,12 +4,15 @@
 
 import type { CSSProperties } from "react";
 
+import type { NebuSkinKey } from "@/lib/player/nebu";
+
 import AsterismSigil from "./AsterismSigil";
 import NebuWishSummon from "./NebuWishSummon";
 import styles from "./StellarWishJourney.module.css";
 
 type StellarWishJourneyProps = {
   tier: number;
+  nebuSkin: NebuSkinKey;
   stageMomentsMs: readonly number[];
   specialAtMs: number;
   collapseAtMs: number;
@@ -45,6 +48,7 @@ function clampTier(tier: number): number {
 
 export default function StellarWishJourney({
   tier,
+  nebuSkin,
   stageMomentsMs,
   specialAtMs,
   collapseAtMs,
@@ -80,6 +84,7 @@ export default function StellarWishJourney({
       className={styles.scene}
       style={rootStyle}
       data-tier={finalTier}
+      data-nebu-skin={nebuSkin}
       data-cosmic-equipped={equippedCosmicNebu ? "true" : "false"}
       data-cosmic-discovery={cosmicDiscovery ? "true" : "false"}
       data-binder-discovery={cosmicBinderDiscovery ? "true" : "false"}
@@ -104,6 +109,7 @@ export default function StellarWishJourney({
       <div className={styles.summonHost}>
         <NebuWishSummon
           tier={finalTier}
+          nebuSkin={nebuSkin}
           stageMomentsMs={stageMomentsMs}
           specialAtMs={specialAtMs}
           impactAtMs={impactAtMs}

@@ -7,6 +7,8 @@ import {
   useRef,
 } from "react";
 
+import type { NebuSkinKey } from "@/lib/player/nebu";
+
 import styles from "./NebuWishSummon.module.css";
 
 const KEYPOSE_SHEET =
@@ -20,6 +22,7 @@ const STRUGGLE_FRAME_MS = 1000 / 24;
 
 type NebuWishSummonProps = {
   tier: number;
+  nebuSkin: NebuSkinKey;
   stageMomentsMs: readonly number[];
   specialAtMs: number;
   impactAtMs: number;
@@ -28,9 +31,39 @@ type NebuWishSummonProps = {
   lowEffects?: boolean;
 };
 
+// These are the colour treatments used by the equipped badge skins elsewhere
+// in the app, without their CSS drop shadows. The full atlas is treated once
+// after loading so every pose, aura echo, and black-hole slice stays identical
+// without repeating palette conversion inside the frame loop.
+const NEBU_ATLAS_FILTERS: Readonly<Record<NebuSkinKey, string>> = {
+  midnight: "none",
+  nile: "hue-rotate(300deg) saturate(1.28) brightness(1.08)",
+  lotus: "hue-rotate(88deg) saturate(1.32) brightness(1.06)",
+  scarab: "hue-rotate(232deg) saturate(1.35) brightness(1.05)",
+  sunstone: "sepia(0.62) saturate(1.65) hue-rotate(338deg) brightness(1.08)",
+  royal: "hue-rotate(48deg) saturate(1.42) brightness(1.06)",
+  pearl: "grayscale(0.82) saturate(0.7) brightness(1.2) contrast(0.96)",
+  sherry: "brightness(0.54) contrast(1.38) saturate(1.25) hue-rotate(58deg)",
+  bubbles: "saturate(1.04) contrast(1.04)",
+  cosmic_nebu: "saturate(1.16) contrast(1.08)",
+};
+
 type Rgb = readonly [number, number, number];
 
 const WHITE: Rgb = [255, 255, 255];
+
+const NEBU_SKIN_LIGHTS: Readonly<Record<NebuSkinKey, Rgb>> = {
+  midnight: [69, 215, 200],
+  nile: [185, 255, 244],
+  lotus: [101, 224, 163],
+  scarab: [85, 234, 216],
+  sunstone: [255, 241, 184],
+  royal: [158, 233, 180],
+  pearl: [165, 243, 252],
+  sherry: [34, 166, 90],
+  bubbles: [145, 173, 71],
+  cosmic_nebu: [103, 232, 249],
+};
 
 type Theme = {
   primary: Rgb;
@@ -55,8 +88,16 @@ type CharacterTransform = {
   x: number;
   y: number;
   scale: number;
+  scaleX?: number;
+  scaleY?: number;
   rotation: number;
   alpha: number;
+};
+
+type EffectSurface = {
+  canvas: HTMLCanvasElement;
+  context: CanvasRenderingContext2D;
+  pixelRatio: number;
 };
 
 type SparkSeed = {
@@ -77,7 +118,9 @@ type RenderEnvironment = {
   reducedMotion: boolean;
   lowEffects: boolean;
   theme: Theme;
+  skinLight: Rgb;
   sparks: readonly SparkSeed[];
+  effectSurface: EffectSurface;
 };
 
 const PAW_POSITION_BY_POSE: Readonly<Record<number, readonly [number, number]>> = {
@@ -144,6 +187,11 @@ function easeInCubic(value: number): number {
 function easeOutCubic(value: number): number {
   const progress = 1 - clamp(value);
   return 1 - progress * progress * progress;
+}
+
+function easeOutQuint(value: number): number {
+  const progress = 1 - clamp(value);
+  return 1 - progress ** 5;
 }
 
 function smoothstep(value: number): number {
@@ -283,6 +331,27 @@ function readTheme(element: HTMLElement): Theme {
   };
 }
 
+function createSkinnedAtlas(
+  image: HTMLImageElement,
+  nebuSkin: NebuSkinKey,
+): CanvasImageSource {
+  const treatment = NEBU_ATLAS_FILTERS[nebuSkin];
+  if (!treatment || treatment === "none") return image;
+
+  const atlas = document.createElement("canvas");
+  atlas.width = image.naturalWidth;
+  atlas.height = image.naturalHeight;
+  const atlasContext = atlas.getContext("2d", { alpha: true });
+  if (!atlasContext) return image;
+
+  atlasContext.imageSmoothingEnabled = true;
+  atlasContext.imageSmoothingQuality = "high";
+  atlasContext.filter = treatment;
+  atlasContext.drawImage(image, 0, 0);
+  atlasContext.filter = "none";
+  return atlas;
+}
+
 function drawEllipseGlow(
   context: CanvasRenderingContext2D,
   x: number,
@@ -314,8 +383,10 @@ function drawGrounding(
   theme: Theme = environment.theme,
 ): void {
   const imageScale = environment.characterHeight / POSE_HEIGHT;
-  const groundY = transform.y + 344 * imageScale * transform.scale;
-  const radius = 232 * imageScale * transform.scale;
+  const scaleX = transform.scaleX ?? 1;
+  const scaleY = transform.scaleY ?? 1;
+  const groundY = transform.y + 344 * imageScale * transform.scale * scaleY;
+  const radius = 232 * imageScale * transform.scale * scaleX;
 
   drawEllipseGlow(
     context,
@@ -346,7 +417,7 @@ function drawGrounding(
 
 function drawPose(
   context: CanvasRenderingContext2D,
-  image: HTMLImageElement,
+  image: CanvasImageSource,
   pose: number,
   transform: CharacterTransform,
   environment: RenderEnvironment,
@@ -363,6 +434,7 @@ function drawPose(
   context.globalAlpha = transform.alpha * alpha;
   context.translate(transform.x, transform.y);
   context.rotate(transform.rotation);
+  context.scale(transform.scaleX ?? 1, transform.scaleY ?? 1);
   context.drawImage(
     image,
     sourceX,
@@ -379,7 +451,7 @@ function drawPose(
 
 function drawPoseBlend(
   context: CanvasRenderingContext2D,
-  image: HTMLImageElement,
+  image: CanvasImageSource,
   moment: PoseMoment,
   transform: CharacterTransform,
   environment: RenderEnvironment,
@@ -406,14 +478,229 @@ function pawPosition(
 ): readonly [number, number] {
   const [sourceX, sourceY] = PAW_POSITION_BY_POSE[pose] ?? [250, 142];
   const scale = (environment.characterHeight / POSE_HEIGHT) * transform.scale;
-  const localX = (sourceX - POSE_WIDTH / 2) * scale;
-  const localY = (sourceY - POSE_HEIGHT / 2) * scale;
+  const localX = (sourceX - POSE_WIDTH / 2) * scale * (transform.scaleX ?? 1);
+  const localY = (sourceY - POSE_HEIGHT / 2) * scale * (transform.scaleY ?? 1);
   const cosine = Math.cos(transform.rotation);
   const sine = Math.sin(transform.rotation);
   return [
     transform.x + localX * cosine - localY * sine,
     transform.y + localX * sine + localY * cosine,
   ];
+}
+
+function drawConstellationOrbit(
+  context: CanvasRenderingContext2D,
+  elapsedMs: number,
+  transform: CharacterTransform,
+  environment: RenderEnvironment,
+  strength: number,
+  theme: Theme,
+  visibleIntensity: number,
+): void {
+  if (strength <= 0.03 || environment.reducedMotion) return;
+
+  const orbitColor = mixRgb(environment.skinLight, theme.primary, 0.72);
+  const radiusX = environment.characterHeight * lerp(0.23, 0.34, visibleIntensity);
+  const radiusY = radiusX * 0.28;
+  const rotation = -0.18 + Math.sin(elapsedMs * 0.00031) * 0.09;
+  const phase = elapsedMs * 0.00038;
+  const orbitCount = environment.lowEffects ? 1 : visibleIntensity > 0.48 ? 2 : 1;
+
+  context.save();
+  context.globalCompositeOperation = "screen";
+  context.lineCap = "round";
+
+  for (let orbitIndex = 0; orbitIndex < orbitCount; orbitIndex += 1) {
+    const orbitScale = 1 + orbitIndex * 0.24;
+    const orbitAlpha = strength * (orbitIndex === 0 ? 0.25 : 0.12);
+    const orbitRotation = rotation + orbitIndex * 0.38;
+    context.strokeStyle = rgba(orbitIndex ? theme.secondary : orbitColor, orbitAlpha);
+    context.lineWidth = orbitIndex ? 0.8 : 1.15;
+    context.setLineDash([radiusX * 0.34, radiusX * 0.12]);
+    context.lineDashOffset = -elapsedMs * (orbitIndex ? 0.012 : 0.018);
+    context.beginPath();
+    context.ellipse(
+      transform.x,
+      transform.y + environment.characterHeight * 0.09,
+      radiusX * orbitScale,
+      radiusY * orbitScale,
+      orbitRotation,
+      phase + orbitIndex,
+      phase + Math.PI * 1.42 + orbitIndex,
+    );
+    context.stroke();
+
+    const nodeCount = orbitIndex ? 4 : 6;
+    context.setLineDash([]);
+    for (let index = 0; index < nodeCount; index += 1) {
+      const angle = phase * (orbitIndex ? -0.74 : 1) + index * TAU / nodeCount;
+      const cosine = Math.cos(angle);
+      const sine = Math.sin(angle);
+      const cosRotation = Math.cos(orbitRotation);
+      const sinRotation = Math.sin(orbitRotation);
+      const localX = cosine * radiusX * orbitScale;
+      const localY = sine * radiusY * orbitScale;
+      const x = transform.x + localX * cosRotation - localY * sinRotation;
+      const y = transform.y + environment.characterHeight * 0.09 +
+        localX * sinRotation + localY * cosRotation;
+      const twinkle = 0.64 + Math.sin(elapsedMs * 0.006 + index * 2.1) * 0.36;
+      context.fillStyle = index % 3 === 0
+        ? rgba(WHITE, orbitAlpha * twinkle)
+        : rgba(orbitColor, orbitAlpha * twinkle);
+      context.beginPath();
+      context.arc(x, y, 0.8 + twinkle * 1.1, 0, TAU);
+      context.fill();
+    }
+  }
+
+  context.restore();
+}
+
+function drawGravityTether(
+  context: CanvasRenderingContext2D,
+  elapsedMs: number,
+  pose: number,
+  transform: CharacterTransform,
+  environment: RenderEnvironment,
+  strength: number,
+  theme: Theme,
+  visibleIntensity: number,
+): void {
+  if (strength <= 0.08) return;
+
+  const [pawX, pawY] = pawPosition(pose, transform, environment);
+  const topX = environment.centerX +
+    Math.sin(elapsedMs * 0.00047) * environment.width * 0.028;
+  const topY = -environment.height * 0.06;
+  const strandCount = environment.lowEffects ? 1 : 3;
+
+  context.save();
+  context.globalCompositeOperation = "screen";
+  context.lineCap = "round";
+
+  for (let index = 0; index < strandCount; index += 1) {
+    const offset = (index - (strandCount - 1) / 2) *
+      lerp(3.5, 9, visibleIntensity);
+    const wave = Math.sin(elapsedMs * 0.0032 + index * 2.4) *
+      lerp(5, 15, visibleIntensity);
+    const gradient = context.createLinearGradient(pawX, pawY, topX, topY);
+    gradient.addColorStop(0, rgba(theme.glow, strength * 0.52));
+    gradient.addColorStop(0.34, rgba(theme.primary, strength * 0.2));
+    gradient.addColorStop(1, rgba(theme.secondary, 0));
+    context.strokeStyle = gradient;
+    context.lineWidth = index === 1
+      ? lerp(1.1, 2.2, visibleIntensity)
+      : 0.65;
+    context.shadowBlur = index === 1 ? 9 : 3;
+    context.shadowColor = rgba(theme.glow, strength * 0.62);
+    context.beginPath();
+    context.moveTo(pawX + offset, pawY);
+    context.bezierCurveTo(
+      pawX + wave + offset,
+      lerp(pawY, topY, 0.34),
+      topX - wave * 0.7 + offset * 0.25,
+      lerp(pawY, topY, 0.7),
+      topX,
+      topY,
+    );
+    context.stroke();
+  }
+
+  context.restore();
+}
+
+function drawMotionEcho(
+  context: CanvasRenderingContext2D,
+  image: CanvasImageSource,
+  pose: PoseMoment,
+  transform: CharacterTransform,
+  environment: RenderEnvironment,
+  theme: Theme,
+  strength: number,
+): void {
+  if (strength <= 0.02 || environment.lowEffects || environment.reducedMotion) return;
+
+  context.save();
+  context.globalCompositeOperation = "screen";
+  context.shadowColor = rgba(theme.glow, 0.74);
+  context.shadowBlur = 16;
+  context.filter = "saturate(1.28) contrast(1.08)";
+  for (let index = 3; index >= 1; index -= 1) {
+    const lag = index / 3;
+    drawPoseBlend(
+      context,
+      image,
+      pose,
+      {
+        ...transform,
+        x: transform.x - lag * 22 * strength,
+        y: transform.y - lag * 4 * strength,
+        rotation: transform.rotation + lag * 0.035 * strength,
+        alpha: transform.alpha * (0.028 + (1 - lag) * 0.035) * strength,
+      },
+      environment,
+    );
+  }
+  context.restore();
+}
+
+function drawCharacterEnergyWash(
+  context: CanvasRenderingContext2D,
+  image: CanvasImageSource,
+  pose: PoseMoment,
+  transform: CharacterTransform,
+  environment: RenderEnvironment,
+  theme: Theme,
+  strength: number,
+): void {
+  if (strength <= 0.005) return;
+
+  const { canvas, context: effectContext, pixelRatio } = environment.effectSurface;
+  effectContext.setTransform(1, 0, 0, 1, 0, 0);
+  effectContext.clearRect(0, 0, canvas.width, canvas.height);
+  effectContext.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+  effectContext.globalAlpha = 1;
+  effectContext.globalCompositeOperation = "source-over";
+  effectContext.filter = "none";
+  drawPoseBlend(effectContext, image, pose, transform, environment);
+
+  const activePose = pose.mix < 0.5 ? pose.from : pose.to;
+  const [pawX, pawY] = pawPosition(activePose, transform, environment);
+  const wash = effectContext.createRadialGradient(
+    pawX,
+    pawY,
+    0,
+    pawX,
+    pawY,
+    environment.characterHeight * 0.82,
+  );
+  wash.addColorStop(0, rgba(theme.glow, 1));
+  wash.addColorStop(0.2, rgba(theme.primary, 1));
+  wash.addColorStop(0.58, rgba(theme.secondary, 0.96));
+  wash.addColorStop(1, rgba(environment.skinLight, 0.72));
+  effectContext.globalCompositeOperation = "source-in";
+  effectContext.fillStyle = wash;
+  effectContext.fillRect(0, 0, environment.width, environment.height);
+  effectContext.globalCompositeOperation = "source-over";
+
+  context.save();
+  context.globalCompositeOperation = "screen";
+  context.globalAlpha = clamp(strength);
+  context.shadowColor = rgba(theme.glow, 0.76);
+  context.shadowBlur = lerp(4, 18, strength);
+  context.filter = `saturate(${lerp(1.08, 1.42, strength)})`;
+  context.drawImage(
+    canvas,
+    0,
+    0,
+    canvas.width,
+    canvas.height,
+    0,
+    0,
+    environment.width,
+    environment.height,
+  );
+  context.restore();
 }
 
 function drawPawMagic(
@@ -443,6 +730,37 @@ function drawPawMagic(
     lerp(0.24, 0.48, visibleIntensity) * strength,
   );
 
+  const core = context.createRadialGradient(x, y, 0, x, y, radius * 0.46);
+  core.addColorStop(0, `rgba(255, 255, 255, ${0.82 * strength})`);
+  core.addColorStop(0.3, rgba(theme.glow, 0.58 * strength));
+  core.addColorStop(1, rgba(theme.primary, 0));
+  context.fillStyle = core;
+  context.beginPath();
+  context.arc(x, y, radius * 0.46, 0, TAU);
+  context.fill();
+
+  if (!environment.reducedMotion) {
+    context.save();
+    context.translate(x, y);
+    context.rotate(elapsedMs * 0.00082);
+    const ringCount = environment.lowEffects ? 1 : 3;
+    for (let index = 0; index < ringCount; index += 1) {
+      const ringRadius = radius * (0.62 + index * 0.21);
+      context.rotate(index % 2 ? -0.72 : 0.48);
+      context.scale(1, 0.42 + index * 0.08);
+      context.strokeStyle = rgba(
+        index % 2 ? theme.secondary : theme.glow,
+        strength * (0.44 - index * 0.09),
+      );
+      context.lineWidth = Math.max(0.65, 1.35 - index * 0.22);
+      context.beginPath();
+      context.arc(0, 0, ringRadius, index * 0.88, index * 0.88 + Math.PI * 1.22);
+      context.stroke();
+      context.scale(1, 1 / (0.42 + index * 0.08));
+    }
+    context.restore();
+  }
+
   const orbitCount = environment.lowEffects ? 5 : 11;
   for (let index = 0; index < orbitCount; index += 1) {
     const orbit = elapsedMs * 0.0024 * (index % 2 ? -1 : 1) + index * 2.17;
@@ -456,6 +774,18 @@ function drawPawMagic(
     context.beginPath();
     context.arc(sparkleX, sparkleY, 1 + (index % 3) * 0.7, 0, TAU);
     context.fill();
+  }
+
+  if (!environment.lowEffects) {
+    const flareRadius = radius * lerp(0.72, 1.18, visibleIntensity);
+    context.strokeStyle = `rgba(255, 255, 255, ${0.44 * strength})`;
+    context.lineWidth = 0.85;
+    context.beginPath();
+    context.moveTo(x - flareRadius, y);
+    context.lineTo(x + flareRadius, y);
+    context.moveTo(x, y - flareRadius * 0.62);
+    context.lineTo(x, y + flareRadius * 0.62);
+    context.stroke();
   }
   context.restore();
 }
@@ -503,7 +833,7 @@ function drawAmbientMagic(
 
 function drawCharacterAura(
   context: CanvasRenderingContext2D,
-  image: HTMLImageElement,
+  image: CanvasImageSource,
   pose: PoseMoment,
   transform: CharacterTransform,
   environment: RenderEnvironment,
@@ -520,6 +850,15 @@ function drawCharacterAura(
     environment.characterHeight * lerp(0.28, 0.46, strength),
     theme.glow,
     0.075 + strength * 0.11,
+  );
+  drawEllipseGlow(
+    context,
+    transform.x,
+    transform.y + environment.characterHeight * 0.03,
+    environment.characterHeight * lerp(0.2, 0.31, strength),
+    environment.characterHeight * lerp(0.25, 0.36, strength),
+    environment.skinLight,
+    0.035 + strength * 0.055,
   );
 
   context.save();
@@ -678,6 +1017,28 @@ function drawMeteor(
       );
       context.stroke();
     }
+
+    const ribbonCount = 4;
+    for (let index = 0; index < ribbonCount; index += 1) {
+      const offset = (index - (ribbonCount - 1) / 2) * 9;
+      const ribbonWave = Math.sin(elapsedMs * 0.009 + index * 1.9) * 13;
+      context.strokeStyle = rgba(
+        index % 2 ? environment.theme.primary : environment.theme.glow,
+        0.16 + progress * 0.16,
+      );
+      context.lineWidth = 0.7 + progress * 0.9;
+      context.beginPath();
+      context.moveTo(x + unitY * offset, y - unitX * offset);
+      context.bezierCurveTo(
+        lerp(x, tailX, 0.28) + unitY * (offset + ribbonWave),
+        lerp(y, tailY, 0.28) - unitX * (offset + ribbonWave),
+        lerp(x, tailX, 0.72) + unitY * (offset - ribbonWave * 0.45),
+        lerp(y, tailY, 0.72) - unitX * (offset - ribbonWave * 0.45),
+        tailX,
+        tailY,
+      );
+      context.stroke();
+    }
   }
 
   const coreRadius = lerp(18, 32, environment.tierIntensity) *
@@ -701,6 +1062,67 @@ function drawMeteor(
   context.beginPath();
   context.arc(x, y, coreRadius, 0, TAU);
   context.fill();
+
+  const corona = context.createRadialGradient(
+    x,
+    y,
+    coreRadius * 0.72,
+    x,
+    y,
+    coreRadius * 1.48,
+  );
+  corona.addColorStop(0, rgba(environment.theme.glow, 0));
+  corona.addColorStop(0.44, rgba(environment.theme.primary, 0.48));
+  corona.addColorStop(0.72, rgba(environment.theme.secondary, 0.22));
+  corona.addColorStop(1, rgba(environment.theme.secondary, 0));
+  context.fillStyle = corona;
+  context.beginPath();
+  context.arc(x, y, coreRadius * 1.52, 0, TAU);
+  context.fill();
+
+  if (!environment.lowEffects) {
+    context.save();
+    context.translate(x, y);
+    context.rotate(Math.atan2(unitY, unitX));
+    const flareLength = coreRadius * lerp(2.8, 4.8, progress);
+    const flare = context.createLinearGradient(-flareLength, 0, flareLength, 0);
+    flare.addColorStop(0, rgba(environment.theme.secondary, 0));
+    flare.addColorStop(0.42, rgba(environment.theme.primary, 0.28));
+    flare.addColorStop(0.5, "rgba(255, 255, 255, 0.92)");
+    flare.addColorStop(0.58, rgba(environment.theme.glow, 0.28));
+    flare.addColorStop(1, rgba(environment.theme.secondary, 0));
+    context.strokeStyle = flare;
+    context.lineWidth = 1.25 + progress * 1.4;
+    context.beginPath();
+    context.moveTo(-flareLength, 0);
+    context.lineTo(flareLength, 0);
+    context.stroke();
+
+    const flameCount = 7;
+    context.rotate(elapsedMs * 0.0018);
+    for (let index = 0; index < flameCount; index += 1) {
+      const angle = index * TAU / flameCount;
+      const flutter = 0.78 + Math.sin(elapsedMs * 0.015 + index * 1.37) * 0.22;
+      context.strokeStyle = rgba(
+        index % 2 ? environment.theme.primary : environment.theme.glow,
+        0.34,
+      );
+      context.lineWidth = 0.9;
+      context.beginPath();
+      context.moveTo(
+        Math.cos(angle) * coreRadius * 0.74,
+        Math.sin(angle) * coreRadius * 0.74,
+      );
+      context.quadraticCurveTo(
+        Math.cos(angle + 0.28) * coreRadius * 1.1,
+        Math.sin(angle + 0.28) * coreRadius * 1.1,
+        Math.cos(angle + 0.46) * coreRadius * 1.62 * flutter,
+        Math.sin(angle + 0.46) * coreRadius * 1.62 * flutter,
+      );
+      context.stroke();
+    }
+    context.restore();
+  }
   context.restore();
 }
 
@@ -738,6 +1160,29 @@ function drawImpact(
   context.ellipse(x, y, ringRadius, ringRadius * 0.42, 0, 0, TAU);
   context.stroke();
 
+  const secondaryProgress = smoothstep(inverseLerp(0.08, 0.86, progress));
+  const secondaryRadius = lerp(
+    20,
+    Math.min(environment.width, environment.height) * 0.38,
+    easeOutQuint(secondaryProgress),
+  );
+  context.strokeStyle = rgba(
+    environment.theme.secondary,
+    (1 - secondaryProgress) * 0.56,
+  );
+  context.lineWidth = lerp(4.2, 0.7, secondaryProgress);
+  context.beginPath();
+  context.ellipse(
+    x,
+    y + secondaryRadius * 0.02,
+    secondaryRadius,
+    secondaryRadius * 0.24,
+    0,
+    0,
+    TAU,
+  );
+  context.stroke();
+
   if (!environment.lowEffects) {
     const rayCount = 18 + Math.round(environment.tierIntensity * 12);
     for (let index = 0; index < rayCount; index += 1) {
@@ -753,6 +1198,30 @@ function drawImpact(
       context.moveTo(x + Math.cos(angle) * inner, y + Math.sin(angle) * inner * 0.68);
       context.lineTo(x + Math.cos(angle) * outer, y + Math.sin(angle) * outer * 0.68);
       context.stroke();
+    }
+
+    const debrisCount = 18;
+    for (let index = 0; index < debrisCount; index += 1) {
+      const angle = lerp(Math.PI * 1.08, Math.PI * 1.92, deterministic(index, 73));
+      const speed = lerp(46, 210, deterministic(index, 74));
+      const travel = easeOutCubic(progress) * speed;
+      const gravity = progress * progress * 92;
+      const debrisX = x + Math.cos(angle) * travel;
+      const debrisY = y + Math.sin(angle) * travel + gravity;
+      const alpha = (1 - progress) * (0.22 + deterministic(index, 75) * 0.48);
+      context.fillStyle = rgba(
+        index % 4 === 0 ? WHITE : environment.theme.primary,
+        alpha,
+      );
+      context.beginPath();
+      context.arc(
+        debrisX,
+        debrisY,
+        0.7 + deterministic(index, 76) * 2.1,
+        0,
+        TAU,
+      );
+      context.fill();
     }
   }
   context.restore();
@@ -882,6 +1351,32 @@ function drawBlackHoleField(
   context.fill();
   context.restore();
 
+  if (!environment.lowEffects && !environment.reducedMotion) {
+    context.save();
+    context.globalCompositeOperation = "screen";
+    context.translate(x, y);
+    context.rotate(-elapsedMs * 0.00019);
+    context.scale(1, 0.3);
+    context.lineCap = "round";
+    for (let index = 0; index < 4; index += 1) {
+      const photonRadius = radius * (1.02 + index * 0.19);
+      const arcStart = elapsedMs * 0.00034 * (index % 2 ? -1 : 1) + index * 1.37;
+      context.strokeStyle = rgba(
+        index % 2 ? BLACK_HOLE_THEME.secondary : BLACK_HOLE_THEME.primary,
+        reveal * (0.38 - index * 0.055),
+      );
+      context.lineWidth = Math.max(0.9, 2.5 - index * 0.42);
+      context.shadowColor = index % 2
+        ? rgba(BLACK_HOLE_THEME.secondary, 0.7)
+        : rgba(BLACK_HOLE_THEME.primary, 0.74);
+      context.shadowBlur = 8 + index * 2;
+      context.beginPath();
+      context.arc(0, 0, photonRadius, arcStart, arcStart + Math.PI * (0.48 + index * 0.11));
+      context.stroke();
+    }
+    context.restore();
+  }
+
   return { x, y, radius, engulf };
 }
 
@@ -952,7 +1447,7 @@ function drawSuction(
 
 function drawSpaghettifiedSinglePose(
   context: CanvasRenderingContext2D,
-  image: HTMLImageElement,
+  image: CanvasImageSource,
   pose: number,
   transform: CharacterTransform,
   environment: RenderEnvironment,
@@ -965,10 +1460,10 @@ function drawSpaghettifiedSinglePose(
   const sourceX = (safePose % SHEET_COLUMNS) * POSE_WIDTH;
   const sourceY = Math.floor(safePose / SHEET_COLUMNS) * POSE_HEIGHT;
   const scale = (environment.characterHeight / POSE_HEIGHT) * transform.scale;
-  const targetWidth = POSE_WIDTH * scale;
+  const targetWidth = POSE_WIDTH * scale * (transform.scaleX ?? 1);
   const slices = environment.lowEffects ? 20 : 36;
   const sourceSliceHeight = POSE_HEIGHT / slices;
-  const targetSliceHeight = sourceSliceHeight * scale;
+  const targetSliceHeight = sourceSliceHeight * scale * (transform.scaleY ?? 1);
   const fade = 1 - smoothstep(inverseLerp(0.82, 1, progress));
   const cosine = Math.cos(transform.rotation);
   const sine = Math.sin(transform.rotation);
@@ -982,7 +1477,7 @@ function drawSpaghettifiedSinglePose(
     const pull = clamp(
       progress * topWeight + progress ** 3 * (1 - topWeight),
     );
-    const localY = (normalized - 0.5) * POSE_HEIGHT * scale;
+    const localY = (normalized - 0.5) * POSE_HEIGHT * scale * (transform.scaleY ?? 1);
     const baseX = transform.x - localY * sine;
     const baseY = transform.y + localY * cosine;
     const swirl = Math.sin(index * 0.47 + progress * 12.4) *
@@ -1009,7 +1504,7 @@ function drawSpaghettifiedSinglePose(
 
 function drawSpaghettifiedPose(
   context: CanvasRenderingContext2D,
-  image: HTMLImageElement,
+  image: CanvasImageSource,
   moment: PoseMoment,
   transform: CharacterTransform,
   environment: RenderEnvironment,
@@ -1064,7 +1559,7 @@ function drawSpaghettifiedPose(
 
 function renderRegular(
   context: CanvasRenderingContext2D,
-  image: HTMLImageElement,
+  image: CanvasImageSource,
   elapsedMs: number,
   stageMomentsMs: readonly number[],
   swipeAtMs: number,
@@ -1098,10 +1593,15 @@ function renderRegular(
   const swipeKick = elapsedMs >= swipeAtMs && elapsedMs < swipeAtMs + 300
     ? Math.sin(inverseLerp(swipeAtMs, swipeAtMs + 300, elapsedMs) * Math.PI)
     : 0;
+  const exertion = isStruggling
+    ? Math.sin(struggle.progress * Math.PI) ** 2 * lerp(0.42, 1, visibleIntensity)
+    : 0;
   const transform: CharacterTransform = {
     x: environment.centerX + strain + swipeKick * 10,
     y: environment.centerY + Math.sin(elapsedMs * 0.0031) * (environment.reducedMotion ? 0 : 2.6) + swipeKick * 5,
     scale: 1 + breath - swipeKick * 0.018,
+    scaleX: 1 + exertion * 0.022 + swipeKick * 0.052,
+    scaleY: 1 - exertion * 0.028 - swipeKick * 0.038,
     rotation: strain * 0.0018 - swipeKick * 0.024,
     alpha: impactFade,
   };
@@ -1123,8 +1623,40 @@ function renderRegular(
     activeTheme,
     visibleIntensity,
   );
+  drawConstellationOrbit(
+    context,
+    isStruggling ? struggle.sampledAtMs : elapsedMs,
+    transform,
+    environment,
+    ambientStrength,
+    activeTheme,
+    visibleIntensity,
+  );
+
+  const activePose = pose.mix < 0.5 ? pose.from : pose.to;
+  if (elapsedMs < swipeAtMs) {
+    drawGravityTether(
+      context,
+      isStruggling ? struggle.sampledAtMs : elapsedMs,
+      Math.max(1, Math.min(3, activePose)),
+      transform,
+      environment,
+      magicStrength,
+      activeTheme,
+      visibleIntensity,
+    );
+  }
   drawGrounding(context, transform, environment, impactFade, activeTheme);
 
+  drawMotionEcho(
+    context,
+    image,
+    pose,
+    transform,
+    environment,
+    activeTheme,
+    swipeKick,
+  );
   drawCharacterAura(
     context,
     image,
@@ -1135,9 +1667,17 @@ function renderRegular(
     magicStrength * lerp(0.34, 1, visibleIntensity),
   );
   drawPoseBlend(context, image, pose, transform, environment);
+  drawCharacterEnergyWash(
+    context,
+    image,
+    pose,
+    transform,
+    environment,
+    activeTheme,
+    magicStrength * lerp(0.045, 0.22, visibleIntensity) + swipeKick * 0.08,
+  );
 
   if (magicStrength > 0.01 && elapsedMs < swipeAtMs + 340) {
-    const activePose = pose.mix < 0.5 ? pose.from : pose.to;
     drawPawMagic(
       context,
       isStruggling ? struggle.sampledAtMs : elapsedMs,
@@ -1174,7 +1714,7 @@ function renderRegular(
 
 function renderBlackHole(
   context: CanvasRenderingContext2D,
-  image: HTMLImageElement,
+  image: CanvasImageSource,
   elapsedMs: number,
   stageMomentsMs: readonly number[],
   specialAtMs: number,
@@ -1225,6 +1765,8 @@ function renderBlackHole(
     x: environment.centerX + orbit,
     y: lerp(environment.centerY, holeY + environment.characterHeight * 0.16, gentleLift * 0.58),
     scale: lerp(1, 0.82, gentleLift),
+    scaleX: lerp(1, 0.9, gentleLift),
+    scaleY: lerp(1, 1.14, gentleLift),
     rotation: environment.reducedMotion
       ? 0
       : Math.sin(pullProgress * Math.PI * 2.4) * 0.055 + pullProgress * 0.16,
@@ -1258,6 +1800,26 @@ function renderBlackHole(
   );
 
   if (elapsedMs < specialAtMs) {
+    drawConstellationOrbit(
+      context,
+      isStruggling ? struggle.sampledAtMs : elapsedMs,
+      transform,
+      environment,
+      preMagicStrength,
+      struggleTheme,
+      visibleIntensity,
+    );
+    const activePose = pose.mix < 0.5 ? pose.from : pose.to;
+    drawGravityTether(
+      context,
+      struggle.sampledAtMs,
+      Math.max(1, Math.min(3, activePose)),
+      transform,
+      environment,
+      preMagicStrength,
+      struggleTheme,
+      visibleIntensity,
+    );
     drawGrounding(context, transform, environment, 1, struggleTheme);
     drawCharacterAura(
       context,
@@ -1269,9 +1831,17 @@ function renderBlackHole(
       preMagicStrength * lerp(0.34, 1, visibleIntensity),
     );
     drawPoseBlend(context, image, pose, transform, environment);
+    drawCharacterEnergyWash(
+      context,
+      image,
+      pose,
+      transform,
+      environment,
+      struggleTheme,
+      preMagicStrength * lerp(0.045, 0.22, visibleIntensity),
+    );
 
     if (preMagicStrength > 0.01) {
-      const activePose = pose.mix < 0.5 ? pose.from : pose.to;
       drawPawMagic(
         context,
         struggle.sampledAtMs,
@@ -1320,6 +1890,7 @@ function renderBlackHole(
 
 export default function NebuWishSummon({
   tier,
+  nebuSkin,
   stageMomentsMs,
   specialAtMs,
   impactAtMs,
@@ -1353,6 +1924,14 @@ export default function NebuWishSummon({
       desynchronized: true,
     });
     if (!context) return;
+    const effectCanvas = document.createElement("canvas");
+    const effectContext = effectCanvas.getContext("2d", { alpha: true });
+    if (!effectContext) return;
+    const effectSurface: EffectSurface = {
+      canvas: effectCanvas,
+      context: effectContext,
+      pixelRatio: 1,
+    };
 
     const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
     const reducedMotion = mediaQuery.matches;
@@ -1363,6 +1942,9 @@ export default function NebuWishSummon({
     let animationFrame = 0;
     let disposed = false;
     let loaded = image.complete && image.naturalWidth > 0;
+    let renderedAtlas: CanvasImageSource = loaded
+      ? createSkinnedAtlas(image, nebuSkin)
+      : image;
     let width = 1;
     let height = 1;
     let pixelRatio = 1;
@@ -1380,6 +1962,13 @@ export default function NebuWishSummon({
       pixelRatio = Math.min(window.devicePixelRatio || 1, lowEffects ? 1.25 : 2);
       canvas.width = Math.max(1, Math.round(width * pixelRatio));
       canvas.height = Math.max(1, Math.round(height * pixelRatio));
+      const effectQuality = lowEffects ? 0.55 : reducedMotion ? 0.75 : 1;
+      effectSurface.pixelRatio = Math.max(
+        0.25,
+        Math.min(effectQuality, 1280 / width, 720 / height),
+      );
+      effectCanvas.width = Math.max(1, Math.round(width * effectSurface.pixelRatio));
+      effectCanvas.height = Math.max(1, Math.round(height * effectSurface.pixelRatio));
       context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
       context.imageSmoothingEnabled = true;
       context.imageSmoothingQuality = "high";
@@ -1415,13 +2004,15 @@ export default function NebuWishSummon({
         reducedMotion,
         lowEffects,
         theme,
+        skinLight: NEBU_SKIN_LIGHTS[nebuSkin],
         sparks,
+        effectSurface,
       };
 
       if (blackHole) {
         renderBlackHole(
           context,
-          image,
+          renderedAtlas,
           elapsedMs,
           stageMomentsMs,
           specialAtMs,
@@ -1431,7 +2022,7 @@ export default function NebuWishSummon({
       } else {
         renderRegular(
           context,
-          image,
+          renderedAtlas,
           elapsedMs,
           stageMomentsMs,
           swipeAtMs,
@@ -1459,6 +2050,7 @@ export default function NebuWishSummon({
     };
 
     image.onload = () => {
+      renderedAtlas = createSkinnedAtlas(image, nebuSkin);
       loaded = true;
       draw(performance.now() - startedAt);
     };
@@ -1481,6 +2073,7 @@ export default function NebuWishSummon({
     impactAtMs,
     lowEffects,
     meteorAtMs,
+    nebuSkin,
     sparks,
     specialAtMs,
     stageMomentsMs,
@@ -1493,6 +2086,7 @@ export default function NebuWishSummon({
       ref={rootRef}
       className={styles.summon}
       style={rootStyle}
+      data-nebu-skin={nebuSkin}
       data-black-hole={blackHole ? "true" : "false"}
       data-low-effects={lowEffects ? "true" : "false"}
       aria-hidden="true"
