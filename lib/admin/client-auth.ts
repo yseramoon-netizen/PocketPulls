@@ -1,5 +1,7 @@
 "use client";
 
+import { useSyncExternalStore } from "react";
+
 import { adminSupabase as supabase } from "@/lib/admin/supabase";
 
 const ADMIN_GATE_KEY =
@@ -8,6 +10,7 @@ const ADMIN_GATE_KEY =
 export type AdminGate = {
   userId: string;
   email: string;
+  founder: "lukas" | "skye" | null;
   verifiedAt: number;
   aal2: true;
 };
@@ -74,9 +77,15 @@ export function readAdminGate(): AdminGate | null {
       );
     }
 
+    const founder =
+      value.founder === "lukas" || value.founder === "skye"
+        ? value.founder
+        : null;
+
     return {
       userId: value.userId,
       email: value.email,
+      founder,
       verifiedAt: value.verifiedAt,
       aal2: true,
     };
@@ -108,6 +117,16 @@ export function clearAdminGate(): void {
 
   window.sessionStorage.removeItem(
     ADMIN_GATE_KEY,
+  );
+}
+
+const subscribeToAdminGate = () => () => undefined;
+
+export function useFounderAdminAccess(): boolean {
+  return useSyncExternalStore(
+    subscribeToAdminGate,
+    () => Boolean(readAdminGate()?.founder),
+    () => false,
   );
 }
 

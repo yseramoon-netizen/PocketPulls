@@ -144,11 +144,13 @@ function resolveFounder(
         .POCKETPULLS_SKYE_USER_IDS,
     );
 
-  const lukasEmails =
-    readAllowlist(
+  const lukasEmails = [
+    "pullspocket@gmail.com",
+    ...readAllowlist(
       process.env
         .POCKETPULLS_LUKAS_EMAILS,
-    ).map((email) =>
+    ),
+  ].map((email) =>
       email.toLowerCase(),
     );
 
@@ -382,6 +384,13 @@ export async function GET(
 
     const viewerOwner =
       resolveFounder(user);
+
+    if (!viewerOwner) {
+      throw new RouteError(
+        "Only the configured Lukas and Skye founder accounts can view founder favourites.",
+        403,
+      );
+    }
 
     const response =
       await loadFavourites(

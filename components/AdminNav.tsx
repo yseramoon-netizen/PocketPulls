@@ -14,6 +14,7 @@ import {
 
 import {
   signOutAdmin,
+  useFounderAdminAccess,
 } from "@/lib/admin/client-auth";
 
 type AdminNavItem = {
@@ -90,6 +91,8 @@ export default function AdminNav() {
   ] =
     useState(false);
 
+  const hasFounderAccess = useFounderAdminAccess();
+
   async function handleSignOut() {
     if (signingOut) {
       return;
@@ -156,7 +159,7 @@ export default function AdminNav() {
         "
       >
         <div className="flex min-w-0 items-center gap-3 px-2 py-1">
-          <ShayminMoodButton />
+          {hasFounderAccess ? <ShayminMoodButton /> : null}
 
           <Link
             href="/admin"

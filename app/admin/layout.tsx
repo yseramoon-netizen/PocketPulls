@@ -17,6 +17,7 @@ import {
   adminFetch,
   clearAdminGate,
   readAdminGate,
+  writeAdminGate,
 } from "@/lib/admin/client-auth";
 import { adminSupabase as supabase } from "@/lib/admin/supabase";
 
@@ -30,9 +31,21 @@ type AdminSessionResponse = {
     userId: string;
     email: string;
     aal: "aal1" | "aal2" | null;
+    founder: "lukas" | "skye" | null;
     mfaRequired: boolean;
   };
 };
+
+const FOUNDER_ADMIN_PATHS = [
+  "/admin/shaymin",
+  "/admin/tree",
+] as const;
+
+function isFounderAdminPath(pathname: string): boolean {
+  return FOUNDER_ADMIN_PATHS.some(
+    (path) => pathname === path || pathname.startsWith(`${path}/`),
+  );
+}
 
 function getSignInPath(
   pathname: string,
@@ -103,7 +116,22 @@ export default function AdminLayout({
           );
         }
 
+        if (
+          isFounderAdminPath(pathname) &&
+          !session.admin.founder
+        ) {
+          router.replace("/admin");
+          return;
+        }
+
         if (active) {
+          writeAdminGate({
+            userId: session.admin.userId,
+            email: session.admin.email,
+            founder: session.admin.founder,
+            verifiedAt: Date.now(),
+            aal2: true,
+          });
           setVerifiedPathname(pathname);
         }
       } catch {

@@ -49,6 +49,12 @@ export type AdminContext = {
   aal: "aal1" | "aal2" | null;
 };
 
+export type FounderIdentity = "lukas" | "skye";
+
+export type FounderAdminContext = AdminContext & {
+  founder: FounderIdentity;
+};
+
 type RequireAdminOptions = {
   requireMfa?: boolean;
 };
@@ -179,6 +185,55 @@ function getConfiguredAdminEmails(): Set<string> {
   );
 }
 
+function readAllowlist(value: string | undefined): Set<string> {
+  return new Set(
+    (value || "")
+      .split(",")
+      .map((item) => item.trim().toLowerCase())
+      .filter(Boolean),
+  );
+}
+
+export function resolveFounderIdentity(
+  user: Pick<User, "id" | "email">,
+): FounderIdentity | null {
+  const userId = user.id.trim().toLowerCase();
+  const email = user.email?.trim().toLowerCase() || "";
+  const lukasUserIds = readAllowlist(
+    process.env.POCKETPULLS_LUKAS_USER_IDS,
+  );
+  const skyeUserIds = readAllowlist(
+    process.env.POCKETPULLS_SKYE_USER_IDS,
+  );
+  const lukasEmails = readAllowlist(
+    process.env.POCKETPULLS_LUKAS_EMAILS,
+  );
+  const skyeEmails = readAllowlist(
+    process.env.POCKETPULLS_SKYE_EMAILS,
+  );
+
+  // Preserve the original founder bootstrap account while allowing the
+  // Supabase UUID to become the authoritative production identifier.
+  lukasEmails.add("pullspocket@gmail.com");
+
+  const isLukas =
+    lukasUserIds.has(userId) || Boolean(email && lukasEmails.has(email));
+  const isSkye =
+    skyeUserIds.has(userId) || Boolean(email && skyeEmails.has(email));
+
+  if (isLukas && isSkye) {
+    throw new AdminAccessError(
+      "This account is assigned to both founder profiles. Correct the founder environment allowlists.",
+      500,
+      "founder_allowlist_ambiguous",
+    );
+  }
+
+  if (isLukas) return "lukas";
+  if (isSkye) return "skye";
+  return null;
+}
+
 async function isDatabaseAdmin(
   admin: ServerAdminClient,
   user: User,
@@ -280,7 +335,8 @@ async function isDatabaseAdmin(
   if (
     getConfiguredAdminEmails().has(
       email,
-    )
+    ) ||
+    resolveFounderIdentity(user) !== null
   ) {
     if (
       byEmail.error &&
@@ -383,6 +439,27 @@ export async function requireAdmin(
     email,
     admin,
     aal,
+  };
+}
+
+export async function requireFounderAdmin(
+  request: Request,
+  options: RequireAdminOptions = {},
+): Promise<FounderAdminContext> {
+  const context = await requireAdmin(request, options);
+  const founder = resolveFounderIdentity(context.user);
+
+  if (!founder) {
+    throw new AdminAccessError(
+      "Only the configured Lukas and Skye founder accounts can access this feature.",
+      403,
+      "founder_access_required",
+    );
+  }
+
+  return {
+    ...context,
+    founder,
   };
 }
 

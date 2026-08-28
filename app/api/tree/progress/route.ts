@@ -241,11 +241,6 @@ async function authenticateAdmin(
   const allowedUserIds = [
     ...readAllowlist(
       process.env
-        .POCKETPULLS_ADMIN_USER_IDS,
-    ),
-
-    ...readAllowlist(
-      process.env
         .POCKETPULLS_LUKAS_USER_IDS,
     ),
 
@@ -256,11 +251,7 @@ async function authenticateAdmin(
   ];
 
   const allowedEmails = [
-    ...readAllowlist(
-      process.env
-        .POCKETPULLS_ADMIN_EMAILS,
-    ),
-
+    "pullspocket@gmail.com",
     ...readAllowlist(
       process.env
         .POCKETPULLS_LUKAS_EMAILS,
@@ -326,7 +317,7 @@ async function authenticateAdmin(
     !authorisedByEmail
   ) {
     throw new RouteError(
-      "You are not authorised to view this page.",
+      "Only the configured Lukas and Skye founder accounts can view this page.",
       403,
     );
   }

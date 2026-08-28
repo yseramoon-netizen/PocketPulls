@@ -16,6 +16,7 @@ import {
   FounderFavouriteButton,
   FounderFavouritesDisplay,
 } from "@/components/FounderFavourites";
+import { useFounderAdminAccess } from "@/lib/admin/client-auth";
 import { supabase } from "@/lib/supabase";
 
 type InventoryDatabaseRow = {
@@ -518,6 +519,8 @@ function InventorySkeleton() {
 }
 
 export default function InventoryPage() {
+  const hasFounderAccess = useFounderAdminAccess();
+
   const [
     inventory,
     setInventory,
@@ -2306,7 +2309,7 @@ export default function InventoryPage() {
             />
           </section>
 
-          <FounderFavouritesDisplay />
+          {hasFounderAccess ? <FounderFavouritesDisplay /> : null}
 
           <section
             className="
@@ -2868,15 +2871,17 @@ export default function InventoryPage() {
                                   Alter value
                                 </button>
 
-                                <FounderFavouriteButton
-                                  cardId={
-                                    item.card
-                                      .id
-                                  }
-                                  cardName={
-                                    item.card.name
-                                  }
-                                />
+                                {hasFounderAccess ? (
+                                  <FounderFavouriteButton
+                                    cardId={
+                                      item.card
+                                        .id
+                                    }
+                                    cardName={
+                                      item.card.name
+                                    }
+                                  />
+                                ) : null}
                               </div>
                             </div>
 

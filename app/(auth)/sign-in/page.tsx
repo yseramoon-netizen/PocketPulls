@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Suspense, type FormEvent, useEffect, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import type { Provider } from "@supabase/supabase-js";
 
 import { getAuthErrorDetails, getAuthErrorMessage } from "@/lib/auth/helpers";
@@ -18,26 +18,6 @@ import {
 import { supabase } from "@/lib/supabase";
 
 type SocialProvider = "google" | "discord";
-
-async function hasPlayerProfile(userId: string): Promise<boolean> {
-  const result = await supabase
-    .from("player_profiles")
-    .select("user_id")
-    .eq("user_id", userId)
-    .maybeSingle();
-
-  if (result.error) throw result.error;
-  return Boolean(result.data);
-}
-
-async function ensurePlayerProfile(userId: string): Promise<boolean> {
-  if (await hasPlayerProfile(userId)) return true;
-
-  const { error } = await supabase.rpc("complete_player_registration");
-  if (error) throw error;
-
-  return hasPlayerProfile(userId);
-}
 
 function GoogleIcon() {
   return (
@@ -59,7 +39,6 @@ function DiscordIcon() {
 }
 
 function PlayerSignInContent() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const nextPath = normaliseNextPath(searchParams.get("next"));
   const callbackError = searchParams.get("oauth_error");
@@ -90,19 +69,10 @@ function PlayerSignInContent() {
           return;
         }
 
-        const playerExists = await ensurePlayerProfile(data.session.user.id);
-        if (playerExists) {
-          if (active) {
-            clearPendingRegistration();
-            router.replace(nextPath);
-            router.refresh();
-          }
-          return;
+        if (active) {
+          clearPendingRegistration();
+          window.location.replace(nextPath);
         }
-
-        // A legacy admin session must never occupy the player auth slot.
-        await supabase.auth.signOut({ scope: "local" });
-        if (active) setChecking(false);
       } catch (sessionFailure: unknown) {
         console.warn("Player sign-in session check failed:", sessionFailure);
         if (active) {
@@ -117,7 +87,7 @@ function PlayerSignInContent() {
 
     void checkPlayerSession();
     return () => { active = false; };
-  }, [nextPath, router]);
+  }, [nextPath]);
 
   async function handleResendVerification() {
     if (!pendingRegistration || resending) return;
@@ -184,7 +154,6 @@ function PlayerSignInContent() {
     setSigningIn(true);
     setError("");
     try {
-      await supabase.auth.signOut({ scope: "local" });
       const { data, error: signInError } = await supabase.auth.signInWithPassword({
         email: cleanEmail,
         password,
@@ -203,15 +172,8 @@ function PlayerSignInContent() {
         throw signInError || new Error("No trainer session was returned.");
       }
 
-      const playerExists = await ensurePlayerProfile(data.session.user.id);
-      if (!playerExists) {
-        await supabase.auth.signOut({ scope: "local" });
-        throw new Error("That account is not an Ancient Pulls player account. Use the admin sign-in if this is an administrator account.");
-      }
-
       clearPendingRegistration();
-      router.replace(nextPath);
-      router.refresh();
+      window.location.replace(nextPath);
     } catch (failure: unknown) {
       console.error("Player sign-in error:", failure);
       setError(getAuthErrorMessage(failure, "Nebu could not sign you in."));

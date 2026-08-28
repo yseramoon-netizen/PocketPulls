@@ -61,6 +61,7 @@ async function verifyAdminToken(accessToken: string) {
         admin?: {
           userId?: string;
           email?: string;
+          founder?: "lukas" | "skye" | null;
           aal?: "aal1" | "aal2" | null;
           mfaRequired?: boolean;
         };
@@ -77,6 +78,7 @@ async function verifyAdminToken(accessToken: string) {
   return {
     userId: payload.admin.userId,
     email: payload.admin.email.toLowerCase(),
+    founder: payload.admin.founder || null,
     aal: payload.admin.aal || null,
   };
 }
@@ -120,6 +122,7 @@ function AdminSignInContent() {
     writeAdminGate({
       userId: refreshed.userId,
       email: refreshed.email,
+      founder: refreshed.founder,
       verifiedAt: Date.now(),
       aal2: true,
     });
@@ -194,6 +197,7 @@ function AdminSignInContent() {
             writeAdminGate({
               userId: admin.userId,
               email: admin.email,
+              founder: admin.founder,
               verifiedAt: Date.now(),
               aal2: true,
             });

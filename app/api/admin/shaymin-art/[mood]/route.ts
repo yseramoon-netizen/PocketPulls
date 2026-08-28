@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 
-import { adminErrorResponse, requireAdmin } from "@/lib/admin/server-auth";
+import { adminErrorResponse, requireFounderAdmin } from "@/lib/admin/server-auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -34,7 +34,7 @@ const PRIVATE_ART_MOODS = new Set([
 
 export async function GET(request: Request, context: RouteContext) {
   try {
-    await requireAdmin(request);
+    await requireFounderAdmin(request);
 
     const params = await Promise.resolve(context.params);
     const mood = String(params.mood || "").toLowerCase().trim();
