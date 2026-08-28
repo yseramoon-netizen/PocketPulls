@@ -2,6 +2,7 @@
 
 import type { CSSProperties } from "react";
 
+import AsterismSigil from "@/components/player/AsterismSigil";
 import { CardArtwork } from "@/components/player/PlayerUI";
 import { getBinderTheme } from "@/lib/player/binder";
 import { getPlayerRarityTheme } from "@/lib/player/rarity";
@@ -38,6 +39,7 @@ export default function BinderSpread({
   dimmed = false,
 }: BinderSpreadProps) {
   const theme = getBinderTheme(themeKey);
+  const cosmic = theme.key === "cosmic_binder";
   const slots = Array.from({ length: 18 }, (_, index) => cards[index] ?? null);
   const left = slots.slice(0, 9);
   const right = slots.slice(9, 18);
@@ -59,6 +61,17 @@ export default function BinderSpread({
       data-theme={theme.key}
     >
       <div className={styles.coverArtwork} aria-hidden="true" />
+      {cosmic ? (
+        <div className={styles.cosmicAtmosphere} aria-hidden="true">
+          <span className={styles.cosmicNebula} />
+          <AsterismSigil
+            seed="ancient-pulls-cosmic-binder"
+            points={9}
+            className={styles.cosmicAsterism}
+          />
+          <span className={styles.cosmicComet} />
+        </div>
+      ) : null}
       <div className={styles.coverEdgeLeft} />
       <BinderPage
         cards={left}
@@ -69,6 +82,13 @@ export default function BinderSpread({
         readonly={readonly}
       />
       <div className={styles.spine} aria-hidden="true">
+        {cosmic ? (
+          <AsterismSigil
+            seed="cosmic-binder-spine"
+            points={7}
+            className={styles.cosmicSpineSeal}
+          />
+        ) : null}
         {Array.from({ length: 6 }, (_, index) => (
           <span key={index} className={styles.ring} />
         ))}

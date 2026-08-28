@@ -64,6 +64,7 @@ type OverviewRow = {
 type BinderSettingsRow = {
   theme_key: string | null;
   binder_name: string | null;
+  cosmic_binder_issue_number: number | string | null;
 };
 
 type BinderThemeUnlockRow = {
@@ -179,6 +180,7 @@ export default function CollectionPage() {
   const [themeKey, setThemeKey] = useState("classic");
   const [binderName, setBinderName] = useState("My Binder");
   const [binderNameInput, setBinderNameInput] = useState("My Binder");
+  const [cosmicBinderIssueNumber, setCosmicBinderIssueNumber] = useState(0);
   const [themePickerOpen, setThemePickerOpen] = useState(false);
   const [themeUnlocks, setThemeUnlocks] = useState<Record<string, BinderThemeUnlockRow>>({});
   const [anniversaryYearsByCard, setAnniversaryYearsByCard] = useState<Record<string, number>>({});
@@ -237,6 +239,7 @@ export default function CollectionPage() {
       setThemeKey(typeof theme === "string" && theme.trim() ? theme : "classic");
       setBinderName(name);
       setBinderNameInput(name);
+      setCosmicBinderIssueNumber(toWholeNumber(settings.cosmic_binder_issue_number));
     }
 
     const unlockMap: Record<string, BinderThemeUnlockRow> = {};
@@ -551,6 +554,11 @@ export default function CollectionPage() {
         <div>
           <p className={styles.eyebrow}>Your binder</p>
           <h1 className={styles.title}>{binderName}</h1>
+          {cosmicBinderIssueNumber > 0 ? (
+            <span className={styles.cosmicOwnership}>
+              Cosmic Binder #{String(cosmicBinderIssueNumber).padStart(6, "0")}
+            </span>
+          ) : null}
         </div>
 
         <div className={styles.headerStats}>
@@ -676,10 +684,10 @@ export default function CollectionPage() {
                     type="button"
                     disabled={themeBusy || !unlocked}
                     onClick={() => void selectTheme(theme.key)}
-                    className={`${styles.themeCard} ${themeKey === theme.key ? styles.themeCardActive : ""} ${!unlocked ? styles.themeCardLocked : ""}`}
+                    className={`${styles.themeCard} ${theme.key === "cosmic_binder" ? styles.cosmicThemeCard : ""} ${themeKey === theme.key ? styles.themeCardActive : ""} ${!unlocked ? styles.themeCardLocked : ""}`}
                   >
                     <span
-                      className={styles.themePreview}
+                      className={`${styles.themePreview} ${theme.key === "cosmic_binder" ? styles.cosmicThemePreview : ""}`}
                       style={{
                         background: theme.imageUrl
                           ? `linear-gradient(rgba(7,8,24,0.08), rgba(7,8,24,0.18)), url(${theme.imageUrl}) center/cover no-repeat`
@@ -689,6 +697,10 @@ export default function CollectionPage() {
                     <strong>{theme.label}</strong>
                     {themeKey === theme.key ? (
                       <span className={styles.themeSelected}>Selected</span>
+                    ) : theme.key === "cosmic_binder" && cosmicBinderIssueNumber > 0 ? (
+                      <span className={styles.themeUnlocked}>
+                        #{String(cosmicBinderIssueNumber).padStart(6, "0")}
+                      </span>
                     ) : unlocked ? (
                       <span className={styles.themeUnlocked}>Unlocked</span>
                     ) : (

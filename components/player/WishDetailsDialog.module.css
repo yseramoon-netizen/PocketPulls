@@ -175,26 +175,6 @@
   line-height: 1.75;
 }
 
-.cosmicFeatures {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.45rem;
-  margin-top: 1rem;
-}
-
-.cosmicFeatures i {
-  border: 1px solid rgba(103, 232, 249, 0.18);
-  border-radius: 999px;
-  padding: 0.38rem 0.62rem;
-  color: rgba(207, 250, 254, 0.72);
-  background: rgba(103, 232, 249, 0.055);
-  font-size: 0.6rem;
-  font-style: normal;
-  font-weight: 900;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
 .ownedBadge,
 .unfoundBadge {
   width: fit-content;
@@ -217,6 +197,93 @@
   border: 1px solid rgba(103, 232, 249, 0.25);
   color: rgba(207, 250, 254, 0.72);
   background: rgba(34, 211, 238, 0.07);
+}
+
+.cosmicBinderPrize {
+  display: grid;
+  grid-template-columns: 7.5rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 1.2rem;
+  margin-top: 0.8rem;
+  overflow: hidden;
+  border: 1px solid rgba(165, 243, 252, 0.18);
+  border-radius: 1.35rem;
+  padding: 1rem 1.2rem;
+  background:
+    radial-gradient(circle at 9% 0%, rgba(34, 211, 238, 0.12), transparent 30%),
+    linear-gradient(130deg, rgba(5, 10, 35, 0.92), rgba(45, 17, 86, 0.62));
+}
+
+.cosmicBinderMini {
+  position: relative;
+  width: 5.6rem;
+  aspect-ratio: 0.78;
+  justify-self: center;
+  overflow: hidden;
+  border: 1px solid rgba(165, 243, 252, 0.68);
+  border-radius: 0.55rem 0.72rem 0.72rem 0.55rem;
+  color: #a5f3fc;
+  background:
+    radial-gradient(circle at 32% 20%, rgba(103, 232, 249, 0.36), transparent 28%),
+    linear-gradient(145deg, #03051c, #31116d 55%, #071637);
+  box-shadow:
+    0 0 18px rgba(34, 211, 238, 0.4),
+    0 0 34px rgba(124, 58, 237, 0.3),
+    inset 0 0 16px rgba(103, 232, 249, 0.1);
+  animation: cosmicBinderBreath 3.8s ease-in-out infinite;
+}
+
+.cosmicBinderMini svg {
+  position: absolute;
+  top: 50%;
+  left: 53%;
+  width: 72%;
+  transform: translate(-50%, -50%);
+}
+
+.cosmicBinderMini span {
+  position: absolute;
+  top: 50%;
+  right: -1px;
+  width: 0.75rem;
+  height: 1.1rem;
+  border-radius: 999px 0 0 999px;
+  background: linear-gradient(145deg, #fff7c2, #67e8f9, #8b5cf6);
+  box-shadow: 0 0 10px rgba(103, 232, 249, 0.72);
+  transform: translateY(-50%);
+}
+
+.cosmicBinderCopy p {
+  color: rgba(165, 243, 252, 0.68);
+  font-size: 0.56rem;
+  font-weight: 950;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.cosmicBinderCopy h3 {
+  margin-top: 0.25rem;
+  color: #fff;
+  font-size: clamp(1.35rem, 3vw, 2rem);
+  font-weight: 950;
+  letter-spacing: -0.035em;
+}
+
+.cosmicBinderCopy strong {
+  display: block;
+  margin-top: 0.35rem;
+  color: #cffafe;
+  font-size: 0.72rem;
+  font-weight: 950;
+}
+
+.cosmicBinderCopy > span {
+  display: block;
+  margin-top: 0.45rem;
+  color: rgba(255, 255, 255, 0.46);
+  font-size: 0.7rem;
+  font-weight: 650;
+  line-height: 1.55;
 }
 
 .sectionHeading {
@@ -443,6 +510,7 @@
 @keyframes backdropIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes dialogIn { from { opacity: 0; transform: translateY(1.2rem) scale(0.975); } to { opacity: 1; transform: none; } }
 @keyframes cosmicBreath { from { opacity: 0.5; transform: translate(-50%, -50%) scale(0.9) rotate(-8deg); } to { opacity: 0.9; transform: translate(-50%, -50%) scale(1.08) rotate(8deg); } }
+@keyframes cosmicBinderBreath { 0%, 100% { transform: translateY(-2px) rotate(-1deg); filter: brightness(.9); } 50% { transform: translateY(3px) rotate(1deg); filter: brightness(1.16); } }
 @keyframes skeleton { to { background-position: -220% 0; } }
 
 @media (max-width: 850px) {
@@ -455,6 +523,10 @@
   .cosmicCopy { padding: 0 0.5rem 1rem; }
   .cosmicCopy > span { margin-right: auto; margin-left: auto; }
   .ownedBadge, .unfoundBadge { margin-right: auto; margin-left: auto; }
+  .cosmicBinderPrize { grid-template-columns: 5.7rem minmax(0, 1fr); gap: .8rem; padding: .9rem; }
+  .cosmicBinderMini { width: 4.8rem; }
+  .cosmicBinderPrize > .ownedBadge,
+  .cosmicBinderPrize > .unfoundBadge { grid-column: 1 / -1; margin-top: 0; }
   .chaseGrid, .cardSkeletons { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: 0.4rem; }
   .chaseCard, .cardSkeletons span { width: min(62vw, 14rem); flex: 0 0 auto; scroll-snap-align: start; }
 }
@@ -472,6 +544,7 @@
   .backdrop,
   .dialog,
   .cosmicGlow,
+  .cosmicBinderMini,
   .cardSkeletons span,
   .oddsSkeleton {
     animation: none;

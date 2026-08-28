@@ -91,6 +91,10 @@ export default function OddsPage() {
         Every design shown here has available physical stock. When a tier has no backed design, it is excluded and these live odds are recalculated.
       </InfoCallout>
 
+      <InfoCallout title="Independent legendary discoveries">
+        Cosmic Binder is rolled separately at 1 in 50,000 per completed wish. Cosmic Nebu remains a separate 1 in 100,000 roll. Neither changes the card selected or the live rarity odds below.
+      </InfoCallout>
+
       <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm font-black text-white/70">
           {loading ? "Reading the summon pool..." : `${totalCards.toLocaleString("en-GB")} summonable card designs`}

@@ -58,6 +58,7 @@ type WishCinematicProps = {
   forceFullSequence?: boolean;
   respectPreferences?: boolean;
   cosmicIssueNumber?: number | null;
+  cosmicBinderIssueNumber?: number | null;
   cosmicSourceSkin?: NebuSkinKey | null;
 };
 
@@ -239,6 +240,7 @@ export default function WishCinematic({
   forceFullSequence = false,
   respectPreferences = true,
   cosmicIssueNumber = null,
+  cosmicBinderIssueNumber = null,
   cosmicSourceSkin = null,
 }: WishCinematicProps) {
   const preloadTimerRef = useRef<number | null>(null);
@@ -263,6 +265,7 @@ export default function WishCinematic({
     [card?.marketValue, card?.rarity],
   );
   const cosmicDiscovery = Boolean(cosmicIssueNumber);
+  const cosmicBinderDiscovery = Boolean(cosmicBinderIssueNumber);
   const timeline = useMemo(
     () => buildRevealTimeline(config, cosmicDiscovery),
     [config, cosmicDiscovery],
@@ -594,6 +597,7 @@ export default function WishCinematic({
       data-family={config.family}
       data-sun-sequence={isolatedSunSequence ? "true" : "false"}
       data-cosmic-discovery={cosmicDiscovery ? "true" : "false"}
+      data-cosmic-binder-discovery={cosmicBinderDiscovery ? "true" : "false"}
       data-cosmic-mode={cosmicMode ? "true" : "false"}
       data-low-effects={lowEffects ? "true" : "false"}
       role="dialog"
@@ -690,6 +694,20 @@ export default function WishCinematic({
             </div>
           ) : null}
 
+          {cosmicBinderIssueNumber ? (
+            <div className={styles.cosmicBinderArtifact} aria-hidden="true">
+              <div className={styles.cosmicBinderCover}>
+                <AsterismSigil
+                  seed={`${cardKey}:cosmic-binder`}
+                  points={9}
+                  className={styles.cosmicBinderSigil}
+                />
+                <span className={styles.cosmicBinderSpine} />
+                <span className={styles.cosmicBinderClasp} />
+              </div>
+            </div>
+          ) : null}
+
           {!cosmicDiscovery ? (
             <div className={styles.impact} aria-hidden="true">
               <div className={styles.impactFlash} />
@@ -719,10 +737,20 @@ export default function WishCinematic({
           </div>
 
           <div className={styles.cardInfo} data-share-ready="true">
-            {cosmicIssueNumber ? (
-              <div className={styles.cosmicDiscoveryBadge}>
-                <span>✦ Permanent legendary form discovered</span>
-                <strong>COSMIC NEBU #{String(cosmicIssueNumber).padStart(6, "0")}</strong>
+            {cosmicIssueNumber || cosmicBinderIssueNumber ? (
+              <div className={styles.legendaryDiscoveries}>
+                {cosmicIssueNumber ? (
+                  <div className={styles.cosmicDiscoveryBadge}>
+                    <span>✦ Permanent legendary form discovered</span>
+                    <strong>COSMIC NEBU #{String(cosmicIssueNumber).padStart(6, "0")}</strong>
+                  </div>
+                ) : null}
+                {cosmicBinderIssueNumber ? (
+                  <div className={styles.cosmicBinderDiscoveryBadge}>
+                    <span>✦ Independent 1 in 50,000 discovery</span>
+                    <strong>COSMIC BINDER #{String(cosmicBinderIssueNumber).padStart(6, "0")}</strong>
+                  </div>
+                ) : null}
               </div>
             ) : null}
             <p className={styles.rarity}>{config.label}</p>

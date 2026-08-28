@@ -32,6 +32,77 @@
   opacity: 0.38;
 }
 
+.binder[data-theme="cosmic_binder"] {
+  border-color: #19104c;
+  background:
+    radial-gradient(circle at 18% 0%, rgba(103, 232, 249, 0.2), transparent 27%),
+    radial-gradient(circle at 82% 100%, rgba(232, 121, 249, 0.18), transparent 30%),
+    linear-gradient(104deg, #02030f 0%, #171044 18%, #08051f 49%, #2b1459 82%, #02030f 100%);
+  box-shadow:
+    0 0 0 1px rgba(165, 243, 252, 0.2),
+    0 0 34px rgba(34, 211, 238, 0.2),
+    0 0 84px rgba(124, 58, 237, 0.2),
+    0 32px 96px rgba(0, 0, 0, 0.58),
+    inset 0 0 0 1px rgba(232, 121, 249, 0.13),
+    inset 0 0 44px rgba(34, 211, 238, 0.08);
+}
+
+.binder[data-theme="cosmic_binder"] .coverArtwork {
+  opacity: 0.82;
+  background:
+    radial-gradient(circle at 12% 18%, #fff 0 1px, transparent 1.8px),
+    radial-gradient(circle at 31% 72%, #a5f3fc 0 1.2px, transparent 2px),
+    radial-gradient(circle at 68% 22%, #f0abfc 0 1px, transparent 1.8px),
+    radial-gradient(circle at 89% 67%, #fff7c2 0 1.2px, transparent 2px),
+    radial-gradient(circle at 48% 46%, rgba(103, 232, 249, 0.17), transparent 31%),
+    linear-gradient(90deg, rgba(0, 0, 0, 0.36), transparent 24%, transparent 76%, rgba(0, 0, 0, 0.36));
+}
+
+.cosmicAtmosphere {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  overflow: hidden;
+  border-radius: inherit;
+  pointer-events: none;
+  mix-blend-mode: screen;
+}
+
+.cosmicNebula {
+  position: absolute;
+  inset: -44%;
+  opacity: 0.32;
+  background:
+    conic-gradient(from 30deg, transparent 0 16%, rgba(34, 211, 238, 0.34) 22%, transparent 31% 49%, rgba(217, 70, 239, 0.3) 59%, transparent 69% 100%);
+  filter: blur(34px);
+  animation: cosmicNebulaDrift 18s linear infinite;
+}
+
+.cosmicAsterism {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: min(42vw, 34rem);
+  color: #a5f3fc;
+  opacity: 0.13;
+  transform: translate(-50%, -50%) rotate(-8deg);
+  animation: cosmicAsterismDrift 22s ease-in-out infinite alternate;
+}
+
+.cosmicComet {
+  position: absolute;
+  top: 21%;
+  left: -16%;
+  width: 21%;
+  height: 1px;
+  border-radius: 999px;
+  opacity: 0;
+  background: linear-gradient(90deg, transparent, rgba(165, 243, 252, 0.72), #fff);
+  box-shadow: 0 0 9px rgba(103, 232, 249, 0.8);
+  transform: rotate(-11deg);
+  animation: cosmicCometCrossing 7.5s 1.2s ease-in-out infinite;
+}
+
 .coverEdgeLeft,
 .coverEdgeRight {
   position: absolute;
@@ -59,6 +130,16 @@
   box-shadow: inset 0 0 24px rgba(0,0,0,0.24);
 }
 
+.binder[data-theme="cosmic_binder"] .binderPage {
+  background:
+    linear-gradient(180deg, rgba(165, 243, 252, 0.075), rgba(255, 255, 255, 0.018)),
+    radial-gradient(circle at 50% 15%, var(--binder-page-glow), transparent 47%),
+    linear-gradient(145deg, #080a27, #0d0a32 52%, #080b25);
+  box-shadow:
+    inset 0 0 30px rgba(0, 0, 0, 0.34),
+    inset 0 0 42px rgba(124, 58, 237, 0.08);
+}
+
 .leftPage {
   margin-left: 0.8rem;
   border-radius: 1rem 0.4rem 0.4rem 1rem;
@@ -72,8 +153,19 @@
 .pageSheen {
   position: absolute;
   inset: 0;
+  overflow: hidden;
   pointer-events: none;
   background: linear-gradient(125deg, rgba(255,255,255,0.06), transparent 23%, transparent 72%, rgba(103,232,249,0.025));
+}
+
+.binder[data-theme="cosmic_binder"] .pageSheen::after {
+  position: absolute;
+  inset: -25% -60%;
+  content: "";
+  opacity: 0.22;
+  background: linear-gradient(105deg, transparent 42%, rgba(165, 243, 252, 0.48) 49%, rgba(232, 121, 249, 0.35) 51%, transparent 58%);
+  transform: translateX(-46%);
+  animation: cosmicPageSweep 8s ease-in-out infinite;
 }
 
 .pocketGrid {
@@ -95,13 +187,41 @@
   box-shadow: inset 0 0 18px rgba(0,0,0,0.5);
 }
 
+.binder[data-theme="cosmic_binder"] .spine {
+  background: linear-gradient(90deg, #02030f, #1d0d4b 34%, #120936 66%, #02030f);
+  box-shadow:
+    inset 0 0 22px rgba(0, 0, 0, 0.72),
+    0 0 28px rgba(124, 58, 237, 0.18);
+}
+
+.cosmicSpineSeal {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 0;
+  width: 3.15rem;
+  color: #a5f3fc;
+  opacity: 0.72;
+  transform: translate(-50%, -50%);
+}
+
 .ring {
+  position: relative;
+  z-index: 1;
   width: 4.6rem;
   height: 1.1rem;
   border-radius: 999px;
   border: 0.28rem solid var(--binder-ring);
   background: transparent;
   box-shadow: 0 3px 5px rgba(0,0,0,0.5), inset 0 1px 2px rgba(255,255,255,0.55);
+}
+
+.binder[data-theme="cosmic_binder"] .ring {
+  border-color: #a5f3fc;
+  box-shadow:
+    0 0 10px rgba(34, 211, 238, 0.56),
+    0 3px 6px rgba(0, 0, 0, 0.65),
+    inset 0 0 4px rgba(255, 255, 255, 0.76);
 }
 
 .pocket,
@@ -148,6 +268,49 @@
   transform: translateY(-2px) scale(1.01);
   border-color: color-mix(in srgb, var(--rarity-colour) 50%, rgba(255,255,255,0.2));
   box-shadow: 0 10px 28px var(--rarity-glow), inset 0 0 0 1px rgba(255,255,255,0.05);
+}
+
+.binder[data-theme="cosmic_binder"] .pocket,
+.binder[data-theme="cosmic_binder"] .emptyPocket {
+  border-color: rgba(165, 243, 252, 0.2);
+  background:
+    radial-gradient(circle at 50% 0%, rgba(103, 232, 249, 0.12), transparent 38%),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.055), rgba(3, 4, 20, 0.68));
+  box-shadow:
+    inset 0 0 0 1px rgba(232, 121, 249, 0.04),
+    0 8px 22px rgba(0, 0, 0, 0.24),
+    0 0 14px rgba(34, 211, 238, 0.045);
+}
+
+.binder[data-theme="cosmic_binder"] .pocket:hover {
+  border-color: rgba(165, 243, 252, 0.62);
+  box-shadow:
+    0 12px 30px var(--rarity-glow),
+    0 0 26px rgba(34, 211, 238, 0.2),
+    inset 0 0 0 1px rgba(232, 121, 249, 0.12);
+}
+
+@keyframes cosmicNebulaDrift {
+  to { transform: rotate(360deg) scale(1.08); }
+}
+
+@keyframes cosmicAsterismDrift {
+  from { opacity: 0.08; transform: translate(-50%, -50%) rotate(-10deg) scale(0.94); }
+  to { opacity: 0.19; transform: translate(-50%, -50%) rotate(9deg) scale(1.08); }
+}
+
+@keyframes cosmicCometCrossing {
+  0%, 74% { opacity: 0; transform: translateX(0) rotate(-11deg); }
+  78% { opacity: 0.9; }
+  91% { opacity: 0.72; }
+  100% { opacity: 0; transform: translateX(650%) rotate(-11deg); }
+}
+
+@keyframes cosmicPageSweep {
+  0%, 58% { opacity: 0; transform: translateX(-46%); }
+  67% { opacity: 0.24; }
+  86% { opacity: 0.16; }
+  100% { opacity: 0; transform: translateX(46%); }
 }
 
 .swapSelected {
@@ -244,4 +407,17 @@
 
   .rightPage { margin-top: 0.55rem; }
   .pocketGrid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.42rem; }
+
+  .cosmicAsterism { width: 76vw; opacity: 0.09; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cosmicNebula,
+  .cosmicAsterism,
+  .cosmicComet,
+  .binder[data-theme="cosmic_binder"] .pageSheen::after {
+    animation: none;
+  }
+
+  .cosmicComet { display: none; }
 }

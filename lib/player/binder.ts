@@ -99,6 +99,17 @@ export const BINDER_THEMES: BinderTheme[] = [
     spineBase: "#233019",
     ring: "#b7c79c",
   },
+  {
+    key: "cosmic_binder",
+    label: "Cosmic Binder",
+    imageUrl: null,
+    coverBase: "#07051f",
+    coverAccent: "#5b21b6",
+    pageBase: "#080b2b",
+    pageGlow: "rgba(103, 232, 249, 0.2)",
+    spineBase: "#10072f",
+    ring: "#a5f3fc",
+  },
 ];
 
 export const BINDER_THEME_KEYS = BINDER_THEMES.map((theme) => theme.key);
