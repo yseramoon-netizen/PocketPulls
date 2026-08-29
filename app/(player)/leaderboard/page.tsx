@@ -9,6 +9,7 @@ import {
   useRef,
   useState,
 } from "react";
+import Image from "next/image";
 
 import {
   formatMoney,
@@ -25,6 +26,8 @@ const MAX_VISIBLE_RANKS = 100;
 const MAX_VISIBLE_GALAXIES = MAX_VISIBLE_RANKS - 1;
 const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
 const TAU = Math.PI * 2;
+const INNER_ORBIT_SPEED = TAU / 92;
+const OUTER_ORBIT_SPEED = TAU / 210;
 
 type LeaderboardRow = {
   rank_position: number | string | null;
@@ -72,6 +75,10 @@ type GalaxyNode = {
   orbitRadius: number;
   orbitSpeed: number;
   orbitDepth: number;
+  orbitDirection: number;
+  orbitInclination: number;
+  orbitEccentricity: number;
+  orbitFlatten: number;
   size: number;
   hue: number;
   tilt: number;
@@ -88,6 +95,15 @@ type BackgroundStar = {
   brightness: number;
   phase: number;
   temperature: number;
+};
+
+type BlackHoleDust = {
+  angle: number;
+  radius: number;
+  speed: number;
+  size: number;
+  brightness: number;
+  warmth: number;
 };
 
 type Camera = {
@@ -208,16 +224,25 @@ function buildGalaxyNodes(players: readonly LeaderboardPlayer[]): GalaxyNode[] {
     const random = seededRandom(seed);
     const angle = index * GOLDEN_ANGLE + (random() - 0.5) * 0.09;
     const orbit = 0.24 + Math.pow(progress, 0.68) * 0.9;
+    const orbitInclination = (random() - 0.5) * 0.46;
+    const orbitEccentricity = 1.06 + random() * 0.16;
+    const orbitFlatten = 0.56 + random() * 0.13;
+    const orbitX = Math.cos(angle) * orbit * orbitEccentricity;
+    const orbitY = Math.sin(angle) * orbit * orbitFlatten;
 
     return {
       player,
-      x: Math.cos(angle) * orbit * 1.18,
-      y: Math.sin(angle) * orbit * 0.72,
-      z: 0.48 - progress * 0.92 + (random() - 0.5) * 0.16,
+      x: orbitX * Math.cos(orbitInclination) - orbitY * Math.sin(orbitInclination),
+      y: orbitX * Math.sin(orbitInclination) + orbitY * Math.cos(orbitInclination),
+      z: 0.03 + (random() - 0.5) * 0.24,
       orbitAngle: angle,
       orbitRadius: orbit,
-      orbitSpeed: 0.000026 - progress * 0.000013,
+      orbitSpeed: lerp(INNER_ORBIT_SPEED, OUTER_ORBIT_SPEED, Math.pow(progress, 0.72)),
       orbitDepth: 0.045 + progress * 0.055,
+      orbitDirection: random() > 0.14 ? 1 : -1,
+      orbitInclination,
+      orbitEccentricity,
+      orbitFlatten,
       size,
       hue: (188 + (seed % 174)) % 360,
       tilt: (random() - 0.5) * 1.2,
@@ -237,10 +262,14 @@ function resolveGalaxyPosition(
     return { x: node.x, y: node.y, z: node.z };
   }
 
-  const angle = node.orbitAngle + time * node.orbitSpeed;
+  const angle = node.orbitAngle + time * 0.001 * node.orbitSpeed * node.orbitDirection;
+  const orbitX = Math.cos(angle) * node.orbitRadius * node.orbitEccentricity;
+  const orbitY = Math.sin(angle) * node.orbitRadius * node.orbitFlatten;
+  const cosInclination = Math.cos(node.orbitInclination);
+  const sinInclination = Math.sin(node.orbitInclination);
   return {
-    x: Math.cos(angle) * node.orbitRadius * 1.18,
-    y: Math.sin(angle) * node.orbitRadius * 0.72,
+    x: orbitX * cosInclination - orbitY * sinInclination,
+    y: orbitX * sinInclination + orbitY * cosInclination,
     z: node.z + Math.sin(angle + node.tilt * 0.35) * node.orbitDepth,
   };
 }
@@ -255,6 +284,18 @@ const BACKGROUND_STARS: BackgroundStar[] = (() => {
     brightness: 0.18 + random() * 0.66,
     phase: random() * TAU,
     temperature: random(),
+  }));
+})();
+
+const BLACK_HOLE_DUST: BlackHoleDust[] = (() => {
+  const random = seededRandom(0xb1ac40de);
+  return Array.from({ length: 86 }, () => ({
+    angle: random() * TAU,
+    radius: 1.05 + Math.pow(random(), 0.72) * 1.08,
+    speed: 0.00012 + random() * 0.00022,
+    size: 0.34 + random() * 1.08,
+    brightness: 0.18 + random() * 0.68,
+    warmth: random(),
   }));
 })();
 
@@ -378,13 +419,34 @@ function drawGalaxy(
   reducedMotion: boolean,
 ) {
   const intensity = selected ? 1.32 : hovered ? 1.16 : 1;
+  const breathe = reducedMotion ? 1 : 0.97 + Math.sin(time * 0.0014 + node.orbitAngle) * 0.03;
+  if (radius < 10 && !selected && !hovered && !node.player.isCurrentUser) {
+    context.save();
+    context.translate(projected.x, projected.y);
+    context.rotate(node.tilt);
+    context.globalCompositeOperation = "lighter";
+    context.fillStyle = hsla(node.hue, 88, 68, 0.38);
+    context.shadowColor = hsla(node.hue, 96, 72, 0.62);
+    context.shadowBlur = radius * 0.82;
+    context.beginPath();
+    context.ellipse(0, 0, radius * 0.82, radius * node.flatten * 0.82, 0, 0, TAU);
+    context.fill();
+    context.fillStyle = "rgba(255,253,235,0.9)";
+    context.shadowBlur = radius * 0.42;
+    context.beginPath();
+    context.arc(0, 0, Math.max(0.8, radius * 0.12), 0, TAU);
+    context.fill();
+    context.restore();
+    return;
+  }
+
   const halo = context.createRadialGradient(
     projected.x,
     projected.y,
     0,
     projected.x,
     projected.y,
-    radius * 1.42,
+    radius * 1.52 * breathe,
   );
   halo.addColorStop(0, hsla(node.hue + 22, 92, 86, 0.72 * intensity));
   halo.addColorStop(0.12, hsla(node.hue, 94, 70, 0.33 * intensity));
@@ -392,7 +454,7 @@ function drawGalaxy(
   halo.addColorStop(1, hsla(node.hue, 88, 50, 0));
   context.fillStyle = halo;
   context.beginPath();
-  context.arc(projected.x, projected.y, radius * 1.42, 0, TAU);
+  context.arc(projected.x, projected.y, radius * 1.52 * breathe, 0, TAU);
   context.fill();
 
   const spin = reducedMotion ? 0 : time * 0.001 * node.spin;
@@ -400,8 +462,35 @@ function drawGalaxy(
   const sinTilt = Math.sin(node.tilt);
 
   context.save();
+  context.translate(projected.x, projected.y);
+  context.rotate(node.tilt);
+  context.scale(1, node.flatten);
+  const disc = context.createRadialGradient(0, 0, radius * 0.04, 0, 0, radius * 1.08);
+  disc.addColorStop(0, "rgba(255,253,232,0.9)");
+  disc.addColorStop(0.16, hsla(node.hue + 18, 96, 76, 0.5 * intensity));
+  disc.addColorStop(0.5, hsla(node.hue, 88, 55, 0.16 * intensity));
+  disc.addColorStop(0.76, hsla(node.hue - 22, 82, 42, 0.055 * intensity));
+  disc.addColorStop(1, hsla(node.hue, 80, 35, 0));
+  context.fillStyle = disc;
+  context.beginPath();
+  context.arc(0, 0, radius * 1.08, 0, TAU);
+  context.fill();
+
+  context.globalAlpha = selected ? 0.3 : 0.18;
+  context.strokeStyle = "rgba(2,3,12,0.96)";
+  context.lineWidth = Math.max(0.7, radius * 0.055);
+  for (let arm = 0; arm < 2; arm += 1) {
+    context.beginPath();
+    context.arc(0, 0, radius * (0.44 + arm * 0.24), spin + arm * Math.PI, spin + arm * Math.PI + Math.PI * 1.32);
+    context.stroke();
+  }
+  context.restore();
+
+  context.save();
   context.globalCompositeOperation = "lighter";
-  for (const particle of node.particles) {
+  const particleStep = radius < 8 ? 3 : radius < 13 ? 2 : 1;
+  for (let particleIndex = 0; particleIndex < node.particles.length; particleIndex += particleStep) {
+    const particle = node.particles[particleIndex];
     const angle = particle.angle + spin;
     const radial = particle.radius * radius;
     const spiralX = Math.cos(angle) * radial;
@@ -445,6 +534,65 @@ function drawGalaxy(
     context.stroke();
     context.restore();
   }
+
+  if (node.player.rank <= 10 && radius >= 15) {
+    context.save();
+    context.fillStyle = selected ? "rgba(255,249,218,0.9)" : "rgba(221,239,255,0.52)";
+    context.font = "800 " + clamp(radius * 0.16, 7, 10) + "px ui-sans-serif, system-ui, sans-serif";
+    context.letterSpacing = "0.08em";
+    context.textAlign = "center";
+    context.textBaseline = "top";
+    context.shadowColor = "rgba(0,0,0,0.92)";
+    context.shadowBlur = 7;
+    context.fillText("#" + node.player.rank, projected.x, projected.y + radius * 0.88);
+    context.restore();
+  }
+}
+
+function drawGalaxyTrails(
+  context: CanvasRenderingContext2D,
+  nodes: readonly GalaxyNode[],
+  project: (point: { x: number; y: number; z: number }) => ProjectedPoint,
+  measure: number,
+  time: number,
+  selectedUserId: string | null,
+  hoveredUserId: string | null,
+  reducedMotion: boolean,
+) {
+  if (reducedMotion) return;
+
+  context.save();
+  context.globalCompositeOperation = "lighter";
+  context.lineCap = "round";
+
+  for (const node of nodes) {
+    const highlighted = node.player.userId === selectedUserId ||
+      node.player.userId === hoveredUserId || node.player.isCurrentUser;
+    if (!highlighted && node.player.rank > 24) continue;
+
+    const samples = highlighted ? 11 : 7;
+    const interval = highlighted ? 430 : 360;
+    let previous = project(resolveGalaxyPosition(node, time - samples * interval, false));
+
+    for (let sample = 1; sample <= samples; sample += 1) {
+      const current = project(resolveGalaxyPosition(node, time - (samples - sample) * interval, false));
+      const strength = sample / samples;
+      context.strokeStyle = hsla(
+        node.hue + 8,
+        92,
+        72,
+        (highlighted ? 0.15 : 0.055) * strength,
+      );
+      context.lineWidth = clamp(node.size * measure * 0.045 * current.scale, 0.45, highlighted ? 2.1 : 1.15);
+      context.beginPath();
+      context.moveTo(previous.x, previous.y);
+      context.lineTo(current.x, current.y);
+      context.stroke();
+      previous = current;
+    }
+  }
+
+  context.restore();
 }
 
 function drawOrbitLanes(
@@ -452,8 +600,11 @@ function drawOrbitLanes(
   camera: Camera,
   width: number,
   height: number,
+  time: number,
+  reducedMotion: boolean,
 ) {
   const radii = [0.31, 0.53, 0.77, 1.02];
+  const inclinations = [0.04, -0.085, 0.11, -0.055];
 
   context.save();
   context.lineWidth = 0.65;
@@ -462,6 +613,10 @@ function drawOrbitLanes(
 
   for (let lane = 0; lane < radii.length; lane += 1) {
     const radius = radii[lane];
+    const inclination = inclinations[lane];
+    const cosInclination = Math.cos(inclination);
+    const sinInclination = Math.sin(inclination);
+    context.lineDashOffset = reducedMotion ? 0 : -time * (0.002 + lane * 0.0004);
     context.strokeStyle = lane % 2 === 0
       ? "rgba(170,235,250,0.035)"
       : "rgba(205,188,255,0.03)";
@@ -469,9 +624,11 @@ function drawOrbitLanes(
 
     for (let step = 0; step <= 72; step += 1) {
       const angle = (step / 72) * TAU;
+      const orbitX = Math.cos(angle) * radius * 1.13;
+      const orbitY = Math.sin(angle) * radius * 0.62;
       const projected = project({
-        x: Math.cos(angle) * radius * 1.18,
-        y: Math.sin(angle) * radius * 0.72,
+        x: orbitX * cosInclination - orbitY * sinInclination,
+        y: orbitX * sinInclination + orbitY * cosInclination,
         z: -0.08 + Math.sin(angle) * (0.025 + lane * 0.008),
       });
 
@@ -480,6 +637,36 @@ function drawOrbitLanes(
     }
 
     context.stroke();
+  }
+
+  context.restore();
+}
+
+function drawBlackHoleDust(
+  context: CanvasRenderingContext2D,
+  point: ProjectedPoint,
+  radius: number,
+  time: number,
+  reducedMotion: boolean,
+) {
+  context.save();
+  context.translate(point.x, point.y);
+  context.rotate(-0.12);
+  context.scale(1, 0.29);
+  context.globalCompositeOperation = "lighter";
+
+  for (const mote of BLACK_HOLE_DUST) {
+    const angle = mote.angle + (reducedMotion ? 0 : time * mote.speed);
+    const orbitRadius = radius * mote.radius;
+    const x = Math.cos(angle) * orbitRadius;
+    const y = Math.sin(angle) * orbitRadius;
+    const alpha = mote.brightness * (0.2 + Math.max(0, Math.sin(angle)) * 0.44);
+    context.fillStyle = mote.warmth > 0.62
+      ? "rgba(255,219,150," + alpha + ")"
+      : "rgba(157,213,255," + alpha * 0.82 + ")";
+    context.beginPath();
+    context.arc(x, y, Math.max(0.4, mote.size * radius * 0.009), 0, TAU);
+    context.fill();
   }
 
   context.restore();
@@ -503,6 +690,28 @@ function drawBlackHole(
   context.beginPath();
   context.arc(point.x, point.y, radius * 2.35, 0, TAU);
   context.fill();
+
+  context.save();
+  context.globalCompositeOperation = "lighter";
+  const jet = context.createLinearGradient(point.x, point.y - radius * 2.1, point.x, point.y + radius * 2.1);
+  jet.addColorStop(0, "rgba(125,211,252,0)");
+  jet.addColorStop(0.28, "rgba(139,180,255,0.05)");
+  jet.addColorStop(0.5, active ? "rgba(221,214,254,0.13)" : "rgba(196,181,253,0.08)");
+  jet.addColorStop(0.72, "rgba(139,180,255,0.04)");
+  jet.addColorStop(1, "rgba(125,211,252,0)");
+  context.fillStyle = jet;
+  context.beginPath();
+  context.moveTo(point.x - radius * 0.12, point.y);
+  context.lineTo(point.x - radius * 0.48, point.y - radius * 2.1);
+  context.lineTo(point.x + radius * 0.48, point.y - radius * 2.1);
+  context.lineTo(point.x + radius * 0.12, point.y);
+  context.lineTo(point.x + radius * 0.44, point.y + radius * 2.1);
+  context.lineTo(point.x - radius * 0.44, point.y + radius * 2.1);
+  context.closePath();
+  context.fill();
+  context.restore();
+
+  drawBlackHoleDust(context, point, radius, time, reducedMotion);
 
   context.save();
   context.translate(point.x, point.y);
@@ -529,6 +738,19 @@ function drawBlackHole(
       context.stroke();
     }
   }
+  context.restore();
+
+  context.save();
+  context.translate(point.x, point.y);
+  context.rotate(0.055);
+  context.scale(1, 0.34);
+  context.strokeStyle = active ? "rgba(226,232,255,0.3)" : "rgba(188,197,255,0.16)";
+  context.lineWidth = Math.max(0.7, radius * 0.016);
+  context.setLineDash([radius * 0.04, radius * 0.085]);
+  context.lineDashOffset = reducedMotion ? 0 : time * 0.012;
+  context.beginPath();
+  context.arc(0, 0, radius * 1.72, 0, TAU);
+  context.stroke();
   context.restore();
 
   const lens = context.createRadialGradient(point.x - radius * 0.13, point.y - radius * 0.18, radius * 0.08, point.x, point.y, radius * 0.94);
@@ -559,6 +781,16 @@ function drawBlackHole(
   context.beginPath();
   context.arc(point.x, point.y, radius * 0.72, 0, TAU);
   context.fill();
+
+  context.save();
+  context.strokeStyle = active ? "rgba(254,249,219,0.36)" : "rgba(205,197,255,0.2)";
+  context.lineWidth = Math.max(0.65, radius * 0.011);
+  context.setLineDash([1, radius * 0.075]);
+  context.lineDashOffset = reducedMotion ? 0 : -time * 0.018;
+  context.beginPath();
+  context.arc(point.x, point.y, radius * 0.99, 0, TAU);
+  context.stroke();
+  context.restore();
 }
 
 export default function LeaderboardPage() {
@@ -571,6 +803,8 @@ export default function LeaderboardPage() {
   const selectedRef = useRef<LeaderboardPlayer | null>(null);
   const hoveredRef = useRef<LeaderboardPlayer | null>(null);
   const reducedMotionRef = useRef(false);
+  const pageVisibleRef = useRef(true);
+  const motionOverrideRef = useRef<boolean | null>(null);
   const pointerRef = useRef({ down: false, moved: false, x: 0, y: 0 });
   const hoverLabelRef = useRef<HTMLDivElement | null>(null);
   const cameraRef = useRef<Camera>({ yaw: 0, pitch: 0, zoom: 1, focusX: 0, focusY: 0, focusZ: 0 });
@@ -580,6 +814,7 @@ export default function LeaderboardPage() {
   const [selectedPlayer, setSelectedPlayer] = useState<LeaderboardPlayer | null>(null);
   const [hoverLabel, setHoverLabel] = useState<HoverLabel | null>(null);
   const [infoPanelOpen, setInfoPanelOpen] = useState(true);
+  const [motionActive, setMotionActive] = useState(true);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -635,16 +870,11 @@ export default function LeaderboardPage() {
 
   useEffect(() => {
     const compact = window.matchMedia("(max-width: 767px)");
-    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)");
     const syncCompact = () => setInfoPanelOpen(!compact.matches);
-    const syncReduced = () => { reducedMotionRef.current = reduced.matches; };
     syncCompact();
-    syncReduced();
     compact.addEventListener("change", syncCompact);
-    reduced.addEventListener("change", syncReduced);
     return () => {
       compact.removeEventListener("change", syncCompact);
-      reduced.removeEventListener("change", syncReduced);
     };
   }, []);
 
@@ -664,7 +894,8 @@ export default function LeaderboardPage() {
   useEffect(() => { pharaohRef.current = pharaoh; }, [pharaoh]);
   useEffect(() => { selectedRef.current = selectedPlayer; }, [selectedPlayer]);
 
-  const renderScene = useCallback((time: number) => {
+  const renderScene = useCallback(function renderFrame(time: number) {
+    frameRef.current = null;
     const canvas = canvasRef.current;
     const viewport = viewportRef.current;
     if (!canvas || !viewport) return;
@@ -673,7 +904,7 @@ export default function LeaderboardPage() {
     const height = viewport.clientHeight;
     if (width <= 0 || height <= 0) return;
     const mobile = width < 768;
-    const dpr = Math.min(window.devicePixelRatio || 1, mobile ? 1.16 : 1.55);
+    const dpr = Math.min(window.devicePixelRatio || 1, mobile ? 1.28 : 1.62);
     const pixelWidth = Math.round(width * dpr);
     const pixelHeight = Math.round(height * dpr);
     if (canvas.width !== pixelWidth || canvas.height !== pixelHeight) {
@@ -716,10 +947,23 @@ export default function LeaderboardPage() {
     camera.focusZ = lerp(camera.focusZ, target.focusZ, settle);
 
     drawBackground(context, width, height, camera, time, reducedMotionRef.current);
-    drawOrbitLanes(context, camera, width, height);
+    drawOrbitLanes(context, camera, width, height, time, reducedMotionRef.current);
 
     const measure = Math.min(width, height);
     const project = createProjector(camera, width, height);
+    const centre = project({ x: 0, y: 0, z: 0.18 });
+    const holeRadius = clamp(measure * 0.105 * centre.scale, mobile ? 52 : 68, mobile ? 82 : 132);
+    const blackHoleActive = selectedRef.current?.rank === 1 || hoveredRef.current?.rank === 1;
+    drawGalaxyTrails(
+      context,
+      nodesRef.current,
+      project,
+      measure,
+      time,
+      selectedRef.current?.userId ?? null,
+      hoveredRef.current?.userId ?? null,
+      reducedMotionRef.current,
+    );
     const projectedNodes = nodesRef.current.map((node) => {
       const position = resolveGalaxyPosition(node, time, reducedMotionRef.current);
       return {
@@ -728,8 +972,13 @@ export default function LeaderboardPage() {
       };
     }).sort((first, second) => first.projected.depth - second.projected.depth);
     const hits: GalaxyHit[] = [];
+    let blackHoleDrawn = false;
 
     for (const item of projectedNodes) {
+      if (!blackHoleDrawn && item.projected.depth >= centre.depth) {
+        drawBlackHole(context, centre, holeRadius, time, blackHoleActive, reducedMotionRef.current);
+        blackHoleDrawn = true;
+      }
       const radius = clamp(item.node.size * measure * item.projected.scale, mobile ? 5.2 : 5.8, mobile ? 43 : 74);
       if (
         item.projected.x < -radius * 2 ||
@@ -741,8 +990,9 @@ export default function LeaderboardPage() {
       const hovered = hoveredRef.current?.userId === item.node.player.userId;
       drawGalaxy(context, item.node, item.projected, radius, time, selected, hovered, reducedMotionRef.current);
       if (hovered && hoverLabelRef.current) {
-        hoverLabelRef.current.style.left = item.projected.x + "px";
-        hoverLabelRef.current.style.top = item.projected.y + "px";
+        hoverLabelRef.current.style.transform =
+          "translate3d(" + item.projected.x + "px," + item.projected.y + "px,0) " +
+          "translate(-50%,calc(-100% - 1rem))";
       }
       hits.push({
         player: item.node.player,
@@ -753,16 +1003,9 @@ export default function LeaderboardPage() {
       });
     }
 
-    const centre = project({ x: 0, y: 0, z: 0.18 });
-    const holeRadius = clamp(measure * 0.105 * centre.scale, mobile ? 52 : 68, mobile ? 82 : 132);
-    drawBlackHole(
-      context,
-      centre,
-      holeRadius,
-      time,
-      selectedRef.current?.rank === 1 || hoveredRef.current?.rank === 1,
-      reducedMotionRef.current,
-    );
+    if (!blackHoleDrawn) {
+      drawBlackHole(context, centre, holeRadius, time, blackHoleActive, reducedMotionRef.current);
+    }
     if (pharaohRef.current) {
       hits.push({
         player: pharaohRef.current,
@@ -774,21 +1017,48 @@ export default function LeaderboardPage() {
     }
     hitsRef.current = hits.sort((first, second) => second.depth - first.depth);
 
-    if (!reducedMotionRef.current ||
+    if (pageVisibleRef.current && (!reducedMotionRef.current ||
       Math.abs(camera.yaw - target.yaw) > 0.001 ||
       Math.abs(camera.pitch - target.pitch) > 0.001 ||
       Math.abs(camera.zoom - target.zoom) > 0.001 ||
       Math.abs(camera.focusX - target.focusX) > 0.001 ||
-      Math.abs(camera.focusY - target.focusY) > 0.001) {
-      frameRef.current = window.requestAnimationFrame(renderScene);
-    } else {
-      frameRef.current = null;
+      Math.abs(camera.focusY - target.focusY) > 0.001 ||
+      Math.abs(camera.focusZ - target.focusZ) > 0.001)) {
+      frameRef.current = window.requestAnimationFrame(renderFrame);
     }
   }, []);
 
   const queueRender = useCallback(() => {
     if (frameRef.current === null) frameRef.current = window.requestAnimationFrame(renderScene);
   }, [renderScene]);
+
+  useEffect(() => {
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const syncReduced = () => {
+      const active = motionOverrideRef.current ?? !reduced.matches;
+      reducedMotionRef.current = !active;
+      setMotionActive(active);
+      queueRender();
+    };
+    syncReduced();
+    reduced.addEventListener("change", syncReduced);
+    return () => reduced.removeEventListener("change", syncReduced);
+  }, [queueRender]);
+
+  useEffect(() => {
+    const syncVisibility = () => {
+      pageVisibleRef.current = document.visibilityState === "visible";
+      if (pageVisibleRef.current) {
+        queueRender();
+      } else if (frameRef.current !== null) {
+        window.cancelAnimationFrame(frameRef.current);
+        frameRef.current = null;
+      }
+    };
+    syncVisibility();
+    document.addEventListener("visibilitychange", syncVisibility);
+    return () => document.removeEventListener("visibilitychange", syncVisibility);
+  }, [queueRender]);
 
   useEffect(() => {
     queueRender();
@@ -802,6 +1072,14 @@ export default function LeaderboardPage() {
       frameRef.current = null;
     };
   }, [nodes, pharaoh, queueRender]);
+
+  const toggleMotion = useCallback(() => {
+    const nextActive = reducedMotionRef.current;
+    motionOverrideRef.current = nextActive;
+    reducedMotionRef.current = !nextActive;
+    setMotionActive(nextActive);
+    queueRender();
+  }, [queueRender]);
 
   const findHit = useCallback((clientX: number, clientY: number): GalaxyHit | null => {
     const bounds = viewportRef.current?.getBoundingClientRect();
@@ -866,8 +1144,6 @@ export default function LeaderboardPage() {
       if (hoveredRef.current?.userId !== hit?.player.userId) {
         hoveredRef.current = hit?.player ?? null;
         setHoverLabel(hit ? { player: hit.player, x: hit.x, y: hit.y } : null);
-      } else if (hit) {
-        setHoverLabel({ player: hit.player, x: hit.x, y: hit.y });
       }
       event.currentTarget.style.cursor = hit ? "pointer" : "grab";
     }
@@ -978,7 +1254,14 @@ export default function LeaderboardPage() {
         ) : null}
 
         {hoverLabel && !selectedPlayer ? (
-          <div ref={hoverLabelRef} className={styles.hoverLabel} style={{ left: hoverLabel.x, top: hoverLabel.y }} aria-hidden="true">
+          <div
+            ref={hoverLabelRef}
+            className={styles.hoverLabel}
+            style={{
+              transform: "translate3d(" + hoverLabel.x + "px," + hoverLabel.y + "px,0) translate(-50%,calc(-100% - 1rem))",
+            }}
+            aria-hidden="true"
+          >
             <small>{hoverLabel.player.rank === 1 ? "#1 · The Pharaoh" : "Rank #" + hoverLabel.player.rank}</small>
             <strong>{hoverLabel.player.displayName}</strong>
           </div>
@@ -993,8 +1276,15 @@ export default function LeaderboardPage() {
       </div>
 
       {!loading && players.length > 0 ? (
-        <div className={styles.sceneControls} aria-hidden="true">
-          <span>Live orbit</span><i /><span>Drag the camera</span><i /><span>Select a galaxy</span>
+        <div className={styles.sceneControls} aria-label="Universe motion controls">
+          <span className={motionActive ? styles.liveStatus : styles.pausedStatus}>
+            <i aria-hidden="true" />
+            {motionActive ? "Live orbit" : "Orbit paused"}
+          </span>
+          <span className={styles.controlHint}>Drag to explore · Select a galaxy</span>
+          <button type="button" onClick={toggleMotion} aria-pressed={!motionActive}>
+            {motionActive ? "Pause" : "Play"}
+          </button>
         </div>
       ) : null}
 
@@ -1028,7 +1318,9 @@ function RankDetails({ player, onClose }: { player: LeaderboardPlayer; onClose: 
       <div className={styles.detailHeading}>
         <div className={styles.detailIdentity}>
           <div className={styles.detailAvatar}>
-            {player.avatarUrl ? <img src={player.avatarUrl} alt="" /> : player.displayName.charAt(0).toUpperCase()}
+            {player.avatarUrl ? (
+              <Image src={player.avatarUrl} alt="" width={54} height={54} unoptimized />
+            ) : player.displayName.charAt(0).toUpperCase()}
           </div>
           <div>
             <p>{player.rank === 1 ? "The Pharaoh" : "Universe rank #" + player.rank}</p>

@@ -5,7 +5,9 @@
   height: calc(100dvh - 4.5rem);
   min-height: 36rem;
   overflow: hidden;
-  background: #02030b;
+  background:
+    radial-gradient(circle at 50% 46%, #0a0d25 0, #040616 31%, #02030b 70%),
+    #02030b;
   color: #fff;
 }
 
@@ -94,6 +96,19 @@
     inset 0 1px rgba(255, 255, 255, 0.055);
   backdrop-filter: blur(30px) saturate(1.22);
   -webkit-backdrop-filter: blur(30px) saturate(1.22);
+  animation: panel-enter 520ms cubic-bezier(0.2, 0.76, 0.2, 1) both;
+}
+
+.infoPanel::before,
+.rankDetails::before {
+  position: absolute;
+  left: 8%;
+  right: 8%;
+  top: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(225, 243, 255, 0.34), transparent);
+  content: "";
+  pointer-events: none;
 }
 
 .panelHeading {
@@ -354,6 +369,8 @@
 
 .hoverLabel {
   position: absolute;
+  left: 0;
+  top: 0;
   z-index: 12;
   width: max-content;
   max-width: min(15rem, 72vw);
@@ -363,9 +380,9 @@
   background: rgba(5, 7, 22, 0.78);
   padding: 0.42rem 0.6rem 0.46rem;
   pointer-events: none;
-  transform: translate(-50%, calc(-100% - 1rem));
   box-shadow: 0 0.8rem 2.5rem rgba(0,0,0,0.32), inset 0 1px rgba(255,255,255,0.045);
   backdrop-filter: blur(18px);
+  will-change: transform;
 }
 
 .hoverLabel small,
@@ -433,30 +450,81 @@
   bottom: calc(0.85rem + env(safe-area-inset-bottom));
   display: flex;
   align-items: center;
-  gap: 0.55rem;
+  gap: 0.72rem;
   max-width: calc(100% - 2rem);
   overflow: hidden;
   border: 1px solid rgba(255,255,255,0.065);
   border-radius: 999px;
   background: rgba(5, 7, 22, 0.48);
-  padding: 0.46rem 0.75rem;
-  color: rgba(255,255,255,0.28);
+  padding: 0.32rem 0.38rem 0.32rem 0.72rem;
+  color: rgba(255,255,255,0.34);
   font-size: 0.47rem;
   font-weight: 850;
   letter-spacing: 0.11em;
-  pointer-events: none;
   text-transform: uppercase;
   transform: translateX(-50%);
   white-space: nowrap;
-  backdrop-filter: blur(14px);
+  box-shadow: 0 0.85rem 2.8rem rgba(0, 0, 0, 0.28), inset 0 1px rgba(255, 255, 255, 0.045);
+  backdrop-filter: blur(18px) saturate(1.14);
 }
 
-.sceneControls i {
-  width: 2px;
-  height: 2px;
+.liveStatus,
+.pausedStatus {
+  display: flex;
+  align-items: center;
+  gap: 0.42rem;
+  color: rgba(220, 249, 255, 0.62);
+}
+
+.liveStatus > i,
+.pausedStatus > i {
+  width: 0.38rem;
+  height: 0.38rem;
   flex: none;
   border-radius: 50%;
-  background: rgba(255,255,255,0.24);
+}
+
+.liveStatus > i {
+  background: #7dd3fc;
+  box-shadow: 0 0 0 0 rgba(125, 211, 252, 0.38), 0 0 0.75rem rgba(125, 211, 252, 0.78);
+  animation: live-pulse 2.2s ease-out infinite;
+}
+
+.pausedStatus > i {
+  background: rgba(254, 240, 138, 0.64);
+  box-shadow: 0 0 0.65rem rgba(250, 204, 21, 0.25);
+}
+
+.controlHint {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sceneControls button {
+  min-height: 2rem;
+  flex: none;
+  border: 1px solid rgba(206, 232, 255, 0.1);
+  border-radius: 999px;
+  background: linear-gradient(145deg, rgba(167, 210, 255, 0.1), rgba(255, 255, 255, 0.035));
+  padding: 0 0.75rem;
+  color: rgba(235, 248, 255, 0.7);
+  font: inherit;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: border-color 180ms ease, background 180ms ease, color 180ms ease, transform 180ms ease;
+}
+
+.sceneControls button:hover {
+  border-color: rgba(186, 230, 253, 0.28);
+  background: rgba(125, 211, 252, 0.11);
+  color: white;
+  transform: translateY(-1px);
+}
+
+.sceneControls button:focus-visible {
+  outline: 2px solid rgba(186, 230, 253, 0.78);
+  outline-offset: 2px;
 }
 
 .rankDetails {
@@ -607,6 +675,16 @@
   to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
 }
 
+@keyframes panel-enter {
+  from { opacity: 0; transform: translate3d(0, -0.7rem, 0) scale(0.985); }
+  to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+}
+
+@keyframes live-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(125, 211, 252, 0.34), 0 0 0.75rem rgba(125, 211, 252, 0.78); }
+  68%, 100% { box-shadow: 0 0 0 0.34rem rgba(125, 211, 252, 0), 0 0 0.75rem rgba(125, 211, 252, 0.5); }
+}
+
 @media (max-width: 767px) {
   .page {
     min-height: 31rem;
@@ -662,12 +740,11 @@
 
   .sceneControls {
     gap: 0.45rem;
-    padding-inline: 0.62rem;
+    padding-left: 0.58rem;
     font-size: 0.42rem;
   }
 
-  .sceneControls span:nth-of-type(2),
-  .sceneControls i:nth-of-type(2) {
+  .controlHint {
     display: none;
   }
 
@@ -681,11 +758,6 @@
 }
 
 @media (max-width: 420px) {
-  .sceneControls span:first-child,
-  .sceneControls i:first-of-type {
-    display: none;
-  }
-
   .panelCopy span {
     max-width: 16rem;
   }
@@ -696,14 +768,17 @@
     animation-duration: 5s;
   }
 
-  .rankDetails {
+  .rankDetails,
+  .infoPanel,
+  .liveStatus > i {
     animation: none;
   }
 
   .panelActions button,
   .infoButton,
   .errorBanner button,
-  .detailHeading > button {
+  .detailHeading > button,
+  .sceneControls button {
     transition: none;
   }
 }
