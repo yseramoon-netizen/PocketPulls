@@ -2,26 +2,14 @@
 
 import {
   type CSSProperties,
+  type PointerEvent as ReactPointerEvent,
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 
-import GalaxyConstellationDialog from "@/components/player/GalaxyConstellationDialog";
-import NebulaMark from "@/components/player/NebulaMark";
-import NebulaUniverse, {
-  type NebulaUniversePlayer,
-} from "@/components/player/NebulaUniverse";
-import {
-  PlayerEmptyState,
-  PlayerErrorBanner,
-  PlayerPageHeader,
-  PlayerPanel,
-  PlayerSecondaryButton,
-  PlayerStatCard,
-} from "@/components/player/PlayerUI";
-import usePlayerPreferences from "@/components/player/usePlayerPreferences";
 import {
   formatMoney,
   formatWholeNumber,
@@ -29,17 +17,13 @@ import {
   toNumber,
   toWholeNumber,
 } from "@/lib/player/format";
-import {
-  getNebulaProgress,
-  getNebulaRank,
-  getRelativeNebulaScale,
-  NEBULA_RANKS,
-  PRIME_NEBULA_NAME,
-  type NebulaRank,
-} from "@/lib/player/nebula-ranks";
 import { supabase } from "@/lib/supabase";
 
 import styles from "./Leaderboard.module.css";
+
+const MAX_VISIBLE_RANKS = 100;
+const MAX_VISIBLE_GALAXIES = MAX_VISIBLE_RANKS - 1;
+const GOLDEN_ANGLE = 137.507764 * (Math.PI / 180);
 
 type LeaderboardRow = {
   rank_position: number | string | null;
@@ -53,7 +37,6 @@ type LeaderboardRow = {
   lifetime_wishes: number | string | null;
   score: number | string | null;
   is_current_user: boolean | null;
-  cosmic_issue_number: number | string | null;
 };
 
 type LeaderboardPlayer = {
@@ -71,462 +54,439 @@ type LeaderboardPlayer = {
   cosmicIssueNumber: number | null;
 };
 
+type GalaxyPlacement = {
+  player: LeaderboardPlayer;
+  x: number;
+  y: number;
+  z: number;
+  size: number;
+  hue: number;
+  tilt: number;
+  delay: number;
+  duration: number;
+  zIndex: number;
+};
+
+function clamp(value: number, minimum: number, maximum: number): number {
+  return Math.max(minimum, Math.min(maximum, value));
+}
+
+function hashString(value: string): number {
+  let hash = 2166136261;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+}
+
 function parseRows(value: unknown): LeaderboardPlayer[] {
   if (!Array.isArray(value)) return [];
 
-  return (value as LeaderboardRow[]).map((row) => ({
-    rank: toWholeNumber(row.rank_position),
-    userId: row.user_id || "",
-    username: row.username?.trim() || "trainer",
-    displayName: row.display_name?.trim() || "Star Trainer",
-    avatarUrl: row.avatar_url?.trim() || null,
-    totalCards: toWholeNumber(row.total_cards),
-    uniqueCards: toWholeNumber(row.unique_cards),
-    collectionValue: toNumber(row.collection_value),
-    lifetimeWishes: toWholeNumber(row.lifetime_wishes),
-    score: toWholeNumber(row.score),
-    isCurrentUser: row.is_current_user === true,
-    cosmicIssueNumber:
-      toWholeNumber(row.cosmic_issue_number) > 0
-        ? toWholeNumber(row.cosmic_issue_number)
-        : null,
-  }));
+  return (value as LeaderboardRow[])
+    .map((row) => ({
+      rank: toWholeNumber(row.rank_position),
+      userId: row.user_id || "",
+      username: row.username?.trim() || "trainer",
+      displayName: row.display_name?.trim() || "Star Trainer",
+      avatarUrl: row.avatar_url?.trim() || null,
+      totalCards: toWholeNumber(row.total_cards),
+      uniqueCards: toWholeNumber(row.unique_cards),
+      collectionValue: toNumber(row.collection_value),
+      lifetimeWishes: toWholeNumber(row.lifetime_wishes),
+      score: toWholeNumber(row.score),
+      isCurrentUser: row.is_current_user === true,
+      cosmicIssueNumber: null,
+    }))
+    .filter((player) => player.rank > 0 && player.rank <= MAX_VISIBLE_RANKS)
+    .sort((first, second) => first.rank - second.rank)
+    .slice(0, MAX_VISIBLE_RANKS);
 }
 
-function playerInitial(player: LeaderboardPlayer): string {
-  return player.displayName.charAt(0) || player.username.charAt(0) || "T";
-}
+function buildGalaxyPlacements(players: readonly LeaderboardPlayer[]): GalaxyPlacement[] {
+  const galaxyPlayers = players
+    .filter((player) => player.rank >= 2)
+    .slice(0, MAX_VISIBLE_GALAXIES);
+  const maximumCards = Math.max(1, ...galaxyPlayers.map((player) => player.totalCards));
+  let previousSize = 72;
 
-function rankName(player: LeaderboardPlayer): string {
-  return player.rank === 1 ? PRIME_NEBULA_NAME : getNebulaRank(player.score).name;
-}
+  return galaxyPlayers.map((player, index) => {
+    const progress = clamp((player.rank - 2) / (MAX_VISIBLE_RANKS - 2), 0, 1);
+    const rankProximity = 1 - progress;
+    const cardScale = Math.sqrt(player.totalCards / maximumCards);
+    const desiredSize = 19 + rankProximity ** 0.68 * 43 + cardScale * 7;
+    const size = clamp(Math.min(previousSize - 0.24, desiredSize), 18, 70);
+    previousSize = size;
 
-function rankStyle(rank: NebulaRank, extra?: CSSProperties): CSSProperties {
-  return {
-    "--rank-primary": rank.primary,
-    "--rank-secondary": rank.secondary,
-    ...extra,
-  } as CSSProperties;
+    const hash = hashString(`${player.userId}:${player.rank}`);
+    const angle = index * GOLDEN_ANGLE + ((hash % 29) - 14) * 0.006;
+    const radius = 15.5 + 30.5 * progress ** 0.62;
+
+    return {
+      player,
+      x: 50 + Math.cos(angle) * radius * 1.02,
+      y: 50 + Math.sin(angle) * radius * 0.8,
+      z: Math.round(145 - progress * 390),
+      size,
+      hue: (196 + (hash % 152)) % 360,
+      tilt: -27 + (hash % 55),
+      delay: -(hash % 900) / 100,
+      duration: 6.8 + (hash % 52) / 10,
+      zIndex: Math.round(220 - progress * 120),
+    };
+  });
 }
 
 export default function LeaderboardPage() {
+  const sceneRef = useRef<HTMLDivElement>(null);
+  const tiltFrameRef = useRef<number | null>(null);
   const [players, setPlayers] = useState<LeaderboardPlayer[]>([]);
-  const [selectedGalaxy, setSelectedGalaxy] =
-    useState<NebulaUniversePlayer | null>(null);
+  const [selectedPlayer, setSelectedPlayer] = useState<LeaderboardPlayer | null>(null);
+  const [infoPanelOpen, setInfoPanelOpen] = useState(true);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const preferences = usePlayerPreferences();
 
-  const loadLeaderboard = useCallback(async () => {
-    setLoading(true);
+  const loadLeaderboard = useCallback(async (manual = false) => {
+    if (manual) setRefreshing(true);
+    else setLoading(true);
     setErrorMessage(null);
 
     try {
-      const { data, error } = await supabase.rpc("get_nebula_universe", {
-        p_limit: 100,
+      const { data, error } = await supabase.rpc("get_player_leaderboard", {
+        p_limit: MAX_VISIBLE_RANKS,
       });
-
       if (error) throw error;
-      setPlayers(parseRows(data));
-    } catch (error: unknown) {
-      console.error("Nebula Atlas error:", error);
-      setErrorMessage(
-        getErrorMessage(error, "The Nebula Atlas could not be loaded."),
+
+      const parsed = parseRows(data);
+      const { data: cosmicHolders, error: cosmicError } = await supabase.rpc(
+        "get_public_cosmic_nebu_holders",
+        { p_user_ids: parsed.map((player) => player.userId).filter(Boolean) },
       );
+      const cosmicByUser = new Map<string, number>();
+      if (!cosmicError && Array.isArray(cosmicHolders)) {
+        for (const holder of cosmicHolders as Array<{ user_id?: unknown; issue_number?: unknown }>) {
+          const userId = typeof holder.user_id === "string" ? holder.user_id : "";
+          const issue = toWholeNumber(holder.issue_number);
+          if (userId && issue > 0) cosmicByUser.set(userId, issue);
+        }
+      }
+
+      const nextPlayers = parsed.map((player) => ({
+        ...player,
+        cosmicIssueNumber: cosmicByUser.get(player.userId) ?? null,
+      }));
+      setPlayers(nextPlayers);
+      setSelectedPlayer((current) =>
+        current
+          ? nextPlayers.find((player) => player.userId === current.userId) ?? null
+          : null,
+      );
+    } catch (error: unknown) {
+      console.error("Living ranks error:", error);
+      setErrorMessage(getErrorMessage(error, "The living ranks could not be loaded."));
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }, []);
 
   useEffect(() => {
-    const frame = window.requestAnimationFrame(() => {
-      void loadLeaderboard();
-    });
+    const frame = window.requestAnimationFrame(() => void loadLeaderboard());
     return () => window.cancelAnimationFrame(frame);
   }, [loadLeaderboard]);
 
-  const primeNebula = players[0] ?? null;
-  const neighbouringGiants = players.slice(1, 3);
-  const currentPlayer = players.find((player) => player.isCurrentUser) ?? null;
-  const largestMass = primeNebula?.score ?? 0;
-
-  const atlasMass = useMemo(
-    () => players.reduce((total, player) => total + player.score, 0),
-    [players],
-  );
-  const universePlayers = useMemo<NebulaUniversePlayer[]>(
-    () =>
-      players.map((player) => ({
-        rank: player.rank,
-        userId: player.userId,
-        username: player.username,
-        displayName: player.displayName,
-        score: player.score,
-        isCurrentUser: player.isCurrentUser,
-        cosmicIssueNumber: player.cosmicIssueNumber,
-      })),
-    [players],
-  );
-  const reducedUniverseMotion =
-    preferences.reducedMotion ||
-    preferences.lowVisualEffects ||
-    preferences.dataSaver;
-  const openConstellation = useCallback((player: NebulaUniversePlayer) => {
-    setSelectedGalaxy(player);
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 767px)");
+    const sync = () => setInfoPanelOpen(!media.matches);
+    sync();
+    media.addEventListener("change", sync);
+    return () => media.removeEventListener("change", sync);
   }, []);
 
+  useEffect(() => () => {
+    if (tiltFrameRef.current !== null) window.cancelAnimationFrame(tiltFrameRef.current);
+  }, []);
+
+  const placements = useMemo(() => buildGalaxyPlacements(players), [players]);
+  const pharaoh = players.find((player) => player.rank === 1) ?? null;
+  const currentPlayer = players.find((player) => player.isCurrentUser) ?? null;
+  const communityCards = useMemo(
+    () => players.reduce((total, player) => total + player.totalCards, 0),
+    [players],
+  );
+  const communityWishes = useMemo(
+    () => players.reduce((total, player) => total + player.lifetimeWishes, 0),
+    [players],
+  );
+
+  const updateSceneTilt = useCallback((x: number, y: number) => {
+    if (tiltFrameRef.current !== null) window.cancelAnimationFrame(tiltFrameRef.current);
+    tiltFrameRef.current = window.requestAnimationFrame(() => {
+      tiltFrameRef.current = null;
+      const scene = sceneRef.current;
+      if (!scene) return;
+      scene.style.setProperty("--ranks-rotate-x", `${y * -3.8}deg`);
+      scene.style.setProperty("--ranks-rotate-y", `${x * 5.2}deg`);
+    });
+  }, []);
+
+  const handlePointerMove = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+    if (event.pointerType === "touch") return;
+    const bounds = event.currentTarget.getBoundingClientRect();
+    updateSceneTilt(
+      clamp((event.clientX - bounds.left) / Math.max(1, bounds.width) - 0.5, -0.5, 0.5),
+      clamp((event.clientY - bounds.top) / Math.max(1, bounds.height) - 0.5, -0.5, 0.5),
+    );
+  }, [updateSceneTilt]);
+
   return (
-    <section className="mx-auto w-full max-w-[1500px] px-4 py-8 sm:px-6 lg:px-8">
-      <PlayerPageHeader
-        eyebrow="Ancient Pulls Universe"
-        title="The Living Universe"
-        description="Every trainer is a galaxy. The greatest mass bends the rest into orbit."
-        actions={
-          <PlayerSecondaryButton onClick={() => void loadLeaderboard()}>
-            Refresh universe
-          </PlayerSecondaryButton>
-        }
-      />
+    <section className={styles.page}>
+      <h1 className="sr-only">Living Ranks</h1>
+      <div className={styles.deepSpace} aria-hidden="true" />
+      <div className={styles.starVeil} aria-hidden="true" />
+      <div className={styles.nebulaLeft} aria-hidden="true" />
+      <div className={styles.nebulaRight} aria-hidden="true" />
 
-      <PlayerErrorBanner
-        message={errorMessage}
-        onRetry={() => void loadLeaderboard()}
-      />
-
-      <div className="mt-7 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <PlayerStatCard
-          label="Known galaxies"
-          value={formatWholeNumber(players.length)}
-          detail="Public worlds in this universe"
-          accent="violet"
-        />
-        <PlayerStatCard
-          label="Universe mass"
-          value={formatWholeNumber(atlasMass)}
-          detail="Combined stellar mass"
-          accent="cyan"
-        />
-        <PlayerStatCard
-          label="Strongest gravity"
-          value={primeNebula ? PRIME_NEBULA_NAME : "Unformed"}
-          detail={primeNebula ? primeNebula.displayName : "Awaiting first light"}
-          accent="yellow"
-        />
-        <PlayerStatCard
-          label="Your galaxy"
-          value={currentPlayer ? rankName(currentPlayer) : "Uncharted"}
-          detail={
-            currentPlayer
-              ? `Orbit #${formatWholeNumber(currentPlayer.rank)}`
-              : "Complete a wish to form it"
-          }
-          accent="pink"
-        />
-      </div>
-
-      {loading ? (
-        <div className="mt-6 h-[38rem] animate-pulse rounded-[2rem] border border-white/[0.07] bg-white/[0.025]" />
-      ) : players.length === 0 ? (
-        <PlayerEmptyState
-          title="The Universe is still dark."
-          description="Its first galaxy will form when a trainer begins collecting."
-        />
+      {infoPanelOpen ? (
+        <aside className={styles.infoPanel} aria-label="Living ranks information">
+          <div className={styles.panelHeading}>
+            <div className={styles.panelCopy}>
+              <p>Ancient Pulls</p>
+              <h2>Living Ranks</h2>
+              <span>The strongest collections bend the sky around them.</span>
+            </div>
+            <div className={styles.panelActions}>
+              <button type="button" onClick={() => void loadLeaderboard(true)} disabled={refreshing}>
+                {refreshing ? "Reading…" : "Refresh"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setInfoPanelOpen(false)}
+                aria-label="Hide living ranks information"
+                title="Hide information"
+              >
+                ×
+              </button>
+            </div>
+          </div>
+          <div className={styles.statsGrid}>
+            <RankStat label="Ranked" value={loading ? "—" : formatWholeNumber(players.length)} />
+            <RankStat label="Cards" value={loading ? "—" : formatWholeNumber(communityCards)} />
+            <RankStat label="Wishes" value={loading ? "—" : formatWholeNumber(communityWishes)} />
+            <RankStat
+              label="Your orbit"
+              value={loading ? "—" : currentPlayer ? `#${currentPlayer.rank}` : "Unranked"}
+            />
+          </div>
+        </aside>
       ) : (
-        <>
-          <NebulaUniverse
-            players={universePlayers}
-            reducedMotion={reducedUniverseMotion}
-            onOpenConstellation={openConstellation}
-          />
-
-          {currentPlayer ? <CurrentNebulaProgress player={currentPlayer} /> : null}
-
-          <NebulaClassAtlas currentPlayer={currentPlayer} />
-
-          {neighbouringGiants.length > 0 ? (
-            <section className={styles.giantsSection} aria-labelledby="nearby-giants-title">
-              <div className={styles.sectionHeading}>
-                <div>
-                  <p>Nearest formations</p>
-                  <h2 id="nearby-giants-title">The neighbouring giants</h2>
-                </div>
-                <span>Still within reach of the Prime Nebula</span>
-              </div>
-
-              <div className={styles.giantsGrid}>
-                {neighbouringGiants.map((player) => (
-                  <NebulaPodiumCard
-                    key={player.userId}
-                    player={player}
-                    largestMass={largestMass}
-                  />
-                ))}
-              </div>
-            </section>
-          ) : null}
-
-          <PlayerPanel className={`${styles.atlasPanel} mt-6 overflow-hidden`}>
-            <div className={styles.atlasHeader}>
-              <div>
-                <p>Universe records</p>
-                <h2>All known galaxies</h2>
-              </div>
-              <p>
-                Stellar mass combines collection value, owned cards, unique
-                discoveries and completed wishes.
-              </p>
-            </div>
-
-            <div className={styles.desktopAtlas}>
-              <table>
-                <thead>
-                  <tr>
-                    <th scope="col">Orbit</th>
-                    <th scope="col">Formation</th>
-                    <th scope="col">Trainer</th>
-                    <th scope="col">Cards</th>
-                    <th scope="col">Value</th>
-                    <th scope="col">Wishes</th>
-                    <th scope="col">Stellar mass</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {players.map((player) => (
-                    <NebulaTableRow key={player.userId} player={player} />
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            <div className={styles.mobileAtlas}>
-              {players.map((player) => (
-                <NebulaMobileRow key={player.userId} player={player} />
-              ))}
-            </div>
-          </PlayerPanel>
-
-          <GalaxyConstellationDialog
-            player={selectedGalaxy}
-            reducedMotion={reducedUniverseMotion}
-            onClose={() => setSelectedGalaxy(null)}
-          />
-        </>
+        <button
+          type="button"
+          onClick={() => setInfoPanelOpen(true)}
+          className={styles.infoButton}
+          aria-label="Show living ranks information"
+        >
+          <span aria-hidden="true">✦</span>
+          Show info
+        </button>
       )}
+
+      {errorMessage ? (
+        <div className={styles.errorBanner} role="alert">
+          <span>{errorMessage}</span>
+          <button type="button" onClick={() => void loadLeaderboard(true)}>Try again</button>
+        </div>
+      ) : null}
+
+      <div
+        className={styles.spaceViewport}
+        onPointerMove={handlePointerMove}
+        onPointerLeave={() => updateSceneTilt(0, 0)}
+      >
+        {loading ? (
+          <div className={styles.loadingState}>
+            <span />
+            <p>Mapping the living ranks</p>
+          </div>
+        ) : players.length === 0 ? (
+          <div className={styles.emptyState}>
+            <span aria-hidden="true">✦</span>
+            <h2>The ranked universe is waiting.</h2>
+            <p>The first collection will form its centre.</p>
+          </div>
+        ) : (
+          <div ref={sceneRef} className={styles.spaceScene}>
+            <div className={styles.depthRingOne} aria-hidden="true" />
+            <div className={styles.depthRingTwo} aria-hidden="true" />
+            <div className={styles.depthRingThree} aria-hidden="true" />
+
+            {placements.map((placement) => (
+              <Galaxy
+                key={placement.player.userId || `rank-${placement.player.rank}`}
+                placement={placement}
+                selected={selectedPlayer?.userId === placement.player.userId}
+                onSelect={() => setSelectedPlayer(placement.player)}
+              />
+            ))}
+
+            {pharaoh ? (
+              <BlackHole
+                player={pharaoh}
+                selected={selectedPlayer?.userId === pharaoh.userId}
+                onSelect={() => setSelectedPlayer(pharaoh)}
+              />
+            ) : null}
+          </div>
+        )}
+      </div>
+
+      {!loading && players.length > 0 ? (
+        <p className={styles.sceneHint}>Select a galaxy to inspect its trainer</p>
+      ) : null}
+
+      {selectedPlayer ? (
+        <RankDetails player={selectedPlayer} onClose={() => setSelectedPlayer(null)} />
+      ) : null}
+
+      <ol className="sr-only">
+        {players.map((player) => (
+          <li key={`accessible-${player.userId || player.rank}`}>
+            Rank {player.rank}: {player.displayName}, {player.totalCards} cards
+          </li>
+        ))}
+      </ol>
     </section>
   );
 }
 
-function CurrentNebulaProgress({ player }: { player: LeaderboardPlayer }) {
-  const progress = getNebulaProgress(player.score);
-  const title = player.rank === 1 ? PRIME_NEBULA_NAME : progress.rank.name;
-  const style = rankStyle(progress.rank, {
-    "--rank-progress": `${Math.round(progress.progress * 100)}%`,
-  } as CSSProperties);
-
-  return (
-    <article className={styles.currentNebula} style={style}>
-      <NebulaMark
-        rank={progress.rank}
-        avatarUrl={player.avatarUrl}
-        initials={playerInitial(player)}
-        label={`Your ${title}`}
-        current
-      />
-
-      <div className={styles.currentIdentity}>
-        <p>Your formation</p>
-        <h2>{title}</h2>
-        <span>{progress.rank.epithet}</span>
-      </div>
-
-      <div className={styles.progressColumn}>
-        <div className={styles.progressLabels}>
-          <span>{formatWholeNumber(player.score)} mass</span>
-          <span>
-            {progress.nextRank
-              ? `${formatWholeNumber(progress.massRemaining)} to ${progress.nextRank.name}`
-              : "Maximum class reached"}
-          </span>
-        </div>
-        <div className={styles.progressTrack} aria-label={`${Math.round(progress.progress * 100)}% towards the next nebula class`}>
-          <span />
-        </div>
-      </div>
-
-      <div className={styles.currentOrbit}>
-        <span>Universe orbit</span>
-        <strong>#{formatWholeNumber(player.rank)}</strong>
-      </div>
-    </article>
-  );
-}
-
-function NebulaClassAtlas({
-  currentPlayer,
+function Galaxy({
+  placement,
+  selected,
+  onSelect,
 }: {
-  currentPlayer: LeaderboardPlayer | null;
+  placement: GalaxyPlacement;
+  selected: boolean;
+  onSelect: () => void;
 }) {
-  const currentRank = currentPlayer ? getNebulaRank(currentPlayer.score) : null;
+  const { player } = placement;
+  const style = {
+    left: `${placement.x}%`,
+    top: `${placement.y}%`,
+    zIndex: placement.zIndex,
+    "--galaxy-size": `${placement.size}px`,
+    "--galaxy-mobile-size": `${Math.max(16, placement.size * 0.76)}px`,
+    "--galaxy-z": `${placement.z}px`,
+    "--galaxy-hue": String(placement.hue),
+    "--galaxy-tilt": `${placement.tilt}deg`,
+    "--galaxy-delay": `${placement.delay}s`,
+    "--galaxy-duration": `${placement.duration}s`,
+  } as CSSProperties;
 
   return (
-    <section className={styles.classAtlas} aria-labelledby="nebula-classes-title">
-      <div className={styles.sectionHeading}>
-        <div>
-          <p>Permanent progression</p>
-          <h2 id="nebula-classes-title">Nebula classes</h2>
-        </div>
-        <span>Grow through nine formations; only Atlas position can be lost.</span>
-      </div>
-
-      <div className={styles.classRail}>
-        {NEBULA_RANKS.map((rank, index) => {
-          const active = currentRank?.key === rank.key;
-          const reached = currentPlayer ? currentPlayer.score >= rank.minimumMass : false;
-          return (
-            <div
-              key={rank.key}
-              className={styles.classItem}
-              data-active={active ? "true" : "false"}
-              data-reached={reached ? "true" : "false"}
-              style={rankStyle(rank)}
-            >
-              <span className={styles.classOrb} aria-hidden="true" />
-              <span className={styles.classNumber}>{String(index + 1).padStart(2, "0")}</span>
-              <strong>{rank.name}</strong>
-              <small>{formatWholeNumber(rank.minimumMass)} mass</small>
-            </div>
-          );
-        })}
-      </div>
-    </section>
+    <button
+      type="button"
+      className={`${styles.galaxyAnchor} ${selected ? styles.selectedGalaxy : ""} ${player.isCurrentUser ? styles.currentGalaxy : ""}`}
+      style={style}
+      onClick={onSelect}
+      aria-label={`Rank ${player.rank}, ${player.displayName}, ${player.totalCards} cards`}
+      aria-pressed={selected}
+    >
+      <span className={styles.galaxyFloat}>
+        <span className={styles.galaxyDisc} />
+        <span className={styles.galaxyDust} />
+        <span className={styles.galaxyCore} />
+      </span>
+      <span className={styles.galaxyRank}>#{player.rank}</span>
+      <span className={styles.galaxyName}>{player.displayName}</span>
+    </button>
   );
 }
 
-function NebulaPodiumCard({
+function BlackHole({
   player,
-  largestMass,
+  selected,
+  onSelect,
 }: {
   player: LeaderboardPlayer;
-  largestMass: number;
+  selected: boolean;
+  onSelect: () => void;
 }) {
-  const formation = getNebulaRank(player.score);
-
   return (
-    <article
-      className={styles.giantCard}
-      style={rankStyle(formation)}
-      data-current={player.isCurrentUser ? "true" : "false"}
+    <button
+      type="button"
+      className={`${styles.blackHoleAnchor} ${selected ? styles.selectedBlackHole : ""}`}
+      onClick={onSelect}
+      aria-label={`${player.displayName}, rank 1 and current Pharaoh`}
+      aria-pressed={selected}
     >
-      <div className={styles.giantOrbit}>#{formatWholeNumber(player.rank)}</div>
-      <NebulaMark
-        rank={formation}
-        avatarUrl={player.avatarUrl}
-        initials={playerInitial(player)}
-        label={`${player.displayName}'s ${formation.name}`}
-        relativeScale={getRelativeNebulaScale(player.score, largestMass)}
-        current={player.isCurrentUser}
-      />
-      <div className={styles.giantIdentity}>
-        <p>{formation.name}</p>
-        <h3>{player.displayName}</h3>
-        <span>@{player.username}</span>
-      </div>
-      <div className={styles.giantMass}>
-        <strong>{formatWholeNumber(player.score)}</strong>
-        <span>stellar mass</span>
-      </div>
-      {player.cosmicIssueNumber ? (
-        <p className={styles.giantCosmic}>
-          ✦ Cosmic #{String(player.cosmicIssueNumber).padStart(6, "0")}
-        </p>
-      ) : null}
-    </article>
+      <span className={styles.blackHoleFloat}>
+        <span className={styles.accretionOuter} />
+        <span className={styles.accretionInner} />
+        <span className={styles.photonRing} />
+        <span className={styles.eventHorizon} />
+        <span className={styles.gravityLens} />
+      </span>
+      <span className={styles.pharaohLabel}>
+        <small>#1 · The Pharaoh</small>
+        <strong>{player.displayName}</strong>
+      </span>
+    </button>
   );
 }
 
-function NebulaTableRow({ player }: { player: LeaderboardPlayer }) {
-  const formation = getNebulaRank(player.score);
-
+function RankStat({ label, value }: { label: string; value: string }) {
   return (
-    <tr
-      data-prime={player.rank === 1 ? "true" : "false"}
-      data-current={player.isCurrentUser ? "true" : "false"}
-      style={rankStyle(formation)}
-    >
-      <td><strong>#{formatWholeNumber(player.rank)}</strong></td>
-      <td>
-        <div className={styles.formationCell}>
-          <NebulaMark
-            rank={formation}
-            initials={playerInitial(player)}
-            label={rankName(player)}
-            size="small"
-            prime={player.rank === 1}
-          />
-          <div>
-            <strong>{rankName(player)}</strong>
-            <span>{formation.epithet}</span>
+    <div className={styles.rankStat}>
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
+  );
+}
+
+function RankDetails({
+  player,
+  onClose,
+}: {
+  player: LeaderboardPlayer;
+  onClose: () => void;
+}) {
+  return (
+    <aside className={styles.rankDetails} aria-label={`${player.displayName} rank details`}>
+      <div className={styles.detailHeading}>
+        <div className={styles.detailIdentity}>
+          <div className={styles.detailAvatar}>
+            {player.avatarUrl ? (
+              <img src={player.avatarUrl} alt="" />
+            ) : (
+              player.displayName.charAt(0).toUpperCase()
+            )}
           </div>
-        </div>
-      </td>
-      <td>
-        <div className={styles.trainerCell}>
           <div>
-            <strong>{player.displayName}</strong>
+            <p>{player.rank === 1 ? "The Pharaoh" : `Living rank #${player.rank}`}</p>
+            <h2>{player.displayName}</h2>
             <span>@{player.username}</span>
           </div>
-          {player.cosmicIssueNumber ? (
-            <span className={styles.tableCosmic}>Cosmic #{String(player.cosmicIssueNumber).padStart(6, "0")}</span>
-          ) : null}
-          {player.isCurrentUser ? <span className={styles.youBadge}>You</span> : null}
         </div>
-      </td>
-      <td className={styles.numericCell}>
-        <strong>{formatWholeNumber(player.totalCards)}</strong>
-        <span>{formatWholeNumber(player.uniqueCards)} unique</span>
-      </td>
-      <td className={styles.numericCell}><strong>{formatMoney(player.collectionValue)}</strong></td>
-      <td className={styles.numericCell}><strong>{formatWholeNumber(player.lifetimeWishes)}</strong></td>
-      <td className={styles.massCell}><strong>{formatWholeNumber(player.score)}</strong></td>
-    </tr>
-  );
-}
-
-function NebulaMobileRow({ player }: { player: LeaderboardPlayer }) {
-  const formation = getNebulaRank(player.score);
-
-  return (
-    <article
-      className={styles.mobileRow}
-      data-prime={player.rank === 1 ? "true" : "false"}
-      data-current={player.isCurrentUser ? "true" : "false"}
-      style={rankStyle(formation)}
-    >
-      <div className={styles.mobileRowTop}>
-        <NebulaMark
-          rank={formation}
-          initials={playerInitial(player)}
-          label={rankName(player)}
-          size="small"
-          prime={player.rank === 1}
-        />
-        <div>
-          <p>Orbit #{formatWholeNumber(player.rank)} · {rankName(player)}</p>
-          <h3>{player.displayName}</h3>
-          <span>@{player.username}</span>
-        </div>
-        <strong>{formatWholeNumber(player.score)}</strong>
-      </div>
-
-      <div className={styles.mobileStats}>
-        <span>{formatWholeNumber(player.totalCards)} cards</span>
-        <span>{formatMoney(player.collectionValue)}</span>
-        <span>{formatWholeNumber(player.lifetimeWishes)} wishes</span>
+        <button type="button" onClick={onClose} aria-label="Close rank details">×</button>
       </div>
 
       {player.cosmicIssueNumber ? (
-        <p className={styles.mobileCosmic}>✦ Cosmic Nebu #{String(player.cosmicIssueNumber).padStart(6, "0")}</p>
+        <div className={styles.cosmicBadge}>
+          ✦ Cosmic Nebu #{String(player.cosmicIssueNumber).padStart(6, "0")}
+        </div>
       ) : null}
-    </article>
+
+      <div className={styles.detailGrid}>
+        <RankStat label="Cards" value={formatWholeNumber(player.totalCards)} />
+        <RankStat label="Unique" value={formatWholeNumber(player.uniqueCards)} />
+        <RankStat label="Wishes" value={formatWholeNumber(player.lifetimeWishes)} />
+        <RankStat label="Value" value={formatMoney(player.collectionValue)} />
+      </div>
+      <div className={styles.scoreLine}>
+        <span>Dynasty score</span>
+        <strong>{formatWholeNumber(player.score)}</strong>
+      </div>
+    </aside>
   );
 }

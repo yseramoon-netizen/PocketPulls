@@ -614,10 +614,6 @@ export default function PlayerLayout({ children }: PlayerLayoutProps) {
           <div className="mx-auto mt-3 w-[calc(100%-2rem)] max-w-[1180px] rounded-2xl border border-amber-200/20 bg-amber-200/[0.09] px-4 py-3 text-center text-sm font-black text-amber-50/80">
             {player.launchState.message || "Ancient Pulls is temporarily paused for maintenance. Your existing cards and records remain safe."}
           </div>
-        ) : player.launchState.beta ? (
-          <div className="mx-auto mt-3 w-fit max-w-[calc(100%-2rem)] rounded-full border border-cyan-100/15 bg-cyan-100/[0.055] px-3 py-1.5 text-center text-[10px] font-black uppercase tracking-[0.14em] text-cyan-50/55">
-            Founder beta
-          </div>
         ) : null}
         {children}
       </main>

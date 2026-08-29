@@ -3,6 +3,7 @@
 import { type PointerEvent as ReactPointerEvent, type WheelEvent as ReactWheelEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import UnownText from "@/components/player/UnownText";
 import { formatMarketValue } from "@/lib/player/format";
 import {
   ZODIAC_SHAPES,
@@ -271,15 +272,6 @@ function seededRandom(seed: number): () => number {
     value ^= value + Math.imul(value ^ (value >>> 7), value | 61);
     return ((value ^ (value >>> 14)) >>> 0) / 4294967296;
   };
-}
-
-function clamp01(value: number): number {
-  return Math.max(0, Math.min(1, value));
-}
-
-function easeOutCubic(value: number): number {
-  const progress = clamp01(value);
-  return 1 - Math.pow(1 - progress, 3);
 }
 
 const VOLUME_STARS: VolumeStar[] = (() => {
@@ -571,50 +563,54 @@ function buildZodiacConstellationStars(
   }
 
   const ambientStars = rankedStars.slice(anchorCount);
-  const ambientCount = Math.max(1, ambientStars.length);
-  const goldenAngle = Math.PI * (3 - Math.sqrt(5));
-  const tilt = (-8 * Math.PI) / 180;
-  const cosTilt = Math.cos(tilt);
-  const sinTilt = Math.sin(tilt);
+  const scatteredPositions: Array<{ x: number; y: number }> = [];
 
   ambientStars.forEach((star, index) => {
     const random = seededRandom(
       hashString(`zodiac-scatter:${zodiacSign}:${star.id}:${star.cardId}`),
     );
-    const progress = (index + 0.65) / ambientCount;
-    const lane = index % 5;
-    const angle =
-      index * goldenAngle +
-      lane * 0.075 +
-      (random() - 0.5) * 0.42;
-    const radius =
-      11.5 +
-      Math.sqrt(progress) * 38.5 +
-      (random() - 0.5) * 4.8;
-    const laneWave =
-      Math.sin(angle * 2.25 + lane * 1.31) *
-      (1.1 + progress * 2.8);
-    const rawX = Math.cos(angle) * radius;
-    const rawY = Math.sin(angle) * radius * 0.78 + laneWave;
-    const rotatedX = rawX * cosTilt - rawY * sinTilt;
-    const rotatedY = rawX * sinTilt + rawY * cosTilt;
-    const x = Math.max(2.8, Math.min(97.2, 50 + rotatedX));
-    const y = Math.max(4.5, Math.min(95.5, 49 + rotatedY));
+    const densityPressure = Math.min(2.05, Math.sqrt(index + 1) * 0.064);
+    const desiredSpacing = Math.max(1.45, 3.55 - densityPressure);
+    let best = { x: 50, y: 50, score: -1 };
+
+    for (let attempt = 0; attempt < 18; attempt += 1) {
+      const x = 5.5 + random() * 89;
+      const y = 7.5 + random() * 85;
+      let nearest = Number.POSITIVE_INFINITY;
+
+      for (const point of shape.points) {
+        nearest = Math.min(nearest, Math.hypot(x - point.x, y - point.y));
+      }
+
+      for (const point of scatteredPositions.slice(-280)) {
+        nearest = Math.min(nearest, Math.hypot(x - point.x, y - point.y));
+      }
+
+      if (!Number.isFinite(nearest)) {
+        nearest = 999;
+      }
+
+      if (nearest > best.score) {
+        best = { x, y, score: nearest };
+      }
+
+      if (nearest >= desiredSpacing) {
+        best = { x, y, score: nearest };
+        break;
+      }
+    }
 
     const placement = {
-      x,
-      y,
-      z: Math.max(
-        -76,
-        Math.min(
-          76,
-          Math.sin(angle * 1.7 + lane) * 38 + (random() - 0.5) * 76,
-        ),
-      ),
+      x: best.x,
+      y: best.y,
+      z: -76 + seededRandom(
+        hashString(`zodiac-depth:${zodiacSign}:${star.id}:${star.cardId}`),
+      )() * 148,
       zodiacAnchor: false,
     };
 
     placements.set(star.id, placement);
+    scatteredPositions.push({ x: placement.x, y: placement.y });
   });
 
   return baseStars.map((star) => {
@@ -738,8 +734,6 @@ export default function ConstellationPage() {
   const [cameraOffset, setCameraOffset] = useState({ x: 0, y: 0 });
   const [travellingStarId, setTravellingStarId] = useState<string | null>(null);
   const [draggingSky, setDraggingSky] = useState(false);
-  const [archiveOpen, setArchiveOpen] = useState(false);
-  const [archiveQuery, setArchiveQuery] = useState("");
   const skyViewportRef = useRef<HTMLElement | null>(null);
   const skyPlaneRef = useRef<HTMLDivElement | null>(null);
   const skyCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -749,8 +743,6 @@ export default function ConstellationPage() {
   const projectedStarHitsRef = useRef<ProjectedStarHit[]>([]);
   const viewFrameRef = useRef<number | null>(null);
   const recenterFrameRef = useRef<number | null>(null);
-  const revealFrameRef = useRef<number | null>(null);
-  const initialRevealPlayedRef = useRef(false);
   const wheelCommitTimerRef = useRef<number | null>(null);
   const travelAnimationRef = useRef<Animation | null>(null);
   const cameraOffsetRef = useRef({ x: 0, y: 0 });
@@ -769,7 +761,6 @@ export default function ConstellationPage() {
     selectedStarId: string | null;
     travellingStarId: string | null;
     occupiedZodiacPoints: Set<number>;
-    revealProgress: number;
   }>({
     stars: [],
     friendStars: [],
@@ -783,7 +774,6 @@ export default function ConstellationPage() {
     selectedStarId: null,
     travellingStarId: null,
     occupiedZodiacPoints: new Set<number>(),
-    revealProgress: 0,
   });
   const viewRef = useRef({
     rotation: { x: 0, y: 0 },
@@ -884,35 +874,16 @@ export default function ConstellationPage() {
         y: freeY + (earthY - freeY) * scene.earthBlend,
       };
     };
-    const toMemoryCanvasPoint = (
-      source: SpatialPoint,
-      point: ProjectedPoint,
-    ) => {
-      const freeX = (point.x / 100) * width;
-      const freeY = (point.y / 100) * height;
-      const earthX = (source.x / 100) * width;
-      const earthY = (source.y / 100) * height;
-
-      return {
-        x: freeX + (earthX - freeX) * scene.earthBlend,
-        y: freeY + (earthY - freeY) * scene.earthBlend,
-      };
-    };
-
-    const revealProgress = scene.revealProgress;
-    const distantReveal = easeOutCubic(revealProgress / 0.34);
 
     const volumeLimit = Math.min(VOLUME_STARS.length, scene.volumeStarCount);
     for (let index = 0; index < volumeLimit; index += 1) {
       const star = VOLUME_STARS[index];
       const projected = projectPoint(star);
-      const point = toMemoryCanvasPoint(star, projected);
+      const point = toCanvasPoint(projected);
       const radius = Math.max(0.45, star.size * projected.scale * 0.52);
 
       context.globalAlpha =
-        star.brightness *
-        (scene.earthView ? 0.48 : projected.atmosphere * 0.72) *
-        distantReveal;
+        star.brightness * (scene.earthView ? 0.7 : projected.atmosphere);
       context.fillStyle = star.colour;
 
       if (
@@ -954,15 +925,9 @@ export default function ConstellationPage() {
       colour: string,
       widthValue: number,
       dash: number[] = [],
-      progress = 1,
     ) => {
       const start = toCanvasPoint(from);
-      const target = toCanvasPoint(to);
-      const lineProgress = clamp01(progress);
-      const end = {
-        x: start.x + (target.x - start.x) * lineProgress,
-        y: start.y + (target.y - start.y) * lineProgress,
-      };
+      const end = toCanvasPoint(to);
       context.strokeStyle = colour;
       context.lineWidth = widthValue;
       context.lineCap = "round";
@@ -978,24 +943,11 @@ export default function ConstellationPage() {
       const zodiacPoints = shape.points.map((_, index) =>
         projectPoint(getZodiacSpatialPoint(scene.zodiacSign!, index)),
       );
-      const lineReveal = easeOutCubic(
-        (revealProgress - 0.1) / 0.48,
-      );
 
-      for (
-        let segmentIndex = 0;
-        segmentIndex < shape.segments.length;
-        segmentIndex += 1
-      ) {
-        const [fromIndex, toIndex] = shape.segments[segmentIndex];
+      for (const [fromIndex, toIndex] of shape.segments) {
         const from = zodiacPoints[fromIndex];
         const to = zodiacPoints[toIndex];
         const depthScale = (from.scale + to.scale) / 2;
-        const segmentReveal = clamp01(
-          lineReveal * (shape.segments.length + 0.8) - segmentIndex,
-        );
-
-        if (segmentReveal <= 0) continue;
 
         if (scene.constellationComplete) {
           drawLine(
@@ -1003,16 +955,12 @@ export default function ConstellationPage() {
             to,
             "rgba(103,232,249,0.17)",
             (scene.mobileSky ? 3.4 : 4.8) * depthScale,
-            [],
-            segmentReveal,
           );
           drawLine(
             from,
             to,
             "rgba(254,249,195,0.9)",
             (scene.mobileSky ? 1.05 : 1.3) * depthScale,
-            [],
-            segmentReveal,
           );
         } else {
           drawLine(
@@ -1021,7 +969,6 @@ export default function ConstellationPage() {
             "rgba(196,181,253,0.46)",
             1.05 * depthScale,
             scene.mobileSky ? [3, 5] : [5, 6],
-            segmentReveal,
           );
         }
       }
@@ -1029,9 +976,6 @@ export default function ConstellationPage() {
       context.setLineDash([]);
 
       const occupiedPoints = scene.occupiedZodiacPoints;
-      const anchorReveal = easeOutCubic(
-        (revealProgress - 0.08) / 0.42,
-      );
 
       shape.points.forEach((skyPoint, index) => {
         const projected = zodiacPoints[index];
@@ -1042,7 +986,7 @@ export default function ConstellationPage() {
         );
         const occupied = occupiedPoints.has(index);
 
-        context.globalAlpha = (occupied ? 0.28 : 0.78) * anchorReveal;
+        context.globalAlpha = occupied ? 0.48 : 0.9;
         context.fillStyle = occupied ? "#dbeafe" : "#fff8c5";
         context.shadowColor = occupied
           ? "rgba(147,197,253,0.45)"
@@ -1050,20 +994,15 @@ export default function ConstellationPage() {
         context.shadowBlur = occupied
           ? magnitudeRadius * 2.2
           : magnitudeRadius * 4.2;
-        const pointRadius = magnitudeRadius * projected.scale;
         context.beginPath();
-        context.arc(point.x, point.y, pointRadius, 0, Math.PI * 2);
-        if (occupied) {
-          context.fill();
-        } else {
-          context.lineWidth = 0.8;
-          context.strokeStyle = "rgba(254,249,195,0.72)";
-          context.stroke();
-          context.globalAlpha *= 0.72;
-          context.beginPath();
-          context.arc(point.x, point.y, Math.max(0.7, pointRadius * 0.34), 0, Math.PI * 2);
-          context.fill();
-        }
+        context.arc(
+          point.x,
+          point.y,
+          magnitudeRadius * projected.scale,
+          0,
+          Math.PI * 2,
+        );
+        context.fill();
       });
     } else {
       const lineLimit = Math.min(
@@ -1093,46 +1032,27 @@ export default function ConstellationPage() {
     const hits: ProjectedStarHit[] = [];
 
     for (const { star, projected } of projectedStars) {
-      const point = star.zodiacAnchor
-        ? toCanvasPoint(projected)
-        : toMemoryCanvasPoint(star, projected);
+      const point = toCanvasPoint(projected);
       const active =
         scene.selectedStarId === star.id ||
         scene.travellingStarId === star.id;
-      const revealSeed = (hashString(`reveal:${star.id}`) % 997) / 997;
-      const revealStart = star.zodiacAnchor
-        ? 0.12 + (star.zodiacPointIndex ?? 0) * 0.012
-        : 0.38 + revealSeed * 0.34;
-      const starReveal = easeOutCubic(
-        (revealProgress - revealStart) / (star.zodiacAnchor ? 0.18 : 0.24),
-      );
-
-      if (starReveal <= 0) continue;
-
-      const baseRadius = Math.max(
-        star.zodiacAnchor ? 2.4 : 0.85,
+      const radius = Math.max(
+        1.7,
         Math.min(
-          active ? 11 : star.zodiacAnchor ? 8.5 : 5.4,
-          star.size * projected.scale * (star.zodiacAnchor ? 0.42 : 0.19),
+          active ? 11 : 8.5,
+          star.size * projected.scale * (star.zodiacAnchor ? 0.42 : 0.31),
         ),
       );
-      const radius = baseRadius * (0.42 + starReveal * 0.58);
       const rank = star.rank;
-      const memoryDepth = clamp01((star.z + 76) / 152);
       const useGlow =
         active ||
         star.zodiacAnchor ||
-        (!scene.lowVisualEffects && !scene.mobileSky && rank >= 5);
+        (!scene.lowVisualEffects && !scene.mobileSky && rank >= 4);
 
       context.globalAlpha = Math.min(
         1,
-        (star.zodiacAnchor
-          ? 0.96
-          : scene.earthView
-            ? 0.3 + rank * 0.055 + memoryDepth * 0.18
-            : 0.36 + projected.atmosphere * 0.34 + rank * 0.045) *
-          (active ? 1 : 0.94) *
-          starReveal,
+        (scene.earthView ? 0.92 : 0.6 + projected.atmosphere * 0.4) *
+          (active ? 1 : 0.94),
       );
       context.fillStyle = star.colour;
       context.shadowColor = useGlow ? star.glow : "transparent";
@@ -1160,7 +1080,6 @@ export default function ConstellationPage() {
       }
 
       if (
-        starReveal >= 0.72 &&
         point.x >= -24 &&
         point.x <= width + 24 &&
         point.y >= -24 &&
@@ -1192,8 +1111,8 @@ export default function ConstellationPage() {
       }
 
       const projected = projectPoint(friend);
-      const point = toMemoryCanvasPoint(friend, projected);
-      element.style.visibility = revealProgress >= 0.68 ? "visible" : "hidden";
+      const point = toCanvasPoint(projected);
+      element.style.visibility = "visible";
       element.style.zIndex = String(Math.round(520 + projected.depth));
       element.style.transform = `translate3d(${point.x}px, ${point.y}px, 0) translate(-50%, -50%) scale(${projected.scale})`;
       element.style.setProperty(
@@ -1504,10 +1423,6 @@ export default function ConstellationPage() {
 
       if (recenterFrameRef.current !== null) {
         window.cancelAnimationFrame(recenterFrameRef.current);
-      }
-
-      if (revealFrameRef.current !== null) {
-        window.cancelAnimationFrame(revealFrameRef.current);
       }
 
       travelAnimationRef.current?.cancel();
@@ -1844,50 +1759,6 @@ export default function ConstellationPage() {
     [stars],
   );
 
-  const latestPulls = useMemo(
-    () =>
-      [...stars]
-        .sort((left, right) => {
-          const leftTime = left.grantedAt ? new Date(left.grantedAt).getTime() : 0;
-          const rightTime = right.grantedAt ? new Date(right.grantedAt).getTime() : 0;
-          return rightTime - leftTime;
-        })
-        .slice(0, 12),
-    [stars],
-  );
-
-  const archiveResults = useMemo(() => {
-    const query = archiveQuery.trim().toLowerCase();
-    if (!query) return latestPulls;
-
-    return stars
-      .filter((star) =>
-        [star.name, star.setName, star.cardNumber || "", star.rarity]
-          .join(" ")
-          .toLowerCase()
-          .includes(query),
-      )
-      .sort((left, right) => left.name.localeCompare(right.name))
-      .slice(0, 60);
-  }, [archiveQuery, latestPulls, stars]);
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      const params = new URLSearchParams(window.location.search);
-      if (params.get("archive")) setArchiveOpen(true);
-    }, 0);
-    return () => window.clearTimeout(timer);
-  }, []);
-
-  useEffect(() => {
-    if (!archiveOpen) return;
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setArchiveOpen(false);
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [archiveOpen]);
-
   const rarestStar = useMemo(() => stars.reduce<ConstellationStar | null>(
     (best, star) => {
       if (!best || star.rank > best.rank) return star;
@@ -1946,7 +1817,6 @@ export default function ConstellationPage() {
       selectedStarId: selectedStar?.id ?? null,
       travellingStarId,
       occupiedZodiacPoints,
-      revealProgress: sceneDataRef.current.revealProgress,
     };
   }, [
     constellationComplete,
@@ -1961,58 +1831,6 @@ export default function ConstellationPage() {
     travellingStarId,
     volumeStarCount,
     zodiacSign,
-  ]);
-
-  useEffect(() => {
-    if (
-      loading ||
-      stars.length === 0 ||
-      initialRevealPlayedRef.current
-    ) {
-      return;
-    }
-
-    initialRevealPlayedRef.current = true;
-
-    if (preferences.reducedMotion || preferences.dataSaver) {
-      sceneDataRef.current.revealProgress = 1;
-      window.requestAnimationFrame(renderSkyView);
-      return;
-    }
-
-    sceneDataRef.current.revealProgress = 0;
-    const startedAt = performance.now();
-    const duration = mobileSky ? 1550 : 2050;
-
-    const reveal = (now: number) => {
-      const progress = clamp01((now - startedAt) / duration);
-      sceneDataRef.current.revealProgress = progress;
-      renderSkyView();
-
-      if (progress < 1) {
-        revealFrameRef.current = window.requestAnimationFrame(reveal);
-        return;
-      }
-
-      revealFrameRef.current = null;
-    };
-
-    revealFrameRef.current = window.requestAnimationFrame(reveal);
-
-    return () => {
-      if (revealFrameRef.current !== null) {
-        window.cancelAnimationFrame(revealFrameRef.current);
-        revealFrameRef.current = null;
-      }
-      sceneDataRef.current.revealProgress = 1;
-    };
-  }, [
-    loading,
-    mobileSky,
-    preferences.dataSaver,
-    preferences.reducedMotion,
-    renderSkyView,
-    stars.length,
   ]);
 
   useEffect(() => {
@@ -2060,27 +1878,31 @@ export default function ConstellationPage() {
             ? `Arrived at ${selectedStar.name}.`
             : ""}
       </p>
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_50%_46%,rgba(103,232,249,0.07),transparent_25%),radial-gradient(ellipse_at_28%_38%,rgba(139,92,246,0.09),transparent_38%),radial-gradient(ellipse_at_77%_62%,rgba(244,114,182,0.055),transparent_34%),linear-gradient(180deg,#02030d_0%,#06071d_48%,#02030f_100%)]" />
-      <div className="pointer-events-none absolute inset-0 opacity-45 [background-image:radial-gradient(circle_at_7%_14%,white_0_1px,transparent_1.5px),radial-gradient(circle_at_14%_43%,white_0_1px,transparent_1.5px),radial-gradient(circle_at_26%_21%,white_0_1px,transparent_1.5px),radial-gradient(circle_at_34%_68%,white_0_1px,transparent_1.5px),radial-gradient(circle_at_42%_11%,white_0_1px,transparent_1.5px),radial-gradient(circle_at_53%_31%,white_0_1px,transparent_1.5px),radial-gradient(circle_at_61%_76%,white_0_1px,transparent_1.5px),radial-gradient(circle_at_69%_13%,white_0_1px,transparent_1.5px),radial-gradient(circle_at_79%_42%,white_0_1px,transparent_1.5px),radial-gradient(circle_at_88%_19%,white_0_1px,transparent_1.5px),radial-gradient(circle_at_94%_72%,white_0_1px,transparent_1.5px)]" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_45%,rgba(103,232,249,0.075),transparent_32%),radial-gradient(circle_at_20%_18%,rgba(196,181,253,0.08),transparent_26%),radial-gradient(circle_at_82%_17%,rgba(249,168,212,0.06),transparent_24%),linear-gradient(180deg,rgba(3,4,18,0.96),rgba(6,7,27,0.985))]" />
+      <div className="pointer-events-none absolute inset-0 opacity-65 [background-image:radial-gradient(circle_at_7%_14%,white_0_1px,transparent_1.5px),radial-gradient(circle_at_14%_43%,white_0_1px,transparent_1.5px),radial-gradient(circle_at_26%_21%,white_0_1px,transparent_1.5px),radial-gradient(circle_at_34%_68%,white_0_1px,transparent_1.5px),radial-gradient(circle_at_42%_11%,white_0_1px,transparent_1.5px),radial-gradient(circle_at_53%_31%,white_0_1px,transparent_1.5px),radial-gradient(circle_at_61%_76%,white_0_1px,transparent_1.5px),radial-gradient(circle_at_69%_13%,white_0_1px,transparent_1.5px),radial-gradient(circle_at_79%_42%,white_0_1px,transparent_1.5px),radial-gradient(circle_at_88%_19%,white_0_1px,transparent_1.5px),radial-gradient(circle_at_94%_72%,white_0_1px,transparent_1.5px)]" />
+      <div className="pointer-events-none absolute -left-[12vw] top-[16%] h-[28rem] w-[68vw] rotate-[-12deg] rounded-[50%] bg-[linear-gradient(90deg,transparent,rgba(34,211,238,0.035),rgba(139,92,246,0.055),transparent)] blur-[34px] constellationAurora" />
+      <div className="pointer-events-none absolute -right-[18vw] bottom-[8%] h-[26rem] w-[62vw] rotate-[9deg] rounded-[50%] bg-[linear-gradient(90deg,transparent,rgba(244,114,182,0.035),rgba(103,232,249,0.045),transparent)] blur-[40px] constellationAurora constellationAuroraLate" />
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_42%,rgba(0,0,0,0.24)_78%,rgba(0,0,0,0.58)_100%)]" />
 
       {infoPanelOpen ? (
-      <div className="absolute left-3 top-3 z-40 w-[min(92vw,27rem)] rounded-[1.6rem] border border-violet-200/12 bg-[#07091f]/78 p-4 shadow-[0_20px_70px_rgba(0,0,0,0.32)] backdrop-blur-2xl sm:left-5 sm:top-5 sm:p-5">
-        <div className="flex items-start justify-between gap-4">
+      <div className="absolute inset-x-3 top-[4.75rem] z-40 max-h-[calc(100dvh-10rem)] overflow-y-auto rounded-[1.6rem] border border-violet-200/12 bg-[#080a25]/88 p-4 shadow-[0_20px_70px_rgba(0,0,0,0.3)] backdrop-blur-2xl sm:inset-x-auto sm:left-5 sm:top-5 sm:max-w-[min(92vw,34rem)] sm:p-5">
+        <div className="flex flex-col items-stretch gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
             <p className="text-[0.62rem] font-black uppercase tracking-[0.2em] text-cyan-100/38">
-              Nebu&apos;s celestial archive
+              Nebu&apos;s memory
             </p>
-            <h2 className="mt-2 text-2xl font-black tracking-[-0.035em] text-white sm:text-[1.7rem]">
-              {zodiacSign
-                ? `${ZODIAC_SHAPES[zodiacSign].label} Memory Sky`
-                : "Your Memory Sky"}
-            </h2>
+            <div className="mt-2 overflow-hidden">
+              <UnownText
+                text="Your Constellation"
+                size="clamp(0.92rem, 4.8vw, 2.45rem)"
+                tone="holo"
+              />
+            </div>
             {zodiacSign ? (
               <div className="mt-2">
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="text-xs font-black uppercase tracking-[0.15em] text-violet-100/52">
-                    Living constellation
+                    {ZODIAC_SHAPES[zodiacSign].label} sky
                   </p>
                   <span
                     className={[
@@ -2102,7 +1924,7 @@ export default function ConstellationPage() {
                   </span>
                 </div>
                 <p className="mt-2 text-[0.66rem] font-bold text-white/30">
-                  J2000 anchors stay true · every surrounding light is a card memory
+                  Real celestial positions · north up · east left in Earth view
                 </p>
               </div>
             ) : (
@@ -2112,7 +1934,7 @@ export default function ConstellationPage() {
             )}
           </div>
 
-          <div className="flex flex-none items-center gap-2">
+          <div className="flex flex-none items-center justify-end gap-2">
             <button
               type="button"
               onClick={() => void loadConstellation(true)}
@@ -2134,27 +1956,10 @@ export default function ConstellationPage() {
           </div>
         </div>
 
-        <div className="mt-4 grid grid-cols-3 gap-2 border-t border-white/[0.06] pt-3">
+        <div className="mt-4 grid grid-cols-3 gap-2">
           <SkyStat label="Stars" value={String(stars.length)} />
           <SkyStat label="Value" value={formatMoney(totalValue)} />
           <SkyStat label="Brightest" value={rarestStar?.name || "Waiting"} />
-        </div>
-
-        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-[0.58rem] font-black uppercase tracking-[0.11em] text-white/30">
-          <span className="flex items-center gap-1.5">
-            <span className="h-2 w-2 rounded-full bg-yellow-100 shadow-[0_0_8px_rgba(250,204,21,0.72)]" />
-            Zodiac anchor
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="h-1.5 w-1.5 rounded-full bg-violet-200/75" />
-            Card memory
-          </span>
-          {friendStars.length > 0 ? (
-            <span className="flex items-center gap-1.5">
-              <span className="h-2.5 w-2.5 rounded-full border border-cyan-100/55 bg-cyan-200/15 shadow-[0_0_7px_rgba(103,232,249,0.45)]" />
-              Friend
-            </span>
-          ) : null}
         </div>
       </div>
       ) : (
@@ -2162,7 +1967,7 @@ export default function ConstellationPage() {
           type="button"
           onClick={() => setInfoPanelOpen(true)}
           aria-label="Show constellation information"
-          className="absolute left-3 top-3 z-40 flex min-h-11 items-center gap-2 rounded-full border border-cyan-100/18 bg-[#080a25]/88 px-4 text-[0.68rem] font-black uppercase tracking-[0.13em] text-cyan-50/82 shadow-[0_15px_50px_rgba(0,0,0,0.35)] backdrop-blur-xl transition hover:border-cyan-100/35 hover:bg-[#10143a] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-100 sm:left-5 sm:top-5"
+          className="absolute left-3 top-[4.75rem] z-40 flex min-h-11 items-center gap-2 rounded-full border border-cyan-100/18 bg-[#080a25]/88 px-4 text-[0.68rem] font-black uppercase tracking-[0.13em] text-cyan-50/82 shadow-[0_15px_50px_rgba(0,0,0,0.35)] backdrop-blur-xl transition hover:border-cyan-100/35 hover:bg-[#10143a] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-100 sm:left-5 sm:top-5"
         >
           <span aria-hidden="true" className="text-base text-yellow-100">✦</span>
           Show info
@@ -2173,104 +1978,6 @@ export default function ConstellationPage() {
         <div className="absolute left-1/2 top-4 z-50 w-[min(92vw,36rem)] -translate-x-1/2 rounded-2xl border border-red-200/15 bg-red-950/85 p-4 text-sm font-semibold text-red-100 shadow-2xl backdrop-blur-xl">
           {errorMessage}
         </div>
-      ) : null}
-
-      <button
-        type="button"
-        onClick={() => setArchiveOpen(true)}
-        className="absolute right-3 top-3 z-50 flex min-h-11 items-center gap-2 rounded-full border border-cyan-100/18 bg-[#080a25]/90 px-4 text-[0.68rem] font-black uppercase tracking-[0.13em] text-cyan-50/82 shadow-[0_15px_50px_rgba(0,0,0,0.35)] backdrop-blur-xl transition hover:border-cyan-100/35 hover:bg-[#10143a] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-100 sm:right-5 sm:top-5"
-      >
-        <span aria-hidden="true" className="text-base">⌕</span>
-        Find a card
-      </button>
-
-      {archiveOpen ? (
-        <>
-          <button
-            type="button"
-            aria-label="Close card archive"
-            onClick={() => setArchiveOpen(false)}
-            className="fixed inset-0 z-[69] cursor-default bg-[#02030c]/52 backdrop-blur-[2px]"
-          />
-          <aside
-            role="dialog"
-            aria-modal="true"
-            aria-label="Constellation card archive"
-            className="fixed bottom-0 right-0 top-0 z-[70] flex w-[min(94vw,28rem)] flex-col border-l border-cyan-100/14 bg-[#07091f]/97 shadow-[-30px_0_100px_rgba(0,0,0,0.55)] backdrop-blur-2xl"
-          >
-            <div className="border-b border-white/10 p-5 sm:p-6">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <p className="text-[0.62rem] font-black uppercase tracking-[0.18em] text-cyan-100/48">Constellation archive</p>
-                  <h2 className="mt-2 text-2xl font-black text-white">Find your star</h2>
-                  <p className="mt-1 text-xs font-semibold text-white/36">Search an owned card and Nebu will take you straight to it.</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setArchiveOpen(false)}
-                  aria-label="Close card archive"
-                  className="flex h-10 w-10 flex-none items-center justify-center rounded-xl border border-white/10 bg-white/[0.05] text-lg font-black text-white/60 transition hover:bg-white/10 hover:text-white"
-                >
-                  ×
-                </button>
-              </div>
-
-              <label className="mt-5 block">
-                <span className="sr-only">Search owned cards</span>
-                <input
-                  autoFocus
-                  type="search"
-                  value={archiveQuery}
-                  onChange={(event) => setArchiveQuery(event.target.value)}
-                  placeholder="Card, set, number or rarity..."
-                  className="min-h-12 w-full rounded-xl border border-white/12 bg-white/[0.055] px-4 text-sm font-semibold text-white outline-none transition placeholder:text-white/25 focus:border-cyan-100/28 focus:ring-2 focus:ring-cyan-100/10"
-                />
-              </label>
-            </div>
-
-            <div className="flex-1 overflow-y-auto p-4 sm:p-5">
-              <div className="mb-3 flex items-center justify-between gap-3">
-                <p className="text-[0.62rem] font-black uppercase tracking-[0.15em] text-white/36">
-                  {archiveQuery.trim() ? "Search results" : "Latest pulls"}
-                </p>
-                <span className="text-[0.65rem] font-black text-cyan-100/42">{archiveResults.length}</span>
-              </div>
-
-              {archiveResults.length ? (
-                <div className="space-y-2">
-                  {archiveResults.map((star) => (
-                    <button
-                      key={star.id}
-                      type="button"
-                      onClick={() => {
-                        setArchiveOpen(false);
-                        travelToStar(star);
-                      }}
-                      className="grid w-full grid-cols-[3.3rem_minmax(0,1fr)_auto] items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.035] p-3 text-left transition hover:border-cyan-100/24 hover:bg-cyan-200/[0.075] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-100"
-                    >
-                      <span className="aspect-[63/88] overflow-hidden rounded-lg border border-white/10 bg-black/20">
-                        {star.imageUrl ? <img src={star.imageUrl} alt="" loading="lazy" className="h-full w-full object-cover" /> : null}
-                      </span>
-                      <span className="min-w-0">
-                        <strong className="block truncate text-sm font-black text-white">{star.name}</strong>
-                        <span className="mt-1 block truncate text-[0.68rem] font-bold text-white/38">
-                          {star.setName}{star.cardNumber ? ` · #${star.cardNumber}` : ""}
-                        </span>
-                        <span className="mt-1 block text-[0.6rem] font-black uppercase tracking-[0.08em]" style={{ color: star.colour }}>{star.rarity}</span>
-                      </span>
-                      <span className="rounded-full border border-cyan-100/16 bg-cyan-100/[0.07] px-2.5 py-1 text-[0.58rem] font-black uppercase tracking-[0.08em] text-cyan-50/72">Travel</span>
-                    </button>
-                  ))}
-                </div>
-              ) : (
-                <div className="rounded-2xl border border-white/10 bg-white/[0.025] p-8 text-center">
-                  <p className="text-sm font-black text-white/62">No matching star</p>
-                  <p className="mt-2 text-xs font-semibold text-white/30">Try the card name, set or collector number.</p>
-                </div>
-              )}
-            </div>
-          </aside>
-        </>
       ) : null}
 
       {earthView && !loading && zodiacSign ? (
@@ -2302,33 +2009,11 @@ export default function ConstellationPage() {
         ].join(" ")}
         style={{ touchAction: "none", perspective: "1100px", overscrollBehavior: "contain" }}
       >
-        {!loading && stars.length > 0 && !preferences.reducedMotion && !preferences.dataSaver ? (
-          <div aria-hidden="true" className="constellationOpeningTitle pointer-events-none absolute left-1/2 top-1/2 z-30 -translate-x-1/2 -translate-y-1/2 text-center">
-            <p className="text-[0.58rem] font-black uppercase tracking-[0.34em] text-cyan-50/55">
-              Nebu opens the archive
-            </p>
-            <strong className="mt-2 block text-3xl font-black tracking-[-0.045em] text-white sm:text-5xl">
-              {zodiacSign ? ZODIAC_SHAPES[zodiacSign].label : "Memory Sky"}
-            </strong>
-            <span className="mt-3 block text-xs font-bold text-white/38">
-              {stars.length.toLocaleString("en-GB")} memories held in starlight
-            </span>
-          </div>
-        ) : null}
-
         {loading ? (
           <div className="relative z-10 flex min-h-[calc(100dvh-4.5rem)] flex-col items-center justify-center text-center">
-            <div aria-hidden="true" className="constellationLoader">
-              <span className="constellationLoaderHalo" />
-              <span className="constellationLoaderOrbit constellationLoaderOrbitOne" />
-              <span className="constellationLoaderOrbit constellationLoaderOrbitTwo" />
-              <span className="constellationLoaderCore" />
-            </div>
-            <p className="mt-8 text-xs font-black uppercase tracking-[0.22em] text-cyan-50/48">
-              Nebu is remembering your sky
-            </p>
-            <p className="mt-2 text-[0.65rem] font-bold text-white/24">
-              Placing each memory where it belongs
+            <div className="h-16 w-16 animate-pulse rounded-full bg-white shadow-[0_0_55px_18px_rgba(255,255,255,0.3)]" />
+            <p className="mt-7 text-xs font-black uppercase tracking-[0.2em] text-white/35">
+              Rebuilding your night sky
             </p>
           </div>
         ) : (
@@ -2352,11 +2037,10 @@ export default function ConstellationPage() {
               }}
             >
             <div aria-hidden="true" data-pocketpulls-ambient="heavy" className="pointer-events-none absolute inset-0 overflow-hidden" style={{ transformStyle: "preserve-3d" }}>
-              <span className="constellationMemoryStream constellationMemoryStreamOne" />
-              <span className="constellationMemoryStream constellationMemoryStreamTwo" />
-              <span className="constellationMemoryStream constellationMemoryStreamThree" />
-              <span className="constellationNebula absolute left-[18%] top-[22%] h-56 w-72 rounded-full bg-violet-400/[0.028] blur-[90px]" />
-              <span className="constellationNebula constellationNebulaLate absolute bottom-[18%] right-[16%] h-64 w-80 rounded-full bg-cyan-300/[0.025] blur-[100px]" />
+              <span className="constellationOrbitRing absolute left-1/2 top-1/2 h-[58%] w-[74%] -translate-x-1/2 -translate-y-1/2 rounded-[50%] border border-cyan-100/[0.055]" />
+              <span className="constellationOrbitRing constellationOrbitRingTwo absolute left-1/2 top-1/2 h-[78%] w-[88%] -translate-x-1/2 -translate-y-1/2 rounded-[50%] border border-violet-100/[0.035]" />
+              <span className="constellationNebula absolute left-[12%] top-[18%] h-56 w-72 rounded-full bg-violet-400/[0.035] blur-[80px]" />
+              <span className="constellationNebula constellationNebulaLate absolute bottom-[14%] right-[10%] h-64 w-80 rounded-full bg-cyan-300/[0.03] blur-[90px]" />
               <span className="shootingStar shootingStarOne" />
               <span className="shootingStar shootingStarTwo" />
               <span className="shootingStar shootingStarThree" />
@@ -2370,9 +2054,7 @@ export default function ConstellationPage() {
 
             {stars.length === 0 ? (
               <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center px-6 text-center">
-                <div className="h-14 w-14 rounded-full border border-yellow-100/16 bg-yellow-100/[0.08] shadow-[0_0_48px_rgba(250,204,21,0.16)]">
-                  <span className="mx-auto mt-[1.55rem] block h-2 w-2 rounded-full bg-yellow-100/70 shadow-[0_0_14px_rgba(250,204,21,0.8)]" />
-                </div>
+                <div className="text-8xl text-yellow-100/30">*</div>
                 <h2 className="mt-4 text-2xl font-black text-white">
                   The sky is waiting for you.
                 </h2>
@@ -2450,6 +2132,15 @@ export default function ConstellationPage() {
               </button>
             ))}
 
+            <div className="pointer-events-none absolute bottom-4 left-1/2 z-30 flex -translate-x-1/2 items-center gap-3 whitespace-nowrap rounded-full border border-white/[0.06] bg-[#050619]/55 px-4 py-2 text-[0.56rem] font-black uppercase tracking-[0.16em] text-white/24 backdrop-blur-md">
+              <span>Tap a card star to travel through your archive</span>
+              {friendStars.length > 0 ? (
+                <>
+                  <span className="h-1 w-1 rounded-full bg-white/20" />
+                  <span className="text-cyan-100/36">Glowing circles are friends</span>
+                </>
+              ) : null}
+            </div>
             </div>
           </div>
         )}
@@ -2512,7 +2203,7 @@ export default function ConstellationPage() {
               >
                 {selectedStar.rarity}
               </p>
-              <h2 className="mt-1 truncate text-xl font-black tracking-tight text-white">
+              <h2 className="mt-1 max-w-full break-words text-[clamp(1rem,5.4vw,1.25rem)] font-black leading-tight tracking-tight text-white [overflow-wrap:anywhere]">
                 {selectedStar.name}
               </h2>
             </div>
@@ -2633,113 +2324,6 @@ export default function ConstellationPage() {
           isolation: isolate;
         }
 
-        .constellationOpeningTitle {
-          width: min(84vw, 34rem);
-          text-shadow: 0 0 34px rgba(103, 232, 249, 0.18);
-          animation: constellationOpeningTitle 2.9s cubic-bezier(0.2, 0.72, 0.2, 1) both;
-        }
-
-        .constellationLoader {
-          position: relative;
-          width: 5.5rem;
-          height: 5.5rem;
-          display: grid;
-          place-items: center;
-        }
-
-        .constellationLoaderHalo,
-        .constellationLoaderOrbit,
-        .constellationLoaderCore {
-          position: absolute;
-          border-radius: 999px;
-        }
-
-        .constellationLoaderHalo {
-          inset: 0.75rem;
-          background: radial-gradient(circle, rgba(254,249,195,0.14), rgba(103,232,249,0.045) 42%, transparent 72%);
-          filter: blur(7px);
-          animation: constellationLoaderBreathe 1.9s ease-in-out infinite alternate;
-        }
-
-        .constellationLoaderOrbit {
-          inset: 0.55rem;
-          border: 1px solid rgba(165, 243, 252, 0.16);
-          transform: rotate(-18deg) scaleY(0.52);
-          animation: constellationLoaderTurn 2.7s linear infinite;
-        }
-
-        .constellationLoaderOrbit::after {
-          content: "";
-          position: absolute;
-          right: 0.22rem;
-          top: 50%;
-          width: 0.34rem;
-          height: 0.34rem;
-          margin-top: -0.17rem;
-          border-radius: 999px;
-          background: #cffafe;
-          box-shadow: 0 0 12px rgba(103,232,249,0.9);
-        }
-
-        .constellationLoaderOrbitTwo {
-          inset: 1rem 0.35rem;
-          border-color: rgba(221, 214, 254, 0.13);
-          transform: rotate(58deg) scaleY(0.44);
-          animation-direction: reverse;
-          animation-duration: 3.4s;
-        }
-
-        .constellationLoaderOrbitTwo::after {
-          left: 0.15rem;
-          right: auto;
-          background: #fef08a;
-          box-shadow: 0 0 12px rgba(250,204,21,0.86);
-        }
-
-        .constellationLoaderCore {
-          width: 0.72rem;
-          height: 0.72rem;
-          background: #fffde7;
-          box-shadow:
-            0 0 11px rgba(254,249,195,0.96),
-            0 0 34px rgba(103,232,249,0.34);
-        }
-
-        @keyframes constellationLoaderTurn {
-          to {
-            rotate: 360deg;
-          }
-        }
-
-        @keyframes constellationLoaderBreathe {
-          from {
-            opacity: 0.48;
-            scale: 0.86;
-          }
-          to {
-            opacity: 1;
-            scale: 1.18;
-          }
-        }
-
-        @keyframes constellationOpeningTitle {
-          0% {
-            opacity: 0;
-            transform: translate(-50%, -42%) scale(0.94);
-            filter: blur(5px);
-          }
-          18%, 58% {
-            opacity: 1;
-            transform: translate(-50%, -50%) scale(1);
-            filter: blur(0);
-          }
-          100% {
-            opacity: 0;
-            transform: translate(-50%, -58%) scale(1.035);
-            filter: blur(2px);
-          }
-        }
-
         .constellation3dPlane {
           will-change: transform;
           backface-visibility: visible;
@@ -2749,60 +2333,48 @@ export default function ConstellationPage() {
             radial-gradient(circle at 74% 66%, rgba(244,114,182,0.016), transparent 22%);
         }
 
-        .constellationMemoryStream {
+        .constellation3dPlane::before,
+        .constellation3dPlane::after {
+          content: "";
           position: absolute;
-          left: -8%;
-          top: 26%;
-          width: 116%;
-          height: 34%;
+          inset: 4%;
           pointer-events: none;
-          border-radius: 44% 56% 52% 48%;
-          background: linear-gradient(
-            96deg,
-            transparent 4%,
-            rgba(103, 232, 249, 0.018) 24%,
-            rgba(167, 139, 250, 0.055) 48%,
-            rgba(244, 114, 182, 0.025) 69%,
-            transparent 96%
-          );
-          filter: blur(24px);
-          mix-blend-mode: screen;
-          transform: translate3d(0, 0, -42px) rotate(-8deg);
-          animation: constellationMemoryDrift 22s ease-in-out infinite alternate;
+          border-radius: 50%;
         }
 
-        .constellationMemoryStreamTwo {
-          top: 37%;
-          height: 24%;
-          opacity: 0.58;
-          background: linear-gradient(
-            88deg,
-            transparent 8%,
-            rgba(250, 204, 21, 0.018) 30%,
-            rgba(103, 232, 249, 0.045) 54%,
-            rgba(139, 92, 246, 0.022) 74%,
-            transparent 94%
-          );
-          transform: translate3d(0, 0, -64px) rotate(5deg);
+        .constellation3dPlane::before {
+          border: 1px solid rgba(165,243,252,0.035);
+          box-shadow:
+            inset 0 0 90px rgba(103,232,249,0.025),
+            0 0 120px rgba(139,92,246,0.018);
+          transform: translateZ(-34px) rotateZ(-8deg) scale(0.94);
+        }
+
+        .constellation3dPlane::after {
+          inset: 12% 10%;
+          border: 1px solid rgba(221,214,254,0.025);
+          transform: translateZ(-68px) rotateZ(14deg) scale(1.08);
+        }
+
+        .constellationOrbitRing {
+          transform: translate3d(-50%, -50%, -28px) rotateZ(-8deg);
+          box-shadow: 0 0 38px rgba(103,232,249,0.018);
+          animation: constellationOrbitDrift 28s linear infinite;
+        }
+
+        .constellationOrbitRingTwo {
+          transform: translate3d(-50%, -50%, -54px) rotateZ(17deg);
+          animation-direction: reverse;
+          animation-duration: 36s;
+        }
+
+        .constellationAurora {
+          animation: constellationAuroraFloat 20s ease-in-out infinite alternate;
+        }
+
+        .constellationAuroraLate {
           animation-delay: -9s;
-          animation-duration: 28s;
-        }
-
-        .constellationMemoryStreamThree {
-          top: 18%;
-          left: 8%;
-          width: 84%;
-          height: 58%;
-          opacity: 0.34;
-          background: radial-gradient(
-            ellipse at center,
-            rgba(196, 181, 253, 0.055),
-            rgba(103, 232, 249, 0.018) 37%,
-            transparent 70%
-          );
-          transform: translate3d(0, 0, -86px) rotate(-14deg);
-          animation-delay: -15s;
-          animation-duration: 34s;
+          animation-duration: 26s;
         }
 
         .constellationNebula {
@@ -2867,19 +2439,6 @@ export default function ConstellationPage() {
           }
         }
 
-        @keyframes constellationMemoryDrift {
-          from {
-            translate: -1.5% -1%;
-            scale: 0.98;
-            opacity: 0.52;
-          }
-          to {
-            translate: 1.8% 1.2%;
-            scale: 1.035;
-            opacity: 0.88;
-          }
-        }
-
         @keyframes constellationShootingStar {
           0%, 76% {
             opacity: 0;
@@ -2898,26 +2457,46 @@ export default function ConstellationPage() {
           }
         }
 
+
+        @keyframes constellationOrbitDrift {
+          from {
+            rotate: 0deg;
+          }
+          to {
+            rotate: 360deg;
+          }
+        }
+
+        @keyframes constellationAuroraFloat {
+          from {
+            translate: -2% -1%;
+            opacity: 0.45;
+          }
+          to {
+            translate: 3% 2%;
+            opacity: 0.82;
+          }
+        }
+
         @media (max-width: 767px) {
           .constellationNebulaLate,
-          .constellationMemoryStreamThree,
           .shootingStarTwo,
           .shootingStarThree {
             display: none;
           }
 
           .constellationNebula,
-          .constellationMemoryStream,
+          .constellationOrbitRing,
+          .constellationAurora,
           .shootingStar {
             animation: none;
           }
         }
 
         @media (prefers-reduced-motion: reduce) {
-          .constellationLoaderHalo,
-          .constellationLoaderOrbit,
           .constellationNebula,
-          .constellationMemoryStream,
+          .constellationOrbitRing,
+          .constellationAurora,
           .constellationTravelTunnel,
           .shootingStar {
             animation: none !important;

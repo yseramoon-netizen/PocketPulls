@@ -10,7 +10,6 @@ import {
   useState,
 } from "react";
 
-import { formatMarketValue } from "@/lib/player/format";
 import { supabase } from "@/lib/supabase";
 
 type CatalogueRpcRow = {
@@ -19,9 +18,7 @@ type CatalogueRpcRow = {
   set_name: string | null;
   card_no: string | null;
   rarity: string | null;
-  market_value: number | string | null;
   image_url: string | null;
-  stock_quantity: number | string | null;
   is_favourite: boolean | null;
   total_count: number | string | null;
 };
@@ -29,10 +26,6 @@ type CatalogueRpcRow = {
 type OverviewRpcRow = {
   sets: unknown;
   rarities: unknown;
-  total_cards: number | string | null;
-  in_stock_cards: number | string | null;
-  physical_units: number | string | null;
-  favourite_count: number | string | null;
 };
 
 type CatalogueCard = {
@@ -41,27 +34,14 @@ type CatalogueCard = {
   setName: string;
   cardNumber: string | null;
   rarity: string;
-  marketValue: number;
   imageUrl: string | null;
-  stockQuantity: number;
   isFavourite: boolean;
 };
 
 type CatalogueOverview = {
   sets: string[];
   rarities: string[];
-  totalCards: number;
-  inStockCards: number;
-  physicalUnits: number;
-  favouriteCount: number;
 };
-
-type StockFilter = "all" | "in_stock" | "out_of_stock";
-type SortOption =
-  | "name_asc"
-  | "value_desc"
-  | "value_asc"
-  | "stock_desc";
 
 type RarityTheme = {
   label: string;
@@ -76,10 +56,6 @@ const PAGE_SIZE = 24;
 const EMPTY_OVERVIEW: CatalogueOverview = {
   sets: [],
   rarities: [],
-  totalCards: 0,
-  inStockCards: 0,
-  physicalUnits: 0,
-  favouriteCount: 0,
 };
 
 const RARITY_THEMES: Record<string, RarityTheme> = {
@@ -223,10 +199,6 @@ function parseOverview(value: unknown): CatalogueOverview {
   return {
     sets: normaliseStringArray(parsed.sets),
     rarities: normaliseStringArray(parsed.rarities),
-    totalCards: toWholeNumber(parsed.total_cards),
-    inStockCards: toWholeNumber(parsed.in_stock_cards),
-    physicalUnits: toWholeNumber(parsed.physical_units),
-    favouriteCount: toWholeNumber(parsed.favourite_count),
   };
 }
 
@@ -262,12 +234,10 @@ function parseCatalogueRows(value: unknown): {
         typeof row.rarity === "string" && row.rarity.trim()
           ? row.rarity.trim()
           : "Common",
-      marketValue: Math.max(0, toNumber(row.market_value)),
       imageUrl:
         typeof row.image_url === "string" && row.image_url.trim()
           ? row.image_url.trim()
           : null,
-      stockQuantity: toWholeNumber(row.stock_quantity),
       isFavourite: row.is_favourite === true,
     })),
     totalCount:
@@ -352,12 +322,6 @@ function getRarityTheme(
   return RARITY_THEMES.common;
 }
 
-function formatWholeNumber(value: number): string {
-  return new Intl.NumberFormat("en-GB").format(
-    Math.max(0, Math.floor(value)),
-  );
-}
-
 function buildPageNumbers(
   currentPage: number,
   totalPages: number,
@@ -395,11 +359,8 @@ export default function CataloguePage() {
   const [search, setSearch] = useState("");
   const [setFilter, setSetFilter] = useState("");
   const [rarityFilter, setRarityFilter] = useState("");
-  const [stockFilter, setStockFilter] =
-    useState<StockFilter>("all");
   const [favouritesOnly, setFavouritesOnly] =
     useState(false);
-  const [sort, setSort] = useState<SortOption>("name_asc");
   const [page, setPage] = useState(1);
 
   const [totalCount, setTotalCount] = useState(0);
@@ -422,9 +383,7 @@ export default function CataloguePage() {
     search.length > 0 ||
     setFilter.length > 0 ||
     rarityFilter.length > 0 ||
-    stockFilter !== "all" ||
-    favouritesOnly ||
-    sort !== "name_asc";
+    favouritesOnly;
 
   const pageNumbers = useMemo(
     () => buildPageNumbers(page, totalPages),
@@ -433,7 +392,7 @@ export default function CataloguePage() {
 
   const loadOverview = useCallback(async () => {
     const { data, error } = await supabase.rpc(
-      "get_catalogue_overview",
+      "get_public_catalogue_facets",
     );
 
     if (error) {
@@ -458,14 +417,12 @@ export default function CataloguePage() {
 
       try {
         const { data, error } = await supabase.rpc(
-          "get_catalogue_cards",
+          "get_public_catalogue_cards",
           {
             p_search: search,
             p_set_name: setFilter,
             p_rarity: rarityFilter,
-            p_stock_filter: stockFilter,
             p_favourites_only: favouritesOnly,
-            p_sort: sort,
             p_page: page,
             p_page_size: PAGE_SIZE,
           },
@@ -521,9 +478,7 @@ export default function CataloguePage() {
       search,
       setFilter,
       rarityFilter,
-      stockFilter,
       favouritesOnly,
-      sort,
       page,
     ],
   );
@@ -609,7 +564,11 @@ export default function CataloguePage() {
       return;
     }
 
-    void loadCards(false);
+    const frame = window.requestAnimationFrame(() => {
+      void loadCards(false);
+    });
+
+    return () => window.cancelAnimationFrame(frame);
   }, [userId, loadCards]);
 
   useEffect(() => {
@@ -656,9 +615,7 @@ export default function CataloguePage() {
     setSearch("");
     setSetFilter("");
     setRarityFilter("");
-    setStockFilter("all");
     setFavouritesOnly(false);
-    setSort("name_asc");
     setPage(1);
     searchInputRef.current?.focus();
   }, []);
@@ -693,15 +650,6 @@ export default function CataloguePage() {
             }
           : current,
       );
-
-      setOverview((current) => ({
-        ...current,
-        favouriteCount: Math.max(
-          0,
-          current.favouriteCount +
-            (nextFavourite ? 1 : -1),
-        ),
-      }));
 
       try {
         if (nextFavourite) {
@@ -761,15 +709,6 @@ export default function CataloguePage() {
             : current,
         );
 
-        setOverview((current) => ({
-          ...current,
-          favouriteCount: Math.max(
-            0,
-            current.favouriteCount +
-              (nextFavourite ? -1 : 1),
-          ),
-        }));
-
         setErrorMessage(
           getErrorMessage(
             error,
@@ -790,8 +729,6 @@ export default function CataloguePage() {
   return (
     <section className="mx-auto w-full max-w-[1600px] px-4 py-8 sm:px-6 lg:px-8">
       <CatalogueHero
-        overview={overview}
-        loading={loading}
         refreshing={refreshing}
         onRefresh={() => {
           void refreshAll();
@@ -821,11 +758,8 @@ export default function CataloguePage() {
         rarities={overview.rarities}
         setFilter={setFilter}
         rarityFilter={rarityFilter}
-        stockFilter={stockFilter}
         favouritesOnly={favouritesOnly}
-        sort={sort}
         hasActiveFilters={hasActiveFilters}
-        resultCount={totalCount}
         filtering={filtering}
         onSearchInput={setSearchInput}
         onSetFilter={(value) => {
@@ -836,16 +770,8 @@ export default function CataloguePage() {
           setRarityFilter(value);
           setPage(1);
         }}
-        onStockFilter={(value) => {
-          setStockFilter(value);
-          setPage(1);
-        }}
         onFavouritesOnly={(value) => {
           setFavouritesOnly(value);
-          setPage(1);
-        }}
-        onSort={(value) => {
-          setSort(value);
           setPage(1);
         }}
         onClear={clearFilters}
@@ -883,7 +809,6 @@ export default function CataloguePage() {
           <CataloguePagination
             page={page}
             totalPages={totalPages}
-            totalCount={totalCount}
             pageNumbers={pageNumbers}
             onPage={(nextPage) => {
               setPage(nextPage);
@@ -914,13 +839,9 @@ export default function CataloguePage() {
 }
 
 function CatalogueHero({
-  overview,
-  loading,
   refreshing,
   onRefresh,
 }: {
-  overview: CatalogueOverview;
-  loading: boolean;
   refreshing: boolean;
   onRefresh: () => void;
 }) {
@@ -935,7 +856,7 @@ function CatalogueHero({
             Card Catalogue
           </h1>
           <p className="mt-2 max-w-2xl text-sm font-semibold leading-6 text-white/45">
-            Browse recorded cards, values and live availability.
+            Explore the complete card archive by name, set and rarity.
           </p>
         </div>
 
@@ -949,77 +870,7 @@ function CatalogueHero({
         </button>
       </div>
 
-      <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <OverviewCard
-          label="Known cards"
-          value={loading ? "—" : formatWholeNumber(overview.totalCards)}
-          detail="Unique catalogue entries"
-          accent="violet"
-        />
-
-        <OverviewCard
-          label="Available species"
-          value={loading ? "—" : formatWholeNumber(overview.inStockCards)}
-          detail="Different cards in stock"
-          accent="cyan"
-        />
-
-        <OverviewCard
-          label="Physical cards"
-          value={loading ? "—" : formatWholeNumber(overview.physicalUnits)}
-          detail="Total wish-pool inventory"
-          accent="yellow"
-        />
-
-        <OverviewCard
-          label="Your favourites"
-          value={loading ? "—" : formatWholeNumber(overview.favouriteCount)}
-          detail="Saved to your trainer account"
-          accent="pink"
-        />
-      </div>
     </header>
-  );
-}
-
-function OverviewCard({
-  label,
-  value,
-  detail,
-  accent,
-}: {
-  label: string;
-  value: string;
-  detail: string;
-  accent: "violet" | "cyan" | "yellow" | "pink";
-}) {
-  const accentClasses = {
-    violet:
-      "border-violet-200/10 bg-violet-300/[0.045] text-violet-100",
-    cyan:
-      "border-cyan-200/10 bg-cyan-300/[0.045] text-cyan-100",
-    yellow:
-      "border-yellow-200/10 bg-yellow-300/[0.045] text-yellow-100",
-    pink:
-      "border-pink-200/10 bg-pink-300/[0.045] text-pink-100",
-  };
-
-  return (
-    <article
-      className={`rounded-2xl border p-4 ${accentClasses[accent]}`}
-    >
-      <p className="text-[0.58rem] font-black uppercase tracking-[0.16em] opacity-45">
-        {label}
-      </p>
-
-      <p className="mt-2 text-2xl font-black text-white">
-        {value}
-      </p>
-
-      <p className="mt-1 text-xs font-semibold text-white/30">
-        {detail}
-      </p>
-    </article>
   );
 }
 
@@ -1030,18 +881,13 @@ function CatalogueFilters({
   rarities,
   setFilter,
   rarityFilter,
-  stockFilter,
   favouritesOnly,
-  sort,
   hasActiveFilters,
-  resultCount,
   filtering,
   onSearchInput,
   onSetFilter,
   onRarityFilter,
-  onStockFilter,
   onFavouritesOnly,
-  onSort,
   onClear,
 }: {
   searchInput: string;
@@ -1050,23 +896,18 @@ function CatalogueFilters({
   rarities: string[];
   setFilter: string;
   rarityFilter: string;
-  stockFilter: StockFilter;
   favouritesOnly: boolean;
-  sort: SortOption;
   hasActiveFilters: boolean;
-  resultCount: number;
   filtering: boolean;
   onSearchInput: (value: string) => void;
   onSetFilter: (value: string) => void;
   onRarityFilter: (value: string) => void;
-  onStockFilter: (value: StockFilter) => void;
   onFavouritesOnly: (value: boolean) => void;
-  onSort: (value: SortOption) => void;
   onClear: () => void;
 }) {
   return (
     <div className="mt-6 rounded-[2rem] border border-white/10 bg-[#090b27]/80 p-4 backdrop-blur-xl sm:p-5">
-      <div className="grid gap-3 lg:grid-cols-[minmax(15rem,1.5fr)_repeat(3,minmax(10rem,1fr))]">
+      <div className="grid gap-3 lg:grid-cols-[minmax(15rem,1.6fr)_repeat(2,minmax(10rem,1fr))]">
         <label className="relative block">
           <span className="sr-only">Search cards</span>
 
@@ -1112,49 +953,10 @@ function CatalogueFilters({
           ))}
         </FilterSelect>
 
-        <FilterSelect
-          label="Sort"
-          value={sort}
-          onChange={(value) =>
-            onSort(value as SortOption)
-          }
-        >
-          <option value="name_asc">Name A–Z</option>
-          <option value="value_desc">
-            Highest value
-          </option>
-          <option value="value_asc">
-            Lowest value
-          </option>
-          <option value="stock_desc">
-            Most physical stock
-          </option>
-        </FilterSelect>
       </div>
 
       <div className="mt-4 flex flex-col gap-4 border-t border-white/[0.07] pt-4 xl:flex-row xl:items-center xl:justify-between">
         <div className="flex flex-wrap items-center gap-2">
-          <FilterChip
-            active={stockFilter === "all"}
-            onClick={() => onStockFilter("all")}
-          >
-            All stock
-          </FilterChip>
-
-          <FilterChip
-            active={stockFilter === "in_stock"}
-            onClick={() => onStockFilter("in_stock")}
-          >
-            In stock
-          </FilterChip>
-
-          <FilterChip
-            active={stockFilter === "out_of_stock"}
-            onClick={() => onStockFilter("out_of_stock")}
-          >
-            Out of stock
-          </FilterChip>
-
           <FilterChip
             active={favouritesOnly}
             onClick={() =>
@@ -1168,11 +970,7 @@ function CatalogueFilters({
 
         <div className="flex flex-wrap items-center justify-between gap-4 xl:justify-end">
           <p className="text-xs font-bold text-white/30">
-            {filtering
-              ? "Searching the archive..."
-              : `${formatWholeNumber(resultCount)} card${
-                  resultCount === 1 ? "" : "s"
-                } found`}
+            {filtering ? "Searching the archive..." : "Archive ready"}
           </p>
 
           {hasActiveFilters ? (
@@ -1337,9 +1135,6 @@ function CatalogueCardTile({
             }}
           />
 
-          <StockBadge
-            quantity={card.stockQuantity}
-          />
         </div>
 
         <div className="px-1 pb-1 pt-3">
@@ -1361,17 +1156,7 @@ function CatalogueCardTile({
               : ""}
           </p>
 
-          <div className="mt-3 flex items-end justify-between gap-2 border-t border-white/[0.06] pt-3">
-            <div>
-              <p className="text-[0.52rem] font-black uppercase tracking-[0.12em] text-white/22">
-                Market value
-              </p>
-
-              <p className="mt-1 text-sm font-black text-white/85">
-                {formatMarketValue(card.marketValue)}
-              </p>
-            </div>
-
+          <div className="mt-3 flex items-center justify-end border-t border-white/[0.06] pt-3">
             <span
               className="h-2.5 w-2.5 flex-none rounded-full"
               style={{
@@ -1386,38 +1171,14 @@ function CatalogueCardTile({
   );
 }
 
-function StockBadge({
-  quantity,
-}: {
-  quantity: number;
-}) {
-  const available = quantity > 0;
-
-  return (
-    <span
-      className={`absolute bottom-3 left-3 z-20 inline-flex min-h-7 items-center rounded-full border px-2.5 text-[0.55rem] font-black uppercase tracking-[0.1em] backdrop-blur-xl ${
-        available
-          ? "border-emerald-100/20 bg-emerald-300/15 text-emerald-50"
-          : "border-white/10 bg-black/45 text-white/35"
-      }`}
-    >
-      {available
-        ? `${formatWholeNumber(quantity)} in stock`
-        : "Unavailable"}
-    </span>
-  );
-}
-
 function CataloguePagination({
   page,
   totalPages,
-  totalCount,
   pageNumbers,
   onPage,
 }: {
   page: number;
   totalPages: number;
-  totalCount: number;
   pageNumbers: number[];
   onPage: (page: number) => void;
 }) {
@@ -1431,8 +1192,7 @@ function CataloguePagination({
       className="mt-8 flex flex-col items-center justify-between gap-4 rounded-2xl border border-white/10 bg-white/[0.035] p-4 sm:flex-row"
     >
       <p className="text-xs font-bold text-white/30">
-        Page {page} of {totalPages} ·{" "}
-        {formatWholeNumber(totalCount)} cards
+        Page {page} of {totalPages}
       </p>
 
       <div className="flex flex-wrap items-center justify-center gap-2">
@@ -1557,7 +1317,7 @@ function CatalogueEmptyState({
 
       <p className="mt-3 max-w-md text-sm font-semibold leading-7 text-white/38">
         {hasActiveFilters
-          ? "Try another name, set, rarity or stock filter."
+          ? "Try another name, set or rarity."
           : "Cards will appear here as soon as they are added to the ancientpulls database."}
       </p>
 
@@ -1666,10 +1426,6 @@ function CardDetailModal({
               >
                 {card.rarity}
               </span>
-
-              <StockBadgeInline
-                quantity={card.stockQuantity}
-              />
             </div>
 
             <h2 className="mt-5 text-3xl font-black tracking-tight text-white sm:text-4xl">
@@ -1683,35 +1439,13 @@ function CardDetailModal({
                 : ""}
             </p>
 
-            <div className="mt-7 grid gap-3 sm:grid-cols-2">
-              <DetailValue
-                label="Market value"
-                value={formatMarketValue(card.marketValue)}
-                detail="Reference raw-card value"
-              />
-
-              <DetailValue
-                label="Physical stock"
-                value={formatWholeNumber(
-                  card.stockQuantity,
-                )}
-                detail={
-                  card.stockQuantity > 0
-                    ? "Cards currently in the wish pool"
-                    : "No physical copies currently available"
-                }
-              />
-            </div>
-
             <div className="mt-6 rounded-2xl border border-white/10 bg-white/[0.035] p-5">
               <p className="text-[0.6rem] font-black uppercase tracking-[0.16em] text-white/28">
-                Wish-pool status
+                Card archive
               </p>
 
               <p className="mt-3 text-sm font-semibold leading-7 text-white/48">
-                {card.stockQuantity > 0
-                  ? `${card.name} is currently capable of appearing in a real ancientpulls wish. Every awarded card removes one physical copy from live stock.`
-                  : `${card.name} remains visible in the archive, but it cannot currently appear in a wish until new physical stock is added.`}
+                Inspect the artwork and save this card to your personal favourites.
               </p>
             </div>
 
@@ -1744,52 +1478,6 @@ function CardDetailModal({
           </div>
         </div>
       </article>
-    </div>
-  );
-}
-
-function StockBadgeInline({
-  quantity,
-}: {
-  quantity: number;
-}) {
-  return (
-    <span
-      className={`inline-flex min-h-8 items-center rounded-full border px-3 text-[0.6rem] font-black uppercase tracking-[0.12em] ${
-        quantity > 0
-          ? "border-emerald-100/20 bg-emerald-300/12 text-emerald-50"
-          : "border-white/10 bg-white/[0.04] text-white/35"
-      }`}
-    >
-      {quantity > 0
-        ? `${formatWholeNumber(quantity)} available`
-        : "Out of stock"}
-    </span>
-  );
-}
-
-function DetailValue({
-  label,
-  value,
-  detail,
-}: {
-  label: string;
-  value: string;
-  detail: string;
-}) {
-  return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-      <p className="text-[0.58rem] font-black uppercase tracking-[0.15em] text-white/27">
-        {label}
-      </p>
-
-      <p className="mt-2 text-xl font-black text-white">
-        {value}
-      </p>
-
-      <p className="mt-1 text-xs font-semibold leading-5 text-white/28">
-        {detail}
-      </p>
     </div>
   );
 }
