@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
 
-export default function HistoryRedirect() {
-  redirect("/constellation?archive=latest");
+export default function RetiredHistoryPage() {
+  redirect("/constellation?panel=history");
 }

@@ -20,13 +20,16 @@ import {
 } from "@/components/player/PlayerUI";
 import { supabase } from "@/lib/supabase";
 
-const TradeRoom = dynamic(
-  () => import("@/components/player/TradeRoom"),
+const TradePanel = dynamic(
+  () => import("@/components/player/TradePanel"),
   {
     ssr: false,
     loading: () => (
-      <div className="flex min-h-[32rem] items-center justify-center font-black text-white/40">
-        Opening protected trade room...
+      <div className="grid min-h-[70dvh] place-items-center text-center">
+        <div>
+          <span className="text-3xl text-cyan-100/45">⇄</span>
+          <p className="mt-3 text-xs font-black uppercase tracking-[0.16em] text-white/35">Opening protected trade room</p>
+        </div>
       </div>
     ),
   },
@@ -290,6 +293,9 @@ function formatPresence(
 }
 
 export default function FriendsPage() {
+  const [tradeOpen, setTradeOpen] = useState(false);
+  const [tradePanelKey, setTradePanelKey] = useState("trade-room");
+
   const [
     friends,
     setFriends,
@@ -362,65 +368,47 @@ export default function FriendsPage() {
       null,
     );
 
-  const [tradeOverlay, setTradeOverlay] = useState<{
-    friendId: string | null;
-    tradeId: string | null;
-  } | null>(null);
+  const openTrade = useCallback((friendId?: string) => {
+    const url = new URL(window.location.href);
+    url.searchParams.set("panel", "trade");
+    url.searchParams.delete("trade");
+    if (friendId) url.searchParams.set("friend", friendId);
+    else url.searchParams.delete("friend");
+    window.history.replaceState(window.history.state, "", url);
+    setTradePanelKey(friendId ? "friend-" + friendId + "-" + Date.now() : "trade-room-" + Date.now());
+    setTradeOpen(true);
+  }, []);
 
   const closeTrade = useCallback(() => {
-    setTradeOverlay(null);
-    window.history.replaceState(null, "", "/friends");
-  }, []);
-
-  const openTrade = useCallback((friendId: string) => {
-    setTradeOverlay({ friendId, tradeId: null });
-    window.history.replaceState(
-      null,
-      "",
-      `/friends?friend=${encodeURIComponent(friendId)}`,
-    );
-  }, []);
-
-  const openTradeRoom = useCallback(() => {
-    setTradeOverlay({ friendId: null, tradeId: null });
-    window.history.replaceState(null, "", "/friends?trade=open");
+    const url = new URL(window.location.href);
+    url.searchParams.delete("panel");
+    url.searchParams.delete("friend");
+    url.searchParams.delete("trade");
+    window.history.replaceState(window.history.state, "", url);
+    setTradeOpen(false);
   }, []);
 
   useEffect(() => {
-    const syncTradeOverlay = () => {
-      const params = new URLSearchParams(window.location.search);
-      const tradeId = params.get("trade");
-      const friendId = params.get("friend");
-      if (tradeId || friendId) {
-        setTradeOverlay({
-          friendId,
-          tradeId: tradeId === "open" ? null : tradeId,
-        });
-      } else {
-        setTradeOverlay(null);
-      }
-    };
-
-    syncTradeOverlay();
-    window.addEventListener("popstate", syncTradeOverlay);
-    return () => window.removeEventListener("popstate", syncTradeOverlay);
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("panel") === "trade") {
+      setTradePanelKey("linked-trade-" + Date.now());
+      setTradeOpen(true);
+    }
   }, []);
 
   useEffect(() => {
-    if (!tradeOverlay) return;
-
-    const originalOverflow = document.body.style.overflow;
+    if (!tradeOpen) return;
+    const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    const handleKeyDown = (event: KeyboardEvent) => {
+    const handleEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") closeTrade();
     };
-    window.addEventListener("keydown", handleKeyDown);
-
+    window.addEventListener("keydown", handleEscape);
     return () => {
-      document.body.style.overflow = originalOverflow;
-      window.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleEscape);
     };
-  }, [closeTrade, tradeOverlay]);
+  }, [closeTrade, tradeOpen]);
 
   const loadFriends =
     useCallback(
@@ -763,12 +751,18 @@ export default function FriendsPage() {
         eyebrow="Trainer connections"
         title="Friends"
         description="Find trainers and manage requests."
-        actions={
-          <PlayerPrimaryButton onClick={openTradeRoom}>
-            Open trade room
-          </PlayerPrimaryButton>
-        }
       />
+
+      <div className="mt-4 flex justify-end">
+        <button
+          type="button"
+          onClick={() => openTrade()}
+          className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-cyan-100/20 bg-cyan-200/[0.08] px-4 text-xs font-black uppercase tracking-[0.12em] text-cyan-50 transition hover:border-cyan-100/30 hover:bg-cyan-200/[0.13]"
+        >
+          <span aria-hidden="true">⇄</span>
+          Open trades
+        </button>
+      </div>
 
       <PlayerErrorBanner
         message={
@@ -1079,16 +1073,28 @@ export default function FriendsPage() {
           </div>
         </PlayerPanel>
       </section>
-
-      {tradeOverlay ? (
-        <div className="fixed inset-0 z-[100] bg-[#02030b]/82 p-2 backdrop-blur-md sm:p-4" role="dialog" aria-modal="true" aria-label="Trade cards with a friend">
-          <div className="mx-auto h-full max-w-[1760px] overflow-y-auto rounded-[1.8rem] border border-cyan-100/16 bg-[#07091f] shadow-[0_30px_120px_rgba(0,0,0,0.72)]">
-            <TradeRoom
-              embedded
-              initialFriendId={tradeOverlay.friendId}
-              initialTradeId={tradeOverlay.tradeId}
-              onClose={closeTrade}
-            />
+      {tradeOpen ? (
+        <div
+          className="fixed inset-0 z-[1200] bg-[#01020b]/88 p-2 backdrop-blur-2xl sm:p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Trade with friends"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) closeTrade();
+          }}
+        >
+          <div className="relative mx-auto h-full w-full max-w-[1800px] overflow-hidden rounded-[1.65rem] border border-cyan-100/14 bg-[#05071b] shadow-[0_2rem_8rem_rgba(0,0,0,0.72)]">
+            <button
+              type="button"
+              onClick={closeTrade}
+              className="absolute right-3 top-3 z-20 grid h-11 w-11 place-items-center rounded-full border border-white/12 bg-[#090c24]/85 text-xl font-black text-white/65 backdrop-blur-xl transition hover:bg-white/10 hover:text-white"
+              aria-label="Close trades"
+            >
+              ×
+            </button>
+            <div className="h-full overflow-y-auto overscroll-contain pt-10 sm:pt-6">
+              <TradePanel key={tradePanelKey} />
+            </div>
           </div>
         </div>
       ) : null}

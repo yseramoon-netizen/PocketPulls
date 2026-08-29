@@ -727,6 +727,8 @@ export default function ConstellationPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [infoPanelOpen, setInfoPanelOpen] = useState(true);
+  const [archiveOpen, setArchiveOpen] = useState(false);
+  const [archiveSearch, setArchiveSearch] = useState("");
   const [mobileSky, setMobileSky] = useState(false);
   const [earthView, setEarthView] = useState(true);
   const [rotation, setRotation] = useState({ x: 0, y: 0 });
@@ -1754,6 +1756,11 @@ export default function ConstellationPage() {
     return () => window.cancelAnimationFrame(frame);
   }, [loadConstellation]);
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("panel") === "history") setArchiveOpen(true);
+  }, []);
+
   const totalValue = useMemo(
     () => stars.reduce((sum, star) => sum + star.marketValue, 0),
     [stars],
@@ -1767,6 +1774,28 @@ export default function ConstellationPage() {
     },
     null,
   ), [stars]);
+
+  const archiveStars = useMemo(() => {
+    const query = archiveSearch.trim().toLowerCase();
+    return [...stars]
+      .sort((first, second) => {
+        const firstTime = first.grantedAt ? new Date(first.grantedAt).getTime() : 0;
+        const secondTime = second.grantedAt ? new Date(second.grantedAt).getTime() : 0;
+        return secondTime - firstTime;
+      })
+      .filter((star) =>
+        !query || [star.name, star.setName, star.cardNumber, star.rarity]
+          .filter(Boolean)
+          .some((value) => String(value).toLowerCase().includes(query)),
+      );
+  }, [archiveSearch, stars]);
+
+  const closeArchive = useCallback(() => {
+    setArchiveOpen(false);
+    const url = new URL(window.location.href);
+    url.searchParams.delete("panel");
+    window.history.replaceState(window.history.state, "", url);
+  }, []);
 
   const occupiedZodiacPoints = useMemo(() => new Set(
     stars.flatMap((star) =>
@@ -1883,6 +1912,73 @@ export default function ConstellationPage() {
       <div className="pointer-events-none absolute -left-[12vw] top-[16%] h-[28rem] w-[68vw] rotate-[-12deg] rounded-[50%] bg-[linear-gradient(90deg,transparent,rgba(34,211,238,0.035),rgba(139,92,246,0.055),transparent)] blur-[34px] constellationAurora" />
       <div className="pointer-events-none absolute -right-[18vw] bottom-[8%] h-[26rem] w-[62vw] rotate-[9deg] rounded-[50%] bg-[linear-gradient(90deg,transparent,rgba(244,114,182,0.035),rgba(103,232,249,0.045),transparent)] blur-[40px] constellationAurora constellationAuroraLate" />
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_42%,rgba(0,0,0,0.24)_78%,rgba(0,0,0,0.58)_100%)]" />
+
+      {!archiveOpen ? (
+        <button
+          type="button"
+          onClick={() => {
+            setArchiveOpen(true);
+            const url = new URL(window.location.href);
+            url.searchParams.set("panel", "history");
+            window.history.replaceState(window.history.state, "", url);
+          }}
+          className="absolute right-3 top-3 z-50 flex min-h-11 items-center gap-2 rounded-full border border-violet-100/16 bg-[#080a25]/88 px-4 text-[0.66rem] font-black uppercase tracking-[0.12em] text-violet-50/78 shadow-[0_15px_50px_rgba(0,0,0,0.35)] backdrop-blur-xl transition hover:border-cyan-100/28 hover:bg-[#10143a] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-100 sm:right-5 sm:top-5"
+        >
+          <span aria-hidden="true" className="text-sm text-cyan-100">⌕</span>
+          Find a card
+        </button>
+      ) : (
+        <aside className="absolute inset-x-3 top-3 z-[55] max-h-[calc(100dvh-6rem)] overflow-hidden rounded-[1.55rem] border border-violet-200/14 bg-[#080a25]/94 shadow-[0_24px_85px_rgba(0,0,0,0.5)] backdrop-blur-2xl sm:inset-x-auto sm:right-5 sm:top-5 sm:w-[min(92vw,25rem)]">
+          <div className="border-b border-white/8 p-4 sm:p-5">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-[0.57rem] font-black uppercase tracking-[0.18em] text-cyan-100/38">Latest pulls · Star archive</p>
+                <h2 className="mt-1 text-xl font-black tracking-tight text-white">Find a card</h2>
+              </div>
+              <button type="button" onClick={closeArchive} aria-label="Close card search" className="grid h-10 w-10 flex-none place-items-center rounded-xl border border-white/10 bg-white/[0.05] text-lg font-black text-white/58 transition hover:bg-white/10 hover:text-white">×</button>
+            </div>
+            <label className="relative mt-4 block">
+              <span className="sr-only">Search your constellation</span>
+              <input
+                autoFocus
+                value={archiveSearch}
+                onChange={(event) => setArchiveSearch(event.target.value)}
+                placeholder="Name, set, number, or rarity…"
+                className="min-h-12 w-full rounded-xl border border-white/10 bg-black/20 px-4 pr-11 text-base font-semibold text-white outline-none placeholder:text-white/24 focus:border-cyan-100/28 sm:text-sm"
+              />
+              <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-cyan-100/35" aria-hidden="true">⌕</span>
+            </label>
+          </div>
+          <div className="max-h-[calc(100dvh-15rem)] space-y-2 overflow-y-auto p-3 sm:p-4">
+            {archiveStars.length === 0 ? (
+              <div className="px-4 py-12 text-center">
+                <span className="text-3xl text-yellow-100/30">✦</span>
+                <p className="mt-3 text-sm font-black text-white/55">{stars.length ? "No stars match that search." : "Your first star is still waiting."}</p>
+              </div>
+            ) : archiveStars.map((star, index) => (
+              <button
+                key={star.id}
+                type="button"
+                onClick={() => {
+                  closeArchive();
+                  travelToStar(star);
+                }}
+                className="group grid w-full grid-cols-[3.2rem_minmax(0,1fr)_auto] items-center gap-3 rounded-2xl border border-white/[0.07] bg-white/[0.025] p-2.5 text-left transition hover:border-cyan-100/18 hover:bg-white/[0.055]"
+              >
+                <span className="aspect-[63/88] overflow-hidden rounded-lg border border-white/8 bg-black/20">
+                  {star.imageUrl ? <img src={star.imageUrl} alt="" loading="lazy" className="h-full w-full object-cover" /> : null}
+                </span>
+                <span className="min-w-0">
+                  <span className="block truncate text-sm font-black text-white/82 group-hover:text-white">{star.name}</span>
+                  <span className="mt-1 block truncate text-[0.62rem] font-semibold text-white/34">{star.setName} · {star.cardNumber ? "#" + star.cardNumber : star.rarity}</span>
+                  <span className="mt-1 block truncate text-[0.53rem] font-black uppercase tracking-[0.1em]" style={{ color: star.colour }}>{index < 8 && !archiveSearch.trim() ? "Recent · " : ""}{formatDate(star.grantedAt)}</span>
+                </span>
+                <span className="pr-1 text-sm text-cyan-100/28 transition group-hover:translate-x-0.5 group-hover:text-cyan-100/70" aria-hidden="true">→</span>
+              </button>
+            ))}
+          </div>
+        </aside>
+      )}
 
       {infoPanelOpen ? (
       <div className="absolute inset-x-3 top-[4.75rem] z-40 max-h-[calc(100dvh-10rem)] overflow-y-auto rounded-[1.6rem] border border-violet-200/12 bg-[#080a25]/88 p-4 shadow-[0_20px_70px_rgba(0,0,0,0.3)] backdrop-blur-2xl sm:inset-x-auto sm:left-5 sm:top-5 sm:max-w-[min(92vw,34rem)] sm:p-5">

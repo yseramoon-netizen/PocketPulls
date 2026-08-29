@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import SupportPanel from "@/components/player/SupportPanel";
 import { TrustShell } from "@/components/player/TrustShell";
 
 const CARDS = [
@@ -39,38 +40,12 @@ const CARDS = [
     title: "Terms",
     body: "The full terms for using ancientpulls and purchasing wishes.",
   },
-  {
-    href: "/returns",
-    glyph: "↺",
-    title: "Returns & Cancellations",
-    body: "How to cancel unused credits, return a card or report a fault.",
-  },
-  {
-    href: "/privacy",
-    glyph: "◉",
-    title: "Privacy",
-    body: "What account information is used, why, and your data rights.",
-  },
-  {
-    href: "/orders",
-    glyph: "▰",
-    title: "Your cards & orders",
-    body: "Exact variants, fulfilment status and parcel tracking.",
-  },
-  {
-    href: "/support",
-    glyph: "◇",
-    title: "Contact Support",
-    body: "Open a private case and attach photos from your phone.",
-  },
 ] as const;
 
 const NEW_TAB_LINKS = new Set([
   "/rules",
   "/player-protection",
   "/terms",
-  "/returns",
-  "/privacy",
 ]);
 
 export default function HelpPage() {
@@ -99,6 +74,18 @@ export default function HelpPage() {
           </Link>
         ))}
       </div>
+
+      <section id="support" className="mt-6 scroll-mt-24 rounded-2xl border border-cyan-100/12 bg-cyan-200/[0.025] p-4 sm:p-5">
+        <div className="mb-5 flex items-start gap-3 border-b border-white/[0.07] pb-5">
+          <span className="flex h-10 w-10 flex-none items-center justify-center rounded-xl border border-cyan-100/15 bg-cyan-100/[0.06] text-lg font-black text-cyan-50/80">◇</span>
+          <div>
+            <p className="text-[0.62rem] font-black uppercase tracking-[0.17em] text-cyan-100/40">Player care</p>
+            <h2 className="mt-1 text-xl font-black text-white">Support</h2>
+            <p className="mt-1 text-sm font-semibold leading-6 text-white/42">Report a problem and keep every reply attached to your account, without leaving Help.</p>
+          </div>
+        </div>
+        <SupportPanel embedded />
+      </section>
     </TrustShell>
   );
 }

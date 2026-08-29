@@ -18,6 +18,7 @@ const LINKS = [
   { href: "/terms", label: "Terms" },
   { href: "/returns", label: "Returns" },
   { href: "/privacy", label: "Privacy" },
+  { href: "/help#support", label: "Support" },
 ] as const;
 
 const NEW_TAB_LINKS = new Set([

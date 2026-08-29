@@ -965,10 +965,10 @@ export default function ProfilePage() {
               </Link>
 
               <Link
-                href="/constellation?archive=latest"
+                href="/constellation?panel=history"
                 className="flex min-h-11 items-center justify-between rounded-xl border border-white/10 bg-white/[0.04] px-4 text-sm font-black text-white/55"
               >
-                View latest pulls
+                Find pulls in constellation
                 <span>→</span>
               </Link>
             </div>

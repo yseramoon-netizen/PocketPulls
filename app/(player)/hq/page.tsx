@@ -329,7 +329,7 @@ export default function TrainerHqPage() {
           ["/wishes", "✦", "Make a wish", "Reveal a card"],
           ["/collection", "▣", "Open Binder", "Owned cards"],
           ["/friends", "♢", "Friends", "Connections"],
-          ["/orders", "S", "Cards & Orders", "Shipping and delivery"],
+          ["/shipping", "S", "Shipping", "Delivery status"],
         ].map(([href, glyph, title, detail]) => (
           <Link
             key={href}
@@ -476,16 +476,16 @@ function ActivityPanel({ data }: { data: TrainerHqData }) {
       ready: data.pendingFriendRequests > 0,
     },
     {
-      href: "/friends?trade=open",
+      href: "/friends?panel=trade",
       glyph: "⇄",
-      title: "Active trades",
+      title: "Friend trades",
       detail: data.tradeNeedsAttention
         ? `${data.attentionTradePartner || "A trainer"} needs your response`
         : `${data.activeTrades} currently active`,
       ready: data.tradeNeedsAttention,
     },
     {
-      href: "/orders",
+      href: "/shipping",
       glyph: "S",
       title: "Shipping",
       detail: shipmentLabel(data.shipmentStatus),

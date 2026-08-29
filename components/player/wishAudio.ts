@@ -9,7 +9,7 @@ export type WishAudioSession = {
 export type WishAudioTimeline = {
   impactAtMs: number;
   revealAtMs: number;
-  mode?: "journey" | "cosmic" | "binder" | "convergence";
+  mode?: "journey" | "cosmic" | "convergence" | "binder";
   travelWindows?: readonly {
     startAtMs: number;
     durationMs: number;
@@ -72,7 +72,7 @@ export function startWishAudio(
     return null;
   }
 
-  const safeTier = Math.max(1, Math.min(9, Math.floor(tier)));
+  const safeTier = Math.max(1, Math.min(8, Math.floor(tier)));
   const startedAt = context.currentTime + 0.045;
   const master = context.createGain();
   const compressor = context.createDynamicsCompressor();
@@ -104,10 +104,23 @@ export function startWishAudio(
   const awakeningAt = Math.max(0.95, impactAtSeconds - 1.28);
   const travelWindows = timeline.travelWindows || [];
 
-  const mode = timeline.mode ?? "journey";
-  const specialMode = mode !== "journey";
-
-  if (safeTier <= 2 && travelWindows.length === 0 && !specialMode) {
+  if (timeline.mode === "cosmic") {
+    scheduleCharge(context, master, sources, startedAt, Math.max(6, safeTier));
+    scheduleCosmicAscension(
+      context,
+      master,
+      sources,
+      startedAt + 0.72,
+      Math.max(1.8, impactAtSeconds - 1.15),
+    );
+    scheduleAwakening(
+      context,
+      master,
+      sources,
+      startedAt + awakeningAt,
+      8,
+    );
+  } else if (safeTier <= 2 && travelWindows.length === 0) {
     scheduleQuickReveal(
       context,
       master,
@@ -116,16 +129,10 @@ export function startWishAudio(
       safeTier,
     );
   } else {
-    scheduleCharge(
-      context,
-      master,
-      sources,
-      startedAt,
-      specialMode ? Math.max(6, safeTier) : safeTier,
-    );
+    scheduleCharge(context, master, sources, startedAt, safeTier);
     if (travelWindows.length > 0) {
       for (const window of travelWindows) {
-        const windowTier = Math.max(1, Math.min(9, Math.round(window.intensity)));
+        const windowTier = Math.max(1, Math.min(8, Math.round(window.intensity)));
         const windowStart = startedAt + Math.max(0, window.startAtMs / 1000);
         const windowDuration = Math.max(0.48, window.durationMs / 1000);
         scheduleFlight(
@@ -159,29 +166,7 @@ export function startWishAudio(
       master,
       sources,
       startedAt + awakeningAt,
-      specialMode ? Math.max(7, safeTier) : safeTier,
-    );
-  }
-
-  if (mode === "cosmic" || mode === "convergence") {
-    const cosmicDuration = mode === "convergence" ? 2.5 : 2.85;
-    scheduleCosmicAscension(
-      context,
-      master,
-      sources,
-      startedAt + Math.max(0.9, impactAtSeconds - cosmicDuration - 0.2),
-      cosmicDuration,
-      mode === "convergence" ? 0.72 : 1,
-    );
-  }
-
-  if (mode === "binder" || mode === "convergence") {
-    scheduleBinderAwakening(
-      context,
-      master,
-      sources,
-      startedAt + Math.max(0.9, impactAtSeconds - (mode === "convergence" ? 1.95 : 1.72)),
-      mode === "convergence" ? 0.72 : 1,
+      safeTier,
     );
   }
   scheduleImpact(
@@ -304,15 +289,14 @@ function scheduleCosmicAscension(
   sources: AudioScheduledSourceNode[],
   start: number,
   duration: number,
-  strength = 1,
 ) {
-  playAir(context, destination, sources, start, duration, 260, 5200, 0.034 * strength);
+  playAir(context, destination, sources, start, duration, 260, 5200, 0.034);
   playTone(context, destination, sources, {
     start,
     frequency: 174.61,
     endFrequency: 1396.91,
     duration,
-    volume: 0.024 * strength,
+    volume: 0.024,
     type: "sine",
     attack: 0.42,
   });
@@ -321,72 +305,10 @@ function scheduleCosmicAscension(
     frequency: 261.63,
     endFrequency: 2093,
     duration: Math.max(0.8, duration - 0.32),
-    volume: 0.016 * strength,
+    volume: 0.016,
     type: "triangle",
     attack: 0.62,
   });
-}
-
-function scheduleBinderAwakening(
-  context: AudioContext,
-  destination: AudioNode,
-  sources: AudioScheduledSourceNode[],
-  start: number,
-  strength = 1,
-) {
-  const archiveChord = [523.25, 659.25, 783.99, 1046.5, 1567.98];
-
-  playAir(
-    context,
-    destination,
-    sources,
-    start,
-    1.72,
-    420,
-    4200,
-    0.021 * strength,
-  );
-
-  archiveChord.forEach((frequency, index) => {
-    playTone(context, destination, sources, {
-      start: start + index * 0.17,
-      frequency,
-      endFrequency: frequency * 1.012,
-      duration: 1.45 - index * 0.08,
-      volume: (0.019 + index * 0.0018) * strength,
-      type: index % 2 === 0 ? "sine" : "triangle",
-      attack: 0.008,
-    });
-  });
-
-  // Two tactile, musical clicks sell the clasp unlatching and the cover opening.
-  playNoiseHit(
-    context,
-    destination,
-    sources,
-    start + 0.72,
-    0.13,
-    4800,
-    0.018 * strength,
-  );
-  playTone(context, destination, sources, {
-    start: start + 0.76,
-    frequency: 1760,
-    endFrequency: 880,
-    duration: 0.28,
-    volume: 0.022 * strength,
-    type: "triangle",
-    attack: 0.004,
-  });
-  playNoiseHit(
-    context,
-    destination,
-    sources,
-    start + 1.08,
-    0.2,
-    6200,
-    0.015 * strength,
-  );
 }
 
 function scheduleQuickReveal(

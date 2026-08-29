@@ -243,7 +243,7 @@ export default function FriendProfilePage() {
 
         {profile ? (
           <Link
-            href={`/friends?friend=${encodeURIComponent(profile.userId)}`}
+            href={`/friends?panel=trade&friend=${encodeURIComponent(profile.userId)}`}
             className="inline-flex min-h-10 items-center rounded-xl border border-cyan-100/20 bg-cyan-200/[0.08] px-4 text-xs font-black text-cyan-50 transition hover:bg-cyan-200/[0.14]"
           >
             Trade cards
