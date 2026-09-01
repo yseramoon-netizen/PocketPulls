@@ -17,7 +17,7 @@ const FOUNDER_KEYPOSE_SHEETS: Readonly<
   Partial<Record<NebuSkinKey, string>>
 > = {
   sherry: "/ancient-pulls/wish/nebu-cinematic/sherry-keyposes-v1.png",
-  bubbles: "/ancient-pulls/wish/nebu-cinematic/bubbles-keyposes-v1.png",
+  bubbles: "/ancient-pulls/wish/nebu-cinematic/bubbles-keyposes-v1.webp",
 };
 const SHEET_COLUMNS = 4;
 const SHEET_ROWS = 2;
@@ -173,6 +173,8 @@ export function getNebuSummonSprite(
   _blackHole = false,
   nebuSkin: NebuSkinKey = "midnight",
 ): string {
+  void _tier;
+  void _blackHole;
   return FOUNDER_KEYPOSE_SHEETS[nebuSkin] || KEYPOSE_SHEET;
 }
 
@@ -339,213 +341,6 @@ function readTheme(element: HTMLElement): Theme {
       [250, 204, 82],
     ),
   };
-}
-
-type FounderCoat = 0 | 1 | 2;
-
-const BUBBLES_WHITE: FounderCoat = 0;
-const BUBBLES_BLACK: FounderCoat = 1;
-const BUBBLES_GOLD: FounderCoat = 2;
-const FOUNDER_ATLAS_CACHE = new Map<"sherry" | "bubbles", HTMLCanvasElement>();
-
-const FOUNDER_EYE_MASKS: ReadonlyArray<
-  readonly [centerX: number, centerY: number, radiusX: number, radiusY: number]
-> = [
-  [450, 406, 80, 60],
-  [366, 376, 75, 60],
-  [365, 370, 70, 55],
-  [277, 405, 70, 50],
-  [445, 370, 105, 55],
-  [408, 262, 80, 60],
-  [434, 287, 132, 96],
-  [354, 319, 92, 68],
-] as const;
-
-function founderEyeMaskAt(
-  pose: number,
-  localX: number,
-  localY: number,
-): number {
-  const mask = FOUNDER_EYE_MASKS[pose] || FOUNDER_EYE_MASKS[0];
-  const distance =
-    ((localX - mask[0]) / mask[2]) ** 2 +
-    ((localY - mask[1]) / mask[3]) ** 2;
-  return 1 - smoothstep(inverseLerp(0.34, 1, distance));
-}
-
-function bubblesCoatAt(
-  pose: number,
-  localX: number,
-  localY: number,
-): FounderCoat {
-  const x = localX / POSE_WIDTH;
-  const y = localY / POSE_HEIGHT;
-  const faceWhite =
-    y < 0.43 &&
-    Math.abs(x - 0.49) < lerp(0.075, 0.13, smoothstep(y / 0.43));
-  const chestWhite =
-    y >= 0.34 &&
-    Math.abs(x - 0.49) < lerp(0.08, 0.15, smoothstep((y - 0.34) / 0.48));
-
-  if (faceWhite || chestWhite) return BUBBLES_WHITE;
-
-  // Broad, softly interlocked fields create the black-and-gold mask running
-  // from the eyes over the back and tail. The source luminance is retained,
-  // so drawn fur, shadows, and pose silhouettes survive the palette transfer.
-  const field =
-    Math.sin(x * 12.8 + y * 5.3 + pose * 1.71) * 0.54 +
-    Math.sin(x * 25.2 - y * 9.4 + pose * 0.83) * 0.29 +
-    Math.cos(x * 7.1 + y * 17.6 - pose * 1.13) * 0.25;
-  const backBias = smoothstep(inverseLerp(0.26, 0.68, x + y * 0.42));
-
-  if (field + backBias * 0.24 > 0.34) return BUBBLES_BLACK;
-  if (field - backBias * 0.12 < -0.22) return BUBBLES_GOLD;
-  return BUBBLES_WHITE;
-}
-
-function founderToneDetail(
-  sourceValue: number,
-  lift = 0,
-): number {
-  return clamp(
-    Math.pow(clamp((sourceValue + lift) / 0.68), 0.58),
-  );
-}
-
-function createFounderAtlas(
-  image: HTMLImageElement,
-  nebuSkin: "sherry" | "bubbles",
-): CanvasImageSource {
-  const cached = FOUNDER_ATLAS_CACHE.get(nebuSkin);
-  if (
-    cached &&
-    cached.width === image.naturalWidth &&
-    cached.height === image.naturalHeight
-  ) {
-    return cached;
-  }
-
-  const atlas = document.createElement("canvas");
-  atlas.width = image.naturalWidth;
-  atlas.height = image.naturalHeight;
-  const atlasContext = atlas.getContext("2d", {
-    alpha: true,
-    willReadFrequently: true,
-  });
-  if (!atlasContext) return image;
-
-  atlasContext.drawImage(image, 0, 0);
-  const pixels = atlasContext.getImageData(0, 0, atlas.width, atlas.height);
-  const data = pixels.data;
-
-  for (let y = 0; y < atlas.height; y += 1) {
-    const poseRow = Math.floor(y / POSE_HEIGHT);
-    const localY = y % POSE_HEIGHT;
-
-    for (let x = 0; x < atlas.width; x += 1) {
-      const offset = (y * atlas.width + x) * 4;
-      if (data[offset + 3] < 8) continue;
-
-      const red = data[offset];
-      const green = data[offset + 1];
-      const blue = data[offset + 2];
-      const r = red / 255;
-      const g = green / 255;
-      const b = blue / 255;
-      const value = Math.max(r, g, b);
-      const minimum = Math.min(r, g, b);
-      const delta = value - minimum;
-      const saturation = value > 0 ? delta / value : 0;
-      let hue = 0;
-      if (delta > 0.0001) {
-        if (value === r) hue = ((g - b) / delta) % 6;
-        else if (value === g) hue = (b - r) / delta + 2;
-        else hue = (r - g) / delta + 4;
-        hue = ((hue / 6) + 1) % 1;
-      }
-      const pose = poseRow * SHEET_COLUMNS + Math.floor(x / POSE_WIDTH);
-      const localX = x % POSE_WIDTH;
-      const eyeMask = founderEyeMaskAt(pose, localX, localY);
-      const warmDetail =
-        hue >= 0.025 && hue <= 0.19 && saturation > 0.34 && value > 0.28;
-      const midnightFur =
-        saturation > 0.12 &&
-        value < 0.78 &&
-        hue >= 0.5 &&
-        hue <= 0.86;
-
-      if (eyeMask > 0.18 && warmDetail) {
-        const detail = founderToneDetail(value, 0.12);
-        const sherryEye = nebuSkin === "sherry";
-        const eyeDarkRed = sherryEye ? 4 : 31;
-        const eyeDarkGreen = sherryEye ? 38 : 49;
-        const eyeDarkBlue = sherryEye ? 18 : 7;
-        const eyeLightRed = sherryEye ? 102 : 185;
-        const eyeLightGreen = sherryEye ? 255 : 225;
-        const eyeLightBlue = sherryEye ? 159 : 82;
-        const mix = eyeMask * smoothstep(inverseLerp(0.28, 0.78, saturation));
-        data[offset] = Math.round(lerp(red, lerp(eyeDarkRed, eyeLightRed, detail), mix));
-        data[offset + 1] = Math.round(lerp(green, lerp(eyeDarkGreen, eyeLightGreen, detail), mix));
-        data[offset + 2] = Math.round(lerp(blue, lerp(eyeDarkBlue, eyeLightBlue, detail), mix));
-        continue;
-      }
-
-      if (!midnightFur && !(nebuSkin === "bubbles" && warmDetail && localY > 340 && value < 0.9)) {
-        continue;
-      }
-
-      let darkRed: number;
-      let darkGreen: number;
-      let darkBlue: number;
-      let lightRed: number;
-      let lightGreen: number;
-      let lightBlue: number;
-      let lift = 0;
-      if (nebuSkin === "sherry") {
-        darkRed = 2;
-        darkGreen = 7;
-        darkBlue = 5;
-        lightRed = 64;
-        lightGreen = 84;
-        lightBlue = 73;
-      } else {
-        const coat = bubblesCoatAt(pose, localX, localY);
-        if (coat === BUBBLES_BLACK) {
-          darkRed = 7;
-          darkGreen = 7;
-          darkBlue = 6;
-          lightRed = 74;
-          lightGreen = 65;
-          lightBlue = 54;
-        } else if (coat === BUBBLES_GOLD) {
-          darkRed = 83;
-          darkGreen = 38;
-          darkBlue = 9;
-          lightRed = 245;
-          lightGreen = 169;
-          lightBlue = 63;
-          lift = 0.09;
-        } else {
-          darkRed = 76;
-          darkGreen = 72;
-          darkBlue = 66;
-          lightRed = 255;
-          lightGreen = 250;
-          lightBlue = 237;
-          lift = 0.2;
-        }
-      }
-
-      const detail = founderToneDetail(value, lift);
-      data[offset] = Math.round(lerp(darkRed, lightRed, detail));
-      data[offset + 1] = Math.round(lerp(darkGreen, lightGreen, detail));
-      data[offset + 2] = Math.round(lerp(darkBlue, lightBlue, detail));
-    }
-  }
-
-  atlasContext.putImageData(pixels, 0, 0);
-  FOUNDER_ATLAS_CACHE.set(nebuSkin, atlas);
-  return atlas;
 }
 
 function createSkinnedAtlas(

@@ -16,6 +16,7 @@ import {
   areOrdersOpen,
   ORDERS_NOT_READY_MESSAGE,
 } from "@/lib/player/orders";
+import { getConfiguredPublicOrigin } from "@/lib/auth/navigation";
 
 /* eslint-disable @typescript-eslint/no-explicit-any -- this export does not include generated Supabase database types */
 
@@ -33,8 +34,26 @@ type LooseDatabase = {
   from(table: string): any;
 };
 
+const REUSABLE_CHECKOUT_WINDOW_MS = 30 * 60 * 1_000;
+
 function readPackageId(value: unknown): string {
   return typeof value === "string" ? value.trim().slice(0, 80) : "";
+}
+
+function readStripeCheckoutUrl(value: unknown): string | null {
+  if (typeof value !== "string" || !value.trim()) return null;
+
+  try {
+    const url = new URL(value.trim());
+
+    if (url.protocol !== "https:" || url.hostname !== "checkout.stripe.com") {
+      return null;
+    }
+
+    return url.toString();
+  } catch {
+    return null;
+  }
 }
 
 async function createPendingOrder(
@@ -128,6 +147,7 @@ async function createStripeCheckout(input: {
     headers: {
       Authorization: `Bearer ${input.secret}`,
       "Content-Type": "application/x-www-form-urlencoded",
+      "Idempotency-Key": `ancient-pulls-checkout-${input.orderId}`,
     },
     body,
     cache: "no-store",
@@ -148,7 +168,7 @@ async function createStripeCheckout(input: {
   }
 
   const id = typeof payload.id === "string" ? payload.id : "";
-  const url = typeof payload.url === "string" ? payload.url : "";
+  const url = readStripeCheckoutUrl(payload.url) || "";
 
   if (!id || !url) {
     throw new Error("Stripe returned an incomplete checkout session.");
@@ -225,21 +245,43 @@ export async function POST(request: Request) {
       );
     }
 
-    const [paidResult, reservationResult] = await Promise.all([
-      database
-        .from("wish_purchase_orders")
-        .select("id")
-        .eq("user_id", user.id)
-        .eq("status", "paid")
-        .limit(1),
-      database
-        .from("wish_purchase_orders")
-        .select("id")
-        .eq("user_id", user.id)
-        .eq("first_recharge", true)
-        .in("status", ["pending", "paid"])
-        .limit(1),
-    ]);
+    const reusableCheckoutCutoff = new Date(
+      Date.now() - REUSABLE_CHECKOUT_WINDOW_MS,
+    ).toISOString();
+
+    const [reusableCheckoutResult, paidResult, reservationResult] =
+      await Promise.all([
+        database
+          .from("wish_purchase_orders")
+          .select(
+            "id,wishes,amount_pence,first_recharge,stripe_checkout_session_url,checkout_acknowledgement_version,immediate_access_requested",
+          )
+          .eq("user_id", user.id)
+          .eq("package_id", wishPackage.id)
+          .eq("status", "pending")
+          .gte("created_at", reusableCheckoutCutoff)
+          .not("stripe_checkout_session_url", "is", null)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+        database
+          .from("wish_purchase_orders")
+          .select("id")
+          .eq("user_id", user.id)
+          .eq("status", "paid")
+          .limit(1),
+        database
+          .from("wish_purchase_orders")
+          .select("id")
+          .eq("user_id", user.id)
+          .eq("first_recharge", true)
+          .in("status", ["pending", "paid"])
+          .limit(1),
+      ]);
+
+    if (reusableCheckoutResult.error) {
+      throw reusableCheckoutResult.error;
+    }
 
     if (paidResult.error) {
       throw paidResult.error;
@@ -247,6 +289,54 @@ export async function POST(request: Request) {
 
     if (reservationResult.error) {
       throw reservationResult.error;
+    }
+
+    const reusableCheckout = reusableCheckoutResult.data as
+      | {
+          id?: unknown;
+          wishes?: unknown;
+          amount_pence?: unknown;
+          first_recharge?: unknown;
+          stripe_checkout_session_url?: unknown;
+          checkout_acknowledgement_version?: unknown;
+          immediate_access_requested?: unknown;
+        }
+      | null;
+    const reusableCheckoutUrl = readStripeCheckoutUrl(
+      reusableCheckout?.stripe_checkout_session_url,
+    );
+    const reusableOrderId =
+      typeof reusableCheckout?.id === "string" ? reusableCheckout.id : "";
+    const reusableWishes = Number(reusableCheckout?.wishes);
+    const reusableAmountPence = Number(reusableCheckout?.amount_pence);
+
+    if (
+      reusableCheckoutUrl &&
+      reusableOrderId &&
+      reusableCheckout?.checkout_acknowledgement_version ===
+        CHECKOUT_ACKNOWLEDGEMENT_VERSION &&
+      reusableCheckout?.immediate_access_requested === true &&
+      Number.isSafeInteger(reusableWishes) &&
+      reusableWishes === wishPackage.wishes &&
+      Number.isSafeInteger(reusableAmountPence) &&
+      reusableAmountPence > 0
+    ) {
+      return Response.json(
+        {
+          ok: true,
+          checkoutUrl: reusableCheckoutUrl,
+          orderId: reusableOrderId,
+          firstRecharge: reusableCheckout?.first_recharge === true,
+          wishes: reusableWishes,
+          amountPence: reusableAmountPence,
+          reused: true,
+        },
+        {
+          headers: {
+            "Cache-Control": "no-store",
+          },
+        },
+      );
     }
 
     const hasPaidRecharge = Array.isArray(paidResult.data) && paidResult.data.length > 0;
@@ -298,7 +388,7 @@ export async function POST(request: Request) {
     try {
       const stripe = await createStripeCheckout({
         secret: stripeSecret,
-        origin: new URL(request.url).origin,
+        origin: getConfiguredPublicOrigin() || new URL(request.url).origin,
         orderId,
         userId: user.id,
         email: user.email ?? null,

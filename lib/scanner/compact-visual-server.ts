@@ -13,7 +13,7 @@ const CANONICAL_WIDTH = 756;
 const CANONICAL_HEIGHT = 1056;
 
 async function rgbaSample(
-  pipeline: sharp.Sharp,
+  pipeline: ReturnType<typeof sharp>,
   width: number,
   height: number,
 ): Promise<Uint8Array> {
@@ -37,24 +37,13 @@ export async function fingerprintReferenceImage(
     })
     .png()
     .toBuffer();
-  const regionBox = (region: (typeof CARD_REGIONS)[keyof typeof CARD_REGIONS]) => ({
-    left: Math.round(CANONICAL_WIDTH * region.x),
-    top: Math.round(CANONICAL_HEIGHT * region.y),
-    width: Math.round(CANONICAL_WIDTH * region.width),
-    height: Math.round(CANONICAL_HEIGHT * region.height),
-  });
-  const artworkBox = regionBox(CARD_REGIONS.artwork);
-  const nameBox = regionBox(CARD_REGIONS.nameWide);
-  const footerBox = regionBox(CARD_REGIONS.footer);
-  const [
-    fullRgba,
-    artworkRgba,
-    colourRgba,
-    fullHashRgba,
-    artworkHashRgba,
-    nameRgba,
-    footerRgba,
-  ] = await Promise.all([
+  const artworkBox = {
+    left: Math.round(CANONICAL_WIDTH * CARD_REGIONS.artwork.x),
+    top: Math.round(CANONICAL_HEIGHT * CARD_REGIONS.artwork.y),
+    width: Math.round(CANONICAL_WIDTH * CARD_REGIONS.artwork.width),
+    height: Math.round(CANONICAL_HEIGHT * CARD_REGIONS.artwork.height),
+  };
+  const [fullRgba, artworkRgba, colourRgba] = await Promise.all([
     rgbaSample(
       sharp(canonicalBytes),
       COMPACT_SAMPLE_DIMENSIONS.full.width,
@@ -70,34 +59,6 @@ export async function fingerprintReferenceImage(
       COMPACT_SAMPLE_DIMENSIONS.colour.width,
       COMPACT_SAMPLE_DIMENSIONS.colour.height,
     ),
-    rgbaSample(
-      sharp(canonicalBytes),
-      COMPACT_SAMPLE_DIMENSIONS.hash.width,
-      COMPACT_SAMPLE_DIMENSIONS.hash.height,
-    ),
-    rgbaSample(
-      sharp(canonicalBytes).extract(artworkBox),
-      COMPACT_SAMPLE_DIMENSIONS.hash.width,
-      COMPACT_SAMPLE_DIMENSIONS.hash.height,
-    ),
-    rgbaSample(
-      sharp(canonicalBytes).extract(nameBox),
-      COMPACT_SAMPLE_DIMENSIONS.name.width,
-      COMPACT_SAMPLE_DIMENSIONS.name.height,
-    ),
-    rgbaSample(
-      sharp(canonicalBytes).extract(footerBox),
-      COMPACT_SAMPLE_DIMENSIONS.footer.width,
-      COMPACT_SAMPLE_DIMENSIONS.footer.height,
-    ),
   ]);
-  return createCompactFingerprintFromSamples(
-    fullRgba,
-    artworkRgba,
-    colourRgba,
-    fullHashRgba,
-    artworkHashRgba,
-    nameRgba,
-    footerRgba,
-  );
+  return createCompactFingerprintFromSamples(fullRgba, artworkRgba, colourRgba);
 }

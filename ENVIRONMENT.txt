@@ -12,3 +12,55 @@ JUSTTCG_MIN_INTERVAL_MS=1300
 
 Keep the API key only in .env.local / your hosting provider's encrypted environment settings.
 Restart/redeploy after adding environment variables.
+
+
+ANCIENT PULLS RELEASE ENVIRONMENT (V67.13)
+================================================
+
+Start from .env.example. Before deployment, run:
+
+npm run check:release
+npm run check:release:production
+
+The production check does not print secret values. It fails on missing or
+placeholder core/legal configuration and requires all payment/email settings
+whenever ANCIENT_PULLS_ORDERS_OPEN=true.
+
+NEXT_PUBLIC_APP_VERSION=67.13
+
+Public business details (these are deliberately visible on the website):
+
+NEXT_PUBLIC_BUSINESS_TRADING_NAME=Ancient Pulls
+NEXT_PUBLIC_BUSINESS_LEGAL_NAME=<full legal person or company name>
+NEXT_PUBLIC_BUSINESS_ADDRESS=<geographic business/service address>
+NEXT_PUBLIC_SUPPORT_EMAIL=<customer-service email>
+NEXT_PUBLIC_PRIVACY_EMAIL=<privacy email; optional if same as support>
+NEXT_PUBLIC_BUSINESS_PHONE=<optional telephone number>
+NEXT_PUBLIC_COMPANY_NUMBER=<if applicable>
+NEXT_PUBLIC_VAT_NUMBER=<if applicable>
+NEXT_PUBLIC_SITE_URL=https://<production-domain>
+
+Server-only contract-confirmation email settings:
+
+RESEND_API_KEY=<server-only Resend key>
+ANCIENT_PULLS_ORDER_EMAIL_FROM=Ancient Pulls <orders@<verified-domain>>
+
+Existing payment settings remain server-only:
+
+STRIPE_SECRET_KEY=<server-only Stripe key>
+STRIPE_WEBHOOK_SECRET=<server-only Stripe webhook signing secret>
+ANCIENT_PULLS_ORDERS_OPEN=false
+
+Paid checkout remains locked unless ALL of these are true:
+
+1. ANCIENT_PULLS_ORDERS_OPEN=true
+2. Stripe is configured.
+3. The public legal operator, geographic address and support/privacy contact are configured.
+4. Resend and ANCIENT_PULLS_ORDER_EMAIL_FROM are configured.
+
+Run supabase/migrations/20260901_consumer_privacy_checkout_v6712.sql before
+opening orders. It adds the per-order acknowledgement/confirmation audit fields
+and makes existing accounts acknowledge the materially updated terms once.
+
+Immediately before launch, run supabase/RELEASE_DATA_AUDIT.sql and complete
+RELEASE_CHECKLIST.md against the real deployment. The audit is read-only.

@@ -60,7 +60,6 @@ type PlayerShellData = {
   launchState: {
     maintenance: boolean;
     message: string;
-    beta: boolean;
   };
 };
 
@@ -246,19 +245,64 @@ export default function PlayerLayout({ children }: PlayerLayoutProps) {
       }
 
       if (launchResult.error) {
-        throw new Error(
-          getErrorMessage(
-            launchResult.error,
-            "Launch Control could not be checked. Run the V66 release migration.",
-          ),
-        );
+        // Launch Control is advisory. A stale pre-release RPC must never lock
+        // an otherwise valid player out of the application.
+        console.warn("Launch Control check unavailable:", launchResult.error);
       }
 
-      const profile =
+      let profile =
         profileResult.data as unknown as PlayerProfileRow | null;
 
-      const wallet =
+      let wallet =
         walletResult.data as unknown as PlayerWalletRow | null;
+
+      if (!profile || !wallet) {
+        const registrationResult = await settleWithin(
+          supabase.rpc("complete_player_registration"),
+          8_000,
+          "Your player account repair took too long. Try again.",
+        );
+
+        if (registrationResult.error) {
+          throw new Error(
+            getErrorMessage(
+              registrationResult.error,
+              "Your player profile and wish wallet could not be prepared.",
+            ),
+          );
+        }
+
+        const [profileRetry, walletRetry] = await settleWithin(
+          Promise.all([
+            supabase
+              .from("player_profiles")
+              .select(
+                "user_id,username,display_name,avatar_url,is_banned,ban_reason,banned_at",
+              )
+              .eq("user_id", session.user.id)
+              .maybeSingle(),
+            supabase
+              .from("player_wallets")
+              .select("user_id,wish_balance")
+              .eq("user_id", session.user.id)
+              .maybeSingle(),
+          ]),
+          8_000,
+          "Your repaired player account could not be reloaded. Try again.",
+        );
+
+        if (profileRetry.error || walletRetry.error) {
+          throw new Error(
+            getErrorMessage(
+              profileRetry.error || walletRetry.error,
+              "Your repaired player account could not be reloaded.",
+            ),
+          );
+        }
+
+        profile = profileRetry.data as unknown as PlayerProfileRow | null;
+        wallet = walletRetry.data as unknown as PlayerWalletRow | null;
+      }
 
       const consentRaw = Array.isArray(consentResult.data)
         ? consentResult.data[0]
@@ -267,18 +311,19 @@ export default function PlayerLayout({ children }: PlayerLayoutProps) {
       const consent =
         consentRaw as unknown as PurchaseConsentRow | null;
 
-      const launchRaw = Array.isArray(launchResult.data)
+      const launchRaw = launchResult.error
+        ? null
+        : Array.isArray(launchResult.data)
         ? launchResult.data[0]
         : launchResult.data;
       const launch = (launchRaw || {}) as {
         maintenance_mode?: unknown;
         maintenance_message?: unknown;
-        beta_mode?: unknown;
       };
 
-      if (!profile) {
+      if (!profile || !wallet) {
         throw new Error(
-          "Your player profile does not exist. Run the player-system Supabase migration, then sign out and sign in again.",
+          "Your player profile or wish wallet could not be created. Try signing out and signing in again.",
         );
       }
 
@@ -321,7 +366,6 @@ export default function PlayerLayout({ children }: PlayerLayoutProps) {
           message: typeof launch.maintenance_message === "string"
             ? launch.maintenance_message.trim()
             : "",
-          beta: launch.beta_mode === true,
         },
       };
 
@@ -788,9 +832,11 @@ function PlayerBannedScreen({
           <div className="relative mx-auto flex h-24 w-24 items-center justify-center">
             <div className="absolute inset-2 rounded-full bg-red-300/15 blur-2xl" />
 
-            <img
+            <Image
               src="/ancient-pulls/celestial-cat.webp"
               alt=""
+              width={80}
+              height={80}
               draggable={false}
               className="relative h-20 w-20 object-contain grayscale-[0.35] drop-shadow-[0_12px_16px_rgba(0,0,0,0.45)]"
             />

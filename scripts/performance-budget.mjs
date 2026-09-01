@@ -1,12 +1,13 @@
 import { readdir, readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import vm from "node:vm";
+import { gzipSync } from "node:zlib";
 
 const root = process.cwd();
 const nextRoot = path.join(root, ".next");
 const publicRoot = path.join(root, "public");
 const budgets = {
-  initialRouteJsBytes: 470 * 1024,
+  initialRouteJsTransferBytes: 270 * 1024,
   publicAssetBytes: 2.5 * 1024 * 1024,
   serverChunkBytes: 1024 * 1024,
 };
@@ -35,6 +36,12 @@ function routeLabel(manifestPath) {
 }
 
 async function routeInitialJs() {
+  const buildManifest = JSON.parse(
+    await readFile(path.join(nextRoot, "build-manifest.json"), "utf8"),
+  );
+  const rootMainFiles = Array.isArray(buildManifest.rootMainFiles)
+    ? buildManifest.rootMainFiles
+    : [];
   const manifests = (await filesBelow(path.join(nextRoot, "server", "app")))
     .filter((file) => file.endsWith("page_client-reference-manifest.js"));
   const routes = [];
@@ -49,17 +56,28 @@ async function routeInitialJs() {
     const pageEntry = Object.entries(entries)
       .filter(([key]) => /\/page$/.test(key))
       .at(-1);
-    if (!pageEntry) continue;
-
-    const chunks = [...new Set(pageEntry[1])];
+    const webpackChunks = Object.values(record?.clientModules ?? {})
+      .flatMap((module) => Array.isArray(module?.chunks) ? module.chunks : [])
+      .filter((chunk) => typeof chunk === "string" && chunk.endsWith(".js"));
+    const routeChunks = pageEntry ? pageEntry[1] : webpackChunks;
+    const chunks = [...new Set([...rootMainFiles, ...routeChunks])];
+    if (!chunks.length) continue;
     let bytes = 0;
+    let transferBytes = 0;
     for (const chunk of chunks) {
-      bytes += (await stat(path.join(nextRoot, chunk))).size;
+      const chunkPath = path.join(nextRoot, decodeURIComponent(chunk));
+      bytes += (await stat(chunkPath)).size;
+      transferBytes += gzipSync(await readFile(chunkPath), { level: 9 }).byteLength;
     }
-    routes.push({ route: routeLabel(manifest), bytes, chunks: chunks.length });
+    routes.push({
+      route: routeLabel(manifest),
+      bytes,
+      transferBytes,
+      chunks: chunks.length,
+    });
   }
 
-  return routes.sort((left, right) => right.bytes - left.bytes);
+  return routes.sort((left, right) => right.transferBytes - left.transferBytes);
 }
 
 function roundedKiB(bytes) {
@@ -87,8 +105,11 @@ const largestPublic = publicAssets.sort((a, b) => b.bytes - a.bytes)[0];
 const largestServer = serverJs.sort((a, b) => b.bytes - a.bytes)[0];
 const violations = [
   ...routes
-    .filter((route) => route.bytes > budgets.initialRouteJsBytes)
-    .map((route) => `${route.route} initial JS is ${roundedKiB(route.bytes)} KiB`),
+    .filter((route) => route.transferBytes > budgets.initialRouteJsTransferBytes)
+    .map(
+      (route) =>
+        `${route.route} initial JS transfer is ${roundedKiB(route.transferBytes)} KiB gzip`,
+    ),
   ...publicAssets
     .filter((asset) => asset.bytes > budgets.publicAssetBytes)
     .map((asset) => `${asset.file} is ${roundedKiB(asset.bytes)} KiB`),
@@ -99,7 +120,7 @@ const violations = [
 
 const report = {
   budgets: {
-    initialRouteJsKiB: roundedKiB(budgets.initialRouteJsBytes),
+    initialRouteJsTransferKiB: roundedKiB(budgets.initialRouteJsTransferBytes),
     publicAssetKiB: roundedKiB(budgets.publicAssetBytes),
     serverChunkKiB: roundedKiB(budgets.serverChunkBytes),
   },
@@ -117,7 +138,8 @@ const report = {
   },
   heaviestRoutes: routes.slice(0, 12).map((route) => ({
     route: route.route,
-    initialJsKiB: roundedKiB(route.bytes),
+    initialJsRawKiB: roundedKiB(route.bytes),
+    initialJsTransferKiB: roundedKiB(route.transferBytes),
     chunks: route.chunks,
   })),
   keyRoutes: [
@@ -130,7 +152,8 @@ const report = {
     const route = routes.find((item) => item.route === routeName);
     return route ? [{
       route: route.route,
-      initialJsKiB: roundedKiB(route.bytes),
+      initialJsRawKiB: roundedKiB(route.bytes),
+      initialJsTransferKiB: roundedKiB(route.transferBytes),
       chunks: route.chunks,
     }] : [];
   }),

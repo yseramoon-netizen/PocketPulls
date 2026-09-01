@@ -110,7 +110,7 @@ begin
     'existing_account_gate',
     v_accepted_at
   )
-  on conflict (user_id, consent_version)
+  on conflict on constraint player_legal_consents_pkey
   do update set
     age_18_confirmed = true,
     random_physical_card_ack = true,
@@ -159,7 +159,7 @@ begin
       'signup',
       now()
     )
-    on conflict (user_id, consent_version) do nothing;
+    on conflict on constraint player_legal_consents_pkey do nothing;
   end if;
 
   return new;
@@ -196,7 +196,7 @@ where coalesce(auth_user.raw_user_meta_data ->> 'purchase_consent_version', '') 
   and lower(coalesce(auth_user.raw_user_meta_data ->> 'age_18_confirmed', '')) = 'true'
   and lower(coalesce(auth_user.raw_user_meta_data ->> 'random_physical_card_ack', '')) = 'true'
   and lower(coalesce(auth_user.raw_user_meta_data ->> 'terms_ack', '')) = 'true'
-on conflict (user_id, consent_version) do nothing;
+on conflict on constraint player_legal_consents_pkey do nothing;
 
 revoke all on function public.get_player_purchase_consent() from public;
 revoke all on function public.accept_player_purchase_consent(boolean, boolean, boolean) from public;

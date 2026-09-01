@@ -21,11 +21,34 @@ function jsonError(message: string, status: number, code: string) {
   );
 }
 
+function getIdempotencyKey(request: Request): string | null {
+  const supplied = request.headers.get("Idempotency-Key")?.trim();
+
+  if (!supplied) {
+    return crypto.randomUUID();
+  }
+
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+    supplied,
+  )
+    ? supplied
+    : null;
+}
+
 export async function POST(request: Request) {
   const token = getBearerToken(request);
+  const idempotencyKey = getIdempotencyKey(request);
 
   if (!token) {
     return jsonError("Your trainer session is missing. Sign in again.", 401, "player_session_missing");
+  }
+
+  if (!idempotencyKey) {
+    return jsonError(
+      "The wish request key is not a valid UUID.",
+      400,
+      "wish_request_key_invalid",
+    );
   }
 
   const supabaseUrl =
@@ -67,23 +90,8 @@ export async function POST(request: Request) {
     );
   }
 
-  let requestId = request.headers.get("idempotency-key")?.trim() || "";
-
-  if (!requestId) {
-    const body = await request.json().catch(() => null) as { requestId?: unknown } | null;
-    requestId = typeof body?.requestId === "string" ? body.requestId.trim() : "";
-  }
-
-  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(requestId)) {
-    return jsonError(
-      "A valid wish request ID is required.",
-      400,
-      "wish_request_id_invalid",
-    );
-  }
-
   const { data, error } = await client.rpc("make_player_wish", {
-    p_idempotency_key: requestId,
+    p_idempotency_key: idempotencyKey,
   });
 
   if (error) {
@@ -115,7 +123,10 @@ export async function POST(request: Request) {
       result: row,
     },
     {
-      headers: { "Cache-Control": "no-store" },
+      headers: {
+        "Cache-Control": "no-store",
+        "Idempotency-Key": idempotencyKey,
+      },
     },
   );
 }
