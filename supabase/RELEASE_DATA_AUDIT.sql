@@ -1,4 +1,4 @@
--- Ancient Pulls V67.14 release data audit
+-- Ancient Pulls V67.15 release data audit
 -- Read-only: this file does not insert, update or delete anything.
 -- Run in the Supabase SQL editor immediately before launch. Every issue query
 -- should return zero rows unless the result has been reviewed and accepted.
@@ -119,3 +119,29 @@ where namespace.nspname = 'public'
   and procedure.proname = 'accept_player_purchase_consent'
   and lower(pg_get_functiondef(procedure.oid))
     like '%on conflict (user_id, consent_version)%';
+
+-- 11. The V67.15 collision-proof idempotency table must contain every result
+-- field used by the wish RPC. This should return zero rows.
+with required_columns(column_name) as (
+  values
+    ('user_id'),
+    ('idempotency_key'),
+    ('wish_id'),
+    ('card_id'),
+    ('name'),
+    ('set_name'),
+    ('card_no'),
+    ('rarity'),
+    ('market_value'),
+    ('image_url'),
+    ('wish_balance'),
+    ('created_at')
+)
+select required_columns.column_name as missing_column
+from required_columns
+left join information_schema.columns as actual
+  on actual.table_schema = 'public'
+ and actual.table_name = 'player_wish_results_v6715'
+ and actual.column_name = required_columns.column_name
+where actual.column_name is null
+order by required_columns.column_name;

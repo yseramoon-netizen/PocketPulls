@@ -118,7 +118,7 @@ function visitFiles(directory, callback) {
   }
 }
 
-console.log(`Ancient Pulls V67.14 release preflight (${productionMode ? "production" : "source"} mode)`);
+console.log(`Ancient Pulls V67.15 release preflight (${productionMode ? "production" : "source"} mode)`);
 console.log("");
 
 const requiredFiles = [
@@ -137,8 +137,10 @@ const requiredFiles = [
   "app/(player)/contact/page.tsx",
   "supabase/migrations/20260901_consumer_privacy_checkout_v6712.sql",
   "supabase/migrations/20260901_consent_and_open_wishes_v6714.sql",
+  "supabase/migrations/20260901_wish_request_schema_collision_v6715.sql",
   "supabase/RELEASE_DATA_AUDIT.sql",
   "ANCIENT_PULLS_V67_14_INSTALL.txt",
+  "ANCIENT_PULLS_V67_15_INSTALL.txt",
   "RELEASE_CHECKLIST.md",
 ];
 
@@ -176,6 +178,12 @@ requireText("supabase/migrations/20260901_consent_and_open_wishes_v6714.sql", [
   "create function public.make_player_wish(",
   "p_idempotency_key uuid",
   "perform * from public.complete_player_registration()",
+  "grant execute on function public.make_player_wish(uuid) to authenticated",
+]);
+requireText("supabase/migrations/20260901_wish_request_schema_collision_v6715.sql", [
+  "create table if not exists public.player_wish_results_v6715",
+  "v_existing public.player_wish_results_v6715%rowtype",
+  "insert into public.player_wish_results_v6715",
   "grant execute on function public.make_player_wish(uuid) to authenticated",
 ]);
 

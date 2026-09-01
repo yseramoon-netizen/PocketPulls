@@ -12,7 +12,7 @@ export async function GET() {
     {
       ok: true,
       service: "ancient-pulls",
-      release: process.env.NEXT_PUBLIC_APP_VERSION?.trim() || "67.14",
+      release: process.env.NEXT_PUBLIC_APP_VERSION?.trim() || "67.15",
       timestamp: new Date().toISOString(),
     },
     { headers: RESPONSE_HEADERS },
