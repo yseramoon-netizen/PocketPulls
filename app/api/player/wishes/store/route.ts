@@ -10,13 +10,12 @@ import {
   playerErrorResponse,
 } from "@/lib/player/wish-store-server";
 import { areOrdersOpen } from "@/lib/player/orders";
-import { getPlayerPurchaseGate } from "@/lib/launch/server";
+
+/* eslint-disable @typescript-eslint/no-explicit-any -- this export does not include generated Supabase database types */
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
-
-/* eslint-disable @typescript-eslint/no-explicit-any -- V66 purchase tables are newer than the generated Supabase schema */
 
 type LooseDatabase = {
   from(table: string): any;
@@ -28,8 +27,6 @@ export async function GET(request: Request) {
     const database = service as unknown as LooseDatabase;
     const token = getBearerToken(request);
     const user = await getVerifiedUser(service, token);
-
-    const launchGate = await getPlayerPurchaseGate(database, user);
 
     const [paidResult, reservationResult] = await Promise.all([
       database
@@ -64,14 +61,7 @@ export async function GET(request: Request) {
     return Response.json(
       {
         ok: true,
-        ordersOpen:
-          areOrdersOpen() &&
-          Boolean(process.env.STRIPE_SECRET_KEY?.trim()) &&
-          launchGate.allowed,
-        ordersMessage: launchGate.reason,
-        betaMode: launchGate.settings.beta_mode,
-        spentTodayPence: launchGate.spentTodayPence,
-        spendLimitPence: launchGate.spendLimitPence,
+        ordersOpen: areOrdersOpen() && Boolean(process.env.STRIPE_SECRET_KEY?.trim()),
         firstRechargeAvailable,
         firstRechargeDiscountPercent: FIRST_RECHARGE_DISCOUNT_PERCENT,
         packages: WISH_PACKAGES.map((item) => ({

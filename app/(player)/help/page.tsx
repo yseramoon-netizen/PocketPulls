@@ -37,8 +37,38 @@ const CARDS = [
   {
     href: "/terms",
     glyph: "▤",
-    title: "Terms",
-    body: "The full terms for using ancientpulls and purchasing wishes.",
+    title: "Terms & Conditions",
+    body: "The contract for accounts, wish credits and physical cards.",
+  },
+  {
+    href: "/returns",
+    glyph: "↩",
+    title: "Refunds & Returns",
+    body: "Cancellation periods, return costs, refunds and faulty-card rights.",
+  },
+  {
+    href: "/shipping-policy",
+    glyph: "⌂",
+    title: "Shipping Policy",
+    body: "Delivery timing, early paid shipping, tracking, loss and damage.",
+  },
+  {
+    href: "/privacy",
+    glyph: "◈",
+    title: "Privacy Notice",
+    body: "Data uses, lawful bases, retention, rights and complaint process.",
+  },
+  {
+    href: "/cookies",
+    glyph: "◎",
+    title: "Cookie Policy",
+    body: "Every browser-storage category and how to control it.",
+  },
+  {
+    href: "/contact",
+    glyph: "◇",
+    title: "Business & Contact",
+    body: "Legal operator details and the correct contact route for each issue.",
   },
 ] as const;
 
@@ -46,6 +76,11 @@ const NEW_TAB_LINKS = new Set([
   "/rules",
   "/player-protection",
   "/terms",
+  "/returns",
+  "/shipping-policy",
+  "/privacy",
+  "/cookies",
+  "/contact",
 ]);
 
 export default function HelpPage() {

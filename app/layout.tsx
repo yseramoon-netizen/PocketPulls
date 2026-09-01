@@ -5,6 +5,8 @@ import type {
 import { Geist, Geist_Mono } from "next/font/google";
 
 import NebuSkinController from "@/components/player/NebuSkinController";
+import CookieNotice from "@/components/legal/CookieNotice";
+import LegalFooter from "@/components/legal/LegalFooter";
 
 import "./globals.css";
 
@@ -56,6 +58,8 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col">
         <NebuSkinController />
         {children}
+        <LegalFooter />
+        <CookieNotice />
       </body>
     </html>
   );

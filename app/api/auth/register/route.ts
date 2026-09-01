@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 
+import { PURCHASE_CONSENT_VERSION } from "@/lib/player/purchase-consent";
+
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -579,7 +581,7 @@ export async function POST(
       readString(body.purchaseConsentVersion);
 
     const hasPurchaseConsent =
-      purchaseConsentVersion === "2026-08-08-v1" &&
+      purchaseConsentVersion === PURCHASE_CONSENT_VERSION &&
       body.ageConfirmed === true &&
       body.randomCardAccepted === true &&
       body.termsAccepted === true;

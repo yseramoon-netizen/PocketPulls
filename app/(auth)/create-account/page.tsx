@@ -556,13 +556,28 @@ export default function CreateAccountPage() {
               <Link href="/rules" target="_blank" rel="noreferrer" className="font-black text-cyan-100 underline decoration-cyan-100/30 underline-offset-2">
                 Wish Rules
               </Link>
-              , and I have read the{" "}
+              , including the{" "}
+              <Link href="/returns" target="_blank" rel="noreferrer" className="font-black text-cyan-100 underline decoration-cyan-100/30 underline-offset-2">
+                Refunds &amp; Returns
+              </Link>
+              {" "}and{" "}
+              <Link href="/shipping-policy" target="_blank" rel="noreferrer" className="font-black text-cyan-100 underline decoration-cyan-100/30 underline-offset-2">
+                Shipping
+              </Link>
+              {" "}terms, and I have read the{" "}
               <Link href="/player-protection" target="_blank" rel="noreferrer" className="font-black text-cyan-100 underline decoration-cyan-100/30 underline-offset-2">
                 Player Protection
               </Link>
               {" "}information.
             </span>
           </ConsentCheckbox>
+
+          <p className="rounded-xl border border-cyan-100/10 bg-cyan-100/[0.035] p-3 text-xs font-semibold leading-6 text-white/45">
+            We use your account details to provide and secure the service; this is not marketing consent. Read the{" "}
+            <Link href="/privacy" target="_blank" rel="noreferrer" className="font-black text-cyan-100 underline underline-offset-2">Privacy Notice</Link>
+            {" "}and{" "}
+            <Link href="/cookies" target="_blank" rel="noreferrer" className="font-black text-cyan-100 underline underline-offset-2">Cookie Policy</Link>.
+          </p>
         </div>
 
         {errorMessage ? (

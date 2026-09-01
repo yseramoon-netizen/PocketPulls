@@ -5,12 +5,15 @@ import {
   useCallback,
   useEffect,
   useMemo,
-  useRef,
   useState,
 } from "react";
 
 import { supabase } from "@/lib/supabase";
 import { ORDERS_NOT_READY_MESSAGE } from "@/lib/player/orders";
+import {
+  BUSINESS_LEGAL_NAME,
+  BUSINESS_TRADING_NAME,
+} from "@/lib/player/legal";
 
 import styles from "./shop.module.css";
 
@@ -28,10 +31,6 @@ type StorePackage = {
 type StoreResponse = {
   ok: true;
   ordersOpen: boolean;
-  ordersMessage: string | null;
-  betaMode: boolean;
-  spentTodayPence: number;
-  spendLimitPence: number;
   firstRechargeAvailable: boolean;
   firstRechargeDiscountPercent: number;
   packages: StorePackage[];
@@ -154,11 +153,8 @@ export default function WishShopPage() {
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [selectedPackageId, setSelectedPackageId] = useState("constellation");
+  const [purchaseAcknowledged, setPurchaseAcknowledged] = useState(false);
   const [starBursts, setStarBursts] = useState(0);
-  const checkoutRequestRef = useRef<{
-    packageId: string;
-    requestId: string;
-  } | null>(null);
 
   const triggerTwinkle = useCallback(() => {
     setStarBursts((current) => current + 1);
@@ -189,7 +185,7 @@ export default function WishShopPage() {
 
         if (response.purchase.status === "paid") {
           setSuccessMessage(
-            `${response.purchase.wishes} wishes have landed in your balance. Nebu approves.`,
+            `Payment confirmed: ${formatMoney(response.purchase.amount_pence)} for ${response.purchase.wishes} wish credits. Order ${response.purchase.id}. Your contract confirmation is being sent to your account email.`,
           );
           triggerTwinkle();
           window.dispatchEvent(
@@ -242,7 +238,7 @@ export default function WishShopPage() {
   );
 
   const selectedPrice = selectedPackage
-    ? store?.firstRechargeAvailable
+    ? store?.ordersOpen && store.firstRechargeAvailable
       ? selectedPackage.firstRechargeAmountPence
       : selectedPackage.amountPence
     : 0;
@@ -253,21 +249,25 @@ export default function WishShopPage() {
       return;
     }
 
+    if (!purchaseAcknowledged) {
+      setErrorMessage("Confirm the purchase summary before continuing to payment.");
+      return;
+    }
+
     setBusyPackage(packageId);
     setErrorMessage("");
     setSuccessMessage("");
 
     try {
-      const requestId =
-        checkoutRequestRef.current?.packageId === packageId
-          ? checkoutRequestRef.current.requestId
-          : crypto.randomUUID();
-      checkoutRequestRef.current = { packageId, requestId };
       const response = await playerFetch<CheckoutResponse>(
         "/api/player/wishes/checkout",
         {
           method: "POST",
-          body: JSON.stringify({ packageId, requestId }),
+          body: JSON.stringify({
+            packageId,
+            purchaseAcknowledged: true,
+            immediateAccessRequested: true,
+          }),
         },
       );
 
@@ -278,7 +278,7 @@ export default function WishShopPage() {
       );
       setBusyPackage(null);
     }
-  }, [store?.ordersOpen]);
+  }, [purchaseAcknowledged, store?.ordersOpen]);
 
   return (
     <section className={styles.page}>
@@ -382,9 +382,7 @@ export default function WishShopPage() {
         </header>
 
         {!loading && store && !store.ordersOpen ? (
-          <div className={styles.errorBanner}>
-            {store.ordersMessage || ORDERS_NOT_READY_MESSAGE}
-          </div>
+          <div className={styles.errorBanner}>{ORDERS_NOT_READY_MESSAGE}</div>
         ) : null}
         {errorMessage && errorMessage !== ORDERS_NOT_READY_MESSAGE ? (
           <div className={styles.errorBanner}>{errorMessage}</div>
@@ -475,7 +473,10 @@ export default function WishShopPage() {
                       key={pkg.id}
                       type="button"
                       className={`${styles.packageCard} ${selectedPackage?.id === pkg.id ? styles.packageCardActive : ""}`}
-                      onClick={() => setSelectedPackageId(pkg.id)}
+                      onClick={() => {
+                        setSelectedPackageId(pkg.id);
+                        setPurchaseAcknowledged(false);
+                      }}
                     >
                       <div className={styles.packageTopRow}>
                         <div>
@@ -543,10 +544,41 @@ export default function WishShopPage() {
                 </div>
               ) : null}
 
+              {selectedPackage ? (
+                <div className={styles.purchaseTerms}>
+                  <p className={styles.purchaseTermsTitle}>Before payment</p>
+                  <ul>
+                    <li>Seller: {BUSINESS_LEGAL_NAME || BUSINESS_TRADING_NAME}. Payment methods are those shown by Stripe. See <Link href="/contact" target="_blank" rel="noreferrer">business and contact details</Link>.</li>
+                    <li>Each used wish randomly allocates one genuine physical card. A particular card, rarity, set or value is not guaranteed.</li>
+                    <li>Cards stay in your collection until you request delivery. Free shipping unlocks at the displayed threshold; earlier paid delivery can be arranged through Help.</li>
+                    <li>Available destinations, delivery service, any charge and the estimate are confirmed before a shipping request is agreed.</li>
+                    <li>You have statutory cancellation and refund rights. Using credits during the cancellation period may affect the refundable amount only where the law permits.</li>
+                  </ul>
+                  <label className={styles.purchaseCheck}>
+                    <input
+                      type="checkbox"
+                      checked={purchaseAcknowledged}
+                      onChange={(event) => setPurchaseAcknowledged(event.target.checked)}
+                      disabled={!store?.ordersOpen || busyPackage !== null}
+                    />
+                    <span>
+                      I confirm I am buying <strong>{selectedPackage.wishes} wish credits for {formatMoney(selectedPrice)}</strong>, request immediate access, and agree that physical-card delivery takes place after I use credits and submit a shipping request.
+                    </span>
+                  </label>
+                  <p className={styles.legalLinks}>
+                    <Link href="/terms" target="_blank" rel="noreferrer">Terms</Link>
+                    <span>·</span>
+                    <Link href="/returns" target="_blank" rel="noreferrer">Cancellation &amp; returns</Link>
+                    <span>·</span>
+                    <Link href="/shipping-policy" target="_blank" rel="noreferrer">Shipping</Link>
+                  </p>
+                </div>
+              ) : null}
+
               <button
                 type="button"
                 className={styles.checkoutButton}
-                disabled={!selectedPackage || busyPackage !== null || !store?.ordersOpen}
+                disabled={!selectedPackage || busyPackage !== null || !store?.ordersOpen || !purchaseAcknowledged}
                 onClick={() => {
                   if (selectedPackage) {
                     void startCheckout(selectedPackage.id);
@@ -557,13 +589,13 @@ export default function WishShopPage() {
                   ? "Orders are not open yet"
                   : busyPackage === selectedPackage?.id
                     ? "Opening checkout..."
-                    : "Continue to checkout"}
+                    : `Continue to secure payment — ${formatMoney(selectedPrice)}`}
               </button>
 
               <p className={styles.summaryNote}>
                 {store?.ordersOpen
-                  ? "Wishes are credited after payment succeeds."
-                  : "No payment can be placed until the Founders open orders."}
+                  ? "Stripe takes the payment. Its final Pay button confirms your obligation to pay. We email your contract confirmation after payment succeeds."
+                  : "No payment can be taken while orders are closed."}
               </p>
             </aside>
           </div>

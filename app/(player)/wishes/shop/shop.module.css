@@ -728,6 +728,88 @@
   gap: 0.75rem;
 }
 
+.purchaseTerms {
+  margin-top: 1rem;
+  border: 1px solid rgba(103, 232, 249, 0.14);
+  border-radius: 1.15rem;
+  background: rgba(103, 232, 249, 0.045);
+  padding: 0.95rem;
+}
+
+.purchaseTermsTitle {
+  margin: 0;
+  color: rgba(207, 250, 254, 0.78);
+  font-size: 0.68rem;
+  font-weight: 950;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.purchaseTerms ul {
+  display: grid;
+  gap: 0.45rem;
+  margin: 0.7rem 0 0;
+  padding-left: 1rem;
+  color: rgba(255, 255, 255, 0.53);
+  font-size: 0.73rem;
+  font-weight: 700;
+  line-height: 1.55;
+}
+
+.purchaseTerms li a {
+  color: rgba(165, 243, 252, 0.82);
+  font-weight: 900;
+  text-decoration: underline;
+  text-underline-offset: 0.15rem;
+}
+
+.purchaseCheck {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  margin-top: 0.85rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0.9rem;
+  background: rgba(0, 0, 0, 0.16);
+  padding: 0.75rem;
+  cursor: pointer;
+}
+
+.purchaseCheck input {
+  width: 1rem;
+  height: 1rem;
+  margin-top: 0.15rem;
+  flex: none;
+  accent-color: #67e8f9;
+}
+
+.purchaseCheck span {
+  color: rgba(255, 255, 255, 0.67);
+  font-size: 0.75rem;
+  font-weight: 720;
+  line-height: 1.55;
+}
+
+.purchaseCheck strong {
+  color: #fff;
+  font-weight: 950;
+}
+
+.legalLinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0.75rem 0 0;
+  font-size: 0.68rem;
+  font-weight: 850;
+  color: rgba(255, 255, 255, 0.3);
+}
+
+.legalLinks a {
+  color: rgba(165, 243, 252, 0.75);
+  text-underline-offset: 0.18rem;
+}
+
 .summaryRow {
   border-radius: 1rem;
   border: 1px solid rgba(255, 255, 255, 0.08);

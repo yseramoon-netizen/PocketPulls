@@ -78,6 +78,9 @@ const LEGAL_PATHS = new Set([
   "/help",
   "/privacy",
   "/returns",
+  "/cookies",
+  "/shipping-policy",
+  "/contact",
 ]);
 
 function getErrorMessage(error: unknown, fallback: string): string {

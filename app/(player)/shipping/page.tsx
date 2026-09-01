@@ -9,9 +9,9 @@ import {
   useMemo,
   useState,
 } from "react";
+import Link from "next/link";
 
 import {
-  PlayerEmptyState,
   PlayerErrorBanner,
   PlayerPageHeader,
   PlayerPanel,
@@ -407,7 +407,11 @@ export default function ShippingPage() {
   }, []);
 
   useEffect(() => {
-    void loadShipping();
+    const frame = window.requestAnimationFrame(() => {
+      void loadShipping();
+    });
+
+    return () => window.cancelAnimationFrame(frame);
   }, [loadShipping]);
 
   const cardsUntilShipping = Math.max(
@@ -697,6 +701,15 @@ export default function ShippingPage() {
           {successMessage}
         </div>
       ) : null}
+
+      <div className="mt-6 flex flex-col gap-3 rounded-2xl border border-cyan-100/12 bg-cyan-200/[0.045] p-4 text-sm font-semibold leading-6 text-cyan-50/65 sm:flex-row sm:items-center sm:justify-between">
+        <p>
+          Free shipping is a benefit, not a requirement to wait. Need your cards sooner? Ask through Help for an earlier paid-delivery quote before submitting.
+        </p>
+        <Link href="/shipping-policy" className="inline-flex min-h-10 flex-none items-center justify-center rounded-xl border border-cyan-100/15 bg-cyan-100/[0.07] px-4 text-xs font-black text-cyan-50 transition hover:bg-cyan-100/[0.12]">
+          Read shipping terms
+        </Link>
+      </div>
 
       <div className="mt-7 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <PlayerStatCard
@@ -1507,6 +1520,11 @@ function AddressEditor({
               </span>
             </span>
           </label>
+
+          <p className="rounded-xl border border-cyan-100/10 bg-cyan-100/[0.035] p-3 text-xs font-semibold leading-5 text-white/42 sm:col-span-2">
+            We use this address to fulfil and support deliveries. It is not public. See the{" "}
+            <Link href="/privacy" target="_blank" rel="noreferrer" className="font-black text-cyan-100 underline decoration-cyan-100/30 underline-offset-2">Privacy Notice</Link>.
+          </p>
 
           <div className="flex flex-col gap-3 sm:col-span-2 sm:flex-row">
             <PlayerPrimaryButton

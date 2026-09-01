@@ -3,8 +3,12 @@ import type { ReactNode } from "react";
 
 import {
   BUSINESS_ADDRESS,
+  BUSINESS_DETAILS_COMPLETE,
+  BUSINESS_LEGAL_NAME,
   BUSINESS_NAME,
+  BUSINESS_TRADING_NAME,
   LEGAL_LAST_UPDATED,
+  SUPPORT_EMAIL,
   supportLabel,
 } from "@/lib/player/legal";
 
@@ -16,18 +20,13 @@ const LINKS = [
   { href: "/player-protection", label: "Player Protection" },
   { href: "/faq", label: "FAQ" },
   { href: "/terms", label: "Terms" },
-  { href: "/returns", label: "Returns" },
+  { href: "/returns", label: "Refunds & Returns" },
+  { href: "/shipping-policy", label: "Shipping Policy" },
   { href: "/privacy", label: "Privacy" },
+  { href: "/cookies", label: "Cookies" },
+  { href: "/contact", label: "Business & Contact" },
   { href: "/help#support", label: "Support" },
 ] as const;
-
-const NEW_TAB_LINKS = new Set([
-  "/rules",
-  "/player-protection",
-  "/terms",
-  "/returns",
-  "/privacy",
-]);
 
 export function TrustShell({
   eyebrow,
@@ -74,8 +73,6 @@ export function TrustShell({
                 <Link
                   key={item.href}
                   href={item.href}
-                  target={NEW_TAB_LINKS.has(item.href) ? "_blank" : undefined}
-                  rel={NEW_TAB_LINKS.has(item.href) ? "noreferrer" : undefined}
                   className="whitespace-nowrap rounded-xl border border-transparent px-3 py-2.5 text-xs font-black text-white/45 transition hover:border-white/10 hover:bg-white/[0.05] hover:text-white lg:whitespace-normal"
                 >
                   {item.label}
@@ -84,21 +81,44 @@ export function TrustShell({
             </div>
           </nav>
 
-          <div className="min-w-0 p-5 sm:p-7">{children}</div>
+          <div className="min-w-0 p-5 sm:p-7">
+            {!BUSINESS_DETAILS_COMPLETE ? (
+              <InfoCallout title="Pre-launch legal setup" tone="yellow">
+                Orders are locked because the legal operator name, customer-service email, privacy contact or geographic business address is not fully configured. No payment can be taken until those details are complete.
+              </InfoCallout>
+            ) : null}
+            <div className={!BUSINESS_DETAILS_COMPLETE ? "mt-6" : undefined}>
+              {children}
+            </div>
+          </div>
         </div>
       </div>
 
       <footer className="px-2 py-5 text-center text-[0.68rem] font-semibold leading-5 text-white/28">
         <p>
-          {BUSINESS_NAME} is an independent reseller and is not affiliated with,
+          {BUSINESS_TRADING_NAME} is an independent reseller and is not affiliated with,
           sponsored by or endorsed by Nintendo, The Pokémon Company or Game Freak.
         </p>
         <p className="mt-1">
           Pokémon and related names and marks belong to their respective owners. · Last updated {LEGAL_LAST_UPDATED}
         </p>
         <p className="mt-1">
-          Support: {supportLabel()}
-          {BUSINESS_ADDRESS ? ` · ${BUSINESS_ADDRESS}` : ""}
+          Operator: {BUSINESS_LEGAL_NAME || BUSINESS_NAME} · Support:{" "}
+          {SUPPORT_EMAIL ? (
+            <a className="underline underline-offset-2" href={`mailto:${SUPPORT_EMAIL}`}>
+              {SUPPORT_EMAIL}
+            </a>
+          ) : (
+            supportLabel()
+          )}
+        </p>
+        {BUSINESS_ADDRESS ? (
+          <p className="mt-1 whitespace-pre-line">{BUSINESS_ADDRESS}</p>
+        ) : null}
+        <p className="mt-2">
+          <Link className="underline underline-offset-2" href="/contact">Business details</Link>
+          {" · "}
+          <Link className="underline underline-offset-2" href="/cookies">Cookie settings and policy</Link>
         </p>
       </footer>
     </section>
