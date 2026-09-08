@@ -1,7 +1,5 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
-
 import { adminSupabase as supabase } from "@/lib/admin/supabase";
 
 const ADMIN_GATE_KEY =
@@ -10,23 +8,8 @@ const ADMIN_GATE_KEY =
 export type AdminGate = {
   userId: string;
   email: string;
-  founder: "lukas" | "skye" | null;
   verifiedAt: number;
-  aal2: true;
 };
-
-function tokenHasAal2(token: string): boolean {
-  try {
-    const payload = token.split(".")[1];
-    if (!payload) return false;
-    const normalised = payload.replace(/-/g, "+").replace(/_/g, "/");
-    const padded = normalised.padEnd(Math.ceil(normalised.length / 4) * 4, "=");
-    const decoded = JSON.parse(window.atob(padded)) as { aal?: unknown };
-    return decoded.aal === "aal2";
-  } catch {
-    return false;
-  }
-}
 
 export class AdminClientError extends Error {
   readonly status: number;
@@ -69,25 +52,17 @@ export function readAdminGate(): AdminGate | null {
       typeof value.email !== "string" ||
       !value.email.trim() ||
       typeof value.verifiedAt !== "number" ||
-      !Number.isFinite(value.verifiedAt) ||
-      value.aal2 !== true
+      !Number.isFinite(value.verifiedAt)
     ) {
       throw new Error(
         "Invalid admin gate.",
       );
     }
 
-    const founder =
-      value.founder === "lukas" || value.founder === "skye"
-        ? value.founder
-        : null;
-
     return {
       userId: value.userId,
       email: value.email,
-      founder,
       verifiedAt: value.verifiedAt,
-      aal2: true,
     };
   } catch {
     window.sessionStorage.removeItem(
@@ -120,16 +95,6 @@ export function clearAdminGate(): void {
   );
 }
 
-const subscribeToAdminGate = () => () => undefined;
-
-export function useFounderAdminAccess(): boolean {
-  return useSyncExternalStore(
-    subscribeToAdminGate,
-    () => Boolean(readAdminGate()?.founder),
-    () => false,
-  );
-}
-
 async function getAccessToken(
   forceRefresh = false,
 ): Promise<string> {
@@ -151,8 +116,7 @@ async function getAccessToken(
 
     if (
       error ||
-      !data.session?.access_token ||
-      !tokenHasAal2(data.session.access_token)
+      !data.session?.access_token
     ) {
       clearAdminGate();
       throw new AdminClientError(
@@ -184,8 +148,7 @@ async function getAccessToken(
 
   if (
     error ||
-    !data.session?.access_token ||
-    !tokenHasAal2(data.session.access_token)
+    !data.session?.access_token
   ) {
     clearAdminGate();
     throw new AdminClientError(
@@ -309,10 +272,12 @@ export async function adminFetch<T>(
   const makeRequest = async (
     forceRefresh: boolean,
   ) => {
+    init.signal?.throwIfAborted();
     const token = await getAccessToken(
       forceRefresh,
     );
 
+    init.signal?.throwIfAborted();
     const headers = new Headers(
       init.headers,
     );

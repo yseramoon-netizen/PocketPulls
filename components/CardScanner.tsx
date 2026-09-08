@@ -3,7 +3,6 @@
 
 import {
   type ChangeEvent,
-  type ReactNode,
   useCallback,
   useEffect,
   useMemo,
@@ -11,12 +10,12 @@ import {
   useState,
 } from "react";
 
-import { adminFetch } from "@/lib/admin/client-auth";
+import { AdminClientError, adminFetch } from "@/lib/admin/client-auth";
 import {
   averageFingerprints,
   captureTrackedFrame,
   changedFraction,
-  detectCardInGuide,
+  ensureTrackedFramePreview,
   frameDifference,
   frameFingerprint,
   guideSourceCrop,
@@ -25,10 +24,7 @@ import {
   clearBenchmarkRecords,
   downloadBenchmarkRecords,
   downloadDiagnosticSnapshot,
-  recordAutoPrediction,
   recordBenchmarkDecision,
-  SCANNER_VERSION,
-  verifyBenchmarkPrediction,
 } from "@/lib/scanner/benchmark";
 import { CardIdentifier, shouldAutomaticallyAccept } from "@/lib/scanner/identify";
 import type {
@@ -37,29 +33,20 @@ import type {
   ScannerDebugSnapshot,
   ScannerIdentification,
   ScannerMachinePhase,
+  ScannerMode,
   ScannerPokemonCard,
   TrackedFrame,
 } from "@/lib/scanner/types";
-import {
-  detectCardGeometry,
-  rectifyCard,
-  type FrameFingerprint,
-} from "@/lib/scanner/card-vision";
+import type { FrameFingerprint } from "@/lib/scanner/card-vision";
 
 export type { ScannerAutoAddResult, ScannerPokemonCard } from "@/lib/scanner/types";
 
 type CardScannerProps = {
   disabled?: boolean;
   resetKey?: number;
-  autoStart?: boolean;
   onSelect: (card: ScannerPokemonCard) => void;
-  onAutoAdd?: (
-    card: ScannerPokemonCard,
-    context: { requestId: string; confidence: number; automatic: boolean },
-  ) => Promise<ScannerAutoAddResult>;
+  onAutoAdd?: (card: ScannerPokemonCard) => Promise<ScannerAutoAddResult>;
   autoIntakeLabel?: string;
-  intakeControls?: ReactNode;
-  onClose?: () => void;
 };
 
 type QueuedCapture = {
@@ -70,19 +57,16 @@ type QueuedCapture = {
 };
 
 type ReviewItem = {
+  writeUncertain?: boolean;
   id: string;
   preview: string;
   identification: ScannerIdentification;
-  benchmarkCaseId: string | null;
 };
 
 type RecentAdd = {
   id: string;
   card: ScannerPokemonCard;
   message: string;
-  confidence: number;
-  benchmarkCaseId: string | null;
-  benchmarkVerified: boolean;
 };
 
 type VisualIndexStatus = {
@@ -95,15 +79,11 @@ type VisualIndexStatus = {
   failed?: number;
 };
 
-type ScreenWakeLock = {
-  release: () => Promise<void>;
-};
-
-const VERSION = SCANNER_VERSION;
-const SAMPLE_MS = 80;
+const VERSION = "68.0-verified-intake";
+const SAMPLE_MS = 90;
 const CALIBRATION_FRAMES = 6;
 const MAX_TRACKED_FRAMES = 4;
-const MAX_QUEUE = 12;
+const MAX_QUEUE = 10;
 const CARD_ASPECT = 63 / 88;
 
 function phaseCopy(phase: ScannerMachinePhase): string {
@@ -141,36 +121,30 @@ function imageFileToFrame(file: File): Promise<TrackedFrame> {
     const image = new Image();
     image.onload = () => {
       try {
-        const geometry = detectCardGeometry(image);
-        let canvas: HTMLCanvasElement;
-        if (geometry && geometry.confidence >= 0.36 && geometry.aspectScore >= 0.50) {
-          canvas = rectifyCard(image, geometry, 504);
+        const canvas = document.createElement("canvas");
+        canvas.width = 756;
+        canvas.height = Math.round(canvas.width / CARD_ASPECT);
+        const context = canvas.getContext("2d");
+        if (!context) throw new Error("Image canvas is unavailable.");
+        const sourceAspect = image.naturalWidth / image.naturalHeight;
+        let sx = 0;
+        let sy = 0;
+        let sw = image.naturalWidth;
+        let sh = image.naturalHeight;
+        if (sourceAspect > CARD_ASPECT) {
+          sw = image.naturalHeight * CARD_ASPECT;
+          sx = (image.naturalWidth - sw) / 2;
         } else {
-          canvas = document.createElement("canvas");
-          canvas.width = 504;
-          canvas.height = Math.round(canvas.width / CARD_ASPECT);
-          const context = canvas.getContext("2d");
-          if (!context) throw new Error("Image canvas is unavailable.");
-          const sourceAspect = image.naturalWidth / image.naturalHeight;
-          let sx = 0;
-          let sy = 0;
-          let sw = image.naturalWidth;
-          let sh = image.naturalHeight;
-          if (sourceAspect > CARD_ASPECT) {
-            sw = image.naturalHeight * CARD_ASPECT;
-            sx = (image.naturalWidth - sw) / 2;
-          } else {
-            sh = image.naturalWidth / CARD_ASPECT;
-            sy = (image.naturalHeight - sh) / 2;
-          }
-          context.drawImage(image, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
+          sh = image.naturalWidth / CARD_ASPECT;
+          sy = (image.naturalHeight - sh) / 2;
         }
+        context.drawImage(image, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
         resolve({
           id: `upload-${Date.now()}`,
           canvas,
           preview: dataUrlFromCanvas(canvas),
           qualityWeight: 0.92,
-          geometryConfidence: geometry?.confidence ?? null,
+          geometryConfidence: null,
           capturedAt: performance.now(),
         });
       } catch (error) {
@@ -232,7 +206,7 @@ function DebugPanel({ snapshot }: { snapshot: ScannerDebugSnapshot }) {
         <div>
           <h4 className="font-black text-fuchsia-100">Detection diagnostics</h4>
           <div className="mt-1 font-mono text-[10px] text-fuchsia-200/60">
-            visual index {snapshot.visualIndex.ready
+            {snapshot.strategy} · visual index {snapshot.visualIndex.ready
               ? `${snapshot.visualIndex.indexedCount.toLocaleString()} cards`
               : `${snapshot.visualIndex.indexedCount.toLocaleString()} / ${snapshot.visualIndex.totalCount.toLocaleString()} — not ready`}
           </div>
@@ -261,9 +235,9 @@ function DebugPanel({ snapshot }: { snapshot: ScannerDebugSnapshot }) {
         ))}
       </div>
       <div className="overflow-x-auto rounded-xl border border-white/10">
-        <table className="w-full min-w-[860px] text-left text-[11px]">
+        <table className="w-full min-w-[680px] text-left text-[11px]">
           <thead className="bg-white/5 text-slate-400">
-            <tr><th className="p-2">Candidate</th><th className="p-2">Total</th><th className="p-2">Number</th><th className="p-2">Set</th><th className="p-2">Name</th><th className="p-2">Visual</th><th className="p-2">Print</th><th className="p-2">Frames</th><th className="p-2">Signals</th></tr>
+            <tr><th className="p-2">Candidate</th><th className="p-2">Total</th><th className="p-2">Number</th><th className="p-2">Set</th><th className="p-2">Name</th><th className="p-2">Visual</th><th className="p-2">Signals</th></tr>
           </thead>
           <tbody>
             {snapshot.candidates.map((candidate) => (
@@ -274,12 +248,6 @@ function DebugPanel({ snapshot }: { snapshot: ScannerDebugSnapshot }) {
                 <td className="p-2">{Math.round(candidate.evidence.set * 100)}</td>
                 <td className="p-2">{Math.round(candidate.evidence.name * 100)}</td>
                 <td className="p-2">{candidate.visualConfidence ?? "—"}</td>
-                <td className="p-2">{candidate.visualBreakdown
-                  ? Math.round(candidate.visualBreakdown.details * 100)
-                  : "—"}</td>
-                <td className="p-2">{candidate.visualFrameCount
-                  ? `${candidate.visualSupportingFrames}/${candidate.visualFrameCount}`
-                  : "—"}</td>
                 <td className="p-2">{candidate.evidenceCount}</td>
               </tr>
             ))}
@@ -297,56 +265,49 @@ function DebugPanel({ snapshot }: { snapshot: ScannerDebugSnapshot }) {
 export default function CardScanner({
   disabled = false,
   resetKey = 0,
-  autoStart = false,
   onSelect,
   onAutoAdd,
   autoIntakeLabel,
-  intakeControls,
-  onClose,
 }: CardScannerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
   const guideRef = useRef<HTMLDivElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const wakeLockRef = useRef<ScreenWakeLock | null>(null);
   const identifierRef = useRef<CardIdentifier | null>(null);
   const queueRef = useRef<QueuedCapture[]>([]);
   const processingRef = useRef(false);
+  const processingSessionRef = useRef(-1);
+  const recognitionAbortRef = useRef<AbortController | null>(null);
+  const choosingRef = useRef<string | null>(null);
+  const reviewCountRef = useRef(0);
+  const modeRef = useRef<ScannerMode>(onAutoAdd ? "automatic" : "confirm");
   const sessionRef = useRef(0);
   const baselineFramesRef = useRef<FrameFingerprint[]>([]);
   const baselineRef = useRef<FrameFingerprint | null>(null);
   const lastFingerprintRef = useRef<FrameFingerprint | null>(null);
-  const acceptedFingerprintRef = useRef<FrameFingerprint | null>(null);
-  const replacementPresenceRef = useRef(0);
-  const cardShapePresenceRef = useRef(0);
-  const cardShapeAbsenceRef = useRef(0);
   const trackedRef = useRef<TrackedFrame[]>([]);
   const captureStartedRef = useRef(0);
+  const presenceRef = useRef(0);
   const absenceRef = useRef(0);
   const phaseRef = useRef<ScannerMachinePhase>("off");
   const stopVisualBuildRef = useRef(false);
   const visualBuildOffsetRef = useRef(0);
-  const disabledRef = useRef(disabled);
 
   const [cameraOpen, setCameraOpen] = useState(false);
   const [phase, setPhaseState] = useState<ScannerMachinePhase>("off");
+  const [mode, setMode] = useState<ScannerMode>(onAutoAdd ? "automatic" : "confirm");
   const [diagnostics, setDiagnostics] = useState(false);
   const [status, setStatus] = useState("Ready to scan");
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [pendingCount, setPendingCount] = useState(0);
   const [review, setReview] = useState<ReviewItem[]>([]);
+  useEffect(() => { reviewCountRef.current = review.length; }, [review]);
   const [recentAdds, setRecentAdds] = useState<RecentAdd[]>([]);
-  const [addedCount, setAddedCount] = useState(0);
   const [activeDebug, setActiveDebug] = useState<ScannerDebugSnapshot | null>(null);
   const [choosing, setChoosing] = useState<string | null>(null);
   const [visualIndexStatus, setVisualIndexStatus] = useState<VisualIndexStatus | null>(null);
   const [buildingVisualIndex, setBuildingVisualIndex] = useState(false);
-  const [queueSaturated, setQueueSaturated] = useState(false);
-
-  useEffect(() => {
-    disabledRef.current = disabled;
-  }, [disabled]);
 
   const setPhase = useCallback((next: ScannerMachinePhase) => {
     phaseRef.current = next;
@@ -354,6 +315,7 @@ export default function CardScanner({
   }, []);
 
   const progressHandler = useCallback((nextStatus: string, nextProgress: number) => {
+    if (processingSessionRef.current !== sessionRef.current) return;
     setStatus(nextStatus);
     setProgress(nextProgress);
   }, []);
@@ -428,58 +390,44 @@ export default function CardScanner({
   const handleIdentification = useCallback(async (capture: QueuedCapture, result: ScannerIdentification) => {
     if (capture.session !== sessionRef.current) return;
     const best = result.candidates[0];
-    let benchmarkCaseId: string | null = null;
     setActiveDebug(result.debug);
     if (!result.debug.visualIndex.ready) {
       setReview((items) => [{
         id: capture.id,
         preview: capture.frames[0]?.preview || "",
         identification: result,
-        benchmarkCaseId: null,
-      }, ...items].slice(0, 10));
+      }, ...items]);
       setStatus("Visual index is not ready");
       setError(result.debug.visualIndex.error
         ? `Image-first recognition failed: ${result.debug.visualIndex.error}`
         : `Image-first recognition needs its visual index (${result.debug.visualIndex.indexedCount.toLocaleString()} / ${result.debug.visualIndex.totalCount.toLocaleString()}). Enable Diagnostics, run Build / resume visual index, and let it finish before scanning.`);
       return;
     }
-    if (best && onAutoAdd && shouldAutomaticallyAccept(result.candidates)) {
-      benchmarkCaseId = diagnostics
-        ? recordAutoPrediction(result).caseId
-        : null;
+    let writeUncertain = false;
+    if (best && modeRef.current === "automatic" && onAutoAdd && shouldAutomaticallyAccept(result.candidates)) {
       try {
+        // Nothing asynchronous may run between this session check and the write.
         if (capture.session !== sessionRef.current) return;
-        const added = await onAutoAdd(best.card, {
-          requestId: capture.id,
-          confidence: best.confidence,
-          automatic: true,
-        });
+        const added = await onAutoAdd(best.card);
         if (capture.session !== sessionRef.current) return;
-        setRecentAdds((items) => [{
-          id: capture.id,
-          card: best.card,
-          message: added.message,
-          confidence: best.confidence,
-          benchmarkCaseId,
-          benchmarkVerified: false,
-        }, ...items].slice(0, 1));
-        setAddedCount((count) => count + 1);
-        navigator.vibrate?.(35);
+        setRecentAdds((items) => [{ id: capture.id, card: best.card, message: added.message }, ...items].slice(0, 8));
         setStatus(`${best.card.name} added automatically`);
         setError(null);
         return;
       } catch (caught) {
+        if (capture.session !== sessionRef.current) return;
+        writeUncertain = !(caught instanceof AdminClientError && caught.status >= 400 && caught.status < 500);
         setError(caught instanceof Error ? caught.message : "The card was identified but could not be added.");
       }
     }
     setReview((items) => [{
+      writeUncertain,
       id: capture.id,
       preview: capture.frames[0]?.preview || "",
       identification: result,
-      benchmarkCaseId,
-    }, ...items].slice(0, 10));
+    }, ...items]);
     setStatus(best ? `${best.card.name} needs confirmation` : "No safe match — try another angle");
-  }, [diagnostics, onAutoAdd]);
+  }, [onAutoAdd]);
 
   const drainQueue = useCallback(async () => {
     if (processingRef.current) return;
@@ -488,79 +436,75 @@ export default function CardScanner({
       while (queueRef.current.length) {
         const capture = queueRef.current.shift();
         setPendingCount(queueRef.current.length + 1);
-        if (!capture) continue;
-        if (capture.session !== sessionRef.current) {
-          setPendingCount(queueRef.current.length);
-          continue;
-        }
+        if (!capture || capture.session !== sessionRef.current) continue;
+        processingSessionRef.current = capture.session;
+        const controller = new AbortController();
+        recognitionAbortRef.current = controller;
         try {
-          const result = await ensureIdentifier().identify(capture.frames, capture.captureMs);
-          if (capture.session !== sessionRef.current) continue;
+          const result = await ensureIdentifier().identify(
+            capture.frames,
+            capture.captureMs,
+            { automatic: modeRef.current === "automatic" && Boolean(onAutoAdd), diagnostics, signal: controller.signal },
+          );
           await handleIdentification(capture, result);
         } catch (caught) {
+          if (capture.session !== sessionRef.current || controller.signal.aborted) continue;
           setError(caught instanceof Error ? caught.message : "Card identification failed.");
           setStatus("Scanner needs attention");
         }
         setPendingCount(queueRef.current.length);
-        if (queueRef.current.length < MAX_QUEUE) setQueueSaturated(false);
       }
     } finally {
       processingRef.current = false;
+      processingSessionRef.current = -1;
+      recognitionAbortRef.current = null;
       setPendingCount(queueRef.current.length);
     }
-  }, [ensureIdentifier, handleIdentification]);
+  }, [diagnostics, ensureIdentifier, handleIdentification, onAutoAdd]);
 
   const queueCapture = useCallback((frames: TrackedFrame[], captureMs: number) => {
-    if (!frames.length) return;
+    if (!frames.length) return false;
+    if (queueRef.current.length + reviewCountRef.current >= MAX_QUEUE) {
+      setStatus("Review or dismiss waiting scans before adding another card");
+      return false;
+    }
     const ranked = [...frames]
       .sort((left, right) => right.qualityWeight - left.qualityWeight)
       .slice(0, MAX_TRACKED_FRAMES);
+    ranked[0] = ensureTrackedFramePreview(ranked[0]);
     const item: QueuedCapture = {
       id: `scan-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       session: sessionRef.current,
       frames: ranked,
       captureMs,
     };
-    if (queueRef.current.length >= MAX_QUEUE) {
-      setQueueSaturated(true);
-      setError("Recognition is at capacity. Hold this card in place until the queue count falls — no capture was discarded.");
-      setStatus("Intake paused — recognition catching up");
-      return;
-    }
     queueRef.current.push(item);
     setPendingCount(queueRef.current.length + (processingRef.current ? 1 : 0));
     setPhase("queued");
     void drainQueue();
+    return true;
   }, [drainQueue, setPhase]);
 
   const stopCamera = useCallback(() => {
     sessionRef.current += 1;
+    recognitionAbortRef.current?.abort();
     queueRef.current = [];
+    setPendingCount(0);
     streamRef.current?.getTracks().forEach((track) => track.stop());
     streamRef.current = null;
-    const wakeLock = wakeLockRef.current;
-    wakeLockRef.current = null;
-    void wakeLock?.release().catch(() => undefined);
     if (videoRef.current) videoRef.current.srcObject = null;
     baselineFramesRef.current = [];
     baselineRef.current = null;
-    acceptedFingerprintRef.current = null;
-    replacementPresenceRef.current = 0;
-    cardShapePresenceRef.current = 0;
-    cardShapeAbsenceRef.current = 0;
-    absenceRef.current = 0;
     trackedRef.current = [];
-    setPendingCount(0);
-    setQueueSaturated(false);
     setCameraOpen(false);
     setPhase("off");
-    setStatus("Camera stopped");
   }, [setPhase]);
 
   const startCamera = useCallback(async () => {
-    if (disabledRef.current) return;
+    if (disabled) return;
     setError(null);
     stopCamera();
+    const cameraSession = sessionRef.current;
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: false,
@@ -571,17 +515,12 @@ export default function CardScanner({
           frameRate: { ideal: 30 },
         },
       });
+      if (cameraSession !== sessionRef.current) { stream.getTracks().forEach((track) => track.stop()); return; }
       streamRef.current = stream;
       const video = videoRef.current;
       if (!video) throw new Error("Camera preview is unavailable.");
       video.srcObject = stream;
       await video.play();
-      const wakeLockApi = (navigator as Navigator & {
-        wakeLock?: { request: (type: "screen") => Promise<ScreenWakeLock> };
-      }).wakeLock;
-      if (wakeLockApi) {
-        wakeLockRef.current = await wakeLockApi.request("screen").catch(() => null);
-      }
       const track = stream.getVideoTracks()[0];
       const capabilities = track.getCapabilities?.() as MediaTrackCapabilities & {
         focusMode?: string[];
@@ -595,26 +534,28 @@ export default function CardScanner({
       if (Object.keys(advanced).length) {
         await track.applyConstraints({ advanced: [advanced as MediaTrackConstraintSet] }).catch(() => undefined);
       }
-      sessionRef.current += 1;
+      if (cameraSession !== sessionRef.current) { stream.getTracks().forEach((track) => track.stop()); return; }
       baselineFramesRef.current = [];
       baselineRef.current = null;
-      acceptedFingerprintRef.current = null;
-      replacementPresenceRef.current = 0;
-      cardShapePresenceRef.current = 0;
-      cardShapeAbsenceRef.current = 0;
+      presenceRef.current = 0;
       absenceRef.current = 0;
       setCameraOpen(true);
       setPhase("calibrating");
       setStatus("Calibrating the empty card area");
+      // Worker startup overlaps the brief empty-surface calibration instead of
+      // delaying the first card after it has already been captured.
+      void ensureIdentifier().warmup().catch(() => undefined);
     } catch (caught) {
+      if (cameraSession !== sessionRef.current) return;
       stopCamera();
       setError(caught instanceof Error ? caught.message : "Camera access was denied.");
     }
-  }, [setPhase, stopCamera]);
+  }, [disabled, ensureIdentifier, setPhase, stopCamera]);
 
   useEffect(() => {
     if (!cameraOpen) return;
     const interval = window.setInterval(() => {
+      if (document.visibilityState !== "visible" || !navigator.onLine) return;
       const video = videoRef.current;
       const viewport = viewportRef.current;
       const guide = guideRef.current;
@@ -635,53 +576,39 @@ export default function CardScanner({
       }
       const baselineDelta = frameDifference(baselineRef.current, fingerprint);
       const changed = changedFraction(baselineRef.current, fingerprint, 0.055);
-      const sceneChanged = changed >= 0.13 || baselineDelta >= 5.5;
-      const cardGeometry = sceneChanged ? detectCardInGuide(video, crop) : null;
-      const cardPresent = Boolean(cardGeometry);
+      const present = changed >= 0.13 || baselineDelta >= 5.5;
       if (currentPhase === "searching") {
-        if (queueRef.current.length >= MAX_QUEUE) {
-          setQueueSaturated(true);
-          setStatus("Intake paused — recognition catching up");
-          return;
-        }
-        cardShapePresenceRef.current = cardPresent ? cardShapePresenceRef.current + 1 : 0;
-        if (cardShapePresenceRef.current >= 2) {
+        presenceRef.current = present ? presenceRef.current + 1 : 0;
+        if (presenceRef.current >= 2) {
           trackedRef.current = [];
           captureStartedRef.current = performance.now();
           lastFingerprintRef.current = fingerprint;
-          cardShapeAbsenceRef.current = 0;
           setPhase("card-entering");
-          setStatus("Pokémon card detected — hold steady");
         }
         return;
       }
       if (currentPhase === "card-entering" || currentPhase === "tracking") {
-        cardShapeAbsenceRef.current = cardPresent ? 0 : cardShapeAbsenceRef.current + 1;
-        if (!sceneChanged || cardShapeAbsenceRef.current >= 2) {
-          cardShapePresenceRef.current = 0;
-          cardShapeAbsenceRef.current = 0;
+        if (!present) {
+          presenceRef.current = 0;
           trackedRef.current = [];
           setPhase("searching");
-          setStatus("No complete Pokémon card in the guide");
           return;
         }
         const motion = frameDifference(lastFingerprintRef.current, fingerprint);
         lastFingerprintRef.current = fingerprint;
-        if (motion <= 6.5 || performance.now() - captureStartedRef.current > 430) {
+        if (motion <= 4.6 || performance.now() - captureStartedRef.current > 450) {
           setPhase("tracking");
-          const frame = captureTrackedFrame(video, crop);
+          const frame = captureTrackedFrame(video, crop, false);
           const sufficientlyDifferent = trackedRef.current.every((item) =>
             Math.abs(item.qualityWeight - frame.qualityWeight) > 0.025 ||
-            performance.now() - item.capturedAt > 180,
+            performance.now() - item.capturedAt > 120,
           );
           if (sufficientlyDifferent) trackedRef.current.push(frame);
         }
         const elapsed = performance.now() - captureStartedRef.current;
-        if ((trackedRef.current.length >= 3 && elapsed >= 300) || elapsed >= 760) {
+        if ((trackedRef.current.length >= 2 && elapsed >= 240) || elapsed >= 780) {
           if (!trackedRef.current.length) trackedRef.current.push(captureTrackedFrame(video, crop));
-          queueCapture(trackedRef.current, elapsed);
-          acceptedFingerprintRef.current = fingerprint;
-          replacementPresenceRef.current = 0;
+          if (!queueCapture(trackedRef.current, elapsed)) return;
           trackedRef.current = [];
           absenceRef.current = 0;
           setPhase("waiting-removal");
@@ -689,27 +616,9 @@ export default function CardScanner({
         return;
       }
       if (currentPhase === "waiting-removal" || currentPhase === "queued") {
-        const replacementDelta = frameDifference(acceptedFingerprintRef.current, fingerprint);
-        const replacementChanged = changedFraction(acceptedFingerprintRef.current, fingerprint, 0.08);
-        const clearlyReplaced = cardPresent && replacementDelta >= 11 && replacementChanged >= 0.38;
-        replacementPresenceRef.current = clearlyReplaced ? replacementPresenceRef.current + 1 : 0;
-        if (replacementPresenceRef.current >= 2) {
-          trackedRef.current = [];
-          captureStartedRef.current = performance.now();
-          lastFingerprintRef.current = fingerprint;
-          cardShapePresenceRef.current = 2;
-          cardShapeAbsenceRef.current = 0;
-          replacementPresenceRef.current = 0;
-          setPhase("card-entering");
-          setStatus("New card detected");
-          return;
-        }
-        absenceRef.current = sceneChanged ? 0 : absenceRef.current + 1;
+        absenceRef.current = present ? 0 : absenceRef.current + 1;
         if (absenceRef.current >= 3) {
-          cardShapePresenceRef.current = 0;
-          cardShapeAbsenceRef.current = 0;
-          acceptedFingerprintRef.current = null;
-          replacementPresenceRef.current = 0;
+          presenceRef.current = 0;
           setPhase("searching");
         }
       }
@@ -724,13 +633,7 @@ export default function CardScanner({
     if (!video || !viewport || !guide || video.readyState < 2) return;
     const started = performance.now();
     const crop = guideSourceCrop(video, viewport, guide);
-    if (!detectCardInGuide(video, crop)) {
-      setError("No complete Pokémon card is visible inside the guide.");
-      setStatus("Room/background ignored");
-      return;
-    }
-    setError(null);
-    queueCapture([captureTrackedFrame(video, crop)], performance.now() - started);
+    if (!queueCapture([captureTrackedFrame(video, crop)], performance.now() - started)) return;
     setPhase("waiting-removal");
   }, [queueCapture, setPhase]);
 
@@ -738,10 +641,12 @@ export default function CardScanner({
     const file = event.target.files?.[0];
     event.target.value = "";
     if (!file) return;
+    const uploadSession = sessionRef.current;
     setError(null);
     try {
       const started = performance.now();
       const frame = await imageFileToFrame(file);
+      if (uploadSession !== sessionRef.current) return;
       queueCapture([frame], performance.now() - started);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "The image could not be scanned.");
@@ -749,32 +654,14 @@ export default function CardScanner({
   }, [queueCapture]);
 
   const chooseCandidate = useCallback(async (item: ReviewItem, candidate: ScannerCandidate) => {
+    if (choosingRef.current || disabled || item.writeUncertain) return;
+    choosingRef.current = item.id;
     setChoosing(item.id);
     try {
-      if (item.benchmarkCaseId) {
-        verifyBenchmarkPrediction(
-          item.benchmarkCaseId,
-          String(item.identification.candidates[0]?.card.id) === String(candidate.card.id),
-        );
-      } else {
-        recordBenchmarkDecision(item.identification, candidate.card.id);
-      }
+      recordBenchmarkDecision(item.identification, candidate.card.id);
       if (onAutoAdd) {
-        const added = await onAutoAdd(candidate.card, {
-          requestId: item.id,
-          confidence: candidate.confidence,
-          automatic: false,
-        });
-        setRecentAdds((items) => [{
-          id: item.id,
-          card: candidate.card,
-          message: added.message,
-          confidence: candidate.confidence,
-          benchmarkCaseId: null,
-          benchmarkVerified: true,
-        }, ...items].slice(0, 1));
-        setAddedCount((count) => count + 1);
-        navigator.vibrate?.(35);
+        const added = await onAutoAdd(candidate.card);
+        setRecentAdds((items) => [{ id: item.id, card: candidate.card, message: added.message }, ...items].slice(0, 8));
       } else {
         onSelect(candidate.card);
       }
@@ -782,11 +669,15 @@ export default function CardScanner({
       setStatus(`${candidate.card.name} selected`);
       setError(null);
     } catch (caught) {
+      if (onAutoAdd && !(caught instanceof AdminClientError && caught.status >= 400 && caught.status < 500)) {
+        setReview((items) => items.map((row) => row.id === item.id ? { ...row, writeUncertain: true } : row));
+      }
       setError(caught instanceof Error ? caught.message : "The selected card could not be added.");
     } finally {
+      choosingRef.current = null;
       setChoosing(null);
     }
-  }, [onAutoAdd, onSelect]);
+  }, [disabled, onAutoAdd, onSelect]);
 
   useEffect(() => {
     const reset = window.setTimeout(() => {
@@ -795,24 +686,18 @@ export default function CardScanner({
       setPendingCount(0);
       setReview([]);
       setRecentAdds([]);
-      setAddedCount(0);
-      setQueueSaturated(false);
       setActiveDebug(null);
       setError(null);
-      if (autoStart && !disabledRef.current) void startCamera();
     }, 0);
     return () => window.clearTimeout(reset);
-  }, [autoStart, resetKey, startCamera, stopCamera]);
+  }, [resetKey, stopCamera]);
 
   useEffect(() => () => {
     sessionRef.current += 1;
+    recognitionAbortRef.current?.abort();
     queueRef.current = [];
+    stopVisualBuildRef.current = true;
     streamRef.current?.getTracks().forEach((track) => track.stop());
-    streamRef.current = null;
-    const wakeLock = wakeLockRef.current;
-    wakeLockRef.current = null;
-    void wakeLock?.release().catch(() => undefined);
-    if (videoRef.current) videoRef.current.srcObject = null;
     void identifierRef.current?.dispose();
   }, []);
 
@@ -821,207 +706,135 @@ export default function CardScanner({
     return phaseCopy(phase);
   }, [pendingCount, phase]);
 
-  const latestAdd = recentAdds[0] ?? null;
-
-  const verifyLatestBenchmark = useCallback((correct: boolean) => {
-    if (!latestAdd?.benchmarkCaseId) return;
-    verifyBenchmarkPrediction(latestAdd.benchmarkCaseId, correct);
-    setRecentAdds((items) => items.map((item) =>
-      item.id === latestAdd.id ? { ...item, benchmarkVerified: true } : item,
-    ));
-  }, [latestAdd]);
-  const latestImage = latestAdd
-    ? latestAdd.card.image_url || latestAdd.card.image_url_large
-    : null;
-  const liveTone = error
-    ? "bg-rose-400 shadow-[0_0_12px_rgba(251,113,133,.7)]"
-    : phase === "waiting-removal" || phase === "queued"
-      ? "bg-emerald-300 shadow-[0_0_12px_rgba(110,231,183,.7)]"
-      : phase === "tracking" || phase === "card-entering"
-        ? "bg-amber-300 shadow-[0_0_12px_rgba(253,224,71,.7)]"
-        : cameraOpen
-          ? "bg-cyan-300 shadow-[0_0_12px_rgba(103,232,249,.7)]"
-          : "bg-slate-500";
-
   return (
-    <section className="relative min-h-[100dvh] w-full bg-[#06101c] text-white">
-      <header
-        className="relative z-30 flex min-h-16 items-center gap-2 border-b border-white/10 bg-[#071522]/95 px-2.5 pb-2.5 backdrop-blur-xl"
-        style={{ paddingTop: "max(0.625rem, env(safe-area-inset-top))" }}
-      >
-        {onClose ? (
-          <button
-            type="button"
-            onClick={() => {
-              stopCamera();
-              onClose();
-            }}
-            className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-white/10 bg-white/5 text-xl font-black text-white active:bg-white/15"
-            aria-label="Close scanner"
-          >
-            ×
-          </button>
-        ) : null}
-
-        <div className="flex min-w-0 flex-1 items-center gap-2.5 px-1">
-          <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${liveTone}`} aria-hidden="true" />
-          <div className="min-w-0">
-            <div className="truncate text-sm font-black">Automatic intake</div>
-            <div className="truncate text-[10px] font-bold text-slate-400">
-              {autoIntakeLabel || "Main inventory"}
-            </div>
+    <section className="overflow-hidden rounded-[28px] border border-cyan-300/20 bg-[#06101c] text-white shadow-2xl shadow-cyan-950/30">
+      <div className="border-b border-white/10 bg-gradient-to-r from-cyan-400/10 via-blue-500/5 to-fuchsia-500/10 p-5 sm:p-6">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <div className="text-xs font-black uppercase tracking-[0.24em] text-cyan-300">Ancient Pulls Intake</div>
+            <h2 className="mt-1 text-2xl font-black tracking-tight sm:text-3xl">Image-first card scanner</h2>
+            <p className="mt-2 max-w-2xl text-sm text-slate-300">Artwork and full-card appearance search the entire indexed catalogue first. OCR can confirm a result, but it can no longer hide the correct card from visual matching.</p>
+          </div>
+          <div className="rounded-xl border border-white/10 bg-black/25 px-3 py-2 text-right">
+            <div className="font-mono text-[10px] uppercase tracking-wider text-slate-500">Engine</div>
+            <div className="font-mono text-xs font-bold text-cyan-200">v{VERSION}</div>
           </div>
         </div>
-
-        <details className="group relative shrink-0">
-          <summary className="grid h-11 w-11 cursor-pointer list-none place-items-center rounded-xl border border-white/10 bg-white/5 text-lg font-black text-slate-200 active:bg-white/15 [&::-webkit-details-marker]:hidden" aria-label="Scanner controls">
-            •••
-          </summary>
-          <div className="absolute right-0 top-12 z-50 max-h-[calc(100dvh-5rem)] w-[min(92vw,340px)] space-y-3 overflow-y-auto rounded-2xl border border-white/15 bg-[#071522] p-3 shadow-2xl">
-            {intakeControls ? (
-              <div className="rounded-xl border border-white/10 bg-black/20 p-3">
-                {intakeControls}
-              </div>
-            ) : null}
-            <div className="grid grid-cols-2 gap-2">
-              <button type="button" onClick={captureNow} disabled={disabled || !cameraOpen} className="rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-xs font-black hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-35">Capture now</button>
-              <label className="cursor-pointer rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-center text-xs font-black hover:bg-white/10">
-                Test image<input type="file" accept="image/*" className="sr-only" onChange={uploadImage} disabled={disabled} />
-              </label>
+        <div className="mt-5 flex flex-wrap gap-2">
+          {onAutoAdd ? (
+            <div className="flex rounded-xl border border-white/10 bg-black/25 p-1">
+              {(["automatic", "confirm"] as ScannerMode[]).map((value) => (
+                <button key={value} type="button" onClick={() => { modeRef.current = value; setMode(value); }} className={`rounded-lg px-3 py-2 text-xs font-black capitalize transition ${mode === value ? "bg-cyan-300 text-slate-950" : "text-slate-300 hover:bg-white/5"}`}>{value}</button>
+              ))}
             </div>
-            <button type="button" onClick={toggleDiagnostics} className={`w-full rounded-xl border px-3 py-2.5 text-xs font-black transition ${diagnostics ? "border-fuchsia-300 bg-fuchsia-300 text-slate-950" : "border-white/10 bg-white/5 text-slate-300 hover:bg-white/10"}`}>Diagnostics {diagnostics ? "on" : "off"}</button>
-            <div className="text-center font-mono text-[9px] text-slate-600">Scanner v{VERSION}</div>
-          </div>
-        </details>
-      </header>
-
-      <div className="min-w-0">
-        <div className="min-w-0">
-          <div
-            ref={viewportRef}
-            className="relative min-h-[330px] touch-pan-y overflow-hidden bg-black shadow-inner"
-            style={{ height: "calc(100dvh - 9.25rem - env(safe-area-inset-top) - env(safe-area-inset-bottom))" }}
-          >
-            <video ref={videoRef} muted playsInline className={`h-full w-full object-cover transition-opacity ${cameraOpen ? "opacity-100" : "opacity-0"}`} />
-            {!cameraOpen ? (
-              <div className="absolute inset-0 grid place-items-center bg-[radial-gradient(circle_at_50%_45%,rgba(34,211,238,.13),transparent_45%)] p-6 text-center">
-                <div>
-                  <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl border border-cyan-300/30 bg-cyan-300/10 text-2xl">▣</div>
-                  <div className="mt-3 text-base font-black">Camera paused</div>
-                  <button type="button" onClick={startCamera} disabled={disabled} className="mt-4 rounded-xl bg-cyan-300 px-5 py-2.5 text-sm font-black text-slate-950 hover:bg-cyan-200 disabled:opacity-50">Start camera</button>
-                </div>
-              </div>
-            ) : null}
-
-            {cameraOpen ? (
-              <div ref={guideRef} className={`pointer-events-none absolute left-1/2 top-1/2 aspect-[63/88] w-[86vw] max-w-[420px] -translate-x-1/2 -translate-y-1/2 rounded-[5%] border-2 transition ${phase === "tracking" || phase === "card-entering" ? "border-amber-300 shadow-[0_0_35px_rgba(253,224,71,.35)]" : phase === "waiting-removal" || phase === "queued" ? "border-emerald-300 shadow-[0_0_35px_rgba(110,231,183,.3)]" : "border-cyan-300/75 shadow-[0_0_30px_rgba(34,211,238,.2)]"}`}>
-                <span className="absolute -left-0.5 -top-0.5 h-8 w-8 rounded-tl-xl border-l-4 border-t-4 border-white" />
-                <span className="absolute -right-0.5 -top-0.5 h-8 w-8 rounded-tr-xl border-r-4 border-t-4 border-white" />
-                <span className="absolute -bottom-0.5 -left-0.5 h-8 w-8 rounded-bl-xl border-b-4 border-l-4 border-white" />
-                <span className="absolute -bottom-0.5 -right-0.5 h-8 w-8 rounded-br-xl border-b-4 border-r-4 border-white" />
-              </div>
-            ) : null}
-
-            {cameraOpen ? (
-              <div className="absolute left-2.5 top-2.5 max-w-[58%] truncate rounded-full border border-white/10 bg-black/75 px-3 py-2 text-[11px] font-black backdrop-blur" aria-live="polite">
-                {headline}
-              </div>
-            ) : null}
-
-            {cameraOpen ? (
-              <div className="absolute right-2.5 top-2.5 flex items-center gap-2 rounded-full border border-white/10 bg-black/75 px-3 py-2 text-[10px] font-black backdrop-blur">
-                <span className="text-emerald-300">✓ {addedCount}</span>
-                {pendingCount ? <span className="text-cyan-200">◌ {pendingCount}</span> : null}
-                {queueSaturated ? <span className="text-rose-300">Paused</span> : null}
-                {review.length ? <span className="text-amber-300">! {review.length}</span> : null}
-              </div>
-            ) : null}
-
-          </div>
-
-          <div
-            className="border-t border-white/10 bg-[#071522] px-3 pt-2.5"
-            style={{ paddingBottom: "max(0.625rem, env(safe-area-inset-bottom))" }}
-          >
-            <div className="flex items-center gap-3">
-              {latestAdd ? (
-                <div className="flex min-w-0 flex-1 items-center gap-2.5" aria-live="polite">
-                  <div className="h-11 w-8 shrink-0 overflow-hidden rounded bg-white/5">
-                    {latestImage ? <img src={latestImage} alt="" className="h-full w-full object-cover" /> : null}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate text-sm font-black text-white">{latestAdd.card.name}</div>
-                    <div className="truncate text-[10px] text-slate-400">{latestAdd.card.set_name || latestAdd.card.set_id || "Unknown set"} · {collectorLabel(latestAdd.card)}</div>
-                  </div>
-                  <div className="shrink-0 text-right">
-                    <div className="text-[10px] font-black uppercase tracking-wide text-emerald-300">Added</div>
-                    <div className="text-[10px] font-bold text-emerald-200/70">{latestAdd.confidence}%</div>
-                  </div>
-                </div>
-              ) : (
-                <div className="min-w-0 flex-1" aria-live="polite">
-                  <div className="truncate text-sm font-black text-white">{status}</div>
-                  <div className="truncate text-[10px] font-bold text-slate-500">Full Pokémon card only · safe matches log automatically</div>
-                </div>
-              )}
-              {cameraOpen ? (
-                <button type="button" onClick={stopCamera} className="shrink-0 rounded-xl border border-rose-300/25 bg-rose-400/10 px-4 py-2.5 text-sm font-black text-rose-100 hover:bg-rose-400/15">Stop</button>
-              ) : null}
-            </div>
-            {latestAdd ? <div className="mt-1 truncate text-[10px] font-bold text-slate-500" aria-live="polite">{status} · complete Pokémon cards only</div> : null}
-            <div className="mt-2 h-1 overflow-hidden rounded-full bg-white/10" role="progressbar" aria-label="Recognition progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress}>
-              <div className="h-full bg-gradient-to-r from-cyan-400 to-emerald-300 transition-[width]" style={{ width: `${progress}%` }} />
-            </div>
-            {error ? <div className="mt-2 rounded-xl border border-rose-400/35 bg-rose-400/10 px-3 py-2.5 text-xs font-bold text-rose-100">{error}</div> : null}
-          </div>
+          ) : null}
+          <button type="button" onClick={toggleDiagnostics} className={`rounded-xl border px-3 py-2 text-xs font-black transition ${diagnostics ? "border-fuchsia-300 bg-fuchsia-300 text-slate-950" : "border-white/10 bg-black/25 text-slate-300 hover:border-fuchsia-300/50"}`}>Diagnostics {diagnostics ? "on" : "off"}</button>
+          {diagnostics ? <button type="button" onClick={downloadBenchmarkRecords} className="rounded-xl border border-fuchsia-300/30 bg-fuchsia-300/5 px-3 py-2 text-xs font-black text-fuchsia-100 hover:bg-fuchsia-300/10">Export benchmark data</button> : null}
+          {diagnostics && activeDebug ? <button type="button" onClick={() => downloadDiagnosticSnapshot(activeDebug)} className="rounded-xl border border-cyan-300/30 bg-cyan-300/5 px-3 py-2 text-xs font-black text-cyan-100 hover:bg-cyan-300/10">Export current diagnostic JSON</button> : null}
+          {diagnostics ? <button type="button" onClick={clearBenchmarkRecords} className="rounded-xl border border-white/10 bg-black/25 px-3 py-2 text-xs font-bold text-slate-400 hover:text-white">Clear benchmark</button> : null}
+          {autoIntakeLabel ? <div className="rounded-xl border border-white/10 bg-black/25 px-3 py-2 text-xs text-slate-300">Destination: <span className="font-bold text-white">{autoIntakeLabel}</span></div> : null}
         </div>
-
-      </div>
-
-      {diagnostics ? (
-        <div className="border-t border-fuchsia-300/20 bg-fuchsia-950/10 p-4 sm:p-5">
-          <div className="flex flex-wrap items-center gap-2">
+        {diagnostics ? (
+          <div className="mt-3 flex flex-wrap items-center gap-3 rounded-2xl border border-cyan-300/20 bg-cyan-300/5 p-3">
             <div className="min-w-[220px] flex-1">
               <div className="text-xs font-black text-cyan-100">Whole-catalogue visual index</div>
               <div className="mt-1 text-[11px] text-slate-400">
                 {visualIndexStatus
                   ? `${visualIndexStatus.indexed.toLocaleString()} of ${visualIndexStatus.total.toLocaleString()} reference images indexed`
-                  : "Loading visual index status…"}
+                  : "Load the index status, then build it once after installing the V51 migration."}
               </div>
               {visualIndexStatus?.total ? <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/10"><div className="h-full bg-cyan-300 transition-all" style={{ width: `${Math.min(100, visualIndexStatus.indexed / visualIndexStatus.total * 100)}%` }} /></div> : null}
             </div>
-            <button type="button" onClick={() => void buildVisualIndex()} className={`rounded-xl px-3 py-2 text-xs font-black ${buildingVisualIndex ? "border border-amber-300/40 bg-amber-300/10 text-amber-100" : "bg-cyan-300 text-slate-950 hover:bg-cyan-200"}`}>
-              {buildingVisualIndex ? "Pause build" : visualIndexStatus && visualIndexStatus.indexed >= visualIndexStatus.total && visualIndexStatus.total > 0 ? "Recheck index" : "Build / resume index"}
+            <button type="button" onClick={() => void buildVisualIndex()} className={`rounded-xl px-4 py-2 text-xs font-black ${buildingVisualIndex ? "border border-amber-300/40 bg-amber-300/10 text-amber-100" : "bg-cyan-300 text-slate-950 hover:bg-cyan-200"}`}>
+              {buildingVisualIndex ? "Pause visual build" : visualIndexStatus && visualIndexStatus.indexed >= visualIndexStatus.total && visualIndexStatus.total > 0 ? "Recheck index" : "Build / resume visual index"}
             </button>
-            <button type="button" onClick={downloadBenchmarkRecords} className="rounded-xl border border-fuchsia-300/30 bg-fuchsia-300/5 px-3 py-2 text-xs font-black text-fuchsia-100 hover:bg-fuchsia-300/10">Export benchmark</button>
-            {activeDebug ? <button type="button" onClick={() => downloadDiagnosticSnapshot(activeDebug)} className="rounded-xl border border-cyan-300/30 bg-cyan-300/5 px-3 py-2 text-xs font-black text-cyan-100 hover:bg-cyan-300/10">Export current scan</button> : null}
-            <button type="button" onClick={clearBenchmarkRecords} className="rounded-xl border border-white/10 bg-black/25 px-3 py-2 text-xs font-bold text-slate-400 hover:text-white">Clear benchmark</button>
           </div>
-          {activeDebug ? <DebugPanel snapshot={activeDebug} /> : null}
-          {latestAdd?.benchmarkCaseId && !latestAdd.benchmarkVerified ? (
-            <div className="mt-4 rounded-2xl border border-amber-300/25 bg-amber-300/[0.06] p-4">
-              <div className="text-sm font-black text-amber-50">Benchmark check: was the latest automatic match correct?</div>
-              <div className="mt-3 grid grid-cols-2 gap-2">
-                <button type="button" onClick={() => verifyLatestBenchmark(true)} className="min-h-11 rounded-xl bg-emerald-300 px-3 text-xs font-black text-emerald-950">Yes, exact card</button>
-                <button type="button" onClick={() => verifyLatestBenchmark(false)} className="min-h-11 rounded-xl border border-rose-300/30 bg-rose-300/10 px-3 text-xs font-black text-rose-100">No, wrong card</button>
+        ) : null}
+      </div>
+
+      <div className="grid gap-5 p-5 sm:p-6 lg:grid-cols-[minmax(0,1.3fr)_minmax(300px,.7fr)]">
+        <div>
+          <div ref={viewportRef} className="relative aspect-video overflow-hidden rounded-3xl border border-white/10 bg-black shadow-inner">
+            <video ref={videoRef} muted playsInline className={`h-full w-full object-cover ${cameraOpen ? "opacity-100" : "opacity-0"}`} />
+            {!cameraOpen ? (
+              <div className="absolute inset-0 grid place-items-center bg-[radial-gradient(circle_at_50%_45%,rgba(34,211,238,.12),transparent_42%)] p-8 text-center">
+                <div>
+                  <div className="mx-auto grid h-16 w-16 place-items-center rounded-2xl border border-cyan-300/30 bg-cyan-300/10 text-3xl">▣</div>
+                  <div className="mt-4 text-lg font-black">Camera conveyor is paused</div>
+                  <div className="mt-1 text-sm text-slate-400">Start the camera or test a saved card image.</div>
+                </div>
               </div>
+            ) : null}
+            <div ref={guideRef} className={`pointer-events-none absolute left-1/2 top-1/2 aspect-[63/88] h-[88%] max-w-[82%] -translate-x-1/2 -translate-y-1/2 rounded-[5%] border-2 transition ${phase === "tracking" || phase === "card-entering" ? "border-amber-300 shadow-[0_0_35px_rgba(253,224,71,.35)]" : phase === "waiting-removal" || phase === "queued" ? "border-emerald-300 shadow-[0_0_35px_rgba(110,231,183,.3)]" : "border-cyan-300/75 shadow-[0_0_30px_rgba(34,211,238,.2)]"}`}>
+              <span className="absolute -left-0.5 -top-0.5 h-8 w-8 rounded-tl-xl border-l-4 border-t-4 border-white" />
+              <span className="absolute -right-0.5 -top-0.5 h-8 w-8 rounded-tr-xl border-r-4 border-t-4 border-white" />
+              <span className="absolute -bottom-0.5 -left-0.5 h-8 w-8 rounded-bl-xl border-b-4 border-l-4 border-white" />
+              <span className="absolute -bottom-0.5 -right-0.5 h-8 w-8 rounded-br-xl border-b-4 border-r-4 border-white" />
+            </div>
+            {cameraOpen ? <div className="absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full border border-white/10 bg-black/75 px-4 py-2 text-center text-xs font-black backdrop-blur">{headline}</div> : null}
+          </div>
+
+          <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/10"><div className="h-full bg-gradient-to-r from-cyan-400 to-fuchsia-400 transition-all" style={{ width: `${progress}%` }} /></div>
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <div className="text-sm font-black text-white">{status}</div>
+              <div className="mt-0.5 text-xs text-slate-500">{cameraOpen ? "Keep the empty guide visible between cards for best separation." : "Portrait photos with the full card visible work best."}</div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {cameraOpen ? (
+                <>
+                  <button type="button" onClick={captureNow} disabled={disabled} className="rounded-xl bg-cyan-300 px-4 py-2.5 text-sm font-black text-slate-950 hover:bg-cyan-200 disabled:opacity-50">Capture now</button>
+                  <button type="button" onClick={stopCamera} className="rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm font-black hover:bg-white/10">Stop</button>
+                </>
+              ) : (
+                <button type="button" onClick={startCamera} disabled={disabled} className="rounded-xl bg-cyan-300 px-5 py-2.5 text-sm font-black text-slate-950 hover:bg-cyan-200 disabled:opacity-50">Start camera</button>
+              )}
+              <label className="cursor-pointer rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm font-black hover:bg-white/10">
+                Test image<input type="file" accept="image/*" className="sr-only" onChange={uploadImage} disabled={disabled} />
+              </label>
+            </div>
+          </div>
+          {error ? <div className="mt-4 rounded-2xl border border-rose-400/35 bg-rose-400/10 p-4 text-sm font-bold text-rose-100">{error}</div> : null}
+          {diagnostics && activeDebug ? <DebugPanel snapshot={activeDebug} /> : null}
+        </div>
+
+        <aside className="space-y-4">
+          <div className="rounded-2xl border border-white/10 bg-white/[0.035] p-4">
+            <div className="flex items-center justify-between gap-3"><h3 className="font-black">Recognition lane</h3><span className="rounded-full bg-cyan-300/10 px-2.5 py-1 text-xs font-black text-cyan-200">{pendingCount} pending</span></div>
+            <ol className="mt-4 space-y-3 text-xs text-slate-300">
+              <li><span className="mr-2 font-black text-cyan-300">1</span> Detect and rectify the card boundary</li>
+              <li><span className="mr-2 font-black text-cyan-300">2</span> Search every indexed card by artwork and layout</li>
+              <li><span className="mr-2 font-black text-cyan-300">3</span> Use name, number, set and HP only to verify</li>
+              <li><span className="mr-2 font-black text-cyan-300">4</span> Auto-add only after independent evidence agrees</li>
+            </ol>
+          </div>
+          {recentAdds.length ? (
+            <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/5 p-4">
+              <h3 className="font-black text-emerald-100">Recently added</h3>
+              <div className="mt-3 space-y-2">{recentAdds.map((item) => <div key={item.id} className="rounded-xl border border-white/10 bg-black/20 p-3"><div className="text-sm font-black">{item.card.name} · {collectorLabel(item.card)}</div><div className="mt-1 text-[11px] text-emerald-200/70">{item.message}</div></div>)}</div>
             </div>
           ) : null}
-        </div>
-      ) : null}
+          <div className="rounded-2xl border border-amber-400/20 bg-amber-400/5 p-4 text-xs text-amber-100/80">
+            <div className="font-black text-amber-100">Safe intake policy</div>
+            <p className="mt-2 leading-relaxed">A plausible name alone never adds inventory. Automatic intake requires at least three agreeing signals and either exact number + set, or exact number + strong artwork.</p>
+          </div>
+        </aside>
+      </div>
 
       {review.length ? (
-        <div className="border-t border-amber-300/20 bg-amber-950/10 p-4 sm:p-5">
-          <div className="flex flex-wrap items-end justify-between gap-2"><div><div className="text-xs font-black uppercase tracking-[0.2em] text-amber-300">Review · {review.length}</div><h3 className="mt-1 text-lg font-black">Uncertain scans were not added</h3><p className="mt-1 text-xs text-slate-400">Keep scanning; confirm these whenever convenient.</p></div><button type="button" onClick={() => setReview([])} className="text-xs font-bold text-slate-400 hover:text-white">Clear review</button></div>
+        <div className="border-t border-white/10 bg-black/20 p-5 sm:p-6">
+          <div className="flex flex-wrap items-end justify-between gap-2"><div><div className="text-xs font-black uppercase tracking-[0.2em] text-amber-300">Human checkpoint</div><h3 className="mt-1 text-xl font-black">Confirm uncertain scans</h3></div><button type="button" onClick={() => setReview([])} className="text-xs font-bold text-slate-400 hover:text-white">Clear queue</button></div>
           <div className="mt-4 grid gap-4 xl:grid-cols-2">
             {review.map((item) => (
               <article key={item.id} className="rounded-2xl border border-white/10 bg-[#081522] p-4">
+                <div className="mb-2 flex justify-end"><button type="button" disabled={Boolean(choosing)} onClick={() => setReview((rows) => rows.filter((row) => row.id !== item.id))} className="min-h-11 rounded-lg px-3 text-xs font-semibold text-slate-400 hover:bg-white/5 hover:text-white">Dismiss scan</button></div>
+                {item.writeUncertain ? <p role="alert" className="mb-3 rounded-xl border border-amber-200/20 bg-amber-100/5 p-3 text-sm leading-6 text-amber-100">The add request lost its confirmation and may have completed. <a href="/admin/inventory" target="_blank" rel="noopener noreferrer" className="font-bold underline underline-offset-4">Check inventory</a> before scanning this card again.</p> : null}
                 <div className="grid grid-cols-[74px_1fr] gap-3">
                   <img src={item.preview} alt="Captured card" className="aspect-[63/88] w-full rounded-lg object-cover" />
                   <div><div className="text-xs font-bold text-slate-400">Top catalogue matches</div><div className="mt-1 text-sm text-slate-300">Confidence {item.identification.confidence}% · margin {item.identification.margin.toFixed(0)} points</div></div>
                 </div>
                 <div className="mt-3 space-y-2">
-                  {item.identification.candidates.length ? item.identification.candidates.slice(0, 3).map((candidate) => <CandidateCard key={candidate.card.id} candidate={candidate} disabled={disabled || choosing === item.id} onChoose={() => void chooseCandidate(item, candidate)} />) : <div className="rounded-xl border border-white/10 bg-black/20 p-4 text-sm text-slate-400">No indexed visual candidate was available. Finish building the visual index, then retake with the complete artwork visible.</div>}
+                  {item.identification.candidates.length ? item.identification.candidates.slice(0, 3).map((candidate) => <CandidateCard key={candidate.card.id} candidate={candidate} disabled={disabled || Boolean(choosing) || Boolean(item.writeUncertain)} onChoose={() => void chooseCandidate(item, candidate)} />) : <div className="rounded-xl border border-white/10 bg-black/20 p-4 text-sm text-slate-400">No indexed visual candidate was available. Finish building the visual index, then retake with the complete artwork visible.</div>}
                 </div>
               </article>
             ))}

@@ -36,7 +36,16 @@ const PAGE_TITLES: ReadonlyArray<readonly [string, string]> = [
   ["/welcome", "Welcome"],
   ["/faq", "FAQ"],
   ["/help", "Help"],
-  ["/terms", "Terms"],
+  ["/terms", "Terms & Conditions"],
+  ["/privacy", "Privacy Policy"],
+  ["/returns", "Returns & Refunds"],
+  ["/cookies", "Cookie Policy"],
+  ["/contact", "Contact"],
+  ["/shipping-policy", "Shipping Policy"],
+  ["/admin/add", "Card Intake"],
+  ["/admin/inventory", "Inventory"],
+  ["/admin/orders", "Orders"],
+  ["/admin", "Administration"],
   ["/rules", "Rules"],
   ["/odds", "Wish Odds"],
   ["/player-protection", "Player Protection"],
@@ -49,7 +58,7 @@ function getPageTitle(pathname: string): string {
     ([path]) => pathname === path || pathname.startsWith(`${path}/`),
   )?.[1];
 
-  return title ? `${title} · ancientpulls` : "ancientpulls";
+  return title ? `${title} | Ancient Pulls` : "Ancient Pulls";
 }
 
 export default function RootTemplate({

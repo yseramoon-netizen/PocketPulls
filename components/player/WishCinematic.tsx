@@ -11,6 +11,8 @@ import {
   useState,
 } from "react";
 
+import { createPortal } from "react-dom";
+import useModalFocus from "@/lib/client/useModalFocus";
 import { publishPlayerPreferences } from "@/lib/player/preferences";
 import {
   getWishRevealConfig,
@@ -341,15 +343,7 @@ export default function WishCinematic({
   );
   const equippedCosmicNebu = !cosmicDiscovery && nebuSkin === "cosmic_nebu";
   const cosmicMode = equippedCosmicNebu || cosmicDiscovery;
-  const preparingCopy = dualDiscovery
-    ? "Nebu hears two impossible answers..."
-    : cosmicDiscovery
-      ? "The sky has chosen Nebu..."
-      : cosmicBinderDiscovery
-        ? "A sealed archive is answering..."
-        : equippedCosmicNebu
-          ? "Cosmic Nebu is bending the constellation..."
-          : "Nebu is reading the constellation...";
+  const preparingCopy = "Nebu is reading the constellation…";
   const lowEffects = preferences.lowVisualEffects || preferences.dataSaver;
   const particleCount = getWishRevealParticleCount(config, {
     mobile: mobileEffects,
@@ -617,24 +611,12 @@ export default function WishCinematic({
     });
   }, [complete, open, preferences, respectPreferences]);
 
-  useEffect(() => {
-    if (!open) return;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+  const modalRef = useModalFocus<HTMLDivElement>(Boolean(open && card), () => {
+    if (complete) handleContinue();
+    else if (allowSkip) revealImmediately();
+  });
 
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
-      if (complete) handleContinue();
-      else if (allowSkip) revealImmediately();
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [allowSkip, complete, handleContinue, open, revealImmediately]);
-
-  if (!open || !card) return null;
+  if (!open || !card || typeof document === "undefined") return null;
 
   const rootStyle = {
     "--wish-primary": skipped ? config.primary : "#e2e8f0",
@@ -656,8 +638,10 @@ export default function WishCinematic({
     "--info-at": `${timeline.infoAtMs}ms`,
   } as CSSProperties;
 
-  return (
+  return createPortal(
     <div
+      ref={modalRef}
+      tabIndex={-1}
       className={styles.overlay}
       style={rootStyle}
       data-tier={config.tier}
@@ -671,7 +655,7 @@ export default function WishCinematic({
       data-low-effects={lowEffects ? "true" : "false"}
       role="dialog"
       aria-modal="true"
-      aria-label={`Wish reveal for ${card.name}`}
+      aria-label={complete ? `Wish reveal for ${card.name}` : "Wish ceremony"}
     >
       <div className={styles.sky} />
       <div className={styles.stars} />
@@ -767,7 +751,7 @@ export default function WishCinematic({
             </div>
           ) : null}
 
-          <div className={styles.cardScene} data-share-ready="true">
+          <div className={styles.cardScene} data-share-ready={complete ? "true" : undefined} aria-hidden={!complete}>
             <div className={styles.cardGlow} />
             <div className={styles.cardFrame}>
               {card.imageUrl ? <img src={card.imageUrl} alt={card.name} draggable={false} /> : <div className={styles.cardFallback}><span>✦</span><strong>{card.name}</strong></div>}
@@ -776,7 +760,7 @@ export default function WishCinematic({
             </div>
           </div>
 
-          <div className={styles.cardInfo} data-share-ready="true">
+          <div className={styles.cardInfo} data-share-ready={complete ? "true" : undefined} aria-hidden={!complete} inert={!complete}>
             {cosmicIssueNumber || cosmicBinderIssueNumber ? (
               <div className={styles.legendaryDiscoveries}>
                 {cosmicIssueNumber ? (
@@ -809,6 +793,6 @@ export default function WishCinematic({
       {allowSkip && !complete ? (
         <button type="button" className={styles.skipButton} onClick={revealImmediately}>Reveal now</button>
       ) : null}
-    </div>
+    </div>, document.body,
   );
 }

@@ -1,0 +1,20 @@
+ANCIENT PULLS V67.14 — CONSENT + OPEN PLAYER WISH REPAIR
+
+1. In Supabase SQL Editor, run this migration after V67.12:
+   supabase/migrations/20260901_consent_and_open_wishes_v6714.sql
+2. Deploy the V67.14 application files.
+3. Run supabase/RELEASE_DATA_AUDIT.sql. Audit checks 9 and 10 must return zero rows.
+4. Sign in with two ordinary test accounts, accept the current acknowledgement,
+   and make one wish from each account.
+5. Retry one wish using the same request UUID and verify that the same card is
+   returned without reducing the wallet twice.
+
+WHAT THIS REPAIRS
+- Removes the consent_version PL/pgSQL ambiguity by naming the consent primary key.
+- Replaces the stale one-argument wish RPC with the authenticated V67.14 engine.
+- Removes pre-release registration-list checks from normal wishes.
+- Repairs an interrupted ordinary profile/wallet bootstrap on demand.
+- Keeps Founder-only preview controls and entitlements private.
+
+Paid orders remain locked unless every production commerce prerequisite in
+RELEASE_CHECKLIST.md is complete and ANCIENT_PULLS_ORDERS_OPEN=true.

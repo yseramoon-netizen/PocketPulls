@@ -26,6 +26,7 @@ import {
   toNumber,
   toWholeNumber,
 } from "@/lib/player/format";
+import useBrowseFilters from "@/lib/player/useBrowseFilters";
 import { supabase } from "@/lib/supabase";
 
 import styles from "./collection.module.css";
@@ -64,7 +65,6 @@ type OverviewRow = {
 type BinderSettingsRow = {
   theme_key: string | null;
   binder_name: string | null;
-  cosmic_binder_issue_number: number | string | null;
 };
 
 type BinderThemeUnlockRow = {
@@ -173,6 +173,9 @@ function getLocalDateKey(): string {
 
 export default function CollectionPage() {
   const requestRef = useRef(0);
+  const listAbortRef = useRef<AbortController | null>(null);
+  const cardsLoadedRef = useRef(false);
+  const searchEditedRef = useRef(false);
   const searchTimerRef = useRef<number | null>(null);
 
   const [cards, setCards] = useState<CollectionCard[]>([]);
@@ -180,16 +183,11 @@ export default function CollectionPage() {
   const [themeKey, setThemeKey] = useState("classic");
   const [binderName, setBinderName] = useState("My Binder");
   const [binderNameInput, setBinderNameInput] = useState("My Binder");
-  const [cosmicBinderIssueNumber, setCosmicBinderIssueNumber] = useState(0);
   const [themePickerOpen, setThemePickerOpen] = useState(false);
   const [themeUnlocks, setThemeUnlocks] = useState<Record<string, BinderThemeUnlockRow>>({});
   const [anniversaryYearsByCard, setAnniversaryYearsByCard] = useState<Record<string, number>>({});
   const [searchInput, setSearchInput] = useState("");
-  const [search, setSearch] = useState("");
-  const [setName, setSetName] = useState("");
-  const [rarity, setRarity] = useState("");
-  const [availability, setAvailability] = useState<Availability>("all");
-  const [page, setPage] = useState(1);
+  const { search, setSearch, setName, setSetName, rarity, setRarity, availability, setAvailability, page, setPage, ready: filtersReady } = useBrowseFilters();
   const [totalCount, setTotalCount] = useState(0);
 
   const [prepared, setPrepared] = useState(false);
@@ -204,6 +202,10 @@ export default function CollectionPage() {
   const [swapMessage, setSwapMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [selectedCard, setSelectedCard] = useState<CollectionCard | null>(null);
+
+  useEffect(() => {
+    if (filtersReady) setSearchInput(search);
+  }, [filtersReady, search]);
 
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 
@@ -239,7 +241,6 @@ export default function CollectionPage() {
       setThemeKey(typeof theme === "string" && theme.trim() ? theme : "classic");
       setBinderName(name);
       setBinderNameInput(name);
-      setCosmicBinderIssueNumber(toWholeNumber(settings.cosmic_binder_issue_number));
     }
 
     const unlockMap: Record<string, BinderThemeUnlockRow> = {};
@@ -291,7 +292,9 @@ export default function CollectionPage() {
       else setLoading(true);
 
       setErrorMessage(null);
-
+      listAbortRef.current?.abort();
+      const controller = new AbortController();
+      listAbortRef.current = controller;
       try {
         const { data, error } = await supabase.rpc("get_player_collection", {
           p_search: search,
@@ -301,20 +304,20 @@ export default function CollectionPage() {
           p_sort: "binder",
           p_page: page,
           p_page_size: PAGE_SIZE,
-        });
+        }).abortSignal(controller.signal);
 
         if (error) throw error;
         if (request !== requestRef.current) return;
 
         const parsed = parseRows(data);
+        if (!parsed.cards.length && page > 1) { setPage(1); return; }
+        cardsLoadedRef.current = true;
         setCards(parsed.cards);
         setTotalCount(parsed.totalCount);
       } catch (error: unknown) {
         if (request !== requestRef.current) return;
         console.error("Collection error:", error);
         setErrorMessage(getErrorMessage(error, "Your collection could not be loaded."));
-        setCards([]);
-        setTotalCount(0);
       } finally {
         if (request === requestRef.current) {
           setLoading(false);
@@ -360,16 +363,20 @@ export default function CollectionPage() {
   }, [loadBinderSettings, loadOverview, loadWishAnniversaries, syncBinderPositions]);
 
   useEffect(() => {
-    if (!prepared) return;
-    void loadCards(false);
-  }, [prepared, loadCards]);
+    if (!prepared || !filtersReady) return;
+    void loadCards(cardsLoadedRef.current);
+    return () => { requestRef.current += 1; listAbortRef.current?.abort(); };
+  }, [prepared, filtersReady, loadCards]);
 
   useEffect(() => {
+    if (!searchEditedRef.current) return;
     if (searchTimerRef.current !== null) {
       window.clearTimeout(searchTimerRef.current);
     }
 
     searchTimerRef.current = window.setTimeout(() => {
+      if (searchInput.trim() === search) return;
+      searchEditedRef.current = false;
       setSearch(searchInput.trim());
       setPage(1);
     }, 300);
@@ -379,7 +386,7 @@ export default function CollectionPage() {
         window.clearTimeout(searchTimerRef.current);
       }
     };
-  }, [searchInput]);
+  }, [searchInput, search, setSearch, setPage]);
 
   const clearFilters = useCallback(() => {
     setSearchInput("");
@@ -554,11 +561,6 @@ export default function CollectionPage() {
         <div>
           <p className={styles.eyebrow}>Your binder</p>
           <h1 className={styles.title}>{binderName}</h1>
-          {cosmicBinderIssueNumber > 0 ? (
-            <span className={styles.cosmicOwnership}>
-              Cosmic Binder #{String(cosmicBinderIssueNumber).padStart(6, "0")}
-            </span>
-          ) : null}
         </div>
 
         <div className={styles.headerStats}>
@@ -574,7 +576,8 @@ export default function CollectionPage() {
         <input
           type="search"
           value={searchInput}
-          onChange={(event) => setSearchInput(event.target.value)}
+          onChange={(event) => { searchEditedRef.current = true; setSearchInput(event.target.value); }}
+          aria-label="Search your binder"
           placeholder="Search cards..."
           className={styles.searchInput}
         />
@@ -618,7 +621,7 @@ export default function CollectionPage() {
             {option.label}
           </button>
         ))}
-        <span className={styles.entryCount}>
+        <span className={styles.entryCount} role="status" aria-live="polite">
           {loading || filtering
             ? "Reading…"
             : `${formatWholeNumber(totalCount)} ${totalCount === 1 ? "entry" : "entries"}`}
@@ -684,10 +687,10 @@ export default function CollectionPage() {
                     type="button"
                     disabled={themeBusy || !unlocked}
                     onClick={() => void selectTheme(theme.key)}
-                    className={`${styles.themeCard} ${theme.key === "cosmic_binder" ? styles.cosmicThemeCard : ""} ${themeKey === theme.key ? styles.themeCardActive : ""} ${!unlocked ? styles.themeCardLocked : ""}`}
+                    className={`${styles.themeCard} ${themeKey === theme.key ? styles.themeCardActive : ""} ${!unlocked ? styles.themeCardLocked : ""}`}
                   >
                     <span
-                      className={`${styles.themePreview} ${theme.key === "cosmic_binder" ? styles.cosmicThemePreview : ""}`}
+                      className={styles.themePreview}
                       style={{
                         background: theme.imageUrl
                           ? `linear-gradient(rgba(7,8,24,0.08), rgba(7,8,24,0.18)), url(${theme.imageUrl}) center/cover no-repeat`
@@ -697,10 +700,6 @@ export default function CollectionPage() {
                     <strong>{theme.label}</strong>
                     {themeKey === theme.key ? (
                       <span className={styles.themeSelected}>Selected</span>
-                    ) : theme.key === "cosmic_binder" && cosmicBinderIssueNumber > 0 ? (
-                      <span className={styles.themeUnlocked}>
-                        #{String(cosmicBinderIssueNumber).padStart(6, "0")}
-                      </span>
                     ) : unlocked ? (
                       <span className={styles.themeUnlocked}>Unlocked</span>
                     ) : (
@@ -737,7 +736,7 @@ export default function CollectionPage() {
         </div>
       ) : null}
 
-      <div data-onboarding-target="binder">
+      <div data-onboarding-target="binder" aria-busy={loading || filtering}>
         {loading ? (
           <div className={styles.binderLoading}>Opening your binder...</div>
         ) : cards.length === 0 ? (

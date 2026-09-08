@@ -21,7 +21,6 @@ type PlayerAction =
   | "set_ban"
   | "resend_confirmation"
   | "set_admin"
-  | "enable_cosmic_nebu"
   | "reset_account";
 
 type ActionBody = {
@@ -75,22 +74,7 @@ type EnrichedPlayerAccount =
     admin_display_name:
       | string
       | null;
-    cosmic_issue_number:
-      | number
-      | null;
-    cosmic_discovered_at:
-      | string
-      | null;
-    cosmic_award_source:
-      | string
-      | null;
   };
-
-type CosmicOwnershipRow = {
-  issue_number: number | string | null;
-  discovered_at: string | null;
-  award_source: string | null;
-};
 
 type PlayerInventoryRow = {
   card_id: string;
@@ -190,8 +174,6 @@ function parseAction(
       "resend_confirmation" ||
     value ===
       "set_admin" ||
-    value ===
-      "enable_cosmic_nebu" ||
     value ===
       "reset_account"
     ? value
@@ -484,8 +466,6 @@ function enrichPlayer(
     ReturnType<
       typeof buildAdminIndexes
     >,
-  cosmicOwnership:
-    CosmicOwnershipRow | null = null,
 ): EnrichedPlayerAccount {
   const email =
     normaliseEmail(
@@ -539,14 +519,6 @@ function enrichPlayer(
       adminRow
         ?.display_name ||
       null,
-    cosmic_issue_number:
-      cosmicOwnership?.issue_number == null
-        ? null
-        : Number(cosmicOwnership.issue_number) || null,
-    cosmic_discovered_at:
-      cosmicOwnership?.discovered_at || null,
-    cosmic_award_source:
-      cosmicOwnership?.award_source || null,
   };
 }
 
@@ -744,7 +716,6 @@ export async function GET(
         accountResult,
         inventoryResult,
         authUser,
-        cosmicResult,
       ] =
         await Promise.all([
           admin.rpc(
@@ -767,19 +738,6 @@ export async function GET(
             admin,
             userId,
           ),
-
-          admin
-            .from(
-              "cosmic_nebu_ownerships",
-            )
-            .select(
-              "issue_number,discovered_at,award_source",
-            )
-            .eq(
-              "user_id",
-              userId,
-            )
-            .maybeSingle(),
         ]);
 
       if (
@@ -792,12 +750,6 @@ export async function GET(
         inventoryResult.error
       ) {
         throw inventoryResult.error;
-      }
-
-      if (
-        cosmicResult.error
-      ) {
-        throw cosmicResult.error;
       }
 
       const account =
@@ -830,9 +782,6 @@ export async function GET(
               account,
               authUser,
               adminIndexes,
-              asSingle<CosmicOwnershipRow>(
-                cosmicResult.data,
-              ),
             ),
           inventory:
             asRows<PlayerInventoryRow>(
@@ -1104,68 +1053,6 @@ export async function POST(
 
     if (
       action ===
-      "enable_cosmic_nebu"
-    ) {
-      const target =
-        await getAuthUser(
-          admin,
-          userId,
-        );
-
-      const targetEmail =
-        normaliseEmail(
-          target.email,
-        );
-
-      const {
-        data,
-        error,
-      } = await admin.rpc(
-        "admin_enable_cosmic_nebu",
-        {
-          p_user_id:
-            userId,
-          p_admin_user_id:
-            user.id,
-          p_admin_email:
-            email,
-          p_reason:
-            reason ||
-            "Enabled through the Shaymin player manager.",
-        },
-      );
-
-      if (error) {
-        throw error;
-      }
-
-      const result =
-        typeof data ===
-            "object" &&
-          data !== null
-          ? data as Record<
-              string,
-              unknown
-            >
-          : {};
-
-      return Response.json({
-        ok: true,
-        action,
-        email:
-          targetEmail || null,
-        cosmicIssueNumber:
-          Number(
-            result.issueNumber,
-          ) || null,
-        alreadyOwned:
-          result.alreadyOwned ===
-          true,
-      });
-    }
-
-    if (
-      action ===
       "reset_account"
     ) {
       if (
@@ -1342,10 +1229,6 @@ export async function POST(
         warehouseCardsReturned:
           Number(
             reset.warehouseCardsReturned,
-          ) || 0,
-        removedCosmicNebu:
-          Number(
-            reset.removedCosmicNebu,
           ) || 0,
         metadataReset:
           !metadataError,

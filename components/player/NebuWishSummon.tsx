@@ -7,6 +7,7 @@ import {
   useRef,
 } from "react";
 
+import { readCachedPlayerPreferences } from "@/lib/player/preferences";
 import type { NebuSkinKey } from "@/lib/player/nebu";
 
 import styles from "./NebuWishSummon.module.css";
@@ -343,13 +344,18 @@ function readTheme(element: HTMLElement): Theme {
   };
 }
 
+const atlasCache = new Map<string, HTMLCanvasElement>();
+const ATLAS_PIXEL_BUDGET = 12 * 1024 * 1024;
+
 function createSkinnedAtlas(
   image: HTMLImageElement,
   nebuSkin: NebuSkinKey,
 ): CanvasImageSource {
   const treatment = NEBU_ATLAS_FILTERS[nebuSkin];
   if (!treatment || treatment === "none") return image;
-
+  const key = `${image.currentSrc || image.src}:${nebuSkin}`;
+  const cached = atlasCache.get(key);
+  if (cached) { atlasCache.delete(key); atlasCache.set(key, cached); return cached; }
   const atlas = document.createElement("canvas");
   atlas.width = image.naturalWidth;
   atlas.height = image.naturalHeight;
@@ -361,6 +367,15 @@ function createSkinnedAtlas(
   atlasContext.filter = treatment;
   atlasContext.drawImage(image, 0, 0);
   atlasContext.filter = "none";
+  if (atlas.width * atlas.height <= ATLAS_PIXEL_BUDGET) {
+    atlasCache.set(key, atlas);
+    let pixels = [...atlasCache.values()].reduce((sum, item) => sum + item.width * item.height, 0);
+    for (const [oldKey, item] of atlasCache) {
+      if (pixels <= ATLAS_PIXEL_BUDGET && atlasCache.size <= 2) break;
+      pixels -= item.width * item.height;
+      atlasCache.delete(oldKey);
+    }
+  }
   return atlas;
 }
 
@@ -2194,7 +2209,7 @@ export default function NebuWishSummon({
     };
 
     const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const reducedMotion = mediaQuery.matches;
+    const reducedMotion = mediaQuery.matches || readCachedPlayerPreferences().reducedMotion;
     const image = new Image();
     image.decoding = "async";
     image.src = getNebuSummonSprite(tier, blackHole, nebuSkin);
@@ -2296,7 +2311,7 @@ export default function NebuWishSummon({
 
     // Imperative rendering keeps React out of the per-frame hot path.
     const tick = (now: number) => {
-      if (disposed) return;
+      if (disposed || document.visibilityState === "hidden") return;
       const elapsedMs = now - startedAt;
       if (now - lastRenderedAt >= targetFrameInterval - 1) {
         draw(elapsedMs);
@@ -2318,10 +2333,16 @@ export default function NebuWishSummon({
     image.onerror = () => {
       loaded = false;
     };
+    const onVisibility = () => {
+      window.cancelAnimationFrame(animationFrame);
+      if (document.visibilityState === "visible") animationFrame = window.requestAnimationFrame(tick);
+    };
+    document.addEventListener("visibilitychange", onVisibility);
     animationFrame = window.requestAnimationFrame(tick);
 
     return () => {
       disposed = true;
+      document.removeEventListener("visibilitychange", onVisibility);
       window.cancelAnimationFrame(animationFrame);
       window.removeEventListener("resize", resize);
       resizeObserver?.disconnect();

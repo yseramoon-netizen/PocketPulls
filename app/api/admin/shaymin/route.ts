@@ -1,6 +1,6 @@
 import {
   adminErrorResponse,
-  requireFounderAdmin,
+  requireAdmin,
   type ServerAdminClient,
 } from "@/lib/admin/server-auth";
 import {
@@ -962,7 +962,7 @@ function looksLikeMissingMigration(error: unknown): boolean {
 export async function GET(request: Request) {
   try {
     const { admin, email } =
-      await requireFounderAdmin(request);
+      await requireAdmin(request);
 
     return Response.json(
       await buildResponse(admin, email),
@@ -984,7 +984,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const { admin, email } =
-      await requireFounderAdmin(request);
+      await requireAdmin(request);
     const body = (await request.json()) as {
       action?: unknown;
       item?: unknown;

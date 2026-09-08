@@ -7,6 +7,7 @@
     "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint",
+    "test:core": "node --test scripts/core-regression.cjs",
     "check:release": "node scripts/release-preflight.mjs",
     "check:release:production": "node scripts/release-preflight.mjs --production",
     "audit:performance": "node scripts/performance-budget.mjs",

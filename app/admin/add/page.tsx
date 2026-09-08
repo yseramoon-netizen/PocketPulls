@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import dynamic from "next/dynamic";
 
 import {
   type FormEvent,
@@ -14,11 +15,23 @@ import { supabase } from "@/lib/supabase";
 import { adminFetch } from "@/lib/admin/client-auth";
 
 import AdminNav from "@/components/AdminNav";
-import CardScanner from "@/components/CardScanner";
 import type {
   ScannerAutoAddResult,
   ScannerPokemonCard,
 } from "@/lib/scanner/types";
+import ForestBackground from "@/components/ForestBackground";
+
+const CardScanner = dynamic(
+  () => import("@/components/CardScanner"),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex min-h-[28rem] items-center justify-center rounded-[2rem] border border-cyan-200/15 bg-[#061813]/90 p-8 text-center text-sm font-black text-cyan-100/60">
+        Loading the image-first scanner…
+      </div>
+    ),
+  },
+);
 
 type AddPageCard = ScannerPokemonCard & {
   market_value_normal_gbp?:
@@ -42,22 +55,12 @@ type CardFinish =
   | "holo"
   | "reverse_holo";
 
-type CardCondition =
-  | "mint"
-  | "near_mint"
-  | "excellent"
-  | "good"
-  | "played"
-  | "poor";
-
 type AddResult = {
   cardName: string;
   quantityAdded: number;
   finalQuantity: number;
   location: string;
   finish: CardFinish;
-  condition: CardCondition;
-  language: string;
 };
 
 type AddInventoryApiResponse = {
@@ -70,8 +73,6 @@ type AddInventoryApiResponse = {
     finalQuantity: number;
     location: string;
     finish: CardFinish;
-    condition: CardCondition;
-    language: string;
     adminEmail: string;
   };
 };
@@ -139,19 +140,6 @@ const CARD_SELECT = `
 
 const LAST_LOCATION_KEY =
   "pocketpulls:last-inventory-location";
-const LAST_CONDITION_KEY = "ancient-pulls:last-card-condition";
-const LAST_LANGUAGE_KEY = "ancient-pulls:last-card-language";
-
-const CONDITION_OPTIONS: Array<{ value: CardCondition; label: string }> = [
-  { value: "mint", label: "Mint" },
-  { value: "near_mint", label: "Near Mint" },
-  { value: "excellent", label: "Excellent" },
-  { value: "good", label: "Good" },
-  { value: "played", label: "Played" },
-  { value: "poor", label: "Poor" },
-];
-
-const LANGUAGE_OPTIONS = ["English", "Japanese", "French", "German", "Italian", "Spanish", "Korean"];
 
 function getFinishLabel(
   finish: CardFinish,
@@ -382,31 +370,8 @@ export default function AddCardsPage() {
   const [finish, setFinish] =
     useState<CardFinish>("normal");
 
-  const [condition, setCondition] = useState<CardCondition>(() => {
-    if (typeof window === "undefined") return "near_mint";
-    const stored = window.localStorage.getItem(LAST_CONDITION_KEY) as CardCondition | null;
-    return CONDITION_OPTIONS.some((option) => option.value === stored)
-      ? stored as CardCondition
-      : "near_mint";
-  });
-
-  const [language, setLanguage] = useState(() => {
-    if (typeof window === "undefined") return "English";
-    return window.localStorage.getItem(LAST_LANGUAGE_KEY) || "English";
-  });
-
   const [location, setLocation] =
-    useState(() => {
-      if (typeof window === "undefined") {
-        return "Main Inventory";
-      }
-
-      return (
-        window.localStorage.getItem(
-          LAST_LOCATION_KEY,
-        ) || "Main Inventory"
-      );
-    });
+    useState("Main Inventory");
 
   const [adding, setAdding] =
     useState(false);
@@ -421,11 +386,6 @@ export default function AddCardsPage() {
     useState(false);
 
   const [
-    manualEntryOpen,
-    setManualEntryOpen,
-  ] = useState(false);
-
-  const [
     scannerResetKey,
     setScannerResetKey,
   ] = useState(0);
@@ -436,7 +396,16 @@ export default function AddCardsPage() {
   const selectedCardRef =
     useRef<HTMLDivElement | null>(null);
 
-  const manualRequestIdRef = useRef("");
+  useEffect(() => {
+    const storedLocation =
+      window.localStorage.getItem(
+        LAST_LOCATION_KEY,
+      );
+
+    if (storedLocation) {
+      setLocation(storedLocation);
+    }
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -445,10 +414,13 @@ export default function AddCardsPage() {
       setLoadingSets(true);
 
       try {
+        const rpcClient =
+          supabase as any;
+
         const {
           data: rpcData,
           error: rpcError,
-        } = await supabase.rpc(
+        } = await rpcClient.rpc(
           "get_pokemon_card_sets",
         );
 
@@ -653,7 +625,6 @@ export default function AddCardsPage() {
         setSelectedCard(card);
         setQuantity(1);
         setFinish("normal");
-        manualRequestIdRef.current = "";
         setResult(null);
         setError("");
         setSearchResults([]);
@@ -696,6 +667,8 @@ export default function AddCardsPage() {
       !hasTextSearch &&
       !hasSetFilter
     ) {
+      setSearchResults([]);
+      setSearching(false);
       return;
     }
 
@@ -820,17 +793,6 @@ export default function AddCardsPage() {
     setError("");
   }
 
-  function updateLocation(
-    nextLocation: string,
-  ) {
-    setLocation(nextLocation);
-
-    window.localStorage.setItem(
-      LAST_LOCATION_KEY,
-      nextLocation || "Main Inventory",
-    );
-  }
-
   function openScanner() {
     setError("");
 
@@ -845,7 +807,6 @@ export default function AddCardsPage() {
     card: ScannerPokemonCard,
   ) {
     setScannerOpen(false);
-    setManualEntryOpen(true);
     setSearch("");
 
     selectCard(
@@ -855,10 +816,7 @@ export default function AddCardsPage() {
   }
 
   const handleScannerAutoAdd = useCallback(
-    async (
-      card: ScannerPokemonCard,
-      context: { requestId: string; confidence: number; automatic: boolean },
-    ): Promise<ScannerAutoAddResult> => {
+    async (card: ScannerPokemonCard): Promise<ScannerAutoAddResult> => {
       const safeLocation = location.trim() || "Main Inventory";
 
       const response = await adminFetch<AddInventoryApiResponse>(
@@ -870,10 +828,6 @@ export default function AddCardsPage() {
             quantity: 1,
             location: safeLocation,
             finish,
-            condition,
-            language,
-            requestId: `scanner:${context.requestId}`,
-            source: context.automatic ? "scanner" : "scanner_review",
           }),
         },
       );
@@ -891,15 +845,13 @@ export default function AddCardsPage() {
         finalQuantity: added.finalQuantity,
         location: added.location,
         finish: added.finish,
-        condition: added.condition,
-        language: added.language,
       });
 
       return {
         message: `${added.cardName} · ${added.finalQuantity} now in ${added.location}`,
       };
     },
-    [condition, finish, language, location],
+    [finish, location],
   );
 
   async function addToInventory(
@@ -932,10 +884,6 @@ export default function AddCardsPage() {
     setResult(null);
 
     try {
-      if (!manualRequestIdRef.current) {
-        manualRequestIdRef.current = `manual:${crypto.randomUUID()}`;
-      }
-
       const response =
         await adminFetch<AddInventoryApiResponse>(
           "/api/admin/inventory/add",
@@ -951,10 +899,6 @@ export default function AddCardsPage() {
               location:
                 safeLocation,
               finish,
-              condition,
-              language,
-              requestId: manualRequestIdRef.current,
-              source: "manual",
             }),
           },
         );
@@ -978,12 +922,9 @@ export default function AddCardsPage() {
           added.location,
         finish:
           added.finish,
-        condition: added.condition,
-        language: added.language,
       });
 
       setQuantity(1);
-      manualRequestIdRef.current = "";
     } catch (
       addError: unknown
     ) {
@@ -1006,7 +947,6 @@ export default function AddCardsPage() {
     setSelectedCard(null);
     setQuantity(1);
     setFinish("normal");
-    manualRequestIdRef.current = "";
     setResult(null);
     setError("");
   }
@@ -1017,24 +957,55 @@ export default function AddCardsPage() {
         className="
           relative
           min-h-screen
-          overflow-x-hidden
-          bg-[#03110c]
-          bg-[radial-gradient(circle_at_top,rgba(16,185,129,0.14),transparent_34rem)]
-          px-3
-          pb-24
-          pt-3
+          overflow-hidden
+          bg-gradient-to-br
+          from-[#020617]
+          via-[#052e16]
+          to-[#064e3b]
+          px-4
+          pb-28
+          pt-4
           text-white
-          sm:px-4
           md:px-8
           md:pt-8
         "
       >
+        <ForestBackground />
+
+        <div className="pointer-events-none absolute inset-0">
+          <div
+            className="
+              absolute
+              -left-52
+              top-20
+              h-[38rem]
+              w-[38rem]
+              rounded-full
+              bg-emerald-400/10
+              blur-[140px]
+            "
+          />
+
+          <div
+            className="
+              absolute
+              -right-52
+              top-12
+              h-[40rem]
+              w-[40rem]
+              rounded-full
+              bg-cyan-300/10
+              blur-[160px]
+            "
+          />
+        </div>
+
         <div
           className="
             relative
             z-10
             mx-auto
-            max-w-[1200px]
+            max-w-[1500px]
           "
         >
           <AdminNav />
@@ -1042,128 +1013,195 @@ export default function AddCardsPage() {
           <header
             className="
               relative
-              mt-4
+              mt-8
               overflow-hidden
-              rounded-[1.75rem]
+              rounded-[2.75rem]
               border
               border-white/15
-              bg-[#071a14]/95
-              p-4
-              shadow-[0_24px_80px_rgba(0,0,0,0.3)]
-              md:mt-8
-              md:rounded-[2.25rem]
-              md:p-8
+              bg-white/[0.08]
+              p-6
+              shadow-[0_40px_120px_rgba(0,0,0,0.35)]
+              backdrop-blur-3xl
+              md:p-10
             "
           >
-            <div className="relative z-10">
-              <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.18em] text-emerald-200/60">
-                <span className="h-2 w-2 rounded-full bg-emerald-300 shadow-[0_0_12px_rgba(110,231,183,1)]" />
-                Mobile inventory intake
-              </div>
+            <div
+              className="
+                pointer-events-none
+                absolute
+                inset-0
+                bg-gradient-to-br
+                from-white/10
+                via-transparent
+                to-emerald-400/[0.05]
+              "
+            />
 
-              <h1 className="mt-3 text-2xl font-black tracking-[-0.035em] sm:text-3xl md:text-5xl">
-                Scan cards into the Forest Vault
-              </h1>
-
-              <p className="mt-2 max-w-2xl text-sm font-medium leading-6 text-emerald-50/55 md:text-base">
-                Set the finish and storage location once, then pass cards continuously through your phone camera.
-              </p>
-
-              <div className="mt-5 rounded-2xl border border-white/10 bg-black/20 p-3 sm:p-4">
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-xs font-black uppercase tracking-[0.14em] text-white/45">Scan settings</span>
-                  <span className="truncate text-[10px] font-bold text-emerald-200/70">1 card per accepted scan</span>
-                </div>
-
-                <div className="mt-3 grid grid-cols-3 gap-2" aria-label="Card finish">
-                  {FINISH_OPTIONS.map((option) => {
-                    const active = finish === option.value;
-
-                    return (
-                      <button
-                        key={option.value}
-                        type="button"
-                        onClick={() => chooseFinish(option.value)}
-                        disabled={adding}
-                        aria-pressed={active}
-                        className={`min-h-12 rounded-xl border px-2 py-2 text-center text-xs font-black transition disabled:opacity-45 ${active ? option.selectedClassName : "border-white/10 bg-white/[0.04] text-white/50"}`}
-                      >
-                        <span className="block text-[10px] opacity-60">{option.shortLabel}</span>
-                        <span className="mt-0.5 block truncate">{option.value === "reverse_holo" ? "Reverse" : option.label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-
-                <label htmlFor="scanner-location" className="mt-3 block text-[10px] font-black uppercase tracking-[0.14em] text-white/40">
-                  Storage location
-                </label>
-                <input
-                  id="scanner-location"
-                  value={location}
-                  onChange={(event) => updateLocation(event.target.value)}
-                  disabled={adding}
-                  placeholder="Main Inventory"
-                  autoComplete="off"
-                  className="mt-1.5 min-h-12 w-full rounded-xl border border-white/12 bg-black/25 px-4 text-sm font-bold text-white outline-none placeholder:text-white/25 focus:border-emerald-300/45 disabled:opacity-50"
-                />
-
-                <div className="mt-3 grid grid-cols-2 gap-2">
-                  <label className="block">
-                    <span className="text-[10px] font-black uppercase tracking-[0.14em] text-white/40">Condition</span>
-                    <select
-                      value={condition}
-                      onChange={(event) => {
-                        const next = event.target.value as CardCondition;
-                        setCondition(next);
-                        window.localStorage.setItem(LAST_CONDITION_KEY, next);
-                      }}
-                      className="mt-1.5 min-h-12 w-full rounded-xl border border-white/12 bg-[#071a14] px-3 text-sm font-bold text-white outline-none focus:border-emerald-300/45"
-                    >
-                      {CONDITION_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-                    </select>
-                  </label>
-                  <label className="block">
-                    <span className="text-[10px] font-black uppercase tracking-[0.14em] text-white/40">Language</span>
-                    <select
-                      value={language}
-                      onChange={(event) => {
-                        setLanguage(event.target.value);
-                        window.localStorage.setItem(LAST_LANGUAGE_KEY, event.target.value);
-                      }}
-                      className="mt-1.5 min-h-12 w-full rounded-xl border border-white/12 bg-[#071a14] px-3 text-sm font-bold text-white outline-none focus:border-emerald-300/45"
-                    >
-                      {LANGUAGE_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
-                    </select>
-                  </label>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={openScanner}
-                disabled={adding}
-                className="mt-4 flex min-h-16 w-full items-center justify-center gap-3 rounded-2xl border border-cyan-100/30 bg-cyan-200 px-5 text-base font-black text-cyan-950 shadow-[0_0_35px_rgba(165,243,252,0.18)] transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <span className="grid h-9 w-9 place-items-center rounded-xl bg-cyan-950/10 text-xl">◉</span>
-                Open camera and scan
-              </button>
-
-              <div className="mt-3 grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => setManualEntryOpen((open) => !open)}
-                  className="min-h-12 rounded-xl border border-white/10 bg-white/[0.04] px-3 text-xs font-black text-white/65 transition hover:bg-white/[0.08] hover:text-white"
-                  aria-expanded={manualEntryOpen}
+            <div
+              className="
+                relative
+                z-10
+                flex
+                flex-col
+                gap-8
+                xl:flex-row
+                xl:items-end
+                xl:justify-between
+              "
+            >
+              <div>
+                <div
+                  className="
+                    inline-flex
+                    items-center
+                    gap-2
+                    rounded-full
+                    border
+                    border-emerald-200/20
+                    bg-emerald-400/10
+                    px-4
+                    py-2
+                    text-sm
+                    font-black
+                    text-emerald-100
+                  "
                 >
-                  {manualEntryOpen ? "Hide manual entry" : "Manual entry"}
-                </button>
+                  <span
+                    className="
+                      h-2.5
+                      w-2.5
+                      rounded-full
+                      bg-emerald-300
+                      shadow-[0_0_16px_rgba(110,231,183,1)]
+                    "
+                  />
+
+                  Inventory Intake
+                </div>
+
+                <h1
+                  className="
+                    mt-5
+                    text-4xl
+                    font-black
+                    tracking-[-0.045em]
+                    md:text-6xl
+                  "
+                >
+                  Add cards to the
+                  <span className="text-emerald-300">
+                    {" "}
+                    Forest Vault
+                  </span>
+                </h1>
+
+                <p
+                  className="
+                    mt-4
+                    max-w-3xl
+                    text-base
+                    font-medium
+                    leading-7
+                    text-emerald-50/70
+                    md:text-lg
+                  "
+                >
+                  Search the master card database, select
+                  the correct printing and add physical
+                  quantities to your inventory.
+                </p>
+              </div>
+
+              <div
+                className="
+                  flex
+                  flex-col
+                  gap-3
+                  sm:flex-row
+                "
+              >
                 <Link
                   href="/admin/database"
-                  className="flex min-h-12 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] px-3 text-xs font-black text-white/65 transition hover:bg-white/[0.08] hover:text-white"
+                  className="
+                    inline-flex
+                    min-h-14
+                    items-center
+                    justify-center
+                    gap-3
+                    rounded-2xl
+                    border
+                    border-emerald-100/25
+                    bg-emerald-300/15
+                    px-6
+                    font-black
+                    text-emerald-50
+                    transition
+                    hover:-translate-y-0.5
+                    hover:bg-emerald-300/20
+                  "
                 >
+                  <span
+                    className="
+                      flex
+                      h-8
+                      w-8
+                      items-center
+                      justify-center
+                      rounded-xl
+                      bg-emerald-950/15
+                      text-lg
+                    "
+                  >
+                    ↻
+                  </span>
+
                   Sync database
                 </Link>
+
+
+
+              <button
+                  type="button"
+                onClick={openScanner}
+                disabled={adding}
+                className="
+                  inline-flex
+                  min-h-14
+                  items-center
+                  justify-center
+                  gap-3
+                  rounded-2xl
+                  border
+                  border-cyan-100/25
+                  bg-cyan-200
+                  px-6
+                  font-black
+                  text-cyan-950
+                  shadow-[0_0_35px_rgba(165,243,252,0.2)]
+                  transition
+                  hover:-translate-y-0.5
+                  hover:bg-cyan-100
+                  disabled:cursor-not-allowed
+                  disabled:opacity-50
+                "
+              >
+                <span
+                  className="
+                    flex
+                    h-8
+                    w-8
+                    items-center
+                    justify-center
+                    rounded-xl
+                    bg-cyan-950/10
+                    text-lg
+                  "
+                >
+                  ◉
+                </span>
+
+                Scan card
+              </button>
               </div>
             </div>
           </header>
@@ -1171,13 +1209,13 @@ export default function AddCardsPage() {
           {error && (
             <div
               className="
-                mt-3
+                mt-6
                 rounded-[1.75rem]
                 border
                 border-red-300/20
                 bg-red-500/10
-                px-4
-                py-3
+                px-6
+                py-5
                 font-bold
                 text-red-100
                 backdrop-blur-2xl
@@ -1190,7 +1228,7 @@ export default function AddCardsPage() {
           {result && (
             <div
               className="
-                mt-3
+                mt-6
                 flex
                 flex-col
                 gap-4
@@ -1198,8 +1236,8 @@ export default function AddCardsPage() {
                 border
                 border-emerald-200/20
                 bg-emerald-300/10
-                px-4
-                py-4
+                px-6
+                py-5
                 backdrop-blur-2xl
                 sm:flex-row
                 sm:items-center
@@ -1250,7 +1288,7 @@ export default function AddCardsPage() {
                   >
                     Added {result.quantityAdded} x{" "}
                     {getFinishLabel(result.finish)}{" "}
-                    {result.cardName} · {result.condition.replace(/_/g, " ")} · {result.language}. New stock:{" "}
+                    {result.cardName}. New stock:{" "}
                     {result.finalQuantity} in{" "}
                     {result.location}.
                   </p>
@@ -1259,11 +1297,7 @@ export default function AddCardsPage() {
 
               <button
                 type="button"
-                onClick={() => {
-                  setResult(null);
-                  setSelectedCard(null);
-                  openScanner();
-                }}
+                onClick={clearSelection}
                 className="
                   min-h-11
                   rounded-xl
@@ -1277,40 +1311,35 @@ export default function AddCardsPage() {
                   hover:bg-emerald-300/15
                 "
               >
-                Scan more cards
+                Add another card
               </button>
             </div>
           )}
 
-          {manualEntryOpen ? (
           <section
             className="
-              mt-4
+              mt-8
               grid
-              gap-4
-              md:mt-8
-              md:gap-8
+              gap-8
               xl:grid-cols-[1.1fr_0.9fr]
             "
           >
             <div
               className="
                 overflow-hidden
-                rounded-[1.75rem]
+                rounded-[2.75rem]
                 border
                 border-white/15
                 bg-white/[0.075]
                 shadow-[0_35px_100px_rgba(0,0,0,0.3)]
                 backdrop-blur-3xl
-                md:rounded-[2.75rem]
               "
             >
               <div
                 className="
                   border-b
                   border-white/10
-                  p-4
-                  sm:p-6
+                  p-6
                   md:p-8
                 "
               >
@@ -1329,10 +1358,9 @@ export default function AddCardsPage() {
                 <h2
                   className="
                     mt-2
-                    text-2xl
+                    text-3xl
                     font-black
                     tracking-tight
-                    md:text-3xl
                   "
                 >
                   Find a card
@@ -1375,22 +1403,11 @@ export default function AddCardsPage() {
 
                     <input
                       value={search}
-                      onChange={(event) => {
-                        const nextSearch =
-                          event.target.value;
-
-                        setSearch(nextSearch);
-
-                        if (
-                          cleanSearchValue(
-                            nextSearch,
-                          ).length < 2 &&
-                          !selectedSet
-                        ) {
-                          setSearchResults([]);
-                          setSearching(false);
-                        }
-                      }}
+                      onChange={(event) =>
+                        setSearch(
+                          event.target.value,
+                        )
+                      }
                       placeholder={
                         selectedSet
                           ? `Search within ${selectedSet}...`
@@ -1572,10 +1589,8 @@ export default function AddCardsPage() {
 
               <div
                 className="
-                  min-h-0
-                  p-3
-                  sm:p-4
-                  md:min-h-[34rem]
+                  min-h-[34rem]
+                  p-4
                   md:p-6
                 "
               >
@@ -1584,13 +1599,12 @@ export default function AddCardsPage() {
                   <div
                     className="
                       flex
-                      min-h-[18rem]
+                      min-h-[29rem]
                       flex-col
                       items-center
                       justify-center
                       px-6
                       text-center
-                      md:min-h-[29rem]
                     "
                   >
                     <div
@@ -1640,13 +1654,12 @@ export default function AddCardsPage() {
                   <div
                     className="
                       flex
-                      min-h-[18rem]
+                      min-h-[29rem]
                       flex-col
                       items-center
                       justify-center
                       px-6
                       text-center
-                      md:min-h-[29rem]
                     "
                   >
                     <div className="text-5xl">
@@ -1844,21 +1857,19 @@ export default function AddCardsPage() {
               <div
                 className="
                   overflow-hidden
-                  rounded-[1.75rem]
+                  rounded-[2.75rem]
                   border
                   border-white/15
                   bg-white/[0.075]
                   shadow-[0_35px_100px_rgba(0,0,0,0.3)]
                   backdrop-blur-3xl
-                  md:rounded-[2.75rem]
                 "
               >
                 <div
                   className="
                     border-b
                     border-white/10
-                    p-4
-                    sm:p-6
+                    p-6
                     md:p-8
                   "
                 >
@@ -1877,10 +1888,9 @@ export default function AddCardsPage() {
                   <h2
                     className="
                       mt-2
-                      text-2xl
+                      text-3xl
                       font-black
                       tracking-tight
-                      md:text-3xl
                     "
                   >
                     Configure stock
@@ -1891,13 +1901,12 @@ export default function AddCardsPage() {
                   <div
                     className="
                       flex
-                      min-h-[20rem]
+                      min-h-[38rem]
                       flex-col
                       items-center
                       justify-center
                       px-8
                       text-center
-                      md:min-h-[38rem]
                     "
                   >
                     <div
@@ -2135,9 +2144,8 @@ export default function AddCardsPage() {
                           className="
                             mt-3
                             grid
-                            grid-cols-3
-                            gap-2
-                            sm:gap-3
+                            gap-3
+                            sm:grid-cols-3
                           "
                         >
                           {FINISH_OPTIONS.map(
@@ -2162,15 +2170,12 @@ export default function AddCardsPage() {
                                     active
                                   }
                                   className={`
-                                    min-h-16
+                                    min-h-24
                                     rounded-2xl
                                     border
-                                    p-2
-                                    text-center
+                                    p-4
+                                    text-left
                                     transition
-                                    sm:min-h-24
-                                    sm:p-4
-                                    sm:text-left
                                     disabled:cursor-not-allowed
                                     disabled:opacity-45
                                     ${
@@ -2189,7 +2194,7 @@ export default function AddCardsPage() {
                                 >
                                   <span
                                     className="
-                                      hidden
+                                      flex
                                       h-8
                                       w-8
                                       items-center
@@ -2200,7 +2205,6 @@ export default function AddCardsPage() {
                                       bg-black/15
                                       text-xs
                                       font-black
-                                      sm:flex
                                     "
                                   >
                                     {
@@ -2210,12 +2214,10 @@ export default function AddCardsPage() {
 
                                   <span
                                     className="
-                                      mt-0
+                                      mt-3
                                       block
-                                      text-xs
+                                      text-sm
                                       font-black
-                                      sm:mt-3
-                                      sm:text-sm
                                     "
                                   >
                                     {option.label}
@@ -2224,12 +2226,11 @@ export default function AddCardsPage() {
                                   <span
                                     className="
                                       mt-1
-                                      hidden
+                                      block
                                       text-[0.68rem]
                                       font-semibold
                                       leading-4
                                       opacity-55
-                                      sm:block
                                     "
                                   >
                                     {
@@ -2412,7 +2413,7 @@ export default function AddCardsPage() {
                         id="location"
                         value={location}
                         onChange={(event) =>
-                          updateLocation(
+                          setLocation(
                             event.target.value,
                           )
                         }
@@ -2509,81 +2510,119 @@ export default function AddCardsPage() {
               </div>
             </div>
           </section>
-          ) : null}
         </div>
       </main>
 
       {scannerOpen && (
         <div
-          className="fixed inset-0 z-[100] overflow-y-auto overscroll-contain bg-[#020617]"
+          className="
+            fixed
+            inset-0
+            z-[100]
+            overflow-y-auto
+            bg-[#020617]/90
+            px-3
+            py-5
+            backdrop-blur-2xl
+            md:px-8
+            md:py-8
+          "
           role="dialog"
           aria-modal="true"
           aria-label="Pokémon card scanner"
         >
-          <CardScanner
-            disabled={adding}
-            autoStart
-            resetKey={scannerResetKey}
-            onClose={() => setScannerOpen(false)}
-            onSelect={handleScannerSelection}
-            onAutoAdd={handleScannerAutoAdd}
-            autoIntakeLabel={`${getFinishLabel(finish)} · ${condition.replace(/_/g, " ")} · ${language}`}
-            intakeControls={(
+          <div
+            className="
+              mx-auto
+              max-w-[1500px]
+            "
+          >
+            <div
+              className="
+                mb-4
+                flex
+                items-center
+                justify-between
+                gap-4
+                rounded-[1.75rem]
+                border
+                border-white/15
+                bg-[#03150f]/90
+                px-5
+                py-4
+                shadow-2xl
+                backdrop-blur-3xl
+              "
+            >
               <div>
-                <div className="text-[10px] font-black uppercase tracking-[0.14em] text-white/45">Scan destination</div>
-                <div className="mt-2 grid grid-cols-3 gap-1.5">
-                  {FINISH_OPTIONS.map((option) => {
-                    const active = finish === option.value;
+                <p
+                  className="
+                    text-xs
+                    font-black
+                    uppercase
+                    tracking-[0.18em]
+                    text-cyan-200/55
+                  "
+                >
+                  Optional intake tool
+                </p>
 
-                    return (
-                      <button
-                        key={option.value}
-                        type="button"
-                        onClick={() => chooseFinish(option.value)}
-                        aria-pressed={active}
-                        className={`min-h-11 rounded-lg border px-1.5 text-[10px] font-black ${active ? option.selectedClassName : "border-white/10 bg-white/[0.04] text-white/45"}`}
-                      >
-                        {option.value === "reverse_holo" ? "Reverse" : option.label}
-                      </button>
-                    );
-                  })}
-                </div>
-                <input
-                  value={location}
-                  onChange={(event) => updateLocation(event.target.value)}
-                  placeholder="Main Inventory"
-                  autoComplete="off"
-                  aria-label="Storage location"
-                  className="mt-2 min-h-11 w-full rounded-lg border border-white/10 bg-black/25 px-3 text-xs font-bold text-white outline-none placeholder:text-white/25 focus:border-emerald-300/45"
-                />
-                <div className="mt-2 grid grid-cols-2 gap-1.5">
-                  <select
-                    value={condition}
-                    onChange={(event) => {
-                      const next = event.target.value as CardCondition;
-                      setCondition(next);
-                      window.localStorage.setItem(LAST_CONDITION_KEY, next);
-                    }}
-                    aria-label="Card condition"
-                    className="min-h-11 rounded-lg border border-white/10 bg-[#071522] px-2 text-[11px] font-bold text-white"
-                  >
-                    {CONDITION_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-                  </select>
-                  <select
-                    value={language}
-                    onChange={(event) => {
-                      setLanguage(event.target.value);
-                      window.localStorage.setItem(LAST_LANGUAGE_KEY, event.target.value);
-                    }}
-                    aria-label="Card language"
-                    className="min-h-11 rounded-lg border border-white/10 bg-[#071522] px-2 text-[11px] font-bold text-white"
-                  >
-                    {LANGUAGE_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
-                  </select>
-                </div>
+                <h2
+                  className="
+                    mt-1
+                    text-xl
+                    font-black
+                    text-white
+                  "
+                >
+                  Scan a card
+                </h2>
               </div>
-            )}
-          />
+
+              <button
+                type="button"
+                onClick={() =>
+                  setScannerOpen(false)
+                }
+                className="
+                  flex
+                  h-12
+                  items-center
+                  justify-center
+                  gap-2
+                  rounded-2xl
+                  border
+                  border-white/15
+                  bg-white/[0.07]
+                  px-5
+                  font-black
+                  text-white
+                  transition
+                  hover:bg-white/10
+                "
+              >
+                <span className="text-xl">
+                  ×
+                </span>
+
+                Close
+              </button>
+            </div>
+
+            <CardScanner
+              disabled={adding}
+              resetKey={
+                scannerResetKey
+              }
+              onSelect={
+                handleScannerSelection
+              }
+              onAutoAdd={
+                handleScannerAutoAdd
+              }
+              autoIntakeLabel={`${getFinishLabel(finish)} · ${location.trim() || "Main Inventory"}`}
+            />
+          </div>
         </div>
       )}
     </>

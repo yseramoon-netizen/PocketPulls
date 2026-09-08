@@ -77,6 +77,8 @@ export function normalisePlayerPreferences(
   };
 }
 
+let devicePreferences: PlayerPreferences | null = null;
+
 export function readCachedPlayerPreferences(): PlayerPreferences {
   if (typeof window === "undefined") {
     return { ...DEFAULT_PLAYER_PREFERENCES };
@@ -96,9 +98,9 @@ export function readCachedPlayerPreferences(): PlayerPreferences {
 
     return stored
       ? normalisePlayerPreferences(JSON.parse(stored), fallback)
-      : fallback;
+      : devicePreferences ?? fallback;
   } catch {
-    return fallback;
+    return devicePreferences ?? fallback;
   }
 }
 
@@ -118,6 +120,7 @@ export function applyPlayerPreferences(preferences: PlayerPreferences): void {
 }
 
 export function cachePlayerPreferences(preferences: PlayerPreferences): void {
+  devicePreferences = preferences;
   if (typeof window === "undefined") {
     return;
   }

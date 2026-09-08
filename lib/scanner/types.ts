@@ -68,8 +68,6 @@ export type VisualBreakdown = {
   structure: number;
   edge: number;
   colour: number;
-  hash: number;
-  details: number;
 };
 
 export type CandidateEvidence = {
@@ -89,9 +87,9 @@ export type ScannerCandidate = {
   exactCollector: boolean;
   exactSet: boolean;
   visualConfidence: number | null;
-  visualAgreement: number | null;
   visualFrameCount: number;
-  visualSupportingFrames: number;
+  visualAgreement?: number;
+  identityConflicts?: string[];
   visualBreakdown: VisualBreakdown | null;
   reasons: string[];
 };
@@ -105,6 +103,7 @@ export type ScannerTiming = {
 };
 
 export type ScannerDebugSnapshot = {
+  strategy: "visual-only" | "visual-verify" | "recovery";
   original: string;
   canonical: string;
   regions: Record<string, string>;
@@ -147,15 +146,13 @@ export type IndexedVisualMatch = {
   similarity: number;
   agreement: number;
   frameCount: number;
-  supportingFrames: number;
+  orientation: 0 | 180;
   breakdown: {
     combined: number;
     artwork: number;
     fullCard: number;
     colour: number;
     edge: number;
-    hash: number;
-    details: number;
   };
 };
 

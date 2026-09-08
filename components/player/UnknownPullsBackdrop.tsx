@@ -3,12 +3,13 @@
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 
+import usePageVisible from "@/lib/client/usePageVisible";
 import styles from "./UnknownPullsBackdrop.module.css";
 
 export default function UnknownPullsBackdrop() {
   const pathname = usePathname();
   const [cinematicOpen, setCinematicOpen] = useState(false);
-  const [pageVisible, setPageVisible] = useState(true);
+  const pageVisible = usePageVisible();
 
   useEffect(() => {
     const handleCinematicVisibility = (event: Event) => {
@@ -19,28 +20,22 @@ export default function UnknownPullsBackdrop() {
       );
     };
 
-    const handleVisibility = () => {
-      setPageVisible(document.visibilityState !== "hidden");
-    };
-
     window.addEventListener(
       "pocketpulls:wish-cinematic-visibility",
       handleCinematicVisibility,
     );
-    document.addEventListener("visibilitychange", handleVisibility);
-    handleVisibility();
 
     return () => {
       window.removeEventListener(
         "pocketpulls:wish-cinematic-visibility",
         handleCinematicVisibility,
       );
-      document.removeEventListener("visibilitychange", handleVisibility);
     };
   }, []);
 
   if (
     pathname === "/constellation" ||
+    pathname === "/leaderboard" ||
     pathname === "/wishes/preview" ||
     cinematicOpen ||
     !pageVisible

@@ -1,0 +1,126 @@
+{
+  "budgets": {
+    "initialRouteJsTransferKiB": 270,
+    "publicAssetKiB": 2560,
+    "serverChunkKiB": 1024
+  },
+  "totals": {
+    "publicMiB": 45.1,
+    "clientJsKiB": 2250.1
+  },
+  "largestPublicAsset": {
+    "file": "tree-wonder/garden-background.webp",
+    "kiB": 2290.1
+  },
+  "largestServerChunk": {
+    "file": "6295.js",
+    "kiB": 435.6
+  },
+  "heaviestRoutes": [
+    {
+      "route": "/wishes/preview",
+      "initialJsRawKiB": 890.6,
+      "initialJsTransferKiB": 262.3,
+      "chunks": 19
+    },
+    {
+      "route": "/admin/inventory",
+      "initialJsRawKiB": 886,
+      "initialJsTransferKiB": 252,
+      "chunks": 19
+    },
+    {
+      "route": "/admin/add",
+      "initialJsRawKiB": 870.2,
+      "initialJsTransferKiB": 249.3,
+      "chunks": 19
+    },
+    {
+      "route": "/admin/shaymin",
+      "initialJsRawKiB": 855.6,
+      "initialJsTransferKiB": 249.1,
+      "chunks": 19
+    },
+    {
+      "route": "/admin/players",
+      "initialJsRawKiB": 862.1,
+      "initialJsTransferKiB": 248.4,
+      "chunks": 19
+    },
+    {
+      "route": "/constellation",
+      "initialJsRawKiB": 853.7,
+      "initialJsTransferKiB": 248.3,
+      "chunks": 16
+    },
+    {
+      "route": "/admin/database",
+      "initialJsRawKiB": 847.2,
+      "initialJsTransferKiB": 247.6,
+      "chunks": 19
+    },
+    {
+      "route": "/admin/pulls",
+      "initialJsRawKiB": 845,
+      "initialJsTransferKiB": 246.7,
+      "chunks": 19
+    },
+    {
+      "route": "/admin/tree",
+      "initialJsRawKiB": 841.5,
+      "initialJsTransferKiB": 245.8,
+      "chunks": 19
+    },
+    {
+      "route": "/friends/[trainerId]",
+      "initialJsRawKiB": 838.5,
+      "initialJsTransferKiB": 244.9,
+      "chunks": 18
+    },
+    {
+      "route": "/wishes/shop",
+      "initialJsRawKiB": 837.4,
+      "initialJsTransferKiB": 244.6,
+      "chunks": 18
+    },
+    {
+      "route": "/shipping",
+      "initialJsRawKiB": 841.9,
+      "initialJsTransferKiB": 244.1,
+      "chunks": 17
+    }
+  ],
+  "keyRoutes": [
+    {
+      "route": "/wishes",
+      "initialJsRawKiB": 819.8,
+      "initialJsTransferKiB": 238.5,
+      "chunks": 17
+    },
+    {
+      "route": "/collection",
+      "initialJsRawKiB": 824.1,
+      "initialJsTransferKiB": 240.1,
+      "chunks": 17
+    },
+    {
+      "route": "/constellation",
+      "initialJsRawKiB": 853.7,
+      "initialJsTransferKiB": 248.3,
+      "chunks": 16
+    },
+    {
+      "route": "/wishes/preview",
+      "initialJsRawKiB": 890.6,
+      "initialJsTransferKiB": 262.3,
+      "chunks": 19
+    },
+    {
+      "route": "/admin/add",
+      "initialJsRawKiB": 870.2,
+      "initialJsTransferKiB": 249.3,
+      "chunks": 19
+    }
+  ],
+  "violations": []
+}

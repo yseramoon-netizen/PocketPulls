@@ -3,7 +3,6 @@ import {
   type User,
 } from "@supabase/supabase-js";
 
-/* eslint-disable @typescript-eslint/no-explicit-any -- administrator routes cover tables and RPCs introduced after the generated Supabase schema */
 type AuthErrorLike = {
   message?: string;
   status?: number;
@@ -17,46 +16,72 @@ type AuthResult<T> = Promise<{
 
 export type ServerAdminClient = {
   auth: {
-    getUser(token?: string): AuthResult<{ user: User | null }>;
-    resend(credentials: {
-      type: "signup";
-      email: string;
-      options?: { emailRedirectTo?: string };
-    }): AuthResult<Record<string, unknown>>;
+    getUser(
+      token?: string,
+    ): AuthResult<{
+      user: User | null;
+    }>;
+
+    resend(
+      credentials: {
+        type: "signup";
+        email: string;
+        options?: {
+          emailRedirectTo?: string;
+        };
+      },
+    ): AuthResult<Record<string, unknown>>;
+
     admin: {
-      getUserById(userId: string): AuthResult<{ user: User | null }>;
+      getUserById(
+        userId: string,
+      ): AuthResult<{
+        user: User | null;
+      }>;
+
       updateUserById(
         userId: string,
-        attributes: { user_metadata?: Record<string, unknown> },
-      ): AuthResult<{ user: User | null }>;
-      listUsers(parameters?: { page?: number; perPage?: number }): AuthResult<{
+        attributes: {
+          user_metadata?: Record<
+            string,
+            unknown
+          >;
+        },
+      ): AuthResult<{
+        user: User | null;
+      }>;
+
+      listUsers(
+        parameters?: {
+          page?: number;
+          perPage?: number;
+        },
+      ): AuthResult<{
         users: User[];
         aud?: string;
       }>;
     };
   };
-  from(relation: string): any;
+
+  from(
+    relation: string,
+  ): any;
+
   rpc(
     functionName: string,
-    arguments_?: Record<string, unknown>,
-  ): Promise<{ data: any; error: any }>;
+    arguments_?:
+      | Record<string, unknown>
+      | undefined,
+  ): Promise<{
+    data: any;
+    error: any;
+  }>;
 };
 
 export type AdminContext = {
   user: User;
   email: string;
   admin: ServerAdminClient;
-  aal: "aal1" | "aal2" | null;
-};
-
-export type FounderIdentity = "lukas" | "skye";
-
-export type FounderAdminContext = AdminContext & {
-  founder: FounderIdentity;
-};
-
-type RequireAdminOptions = {
-  requireMfa?: boolean;
 };
 
 export class AdminAccessError extends Error {
@@ -147,28 +172,6 @@ function getBearerToken(
   return token;
 }
 
-function readAuthenticatorLevel(
-  token: string,
-): "aal1" | "aal2" | null {
-  try {
-    const payloadPart = token.split(".")[1];
-
-    if (!payloadPart) {
-      return null;
-    }
-
-    const payload = JSON.parse(
-      Buffer.from(payloadPart, "base64url").toString("utf8"),
-    ) as { aal?: unknown };
-
-    return payload.aal === "aal1" || payload.aal === "aal2"
-      ? payload.aal
-      : null;
-  } catch {
-    return null;
-  }
-}
-
 function getConfiguredAdminEmails(): Set<string> {
   const configured = [
     "pullspocket@gmail.com",
@@ -183,55 +186,6 @@ function getConfiguredAdminEmails(): Set<string> {
       )
       .filter(Boolean),
   );
-}
-
-function readAllowlist(value: string | undefined): Set<string> {
-  return new Set(
-    (value || "")
-      .split(",")
-      .map((item) => item.trim().toLowerCase())
-      .filter(Boolean),
-  );
-}
-
-export function resolveFounderIdentity(
-  user: Pick<User, "id" | "email">,
-): FounderIdentity | null {
-  const userId = user.id.trim().toLowerCase();
-  const email = user.email?.trim().toLowerCase() || "";
-  const lukasUserIds = readAllowlist(
-    process.env.POCKETPULLS_LUKAS_USER_IDS,
-  );
-  const skyeUserIds = readAllowlist(
-    process.env.POCKETPULLS_SKYE_USER_IDS,
-  );
-  const lukasEmails = readAllowlist(
-    process.env.POCKETPULLS_LUKAS_EMAILS,
-  );
-  const skyeEmails = readAllowlist(
-    process.env.POCKETPULLS_SKYE_EMAILS,
-  );
-
-  // Preserve the original founder bootstrap account while allowing the
-  // Supabase UUID to become the authoritative production identifier.
-  lukasEmails.add("pullspocket@gmail.com");
-
-  const isLukas =
-    lukasUserIds.has(userId) || Boolean(email && lukasEmails.has(email));
-  const isSkye =
-    skyeUserIds.has(userId) || Boolean(email && skyeEmails.has(email));
-
-  if (isLukas && isSkye) {
-    throw new AdminAccessError(
-      "This account is assigned to both founder profiles. Correct the founder environment allowlists.",
-      500,
-      "founder_allowlist_ambiguous",
-    );
-  }
-
-  if (isLukas) return "lukas";
-  if (isSkye) return "skye";
-  return null;
 }
 
 async function isDatabaseAdmin(
@@ -335,8 +289,7 @@ async function isDatabaseAdmin(
   if (
     getConfiguredAdminEmails().has(
       email,
-    ) ||
-    resolveFounderIdentity(user) !== null
+    )
   ) {
     if (
       byEmail.error &&
@@ -362,7 +315,6 @@ async function isDatabaseAdmin(
 
 export async function requireAdmin(
   request: Request,
-  options: RequireAdminOptions = {},
 ): Promise<AdminContext> {
   const token =
     getBearerToken(request);
@@ -423,43 +375,10 @@ export async function requireAdmin(
     );
   }
 
-  const aal = readAuthenticatorLevel(token);
-  const requireMfa = options.requireMfa ?? true;
-
-  if (requireMfa && aal !== "aal2") {
-    throw new AdminAccessError(
-      "Administrator two-factor verification is required. Return to the admin sign-in page.",
-      401,
-      "admin_mfa_required",
-    );
-  }
-
   return {
     user: data.user,
     email,
     admin,
-    aal,
-  };
-}
-
-export async function requireFounderAdmin(
-  request: Request,
-  options: RequireAdminOptions = {},
-): Promise<FounderAdminContext> {
-  const context = await requireAdmin(request, options);
-  const founder = resolveFounderIdentity(context.user);
-
-  if (!founder) {
-    throw new AdminAccessError(
-      "Only the configured Lukas and Skye founder accounts can access this feature.",
-      403,
-      "founder_access_required",
-    );
-  }
-
-  return {
-    ...context,
-    founder,
   };
 }
 

@@ -1,0 +1,23 @@
+ANCIENT PULLS V67.15 — WISH REQUEST SCHEMA COLLISION HOTFIX
+
+1. In Supabase SQL Editor, run:
+   supabase/migrations/20260901_wish_request_schema_collision_v6715.sql
+   Run this even if V67.14 already completed.
+2. Deploy the V67.15 application files.
+3. Sign in with an ordinary account and make one wish.
+4. Retry that wish with the same request UUID and confirm the same card returns
+   without spending a second wish.
+5. Run supabase/RELEASE_DATA_AUDIT.sql. Checks 9 and 10 must return zero rows.
+
+WHY THIS HOTFIX EXISTS
+An older database object already used the player_wish_requests name but did not
+contain the card_id result column expected by V67.14. V67.15 leaves that legacy
+table untouched and moves wish idempotency to the collision-proof versioned
+table player_wish_results_v6715.
+
+The failed wish transaction is atomic: PostgreSQL rolls back the wallet, card,
+inventory and fulfilment changes together when the column error occurs.
+
+Founder-only preview controls remain private. Ordinary authenticated wishes do
+not use a pre-release registration list. Paid orders remain locked until every
+commerce prerequisite in RELEASE_CHECKLIST.md is complete.

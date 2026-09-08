@@ -1761,6 +1761,17 @@ export default function ConstellationPage() {
     if (params.get("panel") === "history") setArchiveOpen(true);
   }, []);
 
+  const linkedStarHandledRef = useRef(false);
+  useEffect(() => {
+    if (loading || !stars.length || linkedStarHandledRef.current) return;
+    const cardId = new URLSearchParams(window.location.search).get("card");
+    if (!cardId) return;
+    linkedStarHandledRef.current = true;
+    const star = stars.find((candidate) => candidate.cardId === cardId);
+    if (star) travelToStar(star);
+    else setErrorMessage("This card doesn’t have a wish star in your constellation yet.");
+  }, [loading, stars, travelToStar]);
+
   const totalValue = useMemo(
     () => stars.reduce((sum, star) => sum + star.marketValue, 0),
     [stars],

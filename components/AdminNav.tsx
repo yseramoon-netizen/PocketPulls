@@ -14,7 +14,6 @@ import {
 
 import {
   signOutAdmin,
-  useFounderAdminAccess,
 } from "@/lib/admin/client-auth";
 
 type AdminNavItem = {
@@ -48,11 +47,6 @@ const ADMIN_ITEMS: AdminNavItem[] = [
     href: "/admin/players",
     label: "Players",
     shortLabel: "Players",
-  },
-  {
-    href: "/admin/launch",
-    label: "Launch Control",
-    shortLabel: "Launch",
   },
 ];
 
@@ -91,8 +85,6 @@ export default function AdminNav() {
   ] =
     useState(false);
 
-  const hasFounderAccess = useFounderAdminAccess();
-
   async function handleSignOut() {
     if (signingOut) {
       return;
@@ -116,8 +108,7 @@ export default function AdminNav() {
   }
 
   useEffect(() => {
-    const frame = window.requestAnimationFrame(() => setMobileOpen(false));
-    return () => window.cancelAnimationFrame(frame);
+    setMobileOpen(false);
   }, [pathname]);
 
   return (
@@ -159,7 +150,7 @@ export default function AdminNav() {
         "
       >
         <div className="flex min-w-0 items-center gap-3 px-2 py-1">
-          {hasFounderAccess ? <ShayminMoodButton /> : null}
+          <ShayminMoodButton />
 
           <Link
             href="/admin"

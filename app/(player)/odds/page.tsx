@@ -65,11 +65,7 @@ export default function OddsPage() {
   }, []);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => {
-      void load();
-    }, 0);
-
-    return () => window.clearTimeout(timer);
+    void load();
   }, [load]);
 
   const totalCards = useMemo(
@@ -81,18 +77,14 @@ export default function OddsPage() {
     <TrustShell
       eyebrow="Live odds"
       title="Rarity odds stay controlled as the catalogue grows."
-      intro="A rarity tier is selected first. A card is then selected from physically available designs inside that tier. Copy count does not weight the draw."
+      intro="A rarity tier is selected first. A card is then selected from the enabled cards inside that tier. Warehouse quantity does not change the rarity odds."
     >
       <InfoCallout title="Why this matters">
         Adding thousands of Common cards does not make Common dominate the draw. The configured rarity chance stays the same; only the chance of each individual card inside that rarity changes.
       </InfoCallout>
 
       <InfoCallout title="Catalogue vs physical stock" tone="yellow">
-        Every design shown here has available physical stock. When a tier has no backed design, it is excluded and these live odds are recalculated.
-      </InfoCallout>
-
-      <InfoCallout title="Independent legendary discoveries">
-        Cosmic Binder is rolled separately at 1 in 50,000 per completed wish. Cosmic Nebu remains a separate 1 in 100,000 roll. Neither changes the card selected or the live rarity odds below.
+        A summonable card may already be physically held by ancientpulls or may be sourced after it is pulled and a shipment is requested. This does not change its summon chance.
       </InfoCallout>
 
       <div className="mt-5 flex flex-wrap items-center justify-between gap-3">

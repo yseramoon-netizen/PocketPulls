@@ -1,0 +1,2948 @@
+--- a/app/(player)/catalogue/page.tsx
++++ b/app/(player)/catalogue/page.tsx
+@@ -1,6 +1,8 @@
+ "use client";
+ 
+ import Link from "next/link";
++import { createPortal } from "react-dom";
++import useModalFocus from "@/lib/client/useModalFocus";
+ import {
+   type CSSProperties,
+   useCallback,
+@@ -10,6 +12,7 @@
+   useState,
+ } from "react";
+ 
++import useBrowseFilters from "@/lib/player/useBrowseFilters";
+ import { supabase } from "@/lib/supabase";
+ 
+ type CatalogueRpcRow = {
+@@ -347,6 +350,9 @@
+ 
+ export default function CataloguePage() {
+   const requestNumberRef = useRef(0);
++  const listAbortRef = useRef<AbortController | null>(null);
++  const cardsLoadedRef = useRef(false);
++  const searchEditedRef = useRef(false);
+   const searchTimerRef = useRef<number | null>(null);
+   const searchInputRef = useRef<HTMLInputElement | null>(null);
+ 
+@@ -356,12 +362,7 @@
+     useState<CatalogueOverview>(EMPTY_OVERVIEW);
+ 
+   const [searchInput, setSearchInput] = useState("");
+-  const [search, setSearch] = useState("");
+-  const [setFilter, setSetFilter] = useState("");
+-  const [rarityFilter, setRarityFilter] = useState("");
+-  const [favouritesOnly, setFavouritesOnly] =
+-    useState(false);
+-  const [page, setPage] = useState(1);
++  const { search, setSearch, setName: setFilter, setSetName: setSetFilter, rarity: rarityFilter, setRarity: setRarityFilter, favouritesOnly, setFavouritesOnly, page, setPage, ready: filtersReady } = useBrowseFilters();
+ 
+   const [totalCount, setTotalCount] = useState(0);
+   const [loading, setLoading] = useState(true);
+@@ -374,6 +375,10 @@
+   const [favouriteBusyCardId, setFavouriteBusyCardId] =
+     useState<string | null>(null);
+ 
++  useEffect(() => {
++    if (filtersReady) setSearchInput(search);
++  }, [filtersReady, search]);
++
+   const totalPages = Math.max(
+     1,
+     Math.ceil(totalCount / PAGE_SIZE),
+@@ -414,7 +419,9 @@
+       }
+ 
+       setErrorMessage(null);
+-
++      listAbortRef.current?.abort();
++      const controller = new AbortController();
++      listAbortRef.current = controller;
+       try {
+         const { data, error } = await supabase.rpc(
+           "get_public_catalogue_cards",
+@@ -426,7 +433,7 @@
+             p_page: page,
+             p_page_size: PAGE_SIZE,
+           },
+-        );
++        ).abortSignal(controller.signal);
+ 
+         if (error) {
+           throw error;
+@@ -438,6 +445,8 @@
+ 
+         const parsed = parseCatalogueRows(data);
+ 
++        if (!parsed.cards.length && page > 1) { setPage(1); return; }
++        cardsLoadedRef.current = true;
+         setCards(parsed.cards);
+         setTotalCount(parsed.totalCount);
+ 
+@@ -459,8 +468,6 @@
+ 
+         console.error("Catalogue load error:", error);
+ 
+-        setCards([]);
+-        setTotalCount(0);
+         setErrorMessage(
+           getErrorMessage(
+             error,
+@@ -560,23 +567,26 @@
+   }, [loadOverview]);
+ 
+   useEffect(() => {
+-    if (!userId) {
++    if (!userId || !filtersReady) {
+       return;
+     }
+ 
+     const frame = window.requestAnimationFrame(() => {
+-      void loadCards(false);
++      void loadCards(cardsLoadedRef.current);
+     });
+ 
+-    return () => window.cancelAnimationFrame(frame);
+-  }, [userId, loadCards]);
++    return () => { window.cancelAnimationFrame(frame); requestNumberRef.current += 1; listAbortRef.current?.abort(); };
++  }, [userId, filtersReady, loadCards]);
+ 
+   useEffect(() => {
++    if (!searchEditedRef.current) return;
+     if (searchTimerRef.current !== null) {
+       window.clearTimeout(searchTimerRef.current);
+     }
+ 
+     searchTimerRef.current = window.setTimeout(() => {
++      if (searchInput.trim() === search) return;
++      searchEditedRef.current = false;
+       setSearch(searchInput.trim());
+       setPage(1);
+     }, 320);
+@@ -586,29 +596,7 @@
+         window.clearTimeout(searchTimerRef.current);
+       }
+     };
+-  }, [searchInput]);
+-
+-  useEffect(() => {
+-    if (!selectedCard) {
+-      return;
+-    }
+-
+-    const previousOverflow = document.body.style.overflow;
+-    document.body.style.overflow = "hidden";
+-
+-    const handleKeyDown = (event: KeyboardEvent) => {
+-      if (event.key === "Escape") {
+-        setSelectedCard(null);
+-      }
+-    };
+-
+-    window.addEventListener("keydown", handleKeyDown);
+-
+-    return () => {
+-      document.body.style.overflow = previousOverflow;
+-      window.removeEventListener("keydown", handleKeyDown);
+-    };
+-  }, [selectedCard]);
++  }, [searchInput, search, setSearch, setPage]);
+ 
+   const clearFilters = useCallback(() => {
+     setSearchInput("");
+@@ -761,7 +749,7 @@
+         favouritesOnly={favouritesOnly}
+         hasActiveFilters={hasActiveFilters}
+         filtering={filtering}
+-        onSearchInput={setSearchInput}
++        onSearchInput={(value) => { searchEditedRef.current = true; setSearchInput(value); }}
+         onSetFilter={(value) => {
+           setSetFilter(value);
+           setPage(1);
+@@ -1347,8 +1335,12 @@
+ }) {
+   const theme = getRarityTheme(card.rarity);
+ 
+-  return (
++  const modalRef = useModalFocus<HTMLDivElement>(true, onClose);
++  if (typeof document === "undefined") return null;
++  return createPortal(
+     <div
++      ref={modalRef}
++      tabIndex={-1}
+       className="fixed inset-0 z-[10000] flex items-center justify-center overflow-y-auto bg-[#01020d]/90 p-4 backdrop-blur-xl"
+       role="dialog"
+       aria-modal="true"
+@@ -1369,7 +1361,7 @@
+           ×
+         </button>
+ 
+-        <div className="relative flex min-h-[30rem] items-center justify-center overflow-hidden border-b border-white/10 p-8 lg:border-b-0 lg:border-r">
++        <div className="relative flex items-center justify-center overflow-hidden border-b border-white/10 p-8 lg:border-b-0 lg:border-r">
+           <div
+             className="pointer-events-none absolute inset-0 opacity-35"
+             style={{
+@@ -1377,7 +1369,7 @@
+             }}
+           />
+ 
+-          <div className="relative aspect-[0.716] w-full max-w-[21rem] overflow-hidden rounded-2xl border border-white/15 bg-[#050713] shadow-[0_30px_85px_rgba(0,0,0,0.6)]">
++          <div className="relative aspect-[0.716] w-full max-w-[min(16rem,40dvh)] lg:max-w-[21rem] overflow-hidden rounded-2xl border border-white/15 bg-[#050713] shadow-[0_30px_85px_rgba(0,0,0,0.6)]">
+             {card.imageUrl ? (
+               <img
+                 src={card.imageUrl}
+@@ -1478,7 +1470,7 @@
+           </div>
+         </div>
+       </article>
+-    </div>
++    </div>, document.body,
+   );
+ }
+ 
+--- a/app/(player)/collection/page.tsx
++++ b/app/(player)/collection/page.tsx
+@@ -26,6 +26,7 @@
+   toNumber,
+   toWholeNumber,
+ } from "@/lib/player/format";
++import useBrowseFilters from "@/lib/player/useBrowseFilters";
+ import { supabase } from "@/lib/supabase";
+ 
+ import styles from "./collection.module.css";
+@@ -172,6 +173,9 @@
+ 
+ export default function CollectionPage() {
+   const requestRef = useRef(0);
++  const listAbortRef = useRef<AbortController | null>(null);
++  const cardsLoadedRef = useRef(false);
++  const searchEditedRef = useRef(false);
+   const searchTimerRef = useRef<number | null>(null);
+ 
+   const [cards, setCards] = useState<CollectionCard[]>([]);
+@@ -183,11 +187,7 @@
+   const [themeUnlocks, setThemeUnlocks] = useState<Record<string, BinderThemeUnlockRow>>({});
+   const [anniversaryYearsByCard, setAnniversaryYearsByCard] = useState<Record<string, number>>({});
+   const [searchInput, setSearchInput] = useState("");
+-  const [search, setSearch] = useState("");
+-  const [setName, setSetName] = useState("");
+-  const [rarity, setRarity] = useState("");
+-  const [availability, setAvailability] = useState<Availability>("all");
+-  const [page, setPage] = useState(1);
++  const { search, setSearch, setName, setSetName, rarity, setRarity, availability, setAvailability, page, setPage, ready: filtersReady } = useBrowseFilters();
+   const [totalCount, setTotalCount] = useState(0);
+ 
+   const [prepared, setPrepared] = useState(false);
+@@ -203,6 +203,10 @@
+   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+   const [selectedCard, setSelectedCard] = useState<CollectionCard | null>(null);
+ 
++  useEffect(() => {
++    if (filtersReady) setSearchInput(search);
++  }, [filtersReady, search]);
++
+   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+ 
+   const hasFilters =
+@@ -288,7 +292,9 @@
+       else setLoading(true);
+ 
+       setErrorMessage(null);
+-
++      listAbortRef.current?.abort();
++      const controller = new AbortController();
++      listAbortRef.current = controller;
+       try {
+         const { data, error } = await supabase.rpc("get_player_collection", {
+           p_search: search,
+@@ -298,20 +304,20 @@
+           p_sort: "binder",
+           p_page: page,
+           p_page_size: PAGE_SIZE,
+-        });
++        }).abortSignal(controller.signal);
+ 
+         if (error) throw error;
+         if (request !== requestRef.current) return;
+ 
+         const parsed = parseRows(data);
++        if (!parsed.cards.length && page > 1) { setPage(1); return; }
++        cardsLoadedRef.current = true;
+         setCards(parsed.cards);
+         setTotalCount(parsed.totalCount);
+       } catch (error: unknown) {
+         if (request !== requestRef.current) return;
+         console.error("Collection error:", error);
+         setErrorMessage(getErrorMessage(error, "Your collection could not be loaded."));
+-        setCards([]);
+-        setTotalCount(0);
+       } finally {
+         if (request === requestRef.current) {
+           setLoading(false);
+@@ -357,16 +363,20 @@
+   }, [loadBinderSettings, loadOverview, loadWishAnniversaries, syncBinderPositions]);
+ 
+   useEffect(() => {
+-    if (!prepared) return;
+-    void loadCards(false);
+-  }, [prepared, loadCards]);
++    if (!prepared || !filtersReady) return;
++    void loadCards(cardsLoadedRef.current);
++    return () => { requestRef.current += 1; listAbortRef.current?.abort(); };
++  }, [prepared, filtersReady, loadCards]);
+ 
+   useEffect(() => {
++    if (!searchEditedRef.current) return;
+     if (searchTimerRef.current !== null) {
+       window.clearTimeout(searchTimerRef.current);
+     }
+ 
+     searchTimerRef.current = window.setTimeout(() => {
++      if (searchInput.trim() === search) return;
++      searchEditedRef.current = false;
+       setSearch(searchInput.trim());
+       setPage(1);
+     }, 300);
+@@ -376,7 +386,7 @@
+         window.clearTimeout(searchTimerRef.current);
+       }
+     };
+-  }, [searchInput]);
++  }, [searchInput, search, setSearch, setPage]);
+ 
+   const clearFilters = useCallback(() => {
+     setSearchInput("");
+@@ -566,7 +576,8 @@
+         <input
+           type="search"
+           value={searchInput}
+-          onChange={(event) => setSearchInput(event.target.value)}
++          onChange={(event) => { searchEditedRef.current = true; setSearchInput(event.target.value); }}
++          aria-label="Search your binder"
+           placeholder="Search cards..."
+           className={styles.searchInput}
+         />
+@@ -610,7 +621,7 @@
+             {option.label}
+           </button>
+         ))}
+-        <span className={styles.entryCount}>
++        <span className={styles.entryCount} role="status" aria-live="polite">
+           {loading || filtering
+             ? "Reading…"
+             : `${formatWholeNumber(totalCount)} ${totalCount === 1 ? "entry" : "entries"}`}
+@@ -725,7 +736,7 @@
+         </div>
+       ) : null}
+ 
+-      <div data-onboarding-target="binder">
++      <div data-onboarding-target="binder" aria-busy={loading || filtering}>
+         {loading ? (
+           <div className={styles.binderLoading}>Opening your binder...</div>
+         ) : cards.length === 0 ? (
+--- a/app/(player)/constellation/page.tsx
++++ b/app/(player)/constellation/page.tsx
+@@ -1761,6 +1761,17 @@
+     if (params.get("panel") === "history") setArchiveOpen(true);
+   }, []);
+ 
++  const linkedStarHandledRef = useRef(false);
++  useEffect(() => {
++    if (loading || !stars.length || linkedStarHandledRef.current) return;
++    const cardId = new URLSearchParams(window.location.search).get("card");
++    if (!cardId) return;
++    linkedStarHandledRef.current = true;
++    const star = stars.find((candidate) => candidate.cardId === cardId);
++    if (star) travelToStar(star);
++    else setErrorMessage("This card doesn’t have a wish star in your constellation yet.");
++  }, [loading, stars, travelToStar]);
++
+   const totalValue = useMemo(
+     () => stars.reduce((sum, star) => sum + star.marketValue, 0),
+     [stars],
+--- a/app/(player)/friends/page.tsx
++++ b/app/(player)/friends/page.tsx
+@@ -18,6 +18,8 @@
+   PlayerSecondaryButton,
+   PlayerStatCard,
+ } from "@/components/player/PlayerUI";
++import { createPortal } from "react-dom";
++import useModalFocus from "@/lib/client/useModalFocus";
+ import { supabase } from "@/lib/supabase";
+ 
+ const TradePanel = dynamic(
+@@ -396,19 +398,7 @@
+     }
+   }, []);
+ 
+-  useEffect(() => {
+-    if (!tradeOpen) return;
+-    const previousOverflow = document.body.style.overflow;
+-    document.body.style.overflow = "hidden";
+-    const handleEscape = (event: KeyboardEvent) => {
+-      if (event.key === "Escape") closeTrade();
+-    };
+-    window.addEventListener("keydown", handleEscape);
+-    return () => {
+-      document.body.style.overflow = previousOverflow;
+-      window.removeEventListener("keydown", handleEscape);
+-    };
+-  }, [closeTrade, tradeOpen]);
++  const tradeModalRef = useModalFocus<HTMLDivElement>(tradeOpen, closeTrade);
+ 
+   const loadFriends =
+     useCallback(
+@@ -1073,8 +1063,10 @@
+           </div>
+         </PlayerPanel>
+       </section>
+-      {tradeOpen ? (
++      {tradeOpen ? createPortal(
+         <div
++          ref={tradeModalRef}
++          tabIndex={-1}
+           className="fixed inset-0 z-[1200] bg-[#01020b]/88 p-2 backdrop-blur-2xl sm:p-4"
+           role="dialog"
+           aria-modal="true"
+@@ -1096,7 +1088,7 @@
+               <TradePanel key={tradePanelKey} />
+             </div>
+           </div>
+-        </div>
++        </div>, document.body,
+       ) : null}
+     </section>
+   );
+--- a/app/(player)/layout.tsx
++++ b/app/(player)/layout.tsx
+@@ -7,6 +7,7 @@
+ import { usePathname, useRouter } from "next/navigation";
+ import type { Session } from "@supabase/supabase-js";
+ 
++import ConnectionStatus from "@/components/player/ConnectionStatus";
+ import PlayerNav from "@/components/player/PlayerNav";
+ import PurchaseConsentGate from "@/components/player/PurchaseConsentGate";
+ import UnknownPullsBackdrop from "@/components/player/UnknownPullsBackdrop";
+@@ -164,6 +165,10 @@
+   const router = useRouter();
+   const pathname = usePathname();
+   const mountedRef = useRef(true);
++  const playerRequestRef = useRef(0);
++  const sessionEpochRef = useRef(0);
++  const accountRef = useRef<string | null>(null);
++  const playerLoadRef = useRef<{ userId: string; promise: Promise<void> } | null>(null);
+ 
+   const legalPageAllowed = Array.from(LEGAL_PATHS).some(
+     (legalPath) =>
+@@ -177,17 +182,24 @@
+   const activePlayerUsername = player?.username || null;
+ 
+   const redirectToSignIn = useCallback(() => {
+-    const nextPath = pathname || "/wishes";
++    const nextPath = window.location.pathname + window.location.search || "/wishes";
+ 
+     router.replace(`/sign-in?next=${encodeURIComponent(nextPath)}`);
+-  }, [pathname, router]);
++  }, [router]);
+ 
+   const loadPlayer = useCallback(
+     async (
+       session: Session,
+       background = false,
+     ) => {
+-      if (!background) {
++      if (playerLoadRef.current?.userId === session.user.id) return playerLoadRef.current.promise;
++      const requestId = ++playerRequestRef.current;
++      const accountChanged = accountRef.current !== session.user.id;
++      accountRef.current = session.user.id;
++      if (accountChanged) setPlayer(null);
++      const foreground = !background || accountChanged;
++      const task = (async () => {
++      if (foreground) {
+         setLoading(true);
+         setErrorMessage(null);
+       }
+@@ -369,19 +381,16 @@
+         },
+       };
+ 
+-      if (!mountedRef.current) {
+-        return;
+-      }
+-
++      if (!mountedRef.current || requestId !== playerRequestRef.current) return;
+       setPlayer(nextPlayer);
+     } catch (error: unknown) {
+       console.error("Player layout error:", error);
+ 
+-      if (!mountedRef.current) {
++      if (!mountedRef.current || requestId !== playerRequestRef.current) {
+         return;
+       }
+ 
+-      if (!background) {
++      if (foreground) {
+         setPlayer(null);
+         setErrorMessage(
+           getErrorMessage(
+@@ -392,12 +401,16 @@
+       }
+     } finally {
+       if (
+-        mountedRef.current &&
+-        !background
++        mountedRef.current && requestId === playerRequestRef.current
+       ) {
+         setLoading(false);
+       }
+     }
++      })();
++      playerLoadRef.current = { userId: session.user.id, promise: task };
++      try { await task; } finally {
++        if (playerLoadRef.current?.promise === task) playerLoadRef.current = null;
++      }
+   },
+   [],
+ );
+@@ -406,6 +419,7 @@
+     async (
+       background = false,
+     ) => {
++      const sessionEpoch = sessionEpochRef.current;
+       if (!background) {
+         setLoading(true);
+         setErrorMessage(null);
+@@ -427,8 +441,9 @@
+         );
+       }
+ 
++      if (!mountedRef.current || sessionEpoch !== sessionEpochRef.current) return;
+       if (!session) {
+-        if (legalPageAllowed) {
++        if (LEGAL_PATHS.has(window.location.pathname)) {
+           setPlayer(null);
+           setLoading(false);
+           return;
+@@ -457,7 +472,7 @@
+     } catch (error: unknown) {
+       console.error("Player session error:", error);
+ 
+-      if (!mountedRef.current) {
++      if (!mountedRef.current || sessionEpoch !== sessionEpochRef.current) {
+         return;
+       }
+ 
+@@ -473,7 +488,7 @@
+       }
+     }
+   },
+-  [legalPageAllowed, loadPlayer, redirectToSignIn],
++  [loadPlayer, redirectToSignIn],
+ );
+ 
+   useEffect(() => {
+@@ -491,9 +506,13 @@
+       // any auth event temporarily carried a null session, which could turn a
+       // token refresh/network hiccup on mobile into an apparent logout.
+       if (event === "SIGNED_OUT") {
++        sessionEpochRef.current += 1;
++        playerRequestRef.current += 1;
++        playerLoadRef.current = null;
++        accountRef.current = null;
+         setPlayer(null);
+ 
+-        if (legalPageAllowed) {
++        if (LEGAL_PATHS.has(window.location.pathname)) {
+           setLoading(false);
+           return;
+         }
+@@ -520,9 +539,10 @@
+           { announce: false },
+         );
+ 
++        if (event === "SIGNED_IN" && accountRef.current !== session.user.id) sessionEpochRef.current += 1;
+         // A token refresh does not change profile, wallet, or consent data.
+         // Avoid repeating those queries on Supabase's routine refresh cycle.
+-        if (event !== "TOKEN_REFRESHED") {
++        if (event === "USER_UPDATED" || (event === "SIGNED_IN" && accountRef.current !== session.user.id)) {
+           window.setTimeout(() => {
+             if (mountedRef.current) {
+               void loadPlayer(session, true);
+@@ -543,6 +563,8 @@
+ 
+     return () => {
+       mountedRef.current = false;
++      playerRequestRef.current += 1;
++      playerLoadRef.current = null;
+       window.cancelAnimationFrame(sessionFrame);
+       subscription.unsubscribe();
+ 
+@@ -551,7 +573,21 @@
+         handleProfileUpdated,
+       );
+     };
+-  }, [legalPageAllowed, loadCurrentSession, loadPlayer, redirectToSignIn]);
++  }, [loadCurrentSession, loadPlayer, redirectToSignIn]);
++
++  useEffect(() => {
++    if (!loading && !player && !legalPageAllowed && !errorMessage) redirectToSignIn();
++  }, [errorMessage, legalPageAllowed, loading, player, redirectToSignIn]);
++
++  useEffect(() => {
++    const updateWallet = (event: Event) => {
++      const value = (event as CustomEvent<{ wishBalance?: unknown }>).detail?.wishBalance;
++      if (typeof value !== "number" || !Number.isFinite(value)) return;
++      setPlayer((current) => current ? { ...current, wishBalance: normaliseWishBalance(value) } : current);
++    };
++    window.addEventListener("pocketpulls:wish-balance", updateWallet);
++    return () => window.removeEventListener("pocketpulls:wish-balance", updateWallet);
++  }, []);
+ 
+   useEffect(() => {
+     if (!activePlayerUsername || loading) {
+@@ -648,7 +684,7 @@
+   return (
+     <div className="unknown-pulls-shell relative min-h-[100dvh] overflow-x-hidden bg-[#02030d] text-white">
+       <UnknownPullsBackdrop />
+-
++      <a href="#main-content" className="skip-link">Skip to content</a>
+       <PlayerNav
+         username={player.username}
+         displayName={player.displayName}
+@@ -656,7 +692,8 @@
+         wishBalance={player.wishBalance}
+       />
+ 
+-      <main data-player-main className="relative z-10 min-h-[calc(100dvh-5rem)] pb-[env(safe-area-inset-bottom)]">
++      <ConnectionStatus />
++      <main id="main-content" tabIndex={-1} data-player-main className="relative z-10 min-h-[calc(100dvh-5rem)] pb-[env(safe-area-inset-bottom)]">
+         {player.launchState.maintenance ? (
+           <div className="mx-auto mt-3 w-[calc(100%-2rem)] max-w-[1180px] rounded-2xl border border-amber-200/20 bg-amber-200/[0.09] px-4 py-3 text-center text-sm font-black text-amber-50/80">
+             {player.launchState.message || "Ancient Pulls is temporarily paused for maintenance. Your existing cards and records remain safe."}
+@@ -748,7 +785,7 @@
+   return (
+     <div className="unknown-pulls-shell relative min-h-[100dvh] overflow-x-hidden bg-[#02030d] text-white">
+       <UnknownPullsBackdrop />
+-      <main className="relative z-10 min-h-[100dvh]">{children}</main>
++      <main id="main-content" tabIndex={-1} className="relative z-10 min-h-[100dvh]">{children}</main>
+     </div>
+   );
+ }
+--- a/app/(player)/shipping/page.tsx
++++ b/app/(player)/shipping/page.tsx
+@@ -8,8 +8,11 @@
+   useEffect,
+   useMemo,
+   useState,
++  useRef,
+ } from "react";
+ import Link from "next/link";
++import { createPortal } from "react-dom";
++import useModalFocus from "@/lib/client/useModalFocus";
+ 
+ import {
+   PlayerErrorBanner,
+@@ -267,6 +270,11 @@
+ }
+ 
+ export default function ShippingPage() {
++  const requestRef = useRef(0);
++  const shipmentBusyRef = useRef(false);
++  const linkedCardHandledRef = useRef(false);
++  const loadedRef = useRef(false);
++  const [refreshing, setRefreshing] = useState(false);
+   const [eligibility, setEligibility] =
+     useState<Eligibility>(EMPTY_ELIGIBILITY);
+   const [addresses, setAddresses] =
+@@ -301,7 +309,9 @@
+     useState<string | null>(null);
+ 
+   const loadShipping = useCallback(async () => {
+-    setLoading(true);
++    const request = ++requestRef.current;
++    if (!loadedRef.current) setLoading(true);
++    else setRefreshing(true);
+     setErrorMessage(null);
+ 
+     try {
+@@ -353,6 +363,8 @@
+         throw cardsResult.error;
+       }
+ 
++      if (request !== requestRef.current) return;
++      loadedRef.current = true;
+       const nextAddresses = parseAddresses(
+         addressesResult.data,
+       );
+@@ -366,12 +378,25 @@
+       );
+       const nextCards = parseShippingCards(cardsResult.data);
+       setShippingCards(nextCards);
++      const linkedCardId = !linkedCardHandledRef.current ? new URLSearchParams(window.location.search).get("card") : null;
++      linkedCardHandledRef.current = true;
++      const linkedCard = nextCards.find((card) => card.cardId === linkedCardId && card.availableQuantity > 0);
++      if (linkedCardId) {
++        if (linkedCard) {
++          setCardSearch(linkedCard.name);
++          setSuccessMessage(`${linkedCard.name} is selected. Choose any other cards to include before requesting shipping.`);
++          window.requestAnimationFrame(() => document.getElementById("select-cards")?.scrollIntoView({ block: "start" }));
++        } else {
++          setSuccessMessage("That card is currently unavailable for shipping. Your available cards are listed below.");
++        }
++      }
+       setSelectedCards((current) => {
+         const next: Record<string, number> = {};
+         for (const card of nextCards) {
+           const quantity = Math.min(card.availableQuantity, Math.max(0, current[card.cardId] || 0));
+           if (quantity > 0) next[card.cardId] = quantity;
+         }
++        if (linkedCard) next[linkedCard.cardId] = Math.max(1, next[linkedCard.cardId] || 0);
+         return next;
+       });
+ 
+@@ -394,6 +419,7 @@
+         );
+       });
+     } catch (error: unknown) {
++      if (request !== requestRef.current) return;
+       console.error("Shipping error:", error);
+       setErrorMessage(
+         getErrorMessage(
+@@ -402,7 +428,7 @@
+         ),
+       );
+     } finally {
+-      setLoading(false);
++      if (request === requestRef.current) { setLoading(false); setRefreshing(false); }
+     }
+   }, []);
+ 
+@@ -411,7 +437,7 @@
+       void loadShipping();
+     });
+ 
+-    return () => window.cancelAnimationFrame(frame);
++    return () => { window.cancelAnimationFrame(frame); requestRef.current += 1; };
+   }, [loadShipping]);
+ 
+   const cardsUntilShipping = Math.max(
+@@ -552,7 +578,7 @@
+ 
+   const requestShipment = useCallback(async () => {
+     if (
+-      requesting ||
++      shipmentBusyRef.current || refreshing || loading ||
+       !selectedAddressId ||
+       !eligibility.unlocked ||
+       selectedCardTotal < eligibility.threshold ||
+@@ -561,6 +587,7 @@
+       return;
+     }
+ 
++    shipmentBusyRef.current = true;
+     setRequesting(true);
+     setErrorMessage(null);
+     setSuccessMessage(null);
+@@ -595,10 +622,11 @@
+         ),
+       );
+     } finally {
++      shipmentBusyRef.current = false;
+       setRequesting(false);
+     }
+   }, [
+-    requesting,
++    refreshing, loading,
+     selectedAddressId,
+     eligibility.unlocked,
+     eligibility.threshold,
+@@ -684,8 +712,9 @@
+ 
+             <PlayerSecondaryButton
+               onClick={() => void loadShipping()}
++              disabled={loading || refreshing}
+             >
+-              Refresh shipping
++              {refreshing ? "Refreshing…" : "Refresh shipping"}
+             </PlayerSecondaryButton>
+           </>
+         }
+@@ -697,7 +726,7 @@
+       />
+ 
+       {successMessage ? (
+-        <div className="mt-6 rounded-2xl border border-emerald-100/15 bg-emerald-300/[0.08] p-4 text-sm font-bold leading-6 text-emerald-50">
++        <div role="status" className="mt-6 rounded-2xl border border-emerald-100/15 bg-emerald-300/[0.08] p-4 text-sm font-bold leading-6 text-emerald-50">
+           {successMessage}
+         </div>
+       ) : null}
+@@ -817,6 +846,7 @@
+ 
+       {!activeShipment ? (
+         <PlayerPanel className="mt-6 overflow-hidden">
++          <div id="select-cards" className="scroll-mt-28" />
+           <div className="flex flex-col gap-4 border-b border-white/10 p-5 sm:flex-row sm:items-end sm:justify-between sm:p-6">
+             <div>
+               <p className="text-xs font-black uppercase tracking-[0.18em] text-cyan-100/40">Choose your cards</p>
+@@ -1024,6 +1054,7 @@
+                 disabled={
+                   requesting ||
+                   !eligibility.unlocked ||
++                  refreshing || loading ||
+                   selectedCardTotal < eligibility.threshold ||
+                   !selectedAddressId
+                 }
+@@ -1331,8 +1362,12 @@
+   onClose: () => void;
+   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+ }) {
+-  return (
++  const modalRef = useModalFocus<HTMLDivElement>(true, onClose);
++  if (typeof document === "undefined") return null;
++  return createPortal(
+     <div
++      ref={modalRef}
++      tabIndex={-1}
+       className="fixed inset-0 z-[10000] flex items-center justify-center overflow-y-auto bg-[#01020d]/90 p-4 backdrop-blur-xl"
+       role="dialog"
+       aria-modal="true"
+@@ -1566,7 +1601,7 @@
+           }
+         `}</style>
+       </PlayerPanel>
+-    </div>
++    </div>, document.body,
+   );
+ }
+ 
+--- a/app/(player)/wishes/page.tsx
++++ b/app/(player)/wishes/page.tsx
+@@ -12,6 +12,7 @@
+   readNebuSkin,
+   type NebuSkinKey,
+ } from "@/lib/player/nebu";
++import { completeWishRequest, getOrCreateWishRequest, readPendingWish } from "@/lib/player/wishRequest";
+ import { supabase } from "@/lib/supabase";
+ 
+ const WishCinematic = dynamic(
+@@ -173,6 +174,9 @@
+ export default function WishesPage() {
+   const replayHandledRef = useRef(false);
+   const wishRequestIdRef = useRef<string | null>(null);
++  const wishUserIdRef = useRef<string | null>(null);
++  const wishBusyRef = useRef(false);
++  const [pendingWish, setPendingWish] = useState(false);
+   const [dashboard, setDashboard] = useState<DashboardData>(EMPTY_DASHBOARD);
+   const [loading, setLoading] = useState(true);
+   const [refreshing, setRefreshing] = useState(false);
+@@ -243,6 +247,9 @@
+         throw new Error("Your trainer session has expired. Sign in again.");
+       }
+ 
++      wishUserIdRef.current = user.id;
++      wishRequestIdRef.current = readPendingWish(user.id);
++      setPendingWish(Boolean(wishRequestIdRef.current));
+       const [
+         walletResult,
+         inventoryResult,
+@@ -500,10 +507,11 @@
+   }, [replayLatestWish]);
+ 
+   const makeWish = useCallback(async () => {
+-    if (makingWish || dashboard.wishBalance < 1) {
++    if (wishBusyRef.current || (!pendingWish && dashboard.wishBalance < 1)) {
+       return;
+     }
+ 
++    wishBusyRef.current = true;
+     // Resume Web Audio while this direct player gesture is still active.
+     // The reveal itself begins only after the server-authoritative wish returns.
+     void primeWishAudio();
+@@ -516,8 +524,14 @@
+     const nebuSkinBeforeWish = readNebuSkin();
+ 
+     try {
+-      const requestId = wishRequestIdRef.current || crypto.randomUUID();
++      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
++      if (sessionError || !session || session.user.id !== wishUserIdRef.current) {
++        throw new Error("Your account changed. Refresh this page before making a wish.");
++      }
++      const userId = session.user.id;
++      const requestId = getOrCreateWishRequest(userId);
+       wishRequestIdRef.current = requestId;
++      setPendingWish(true);
+ 
+       const { data, error } = await supabase.rpc("make_player_wish", {
+         p_idempotency_key: requestId,
+@@ -534,7 +548,9 @@
+       }
+ 
+       const result = row as Record<string, unknown>;
+-      wishRequestIdRef.current = null;
++      if (!result.wish_id || !result.card_id || !Number.isFinite(Number(result.wish_balance))) {
++        throw new Error("Your wish result is incomplete. Retry to recover the same wish.");
++      }
+       const nextBalance = toWholeNumber(result.wish_balance);
+       const wishId = String(result.wish_id ?? "");
+       const cosmicDiscovery = wishId
+@@ -567,6 +583,10 @@
+         cosmicSourceSkin: cosmicIssueNumber > 0 ? nebuSkinBeforeWish : null,
+       });
+ 
++      completeWishRequest(userId, requestId);
++      wishRequestIdRef.current = null;
++      setPendingWish(false);
++      setDashboard((current) => ({ ...current, wishBalance: nextBalance }));
+       window.dispatchEvent(
+         new CustomEvent("pocketpulls:wish-balance", {
+           detail: { wishBalance: nextBalance },
+@@ -578,9 +598,10 @@
+         getErrorMessage(error, "Nebu could not complete that wish."),
+       );
+     } finally {
++      wishBusyRef.current = false;
+       setMakingWish(false);
+     }
+-  }, [dashboard.wishBalance, makingWish]);
++  }, [dashboard.wishBalance, pendingWish]);
+ 
+   const shippingProgress = useMemo(() => {
+     return Math.min(
+@@ -682,6 +703,10 @@
+         </div>
+       ) : null}
+ 
++      {pendingWish && !makingWish ? <div role="status" className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-100/15 bg-amber-200/[0.06] p-5">
++        <p className="max-w-xl text-sm leading-6 text-amber-50/80">Your last wish hasn’t been confirmed on this device. Retry checks the same request, so it can’t spend a second wish.</p>
++        <button type="button" onClick={() => void makeWish()} className="min-h-11 rounded-xl bg-amber-100 px-5 text-sm font-semibold text-amber-950">Recover last wish</button>
++      </div> : null}
+       <div className="mt-6 grid gap-3 sm:grid-cols-3 lg:gap-4">
+         <MetricCard
+           label="Wish balance"
+--- a/app/api/admin/inventory/add/route.ts
++++ b/app/api/admin/inventory/add/route.ts
+@@ -1,3 +1,4 @@
++import { readInventoryQuantity as readQuantity } from "@/lib/admin/inventory-input";
+ import {
+   adminErrorResponse,
+   requireAdmin,
+@@ -49,25 +50,6 @@
+         "number"
+       ? String(value)
+       : "";
+-}
+-
+-function readQuantity(
+-  value: unknown,
+-): number {
+-  const parsed =
+-    Number(value);
+-
+-  if (!Number.isFinite(parsed)) {
+-    return 0;
+-  }
+-
+-  return Math.max(
+-    1,
+-    Math.min(
+-      9999,
+-      Math.floor(parsed),
+-    ),
+-  );
+ }
+ 
+ function toNumber(
+@@ -360,6 +342,12 @@
+       );
+     }
+ 
++    if (!quantity) {
++      return Response.json({ ok: false, error: {
++        code: "quantity_invalid", message: "Enter a whole quantity between 1 and 9,999.",
++      } }, { status: 400 });
++    }
++
+     const cardResult =
+       await admin
+         .from("pokemon_cards")
+--- a/app/api/health/route.ts
++++ b/app/api/health/route.ts
+@@ -12,7 +12,7 @@
+     {
+       ok: true,
+       service: "ancient-pulls",
+-      release: process.env.NEXT_PUBLIC_APP_VERSION?.trim() || "67.16",
++      release: process.env.NEXT_PUBLIC_APP_VERSION?.trim() || "68.0",
+       timestamp: new Date().toISOString(),
+     },
+     { headers: RESPONSE_HEADERS },
+--- a/app/globals.css
++++ b/app/globals.css
+@@ -331,3 +331,23 @@
+ .holo {
+   animation: holo 3s infinite;
+ }
++
++/* Shared native controls and keyboard affordances match the dark application. */
++:root { color-scheme: dark; }
++select option, select optgroup { background: #0a0d20; color: #f1f5f9; }
++:where(a, button, input, select, textarea, [role="button"]):focus-visible {
++  outline: 2px solid #a5f3fc;
++  outline-offset: 3px;
++}
++button, a { -webkit-tap-highlight-color: transparent; }
++button { touch-action: manipulation; }
++.skip-link {
++  position: fixed; left: 1rem; top: 1rem; z-index: 11000;
++  transform: translateY(-180%); border-radius: .75rem;
++  background: #cffafe; color: #082f49; padding: .85rem 1.15rem;
++  font-size: .875rem; font-weight: 700;
++}
++.skip-link:focus { transform: translateY(0); }
++@media (prefers-reduced-motion: reduce) {
++  html { scroll-behavior: auto; }
++}
+--- a/app/template.tsx
++++ b/app/template.tsx
+@@ -36,7 +36,16 @@
+   ["/welcome", "Welcome"],
+   ["/faq", "FAQ"],
+   ["/help", "Help"],
+-  ["/terms", "Terms"],
++  ["/terms", "Terms & Conditions"],
++  ["/privacy", "Privacy Policy"],
++  ["/returns", "Returns & Refunds"],
++  ["/cookies", "Cookie Policy"],
++  ["/contact", "Contact"],
++  ["/shipping-policy", "Shipping Policy"],
++  ["/admin/add", "Card Intake"],
++  ["/admin/inventory", "Inventory"],
++  ["/admin/orders", "Orders"],
++  ["/admin", "Administration"],
+   ["/rules", "Rules"],
+   ["/odds", "Wish Odds"],
+   ["/player-protection", "Player Protection"],
+@@ -49,7 +58,7 @@
+     ([path]) => pathname === path || pathname.startsWith(`${path}/`),
+   )?.[1];
+ 
+-  return title ? `${title} · ancientpulls` : "ancientpulls";
++  return title ? `${title} | Ancient Pulls` : "Ancient Pulls";
+ }
+ 
+ export default function RootTemplate({
+--- a/components/CardScanner.tsx
++++ b/components/CardScanner.tsx
+@@ -10,7 +10,7 @@
+   useState,
+ } from "react";
+ 
+-import { adminFetch } from "@/lib/admin/client-auth";
++import { AdminClientError, adminFetch } from "@/lib/admin/client-auth";
+ import {
+   averageFingerprints,
+   captureTrackedFrame,
+@@ -57,6 +57,7 @@
+ };
+ 
+ type ReviewItem = {
++  writeUncertain?: boolean;
+   id: string;
+   preview: string;
+   identification: ScannerIdentification;
+@@ -78,7 +79,7 @@
+   failed?: number;
+ };
+ 
+-const VERSION = "52.0-visual-fast-path";
++const VERSION = "68.0-verified-intake";
+ const SAMPLE_MS = 90;
+ const CALIBRATION_FRAMES = 6;
+ const MAX_TRACKED_FRAMES = 4;
+@@ -275,6 +276,11 @@
+   const identifierRef = useRef<CardIdentifier | null>(null);
+   const queueRef = useRef<QueuedCapture[]>([]);
+   const processingRef = useRef(false);
++  const processingSessionRef = useRef(-1);
++  const recognitionAbortRef = useRef<AbortController | null>(null);
++  const choosingRef = useRef<string | null>(null);
++  const reviewCountRef = useRef(0);
++  const modeRef = useRef<ScannerMode>(onAutoAdd ? "automatic" : "confirm");
+   const sessionRef = useRef(0);
+   const baselineFramesRef = useRef<FrameFingerprint[]>([]);
+   const baselineRef = useRef<FrameFingerprint | null>(null);
+@@ -296,6 +302,7 @@
+   const [error, setError] = useState<string | null>(null);
+   const [pendingCount, setPendingCount] = useState(0);
+   const [review, setReview] = useState<ReviewItem[]>([]);
++  useEffect(() => { reviewCountRef.current = review.length; }, [review]);
+   const [recentAdds, setRecentAdds] = useState<RecentAdd[]>([]);
+   const [activeDebug, setActiveDebug] = useState<ScannerDebugSnapshot | null>(null);
+   const [choosing, setChoosing] = useState<string | null>(null);
+@@ -308,6 +315,7 @@
+   }, []);
+ 
+   const progressHandler = useCallback((nextStatus: string, nextProgress: number) => {
++    if (processingSessionRef.current !== sessionRef.current) return;
+     setStatus(nextStatus);
+     setProgress(nextProgress);
+   }, []);
+@@ -380,6 +388,7 @@
+   }, [progressHandler]);
+ 
+   const handleIdentification = useCallback(async (capture: QueuedCapture, result: ScannerIdentification) => {
++    if (capture.session !== sessionRef.current) return;
+     const best = result.candidates[0];
+     setActiveDebug(result.debug);
+     if (!result.debug.visualIndex.ready) {
+@@ -387,31 +396,38 @@
+         id: capture.id,
+         preview: capture.frames[0]?.preview || "",
+         identification: result,
+-      }, ...items].slice(0, 10));
++      }, ...items]);
+       setStatus("Visual index is not ready");
+       setError(result.debug.visualIndex.error
+         ? `Image-first recognition failed: ${result.debug.visualIndex.error}`
+         : `Image-first recognition needs its visual index (${result.debug.visualIndex.indexedCount.toLocaleString()} / ${result.debug.visualIndex.totalCount.toLocaleString()}). Enable Diagnostics, run Build / resume visual index, and let it finish before scanning.`);
+       return;
+     }
+-    if (best && mode === "automatic" && onAutoAdd && shouldAutomaticallyAccept(result.candidates)) {
++    let writeUncertain = false;
++    if (best && modeRef.current === "automatic" && onAutoAdd && shouldAutomaticallyAccept(result.candidates)) {
+       try {
++        // Nothing asynchronous may run between this session check and the write.
++        if (capture.session !== sessionRef.current) return;
+         const added = await onAutoAdd(best.card);
++        if (capture.session !== sessionRef.current) return;
+         setRecentAdds((items) => [{ id: capture.id, card: best.card, message: added.message }, ...items].slice(0, 8));
+         setStatus(`${best.card.name} added automatically`);
+         setError(null);
+         return;
+       } catch (caught) {
++        if (capture.session !== sessionRef.current) return;
++        writeUncertain = !(caught instanceof AdminClientError && caught.status >= 400 && caught.status < 500);
+         setError(caught instanceof Error ? caught.message : "The card was identified but could not be added.");
+       }
+     }
+     setReview((items) => [{
++      writeUncertain,
+       id: capture.id,
+       preview: capture.frames[0]?.preview || "",
+       identification: result,
+-    }, ...items].slice(0, 10));
++    }, ...items]);
+     setStatus(best ? `${best.card.name} needs confirmation` : "No safe match — try another angle");
+-  }, [mode, onAutoAdd]);
++  }, [onAutoAdd]);
+ 
+   const drainQueue = useCallback(async () => {
+     if (processingRef.current) return;
+@@ -420,15 +436,19 @@
+       while (queueRef.current.length) {
+         const capture = queueRef.current.shift();
+         setPendingCount(queueRef.current.length + 1);
+-        if (!capture) continue;
++        if (!capture || capture.session !== sessionRef.current) continue;
++        processingSessionRef.current = capture.session;
++        const controller = new AbortController();
++        recognitionAbortRef.current = controller;
+         try {
+           const result = await ensureIdentifier().identify(
+             capture.frames,
+             capture.captureMs,
+-            { automatic: mode === "automatic" && Boolean(onAutoAdd), diagnostics },
++            { automatic: modeRef.current === "automatic" && Boolean(onAutoAdd), diagnostics, signal: controller.signal },
+           );
+           await handleIdentification(capture, result);
+         } catch (caught) {
++          if (capture.session !== sessionRef.current || controller.signal.aborted) continue;
+           setError(caught instanceof Error ? caught.message : "Card identification failed.");
+           setStatus("Scanner needs attention");
+         }
+@@ -436,12 +456,18 @@
+       }
+     } finally {
+       processingRef.current = false;
++      processingSessionRef.current = -1;
++      recognitionAbortRef.current = null;
+       setPendingCount(queueRef.current.length);
+     }
+-  }, [diagnostics, ensureIdentifier, handleIdentification, mode, onAutoAdd]);
++  }, [diagnostics, ensureIdentifier, handleIdentification, onAutoAdd]);
+ 
+   const queueCapture = useCallback((frames: TrackedFrame[], captureMs: number) => {
+-    if (!frames.length) return;
++    if (!frames.length) return false;
++    if (queueRef.current.length + reviewCountRef.current >= MAX_QUEUE) {
++      setStatus("Review or dismiss waiting scans before adding another card");
++      return false;
++    }
+     const ranked = [...frames]
+       .sort((left, right) => right.qualityWeight - left.qualityWeight)
+       .slice(0, MAX_TRACKED_FRAMES);
+@@ -452,15 +478,18 @@
+       frames: ranked,
+       captureMs,
+     };
+-    if (queueRef.current.length >= MAX_QUEUE) queueRef.current.shift();
+     queueRef.current.push(item);
+     setPendingCount(queueRef.current.length + (processingRef.current ? 1 : 0));
+     setPhase("queued");
+     void drainQueue();
++    return true;
+   }, [drainQueue, setPhase]);
+ 
+   const stopCamera = useCallback(() => {
+     sessionRef.current += 1;
++    recognitionAbortRef.current?.abort();
++    queueRef.current = [];
++    setPendingCount(0);
+     streamRef.current?.getTracks().forEach((track) => track.stop());
+     streamRef.current = null;
+     if (videoRef.current) videoRef.current.srcObject = null;
+@@ -475,6 +504,7 @@
+     if (disabled) return;
+     setError(null);
+     stopCamera();
++    const cameraSession = sessionRef.current;
+     try {
+       const stream = await navigator.mediaDevices.getUserMedia({
+         audio: false,
+@@ -485,6 +515,7 @@
+           frameRate: { ideal: 30 },
+         },
+       });
++      if (cameraSession !== sessionRef.current) { stream.getTracks().forEach((track) => track.stop()); return; }
+       streamRef.current = stream;
+       const video = videoRef.current;
+       if (!video) throw new Error("Camera preview is unavailable.");
+@@ -503,7 +534,7 @@
+       if (Object.keys(advanced).length) {
+         await track.applyConstraints({ advanced: [advanced as MediaTrackConstraintSet] }).catch(() => undefined);
+       }
+-      sessionRef.current += 1;
++      if (cameraSession !== sessionRef.current) { stream.getTracks().forEach((track) => track.stop()); return; }
+       baselineFramesRef.current = [];
+       baselineRef.current = null;
+       presenceRef.current = 0;
+@@ -515,6 +546,7 @@
+       // delaying the first card after it has already been captured.
+       void ensureIdentifier().warmup().catch(() => undefined);
+     } catch (caught) {
++      if (cameraSession !== sessionRef.current) return;
+       stopCamera();
+       setError(caught instanceof Error ? caught.message : "Camera access was denied.");
+     }
+@@ -523,6 +555,7 @@
+   useEffect(() => {
+     if (!cameraOpen) return;
+     const interval = window.setInterval(() => {
++      if (document.visibilityState !== "visible" || !navigator.onLine) return;
+       const video = videoRef.current;
+       const viewport = viewportRef.current;
+       const guide = guideRef.current;
+@@ -575,7 +608,7 @@
+         const elapsed = performance.now() - captureStartedRef.current;
+         if ((trackedRef.current.length >= 2 && elapsed >= 240) || elapsed >= 780) {
+           if (!trackedRef.current.length) trackedRef.current.push(captureTrackedFrame(video, crop));
+-          queueCapture(trackedRef.current, elapsed);
++          if (!queueCapture(trackedRef.current, elapsed)) return;
+           trackedRef.current = [];
+           absenceRef.current = 0;
+           setPhase("waiting-removal");
+@@ -600,7 +633,7 @@
+     if (!video || !viewport || !guide || video.readyState < 2) return;
+     const started = performance.now();
+     const crop = guideSourceCrop(video, viewport, guide);
+-    queueCapture([captureTrackedFrame(video, crop)], performance.now() - started);
++    if (!queueCapture([captureTrackedFrame(video, crop)], performance.now() - started)) return;
+     setPhase("waiting-removal");
+   }, [queueCapture, setPhase]);
+ 
+@@ -608,10 +641,12 @@
+     const file = event.target.files?.[0];
+     event.target.value = "";
+     if (!file) return;
++    const uploadSession = sessionRef.current;
+     setError(null);
+     try {
+       const started = performance.now();
+       const frame = await imageFileToFrame(file);
++      if (uploadSession !== sessionRef.current) return;
+       queueCapture([frame], performance.now() - started);
+     } catch (caught) {
+       setError(caught instanceof Error ? caught.message : "The image could not be scanned.");
+@@ -619,6 +654,8 @@
+   }, [queueCapture]);
+ 
+   const chooseCandidate = useCallback(async (item: ReviewItem, candidate: ScannerCandidate) => {
++    if (choosingRef.current || disabled || item.writeUncertain) return;
++    choosingRef.current = item.id;
+     setChoosing(item.id);
+     try {
+       recordBenchmarkDecision(item.identification, candidate.card.id);
+@@ -632,11 +669,15 @@
+       setStatus(`${candidate.card.name} selected`);
+       setError(null);
+     } catch (caught) {
++      if (onAutoAdd && !(caught instanceof AdminClientError && caught.status >= 400 && caught.status < 500)) {
++        setReview((items) => items.map((row) => row.id === item.id ? { ...row, writeUncertain: true } : row));
++      }
+       setError(caught instanceof Error ? caught.message : "The selected card could not be added.");
+     } finally {
++      choosingRef.current = null;
+       setChoosing(null);
+     }
+-  }, [onAutoAdd, onSelect]);
++  }, [disabled, onAutoAdd, onSelect]);
+ 
+   useEffect(() => {
+     const reset = window.setTimeout(() => {
+@@ -652,6 +693,10 @@
+   }, [resetKey, stopCamera]);
+ 
+   useEffect(() => () => {
++    sessionRef.current += 1;
++    recognitionAbortRef.current?.abort();
++    queueRef.current = [];
++    stopVisualBuildRef.current = true;
+     streamRef.current?.getTracks().forEach((track) => track.stop());
+     void identifierRef.current?.dispose();
+   }, []);
+@@ -679,7 +724,7 @@
+           {onAutoAdd ? (
+             <div className="flex rounded-xl border border-white/10 bg-black/25 p-1">
+               {(["automatic", "confirm"] as ScannerMode[]).map((value) => (
+-                <button key={value} type="button" onClick={() => setMode(value)} className={`rounded-lg px-3 py-2 text-xs font-black capitalize transition ${mode === value ? "bg-cyan-300 text-slate-950" : "text-slate-300 hover:bg-white/5"}`}>{value}</button>
++                <button key={value} type="button" onClick={() => { modeRef.current = value; setMode(value); }} className={`rounded-lg px-3 py-2 text-xs font-black capitalize transition ${mode === value ? "bg-cyan-300 text-slate-950" : "text-slate-300 hover:bg-white/5"}`}>{value}</button>
+               ))}
+             </div>
+           ) : null}
+@@ -782,12 +827,14 @@
+           <div className="mt-4 grid gap-4 xl:grid-cols-2">
+             {review.map((item) => (
+               <article key={item.id} className="rounded-2xl border border-white/10 bg-[#081522] p-4">
++                <div className="mb-2 flex justify-end"><button type="button" disabled={Boolean(choosing)} onClick={() => setReview((rows) => rows.filter((row) => row.id !== item.id))} className="min-h-11 rounded-lg px-3 text-xs font-semibold text-slate-400 hover:bg-white/5 hover:text-white">Dismiss scan</button></div>
++                {item.writeUncertain ? <p role="alert" className="mb-3 rounded-xl border border-amber-200/20 bg-amber-100/5 p-3 text-sm leading-6 text-amber-100">The add request lost its confirmation and may have completed. <a href="/admin/inventory" target="_blank" rel="noopener noreferrer" className="font-bold underline underline-offset-4">Check inventory</a> before scanning this card again.</p> : null}
+                 <div className="grid grid-cols-[74px_1fr] gap-3">
+                   <img src={item.preview} alt="Captured card" className="aspect-[63/88] w-full rounded-lg object-cover" />
+                   <div><div className="text-xs font-bold text-slate-400">Top catalogue matches</div><div className="mt-1 text-sm text-slate-300">Confidence {item.identification.confidence}% · margin {item.identification.margin.toFixed(0)} points</div></div>
+                 </div>
+                 <div className="mt-3 space-y-2">
+-                  {item.identification.candidates.length ? item.identification.candidates.slice(0, 3).map((candidate) => <CandidateCard key={candidate.card.id} candidate={candidate} disabled={disabled || choosing === item.id} onChoose={() => void chooseCandidate(item, candidate)} />) : <div className="rounded-xl border border-white/10 bg-black/20 p-4 text-sm text-slate-400">No indexed visual candidate was available. Finish building the visual index, then retake with the complete artwork visible.</div>}
++                  {item.identification.candidates.length ? item.identification.candidates.slice(0, 3).map((candidate) => <CandidateCard key={candidate.card.id} candidate={candidate} disabled={disabled || Boolean(choosing) || Boolean(item.writeUncertain)} onChoose={() => void chooseCandidate(item, candidate)} />) : <div className="rounded-xl border border-white/10 bg-black/20 p-4 text-sm text-slate-400">No indexed visual candidate was available. Finish building the visual index, then retake with the complete artwork visible.</div>}
+                 </div>
+               </article>
+             ))}
+--- /dev/null
++++ b/components/player/ConnectionStatus.tsx
+@@ -0,0 +1,14 @@
++"use client";
++import { useSyncExternalStore } from "react";
++function subscribe(notify: () => void) {
++  window.addEventListener("online", notify);
++  window.addEventListener("offline", notify);
++  return () => { window.removeEventListener("online", notify); window.removeEventListener("offline", notify); };
++}
++export default function ConnectionStatus() {
++  const online = useSyncExternalStore(subscribe, () => navigator.onLine, () => true);
++  if (online) return null;
++  return <div role="status" className="border-b border-amber-100/15 bg-[#231d17] px-4 py-3 text-center text-sm text-amber-100">
++    You’re offline. Reconnect before making a wish or saving changes.
++  </div>;
++}
+--- a/components/player/NebuWishSummon.tsx
++++ b/components/player/NebuWishSummon.tsx
+@@ -7,6 +7,7 @@
+   useRef,
+ } from "react";
+ 
++import { readCachedPlayerPreferences } from "@/lib/player/preferences";
+ import type { NebuSkinKey } from "@/lib/player/nebu";
+ 
+ import styles from "./NebuWishSummon.module.css";
+@@ -343,13 +344,18 @@
+   };
+ }
+ 
++const atlasCache = new Map<string, HTMLCanvasElement>();
++const ATLAS_PIXEL_BUDGET = 12 * 1024 * 1024;
++
+ function createSkinnedAtlas(
+   image: HTMLImageElement,
+   nebuSkin: NebuSkinKey,
+ ): CanvasImageSource {
+   const treatment = NEBU_ATLAS_FILTERS[nebuSkin];
+   if (!treatment || treatment === "none") return image;
+-
++  const key = `${image.currentSrc || image.src}:${nebuSkin}`;
++  const cached = atlasCache.get(key);
++  if (cached) { atlasCache.delete(key); atlasCache.set(key, cached); return cached; }
+   const atlas = document.createElement("canvas");
+   atlas.width = image.naturalWidth;
+   atlas.height = image.naturalHeight;
+@@ -361,6 +367,15 @@
+   atlasContext.filter = treatment;
+   atlasContext.drawImage(image, 0, 0);
+   atlasContext.filter = "none";
++  if (atlas.width * atlas.height <= ATLAS_PIXEL_BUDGET) {
++    atlasCache.set(key, atlas);
++    let pixels = [...atlasCache.values()].reduce((sum, item) => sum + item.width * item.height, 0);
++    for (const [oldKey, item] of atlasCache) {
++      if (pixels <= ATLAS_PIXEL_BUDGET && atlasCache.size <= 2) break;
++      pixels -= item.width * item.height;
++      atlasCache.delete(oldKey);
++    }
++  }
+   return atlas;
+ }
+ 
+@@ -2194,7 +2209,7 @@
+     };
+ 
+     const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+-    const reducedMotion = mediaQuery.matches;
++    const reducedMotion = mediaQuery.matches || readCachedPlayerPreferences().reducedMotion;
+     const image = new Image();
+     image.decoding = "async";
+     image.src = getNebuSummonSprite(tier, blackHole, nebuSkin);
+@@ -2296,7 +2311,7 @@
+ 
+     // Imperative rendering keeps React out of the per-frame hot path.
+     const tick = (now: number) => {
+-      if (disposed) return;
++      if (disposed || document.visibilityState === "hidden") return;
+       const elapsedMs = now - startedAt;
+       if (now - lastRenderedAt >= targetFrameInterval - 1) {
+         draw(elapsedMs);
+@@ -2318,10 +2333,16 @@
+     image.onerror = () => {
+       loaded = false;
+     };
++    const onVisibility = () => {
++      window.cancelAnimationFrame(animationFrame);
++      if (document.visibilityState === "visible") animationFrame = window.requestAnimationFrame(tick);
++    };
++    document.addEventListener("visibilitychange", onVisibility);
+     animationFrame = window.requestAnimationFrame(tick);
+ 
+     return () => {
+       disposed = true;
++      document.removeEventListener("visibilitychange", onVisibility);
+       window.cancelAnimationFrame(animationFrame);
+       window.removeEventListener("resize", resize);
+       resizeObserver?.disconnect();
+--- a/components/player/NotificationCentre.tsx
++++ b/components/player/NotificationCentre.tsx
+@@ -1,4 +1,6 @@
+ "use client";
++
++import useModalFocus from "@/lib/client/useModalFocus";
+ 
+ import { usePathname, useRouter } from "next/navigation";
+ import {
+@@ -251,19 +253,10 @@
+       closeButtonRef.current?.focus();
+     });
+ 
+-    const handleKeyDown = (event: KeyboardEvent) => {
+-      if (event.key === "Escape") {
+-        setOpen(false);
+-      }
+-    };
+-
+-    document.addEventListener("keydown", handleKeyDown);
+-
+-    return () => {
+-      window.cancelAnimationFrame(frame);
+-      document.removeEventListener("keydown", handleKeyDown);
+-    };
++    return () => window.cancelAnimationFrame(frame);
+   }, [loadNotifications, open]);
++
++  const panelRef = useModalFocus<HTMLElement>(open, () => setOpen(false));
+ 
+   const markRead = useCallback((notificationKey: string) => {
+     setNotifications((current) =>
+@@ -281,7 +274,7 @@
+       .then(({ error }) => {
+         if (error) {
+           console.warn("Notification could not be marked as read:", error.message);
+-          void loadNotifications(true);
++          void loadNotifications(true, true);
+         }
+       });
+   }, [loadNotifications]);
+@@ -328,6 +321,8 @@
+       />
+ 
+       <section
++        ref={panelRef}
++        tabIndex={-1}
+         role="dialog"
+         aria-modal="true"
+         aria-labelledby="notification-centre-title"
+--- a/components/player/PlayerCardModal.tsx
++++ b/components/player/PlayerCardModal.tsx
+@@ -1,7 +1,8 @@
+ "use client";
+ 
+ import Link from "next/link";
+-import { useEffect } from "react";
++import { createPortal } from "react-dom";
++import useModalFocus from "@/lib/client/useModalFocus";
+ 
+ import {
+   CardArtwork,
+@@ -43,26 +44,13 @@
+   signatureBusy?: boolean;
+   showShippingLink?: boolean;
+ }) {
+-  useEffect(() => {
+-    const previousOverflow = document.body.style.overflow;
+-    document.body.style.overflow = "hidden";
+-
+-    const handleKeyDown = (event: KeyboardEvent) => {
+-      if (event.key === "Escape") {
+-        onClose();
+-      }
+-    };
+-
+-    window.addEventListener("keydown", handleKeyDown);
+-
+-    return () => {
+-      document.body.style.overflow = previousOverflow;
+-      window.removeEventListener("keydown", handleKeyDown);
+-    };
+-  }, [onClose]);
+-
+-  return (
++  const modalRef = useModalFocus<HTMLDivElement>(true, onClose);
++  if (typeof document === "undefined") return null;
++
++  return createPortal(
+     <div
++      ref={modalRef}
++      tabIndex={-1}
+       className="fixed inset-0 z-[10000] flex items-center justify-center overflow-y-auto bg-[#02020f]/92 p-4 backdrop-blur-xl"
+       role="dialog"
+       aria-modal="true"
+@@ -83,12 +71,12 @@
+           ×
+         </button>
+ 
+-        <div className="flex min-h-[30rem] items-center justify-center border-b border-white/10 p-8 lg:border-b-0 lg:border-r">
++        <div className="flex min-h-0 items-center justify-center border-b border-white/10 p-5 sm:p-8 lg:border-b-0 lg:border-r">
+           <CardArtwork
+             name={card.name}
+             imageUrl={card.imageUrl}
+             rarity={card.rarity}
+-            className="aspect-[0.716] w-full max-w-[21rem] rounded-2xl border border-white/15 shadow-[0_30px_85px_rgba(0,0,0,0.6)]"
++            className="aspect-[0.716] w-full max-w-[min(16rem,40dvh)] lg:max-w-[21rem] rounded-2xl border border-white/15 shadow-[0_30px_85px_rgba(0,0,0,0.6)]"
+           />
+         </div>
+ 
+@@ -151,7 +139,8 @@
+             />
+           </div>
+ 
+-          <div className="mt-7 flex flex-col gap-3 sm:flex-row">
++          {showShippingLink && card.quantity ? <Link href={`/constellation?card=${encodeURIComponent(card.id)}`} onClick={onClose} className="mt-5 inline-flex min-h-11 items-center text-sm font-semibold text-cyan-100/80 hover:text-white">✧ Find this card in my constellation →</Link> : null}
++          <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+             {onSetSignature ? (
+               <PlayerSecondaryButton
+                 onClick={onSetSignature}
+@@ -177,7 +166,7 @@
+ 
+             {showShippingLink ? (
+               <Link
+-                href="/shipping"
++                href={`/shipping?card=${encodeURIComponent(card.id)}#select-cards`}
+                 onClick={onClose}
+                 className="flex min-h-12 flex-1 items-center justify-center rounded-xl bg-gradient-to-r from-[#e7ad46] via-[#48d5ca] to-[#d84f78] px-5 text-sm font-black text-[#111329] transition hover:-translate-y-0.5 hover:brightness-110"
+               >
+@@ -187,7 +176,7 @@
+           </div>
+         </div>
+       </article>
+-    </div>
++    </div>, document.body,
+   );
+ }
+ 
+--- a/components/player/PlayerNav.tsx
++++ b/components/player/PlayerNav.tsx
+@@ -1,6 +1,9 @@
+ "use client";
+ 
+ import Link from "next/link";
++import useModalFocus from "@/lib/client/useModalFocus";
++import { isRouteActive } from "@/lib/player/routes";
++import QuickNavigation from "@/components/player/QuickNavigation";
+ import dynamic from "next/dynamic";
+ import {
+   usePathname,
+@@ -174,17 +177,7 @@
+   },
+ ];
+ 
+-function isActive(
+-  pathname: string,
+-  href: string,
+-): boolean {
+-  return (
+-    pathname === href ||
+-    pathname.startsWith(
+-      `${href}/`,
+-    )
+-  );
+-}
++const isActive = isRouteActive;
+ 
+ function getInitial(
+   value: string,
+@@ -279,7 +272,7 @@
+   const currentItem =
+     useMemo(
+       () =>
+-        ALL_ITEMS.find(
++        [...ALL_ITEMS].sort((left, right) => right.href.length - left.href.length).find(
+           (item) =>
+             isActive(
+               pathname,
+@@ -380,50 +373,18 @@
+     };
+   }, []);
+ 
++  const drawerRef = useModalFocus<HTMLElement>(drawerOpen, () => setDrawerOpen(false));
++
+   useEffect(() => {
+-    if (!drawerOpen) {
+-      return;
+-    }
+-
+-    const original =
+-      document.body.style
+-        .overflow;
+-
+-    document.body.style
+-      .overflow =
+-      "hidden";
+-
+-    const handleEscape =
+-      (
+-        event:
+-          KeyboardEvent,
+-      ) => {
+-        if (
+-          event.key ===
+-          "Escape"
+-        ) {
+-          setDrawerOpen(
+-            false,
+-          );
+-        }
+-      };
+-
+-    window.addEventListener(
+-      "keydown",
+-      handleEscape,
+-    );
+-
+-    return () => {
+-      document.body.style
+-        .overflow =
+-        original;
+-
+-      window.removeEventListener(
+-        "keydown",
+-        handleEscape,
+-      );
++    const dismiss = (event: PointerEvent) => {
++      const details = moreDetailsRef.current;
++      if (details?.open && event.target instanceof Node && !details.contains(event.target)) details.open = false;
+     };
+-  }, [drawerOpen]);
++    const escape = (event: KeyboardEvent) => { if (event.key === "Escape") closeMore(); };
++    document.addEventListener("pointerdown", dismiss);
++    document.addEventListener("keydown", escape);
++    return () => { document.removeEventListener("pointerdown", dismiss); document.removeEventListener("keydown", escape); };
++  }, []);
+ 
+   useEffect(() => {
+     const handleWishBalance =
+@@ -914,6 +875,7 @@
+               xl:ml-2
+             "
+           >
++            <QuickNavigation />
+             {secondaryControlsReady ? (
+               <>
+                 <PlayerPreferencesPanel />
+@@ -1056,6 +1018,7 @@
+             : "pointer-events-none",
+         ].join(" ")}
+         aria-hidden={!drawerOpen}
++        inert={!drawerOpen}
+       >
+         <button
+           type="button"
+@@ -1072,6 +1035,11 @@
+         />
+ 
+         <aside
++          ref={drawerRef}
++          role="dialog"
++          aria-modal={drawerOpen || undefined}
++          aria-label="Player menu"
++          tabIndex={-1}
+           className={[
+             "absolute inset-y-0 left-0 flex w-[min(88vw,22rem)] flex-col border-r border-white/10 bg-[#060819]/[0.99] shadow-[35px_0_110px_rgba(0,0,0,0.5)] transition-transform duration-300",
+             drawerOpen
+@@ -1168,7 +1136,11 @@
+             </Link>
+           </div>
+ 
+-          <div className="flex-1 overflow-y-auto px-4 py-5">
++          <div className="flex-1 overflow-y-auto overscroll-contain px-4 py-5">
++            <button type="button" className="mb-5 flex min-h-12 w-full items-center gap-3 rounded-xl border border-white/15 bg-white/[0.04] px-4 text-left text-sm text-white/60" onClick={() => {
++              setDrawerOpen(false);
++              window.requestAnimationFrame(() => window.dispatchEvent(new Event("ancientpulls:quick-navigation")));
++            }}>⌕ <span>Search pages…</span></button>
+             {DRAWER_GROUPS.map(
+               (group) => (
+                 <section
+@@ -1262,6 +1234,7 @@
+   return (
+     <Link
+       href={item.href}
++      aria-current={active ? "page" : undefined}
+       onClick={onNavigate}
+       className={[
+         "flex min-h-11 items-center gap-2 rounded-xl border px-3 text-sm font-black transition",
+@@ -1294,6 +1267,7 @@
+   return (
+     <Link
+       href={item.href}
++      aria-current={active ? "page" : undefined}
+       onClick={onNavigate}
+       className={[
+         "relative flex min-h-12 items-center gap-3 rounded-xl border px-3 py-2 transition",
+--- a/components/player/PlayerPreferences.tsx
++++ b/components/player/PlayerPreferences.tsx
+@@ -5,12 +5,14 @@
+   useCallback,
+   useEffect,
+   useRef,
++  useMemo,
+   useState,
+ } from "react";
+ import { createPortal } from "react-dom";
++import { createLatestSave } from "@/lib/client/latestSave";
++import useModalFocus from "@/lib/client/useModalFocus";
+ 
+ import {
+-  applyPlayerPreferences,
+   DEFAULT_PLAYER_PREFERENCES,
+   normalisePlayerPreferences,
+   playerPreferencesRpcPayload,
+@@ -26,6 +28,8 @@
+   const router = useRouter();
+   const pathname = usePathname();
+   const closeButtonRef = useRef<HTMLButtonElement | null>(null);
++  const mountedRef = useRef(false);
++  const revisionRef = useRef(0);
+   const saveTimerRef = useRef<number | null>(null);
+   const initialPreferencesRef = useRef<PlayerPreferences | null>(null);
+   if (initialPreferencesRef.current === null) {
+@@ -44,35 +48,30 @@
+     initialPreferencesRef.current,
+   );
+ 
+-  const savePreferences = useCallback(async (next: PlayerPreferences) => {
+-    setSaveState("saving");
+-
+-    const { data, error } = await supabase.rpc(
+-      "update_player_preferences",
+-      playerPreferencesRpcPayload(next),
+-    );
+-
+-    if (error) {
+-      console.warn("Player preferences could not sync:", error.message);
++  const savePreferences = useMemo(() => createLatestSave(async (write: { preferences: PlayerPreferences; revision: number }) => {
++    const next = write.preferences;
++    try {
++      const { data, error } = await supabase.rpc(
++        "update_player_preferences", playerPreferencesRpcPayload(next),
++      );
++      if (error) throw error;
++      if (!mountedRef.current || revisionRef.current !== write.revision) return;
++      const saved = normalisePlayerPreferences(Array.isArray(data) ? data[0] : data, next);
++      latestPreferencesRef.current = saved;
++      setPreferences(saved);
++      publishPlayerPreferences(saved);
++      setServerAvailable(true);
++      setSaveState("saved");
++    } catch {
++      if (!mountedRef.current || revisionRef.current !== write.revision) return;
+       setServerAvailable(false);
+       setSaveState("local");
+-      return;
+     }
+-
+-    const saved = normalisePlayerPreferences(
+-      Array.isArray(data) ? data[0] : data,
+-      next,
+-    );
+-
+-    latestPreferencesRef.current = saved;
+-    setPreferences(saved);
+-    publishPlayerPreferences(saved);
+-    setServerAvailable(true);
+-    setSaveState("saved");
+-  }, []);
++  }), []);
+ 
+   const queueSave = useCallback(
+     (next: PlayerPreferences) => {
++      revisionRef.current += 1;
+       latestPreferencesRef.current = next;
+       publishPlayerPreferences(next);
+ 
+@@ -84,7 +83,7 @@
+ 
+       saveTimerRef.current = window.setTimeout(() => {
+         saveTimerRef.current = null;
+-        void savePreferences(latestPreferencesRef.current);
++        void savePreferences({ preferences: latestPreferencesRef.current, revision: revisionRef.current });
+       }, 520);
+     },
+     [savePreferences, serverAvailable],
+@@ -92,16 +91,16 @@
+ 
+   const updatePreferences = useCallback(
+     (change: Partial<PlayerPreferences>) => {
+-      setPreferences((current) => {
+-        const next = normalisePlayerPreferences({ ...current, ...change }, current);
+-        queueSave(next);
+-        return next;
+-      });
++      const current = latestPreferencesRef.current;
++      const next = normalisePlayerPreferences({ ...current, ...change }, current);
++      queueSave(next);
++      setPreferences(next);
+     },
+     [queueSave],
+   );
+ 
+   useEffect(() => {
++    mountedRef.current = true;
+     const cached = initialPreferencesRef.current ?? DEFAULT_PLAYER_PREFERENCES;
+     publishPlayerPreferences(cached);
+ 
+@@ -120,6 +119,10 @@
+         return;
+       }
+ 
++      if (revisionRef.current > 0) {
++        setLoaded(true);
++        return;
++      }
+       const synced = normalisePlayerPreferences(
+         Array.isArray(data) ? data[0] : data,
+         cached,
+@@ -135,42 +138,21 @@
+ 
+     return () => {
+       active = false;
+-
++      mountedRef.current = false;
+       if (saveTimerRef.current !== null) {
+         window.clearTimeout(saveTimerRef.current);
++        saveTimerRef.current = null;
++        void savePreferences({ preferences: latestPreferencesRef.current, revision: revisionRef.current });
+       }
+-
+-      applyPlayerPreferences(DEFAULT_PLAYER_PREFERENCES);
+     };
+-  }, []);
++  }, [savePreferences]);
+ 
+   useEffect(() => {
+     const frame = window.requestAnimationFrame(() => setOpen(false));
+     return () => window.cancelAnimationFrame(frame);
+   }, [pathname]);
+ 
+-  useEffect(() => {
+-    if (!open) {
+-      return;
+-    }
+-
+-    const frame = window.requestAnimationFrame(() => {
+-      closeButtonRef.current?.focus();
+-    });
+-
+-    const handleKeyDown = (event: KeyboardEvent) => {
+-      if (event.key === "Escape") {
+-        setOpen(false);
+-      }
+-    };
+-
+-    document.addEventListener("keydown", handleKeyDown);
+-
+-    return () => {
+-      window.cancelAnimationFrame(frame);
+-      document.removeEventListener("keydown", handleKeyDown);
+-    };
+-  }, [open]);
++  const panelRef = useModalFocus<HTMLElement>(open, () => setOpen(false));
+ 
+   const statusLabel = saveState === "saving"
+     ? "Saving…"
+@@ -188,6 +170,8 @@
+       />
+ 
+       <section
++        ref={panelRef}
++        tabIndex={-1}
+         role="dialog"
+         aria-modal="true"
+         aria-labelledby="player-preferences-title"
+@@ -212,6 +196,10 @@
+             </h2>
+             <p className="mt-1 text-xs font-bold text-white/38">
+               {loaded ? statusLabel : "Reading your settings…"}
++              {saveState === "local" ? <button type="button" className="ml-2 text-cyan-200 underline underline-offset-4" onClick={() => {
++                setSaveState("saving");
++                void savePreferences({ preferences: latestPreferencesRef.current, revision: revisionRef.current });
++              }}>Retry sync</button> : null}
+             </p>
+           </div>
+ 
+--- /dev/null
++++ b/components/player/QuickNavigation.tsx
+@@ -0,0 +1,78 @@
++"use client";
++
++import { useCallback, useEffect, useId, useRef, useState } from "react";
++import { createPortal } from "react-dom";
++import { useRouter } from "next/navigation";
++import useModalFocus from "@/lib/client/useModalFocus";
++import { searchPlayerRoutes } from "@/lib/player/routes";
++
++export default function QuickNavigation() {
++  const router = useRouter();
++  const [open, setOpen] = useState(false);
++  const [query, setQuery] = useState("");
++  const [active, setActive] = useState(0);
++  const id = useId();
++  const cinematicRef = useRef(false);
++  const panelRef = useModalFocus<HTMLDivElement>(open, () => setOpen(false));
++  const routes = searchPlayerRoutes(query);
++  const selected = Math.min(active, Math.max(0, routes.length - 1));
++  const show = useCallback(() => { if (cinematicRef.current) return; setQuery(""); setActive(0); setOpen(true); }, []);
++
++  useEffect(() => {
++    const onKey = (event: KeyboardEvent) => {
++      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k" && !event.isComposing) {
++        if (cinematicRef.current) return;
++        event.preventDefault();
++        setQuery(""); setActive(0); setOpen((current) => !current);
++      }
++    };
++    const onCinematic = (event: Event) => {
++      cinematicRef.current = Boolean((event as CustomEvent<{ open?: boolean }>).detail?.open);
++      if (cinematicRef.current) setOpen(false);
++    };
++    window.addEventListener("pocketpulls:wish-cinematic-visibility", onCinematic);
++    window.addEventListener("keydown", onKey);
++    window.addEventListener("ancientpulls:quick-navigation", show);
++    return () => {
++      window.removeEventListener("pocketpulls:wish-cinematic-visibility", onCinematic);
++      window.removeEventListener("keydown", onKey);
++      window.removeEventListener("ancientpulls:quick-navigation", show);
++    };
++  }, [show]);
++  useEffect(() => {
++    if (open) document.getElementById(`${id}-${selected}`)?.scrollIntoView({ block: "nearest" });
++  }, [id, open, selected]);
++
++  const navigate = (href: string) => { setOpen(false); router.push(href); };
++
++  return <>
++    <button type="button" onClick={show} aria-label="Search pages" aria-keyshortcuts="Control+k Meta+k" title="Search pages (Ctrl / ⌘ K)" className="hidden h-11 items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3 text-xs font-semibold text-white/60 transition hover:bg-white/[0.08] hover:text-white sm:inline-flex">
++      <span aria-hidden="true">⌕</span><span className="hidden lg:inline">Search</span><kbd className="hidden text-[10px] text-white/30 2xl:inline">⌘ K</kbd>
++    </button>
++    {open ? createPortal(
++      <div className="fixed inset-0 z-[10020] flex items-start justify-center bg-[#02030d]/80 px-3 pt-[max(4rem,12dvh)] backdrop-blur-md" onMouseDown={(event) => { if (event.target === event.currentTarget) setOpen(false); }}>
++        <div ref={panelRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby={`${id}-title`} className="flex max-h-[72dvh] w-full max-w-xl flex-col overflow-hidden rounded-3xl border border-white/15 bg-[#0a0d20] text-white shadow-[0_32px_100px_#0009]">
++          <div className="flex items-center gap-3 border-b border-white/10 px-5 py-4">
++            <label id={`${id}-title`} htmlFor={`${id}-input`} className="sr-only">Go to a page</label>
++            <span aria-hidden="true" className="text-xl text-cyan-100/60">⌕</span>
++            <input id={`${id}-input`} data-autofocus type="search" value={query} onChange={(event) => { setQuery(event.target.value); setActive(0); }} placeholder="Where would you like to go?" autoComplete="off" role="combobox" aria-expanded="true" aria-controls={`${id}-results`} aria-autocomplete="list" aria-activedescendant={routes.length ? `${id}-${selected}` : undefined} className="min-w-0 flex-1 bg-transparent py-2 text-base outline-none placeholder:text-white/30" onKeyDown={(event) => {
++              if (event.key === "ArrowDown") { event.preventDefault(); setActive((current) => (current + 1) % Math.max(1, routes.length)); }
++              if (event.key === "ArrowUp") { event.preventDefault(); setActive((current) => (current - 1 + routes.length) % Math.max(1, routes.length)); }
++              if (event.key === "Enter" && routes[selected]) { event.preventDefault(); navigate(routes[selected].href); }
++            }} />
++            <button type="button" onClick={() => setOpen(false)} aria-label="Close search" className="grid h-11 w-11 place-items-center rounded-xl text-xl text-white/50 hover:bg-white/5">×</button>
++          </div>
++          <div id={`${id}-results`} role="listbox" aria-label="Pages" className="min-h-0 overflow-y-auto overscroll-contain p-2">
++            {routes.map((route, index) => <button key={route.href} id={`${id}-${index}`} type="button" role="option" aria-selected={index === selected} tabIndex={-1} onClick={() => navigate(route.href)} onMouseMove={() => setActive(index)} className={`flex min-h-16 w-full items-center gap-4 rounded-2xl px-4 py-3 text-left transition ${index === selected ? "bg-cyan-100/[0.08]" : "hover:bg-white/[0.04]"}`}>
++              <span aria-hidden="true" className="w-7 text-center text-xl text-cyan-100/70">{route.glyph}</span>
++              <span className="min-w-0 flex-1"><span className="block text-sm font-semibold">{route.label}</span><span className="mt-1 block text-xs text-white/40">{route.detail}</span></span>
++              <span aria-hidden="true" className="text-white/25">↵</span>
++            </button>)}
++            {!routes.length ? <p role="status" className="px-5 py-10 text-center text-sm text-white/50">No pages match “{query}”. Try “binder”, “shipping” or “help”.</p> : null}
++          </div>
++          <div className="border-t border-white/10 px-5 py-3 text-[11px] text-white/35">↑ ↓ to move · Enter to open · Esc to close</div>
++        </div>
++      </div>, document.body,
++    ) : null}
++  </>;
++}
+--- a/components/player/UnknownPullsBackdrop.tsx
++++ b/components/player/UnknownPullsBackdrop.tsx
+@@ -3,12 +3,13 @@
+ import { useEffect, useState } from "react";
+ import { usePathname } from "next/navigation";
+ 
++import usePageVisible from "@/lib/client/usePageVisible";
+ import styles from "./UnknownPullsBackdrop.module.css";
+ 
+ export default function UnknownPullsBackdrop() {
+   const pathname = usePathname();
+   const [cinematicOpen, setCinematicOpen] = useState(false);
+-  const [pageVisible, setPageVisible] = useState(true);
++  const pageVisible = usePageVisible();
+ 
+   useEffect(() => {
+     const handleCinematicVisibility = (event: Event) => {
+@@ -19,28 +20,22 @@
+       );
+     };
+ 
+-    const handleVisibility = () => {
+-      setPageVisible(document.visibilityState !== "hidden");
+-    };
+-
+     window.addEventListener(
+       "pocketpulls:wish-cinematic-visibility",
+       handleCinematicVisibility,
+     );
+-    document.addEventListener("visibilitychange", handleVisibility);
+-    handleVisibility();
+ 
+     return () => {
+       window.removeEventListener(
+         "pocketpulls:wish-cinematic-visibility",
+         handleCinematicVisibility,
+       );
+-      document.removeEventListener("visibilitychange", handleVisibility);
+     };
+   }, []);
+ 
+   if (
+     pathname === "/constellation" ||
++    pathname === "/leaderboard" ||
+     pathname === "/wishes/preview" ||
+     cinematicOpen ||
+     !pageVisible
+--- a/components/player/WishCinematic.tsx
++++ b/components/player/WishCinematic.tsx
+@@ -11,6 +11,8 @@
+   useState,
+ } from "react";
+ 
++import { createPortal } from "react-dom";
++import useModalFocus from "@/lib/client/useModalFocus";
+ import { publishPlayerPreferences } from "@/lib/player/preferences";
+ import {
+   getWishRevealConfig,
+@@ -341,15 +343,7 @@
+   );
+   const equippedCosmicNebu = !cosmicDiscovery && nebuSkin === "cosmic_nebu";
+   const cosmicMode = equippedCosmicNebu || cosmicDiscovery;
+-  const preparingCopy = dualDiscovery
+-    ? "Nebu hears two impossible answers..."
+-    : cosmicDiscovery
+-      ? "The sky has chosen Nebu..."
+-      : cosmicBinderDiscovery
+-        ? "A sealed archive is answering..."
+-        : equippedCosmicNebu
+-          ? "Cosmic Nebu is bending the constellation..."
+-          : "Nebu is reading the constellation...";
++  const preparingCopy = "Nebu is reading the constellation…";
+   const lowEffects = preferences.lowVisualEffects || preferences.dataSaver;
+   const particleCount = getWishRevealParticleCount(config, {
+     mobile: mobileEffects,
+@@ -617,24 +611,12 @@
+     });
+   }, [complete, open, preferences, respectPreferences]);
+ 
+-  useEffect(() => {
+-    if (!open) return;
+-    const previousOverflow = document.body.style.overflow;
+-    document.body.style.overflow = "hidden";
+-
+-    const handleKeyDown = (event: KeyboardEvent) => {
+-      if (event.key !== "Escape") return;
+-      if (complete) handleContinue();
+-      else if (allowSkip) revealImmediately();
+-    };
+-    window.addEventListener("keydown", handleKeyDown);
+-    return () => {
+-      document.body.style.overflow = previousOverflow;
+-      window.removeEventListener("keydown", handleKeyDown);
+-    };
+-  }, [allowSkip, complete, handleContinue, open, revealImmediately]);
+-
+-  if (!open || !card) return null;
++  const modalRef = useModalFocus<HTMLDivElement>(Boolean(open && card), () => {
++    if (complete) handleContinue();
++    else if (allowSkip) revealImmediately();
++  });
++
++  if (!open || !card || typeof document === "undefined") return null;
+ 
+   const rootStyle = {
+     "--wish-primary": skipped ? config.primary : "#e2e8f0",
+@@ -656,8 +638,10 @@
+     "--info-at": `${timeline.infoAtMs}ms`,
+   } as CSSProperties;
+ 
+-  return (
++  return createPortal(
+     <div
++      ref={modalRef}
++      tabIndex={-1}
+       className={styles.overlay}
+       style={rootStyle}
+       data-tier={config.tier}
+@@ -671,7 +655,7 @@
+       data-low-effects={lowEffects ? "true" : "false"}
+       role="dialog"
+       aria-modal="true"
+-      aria-label={`Wish reveal for ${card.name}`}
++      aria-label={complete ? `Wish reveal for ${card.name}` : "Wish ceremony"}
+     >
+       <div className={styles.sky} />
+       <div className={styles.stars} />
+@@ -767,7 +751,7 @@
+             </div>
+           ) : null}
+ 
+-          <div className={styles.cardScene} data-share-ready="true">
++          <div className={styles.cardScene} data-share-ready={complete ? "true" : undefined} aria-hidden={!complete}>
+             <div className={styles.cardGlow} />
+             <div className={styles.cardFrame}>
+               {card.imageUrl ? <img src={card.imageUrl} alt={card.name} draggable={false} /> : <div className={styles.cardFallback}><span>✦</span><strong>{card.name}</strong></div>}
+@@ -776,7 +760,7 @@
+             </div>
+           </div>
+ 
+-          <div className={styles.cardInfo} data-share-ready="true">
++          <div className={styles.cardInfo} data-share-ready={complete ? "true" : undefined} aria-hidden={!complete} inert={!complete}>
+             {cosmicIssueNumber || cosmicBinderIssueNumber ? (
+               <div className={styles.legendaryDiscoveries}>
+                 {cosmicIssueNumber ? (
+@@ -809,6 +793,6 @@
+       {allowSkip && !complete ? (
+         <button type="button" className={styles.skipButton} onClick={revealImmediately}>Reveal now</button>
+       ) : null}
+-    </div>
++    </div>, document.body,
+   );
+ }
+--- a/components/player/WishDetailsDialog.tsx
++++ b/components/player/WishDetailsDialog.tsx
+@@ -1,4 +1,6 @@
+ "use client";
++
++import useModalFocus from "@/lib/client/useModalFocus";
+ 
+ import { useCallback, useEffect, useMemo, useState } from "react";
+ import { createPortal } from "react-dom";
+@@ -142,22 +144,12 @@
+     setLoading(false);
+   }, []);
+ 
++  const dialogRef = useModalFocus<HTMLElement>(open, onClose);
+   useEffect(() => {
+     if (!open) return;
+-    void loadDetails();
+-
+-    const previousOverflow = document.body.style.overflow;
+-    document.body.style.overflow = "hidden";
+-    const handleKeyDown = (event: KeyboardEvent) => {
+-      if (event.key === "Escape") onClose();
+-    };
+-    window.addEventListener("keydown", handleKeyDown);
+-
+-    return () => {
+-      document.body.style.overflow = previousOverflow;
+-      window.removeEventListener("keydown", handleKeyDown);
+-    };
+-  }, [loadDetails, onClose, open]);
++    const timer = window.setTimeout(() => void loadDetails(), 0);
++    return () => window.clearTimeout(timer);
++  }, [loadDetails, open]);
+ 
+   const totalCards = useMemo(
+     () => odds.reduce((sum, row) => sum + row.cards, 0),
+@@ -174,6 +166,8 @@
+       }}
+     >
+       <section
++        ref={dialogRef}
++        tabIndex={-1}
+         className={styles.dialog}
+         role="dialog"
+         aria-modal="true"
+--- a/components/player/usePlayerPreferences.ts
++++ b/components/player/usePlayerPreferences.ts
+@@ -1,36 +1,29 @@
+ "use client";
++import { useSyncExternalStore } from "react";
++import { DEFAULT_PLAYER_PREFERENCES, PLAYER_PREFERENCES_EVENT, PLAYER_PREFERENCES_STORAGE_KEY, readCachedPlayerPreferences, type PlayerPreferences } from "@/lib/player/preferences";
+ 
+-import { useEffect, useState } from "react";
+-
+-import {
+-  DEFAULT_PLAYER_PREFERENCES,
+-  PLAYER_PREFERENCES_EVENT,
+-  readCachedPlayerPreferences,
+-  type PlayerPreferences,
+-} from "@/lib/player/preferences";
+-
++let snapshot: PlayerPreferences = DEFAULT_PLAYER_PREFERENCES;
++let serialized = "";
++function readSnapshot() {
++  const next = readCachedPlayerPreferences();
++  const key = JSON.stringify(next);
++  if (key !== serialized) { serialized = key; snapshot = next; }
++  return snapshot;
++}
++function subscribe(notify: () => void) {
++  const media = window.matchMedia("(prefers-reduced-motion: reduce)");
++  const onStorage = (event: StorageEvent) => {
++    if (event.key === null || event.key === PLAYER_PREFERENCES_STORAGE_KEY) notify();
++  };
++  window.addEventListener(PLAYER_PREFERENCES_EVENT, notify);
++  window.addEventListener("storage", onStorage);
++  media.addEventListener("change", notify);
++  return () => {
++    window.removeEventListener(PLAYER_PREFERENCES_EVENT, notify);
++    window.removeEventListener("storage", onStorage);
++    media.removeEventListener("change", notify);
++  };
++}
+ export default function usePlayerPreferences(): PlayerPreferences {
+-  const [preferences, setPreferences] = useState<PlayerPreferences>(
+-    DEFAULT_PLAYER_PREFERENCES,
+-  );
+-
+-  useEffect(() => {
+-    const refresh = (event: Event) => {
+-      const customEvent = event as CustomEvent<PlayerPreferences>;
+-
+-      setPreferences(customEvent.detail || readCachedPlayerPreferences());
+-    };
+-
+-    const frame = window.requestAnimationFrame(() => {
+-      setPreferences(readCachedPlayerPreferences());
+-    });
+-    window.addEventListener(PLAYER_PREFERENCES_EVENT, refresh);
+-
+-    return () => {
+-      window.cancelAnimationFrame(frame);
+-      window.removeEventListener(PLAYER_PREFERENCES_EVENT, refresh);
+-    };
+-  }, []);
+-
+-  return preferences;
++  return useSyncExternalStore(subscribe, readSnapshot, () => DEFAULT_PLAYER_PREFERENCES);
+ }
+--- a/lib/admin/client-auth.ts
++++ b/lib/admin/client-auth.ts
+@@ -272,10 +272,12 @@
+   const makeRequest = async (
+     forceRefresh: boolean,
+   ) => {
++    init.signal?.throwIfAborted();
+     const token = await getAccessToken(
+       forceRefresh,
+     );
+ 
++    init.signal?.throwIfAborted();
+     const headers = new Headers(
+       init.headers,
+     );
+--- /dev/null
++++ b/lib/admin/inventory-input.ts
+@@ -0,0 +1,6 @@
++export function readInventoryQuantity(value: unknown): number {
++  if (typeof value !== "string" && typeof value !== "number") return 0;
++  if (typeof value === "string" && !value.trim()) return 0;
++  const parsed = Number(value);
++  return Number.isSafeInteger(parsed) && parsed >= 1 && parsed <= 9999 ? parsed : 0;
++}
+--- /dev/null
++++ b/lib/client/latestSave.ts
+@@ -0,0 +1,22 @@
++/** Serialises writes and coalesces queued edits. An older save can never finish last. */
++export function createLatestSave<T>(save: (value: T) => Promise<void>) {
++  let pending: { value: T } | null = null;
++  let running: Promise<void> | null = null;
++  return (value: T): Promise<void> => {
++    pending = { value };
++    if (!running) {
++      running = Promise.resolve().then(async () => {
++        try {
++          while (pending) {
++            const next = pending;
++            pending = null;
++            await save(next.value);
++          }
++        } finally {
++          running = null;
++        }
++      });
++    }
++    return running;
++  };
++}
+--- /dev/null
++++ b/lib/client/useModalFocus.ts
+@@ -0,0 +1,67 @@
++"use client";
++
++import { useEffect, useEffectEvent, useRef } from "react";
++
++// A stack keeps nested panels from restoring scroll or closing each other.
++const panels: HTMLElement[] = [];
++let originalOverflow = "";
++const focusable = 'a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])';
++
++export default function useModalFocus<T extends HTMLElement>(open: boolean, onClose: () => void) {
++  const ref = useRef<T>(null);
++  const close = useEffectEvent(onClose);
++
++  useEffect(() => {
++    const panel = ref.current;
++    if (!open || !panel) return;
++    const returnTo = document.activeElement instanceof HTMLElement ? document.activeElement : null;
++    if (!panels.length) {
++      originalOverflow = document.body.style.overflow;
++      document.body.style.overflow = "hidden";
++    }
++    panels.push(panel);
++    const targets = () => Array.from(panel.querySelectorAll<HTMLElement>(focusable))
++      .filter((element) => element.tabIndex >= 0 && !element.closest('[inert],[hidden],[aria-hidden="true"]') && element.getClientRects().length > 0);
++    const focusFirst = () => (panel.querySelector<HTMLElement>("[data-autofocus]") || targets()[0] || panel).focus({ preventScroll: true });
++    const frame = requestAnimationFrame(focusFirst);
++    const onKey = (event: KeyboardEvent) => {
++      if (panels.at(-1) !== panel) return;
++      if (event.key === "Escape" && !event.isComposing) {
++        event.preventDefault();
++        event.stopPropagation();
++        close();
++      }
++      if (event.key !== "Tab") return;
++      const items = targets();
++      const first = items[0];
++      const last = items.at(-1);
++      if (!first || !last) {
++        event.preventDefault();
++        panel.focus();
++      } else if (event.shiftKey && (document.activeElement === first || document.activeElement === panel || !panel.contains(document.activeElement))) {
++        event.preventDefault();
++        last.focus();
++      } else if (!event.shiftKey && (document.activeElement === last || !panel.contains(document.activeElement))) {
++        event.preventDefault();
++        first.focus();
++      }
++    };
++    const onFocus = (event: FocusEvent) => {
++      if (panels.at(-1) === panel && event.target instanceof Node && !panel.contains(event.target)) focusFirst();
++    };
++    document.addEventListener("keydown", onKey, true);
++    document.addEventListener("focusin", onFocus);
++    return () => {
++      cancelAnimationFrame(frame);
++      document.removeEventListener("keydown", onKey, true);
++      document.removeEventListener("focusin", onFocus);
++      const wasTop = panels.at(-1) === panel;
++      const index = panels.indexOf(panel);
++      if (index >= 0) panels.splice(index, 1);
++      if (!panels.length) document.body.style.overflow = originalOverflow;
++      if (wasTop && returnTo?.isConnected && !returnTo.closest('[inert],[hidden]')) returnTo.focus({ preventScroll: true });
++    };
++  }, [open]);
++
++  return ref;
++}
+--- /dev/null
++++ b/lib/client/usePageVisible.ts
+@@ -0,0 +1,12 @@
++"use client";
++
++import { useSyncExternalStore } from "react";
++
++function subscribe(callback: () => void) {
++  document.addEventListener("visibilitychange", callback);
++  return () => document.removeEventListener("visibilitychange", callback);
++}
++
++export default function usePageVisible() {
++  return useSyncExternalStore(subscribe, () => document.visibilityState === "visible", () => true);
++}
+--- /dev/null
++++ b/lib/player/browseFilters.ts
+@@ -0,0 +1,36 @@
++export type BrowseFilters = {
++  search: string;
++  setName: string;
++  rarity: string;
++  availability: "all" | "available" | "reserved" | "duplicates";
++  page: number;
++  favouritesOnly: boolean;
++};
++export const DEFAULT_BROWSE_FILTERS: BrowseFilters = {
++  search: "", setName: "", rarity: "", availability: "all", page: 1, favouritesOnly: false,
++};
++export function parseBrowseFilters(query: string): BrowseFilters {
++  const params = new URLSearchParams(query);
++  const availability = params.get("availability");
++  const page = Number(params.get("page"));
++  return {
++    favouritesOnly: params.get("favourites") === "1",
++    search: (params.get("q") || "").trim().slice(0, 200),
++    setName: (params.get("set") || "").slice(0, 200),
++    rarity: (params.get("rarity") || "").slice(0, 100),
++    availability: availability === "available" || availability === "reserved" || availability === "duplicates" ? availability : "all",
++    page: Number.isSafeInteger(page) ? Math.max(1, Math.min(100000, page)) : 1,
++  };
++}
++export function writeBrowseFilters(query: string, filters: BrowseFilters): string {
++  const params = new URLSearchParams(query);
++  for (const [key, value] of Object.entries({
++    favourites: filters.favouritesOnly ? "1" : "",
++    q: filters.search, set: filters.setName, rarity: filters.rarity,
++    availability: filters.availability === "all" ? "" : filters.availability,
++    page: filters.page > 1 ? String(filters.page) : "",
++  })) {
++    if (value) params.set(key, value); else params.delete(key);
++  }
++  return params.toString();
++}
+--- a/lib/player/preferences.ts
++++ b/lib/player/preferences.ts
+@@ -77,6 +77,8 @@
+   };
+ }
+ 
++let devicePreferences: PlayerPreferences | null = null;
++
+ export function readCachedPlayerPreferences(): PlayerPreferences {
+   if (typeof window === "undefined") {
+     return { ...DEFAULT_PLAYER_PREFERENCES };
+@@ -96,9 +98,9 @@
+ 
+     return stored
+       ? normalisePlayerPreferences(JSON.parse(stored), fallback)
+-      : fallback;
++      : devicePreferences ?? fallback;
+   } catch {
+-    return fallback;
++    return devicePreferences ?? fallback;
+   }
+ }
+ 
+@@ -118,6 +120,7 @@
+ }
+ 
+ export function cachePlayerPreferences(preferences: PlayerPreferences): void {
++  devicePreferences = preferences;
+   if (typeof window === "undefined") {
+     return;
+   }
+--- /dev/null
++++ b/lib/player/routes.ts
+@@ -0,0 +1,28 @@
++export const PLAYER_ROUTES = [
++  { href: "/hq", label: "HQ", detail: "Your collection at a glance", keywords: "home dashboard", glyph: "⌂" },
++  { href: "/wishes", label: "Wishes", detail: "Make a wish or replay your latest reveal", keywords: "pull nebu replay", glyph: "✦" },
++  { href: "/collection", label: "Binder", detail: "Browse and arrange your cards", keywords: "collection owned duplicate signature", glyph: "▣" },
++  { href: "/catalogue", label: "Catalogue", detail: "Explore cards and favourites", keywords: "cards pokemon sets favourite", glyph: "▤" },
++  { href: "/constellation", label: "Constellation", detail: "Find your cards among the stars", keywords: "stars galaxy find", glyph: "✧" },
++  { href: "/constellation?panel=history", label: "Latest pulls", detail: "Your wish history in Constellation", keywords: "history archive recent", glyph: "↺" },
++  { href: "/friends", label: "Friends", detail: "Visit friends and open trades", keywords: "trade social trainer", glyph: "♢" },
++  { href: "/leaderboard", label: "Universe Ranks", detail: "The top 100 galaxies", keywords: "leaderboard rank pharaoh", glyph: "◉" },
++  { href: "/achievements", label: "Badges", detail: "Milestones and unlocked rewards", keywords: "achievement reward skin", glyph: "✪" },
++  { href: "/shipping", label: "Shipping & orders", detail: "Select cards and follow your deliveries", keywords: "address order tracking delivery", glyph: "▰" },
++  { href: "/wishes/shop", label: "Recharge", detail: "Wish packages and availability", keywords: "shop balance wishes", glyph: "✦" },
++  { href: "/profile", label: "Profile", detail: "Your trainer profile and account", keywords: "name avatar password", glyph: "◉" },
++  { href: "/help", label: "Help", detail: "Answers and support in one place", keywords: "support contact question refund", glyph: "?" },
++] as const;
++
++export function searchPlayerRoutes(query: string) {
++  const words = query.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean);
++  return PLAYER_ROUTES.filter((route) => words.every((word) =>
++    `${route.label} ${route.detail} ${route.keywords}`.toLocaleLowerCase().includes(word),
++  ));
++}
++
++export function isRouteActive(pathname: string, href: string) {
++  // Recharge is a separate destination inside /wishes.
++  if (href === "/wishes" && pathname.startsWith("/wishes/shop")) return false;
++  return pathname === href || pathname.startsWith(`${href}/`);
++}
+--- /dev/null
++++ b/lib/player/useBrowseFilters.ts
+@@ -0,0 +1,37 @@
++"use client";
++import { useCallback, useEffect, useState, type SetStateAction } from "react";
++import { DEFAULT_BROWSE_FILTERS, parseBrowseFilters, writeBrowseFilters, type BrowseFilters } from "./browseFilters";
++
++/** URL-backed filters preserve the current page through details, shipping and Back. */
++export default function useBrowseFilters() {
++  const [filters, setFilters] = useState(DEFAULT_BROWSE_FILTERS);
++  const [ready, setReady] = useState(false);
++  useEffect(() => {
++    const restore = () => {
++      setFilters(parseBrowseFilters(window.location.search));
++      setReady(true);
++    };
++    restore();
++    window.addEventListener("popstate", restore);
++    return () => window.removeEventListener("popstate", restore);
++  }, []);
++  useEffect(() => {
++    if (!ready) return;
++    const query = writeBrowseFilters(window.location.search, filters);
++    const url = window.location.pathname + (query ? `?${query}` : "") + window.location.hash;
++    window.history.replaceState(window.history.state, "", url);
++  }, [filters, ready]);
++  const setField = useCallback(<K extends keyof BrowseFilters>(key: K, value: SetStateAction<BrowseFilters[K]>) => {
++    setFilters((current) => {
++      const next = typeof value === "function" ? (value as (v: BrowseFilters[K]) => BrowseFilters[K])(current[key]) : value;
++      return current[key] === next ? current : { ...current, [key]: next };
++    });
++  }, []);
++  const setSearch = useCallback((value: SetStateAction<string>) => setField("search", value), [setField]);
++  const setSetName = useCallback((value: SetStateAction<string>) => setField("setName", value), [setField]);
++  const setRarity = useCallback((value: SetStateAction<string>) => setField("rarity", value), [setField]);
++  const setAvailability = useCallback((value: SetStateAction<BrowseFilters["availability"]>) => setField("availability", value), [setField]);
++  const setPage = useCallback((value: SetStateAction<number>) => setField("page", value), [setField]);
++  const setFavouritesOnly = useCallback((value: SetStateAction<boolean>) => setField("favouritesOnly", value), [setField]);
++  return { ...filters, setFavouritesOnly, ready, setSearch, setSetName, setRarity, setAvailability, setPage };
++}
+--- /dev/null
++++ b/lib/player/wishRequest.ts
+@@ -0,0 +1,26 @@
++const PREFIX = "ancientpulls:pending-wish:";
++const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
++const memory = new Map<string, string>();
++function storage(): Storage | null {
++  try { return typeof window === "undefined" ? null : window.sessionStorage; } catch { return null; }
++}
++export function readPendingWish(userId: string): string | null {
++  if (!userId) return null;
++  try {
++    const stored = storage()?.getItem(PREFIX + userId);
++    if (stored && UUID.test(stored)) { memory.set(userId, stored); return stored; }
++  } catch { /* Private browsing may deny storage; the in-memory retry still works. */ }
++  return memory.get(userId) || null;
++}
++export function getOrCreateWishRequest(userId: string): string {
++  if (!userId) throw new Error("Sign in again before making a wish.");
++  const requestId = readPendingWish(userId) || crypto.randomUUID();
++  memory.set(userId, requestId);
++  try { storage()?.setItem(PREFIX + userId, requestId); } catch { /* Keep the memory fallback. */ }
++  return requestId;
++}
++export function completeWishRequest(userId: string, requestId: string): void {
++  if (readPendingWish(userId) !== requestId) return;
++  memory.delete(userId);
++  try { storage()?.removeItem(PREFIX + userId); } catch { /* No further write is needed. */ }
++}
+--- /dev/null
++++ b/lib/scanner/acceptance.ts
+@@ -0,0 +1,12 @@
++import type { ScannerCandidate } from "./types";
++
++/** Automatic inventory writes need identity proof as well as visual similarity. */
++export function shouldAutomaticallyAccept(candidates: ScannerCandidate[]): boolean {
++  const best = candidates[0];
++  if (!best || best.confidence < 95 || best.evidenceCount < 4 ||
++    best.visualFrameCount < 2 || (best.visualAgreement ?? 0) < 0.94 ||
++    (best.visualConfidence ?? 0) < 84 || best.evidence.name < 0.84 ||
++    !best.exactCollector || !best.exactSet || best.identityConflicts?.length) return false;
++  const second = candidates[1];
++  return !second || best.confidence - second.confidence >= 5;
++}
+--- a/lib/scanner/identify.ts
++++ b/lib/scanner/identify.ts
+@@ -23,6 +23,7 @@
+ type IdentifyOptions = {
+   automatic?: boolean;
+   diagnostics?: boolean;
++  signal?: AbortSignal;
+ };
+ 
+ function supportsFastVerification(response: VisualSearchResponse): boolean {
+@@ -50,6 +51,7 @@
+     captureMs: number,
+     options: IdentifyOptions = {},
+   ): Promise<ScannerIdentification> {
++    options.signal?.throwIfAborted();
+     const totalStarted = performance.now();
+     const selectedFrames = [...frames]
+       .sort((left, right) => right.qualityWeight - left.qualityWeight)
+@@ -61,6 +63,7 @@
+     const visualResponse = await adminFetch<VisualSearchResponse>(
+       "/api/admin/scanner/visual-search",
+       {
++        signal: options.signal,
+         method: "POST",
+         body: JSON.stringify({
+           frames: selectedFrames.slice(0, 2)
+@@ -75,6 +78,7 @@
+       error: error instanceof Error ? error.message : "The visual search request failed.",
+       matches: [],
+     }));
++    options.signal?.throwIfAborted();
+     const visualMs = performance.now() - visualStarted;
+ 
+     const fastVisual = supportsFastVerification(visualResponse);
+@@ -103,6 +107,7 @@
+           options,
+         )
+         : await this.ocr.recogniseFrames(selectedFrames, options);
++    options.signal?.throwIfAborted();
+     const evidence = buildConsensus(recognised.observations);
+ 
+     this.onProgress("Calibrating match confidence", 74);
+@@ -124,11 +129,13 @@
+         limit: 180,
+       };
+       const response = await adminFetch<CandidateResponse>("/api/admin/scanner/candidates", {
++        signal: options.signal,
+         method: "POST",
+         body: JSON.stringify(request),
+       });
+       ocrCards = response.cards;
+     }
++    options.signal?.throwIfAborted();
+     const candidateMs = performance.now() - candidateStarted;
+ 
+     let candidates = scoreImageFirstMatches(visualResponse.matches, evidence);
+@@ -191,16 +198,4 @@
+   }
+ }
+ 
+-export function shouldAutomaticallyAccept(candidates: ScannerCandidate[]): boolean {
+-  const best = candidates[0];
+-  if (
+-    !best || best.confidence < 95 || best.evidenceCount < 3 ||
+-    best.visualFrameCount < 2
+-  ) return false;
+-  const second = candidates[1];
+-  const margin = second ? best.confidence - second.confidence : 20;
+-  return margin >= 5 && (
+-    (best.exactCollector && best.exactSet) ||
+-    (best.exactCollector && (best.visualConfidence || 0) >= 84)
+-  );
+-}
++export { shouldAutomaticallyAccept } from "./acceptance";
+--- a/lib/scanner/ocr-engine.ts
++++ b/lib/scanner/ocr-engine.ts
+@@ -306,7 +306,9 @@
+     }
+ 
+     const nameReads: OcrReading[] = [];
+-    if (!collectorFractions.length) {
++    // A footer fraction alone cannot distinguish similar artwork or misread variants.
++    // One short name pass provides independent confirmation for automatic intake.
++    {
+       this.onProgress("Verifying card name", 68);
+       const nameVariant = qualityVariant(frame, "name");
+       nameReads.push(await this.read(
+--- a/lib/scanner/scoring.ts
++++ b/lib/scanner/scoring.ts
+@@ -103,6 +103,24 @@
+   const hp = numeric(card.hp);
+   if (hp && evidence.hpValues.some((item) => item.value === hp)) return 1;
+   return 0;
++}
++
++export function identityConflicts(card: ScannerPokemonCard, evidence: ScannerEvidence): string[] {
++  const conflicts: string[] = [];
++  const number = normaliseCollector(card.card_no || "");
++  const total = numeric(card.set_printed_total);
++  const reliableFractions = evidence.collectorFractions.filter((item) => item.confidence >= 0.82 || item.weight >= 1.25);
++  if (number && reliableFractions.some((item) => normaliseCollector(item.numerator) !== number)) conflicts.push("Collector number needs confirmation");
++  if (total && reliableFractions.some((item) => item.denominator !== null && item.denominator !== total)) conflicts.push("Printed set total needs confirmation");
++  const names = evidence.names.filter((item) => item.weight >= 1.25);
++  if (names.length && names.every((item) => nameSimilarity(card.name, item.value) < 0.55)) conflicts.push("Card name needs confirmation");
++  const hp = numeric(card.hp);
++  const hpReads = evidence.hpValues.filter((item) => item.weight >= 1.25);
++  if (hp && hpReads.length && hpReads.every((item) => item.value !== hp)) conflicts.push("HP needs confirmation");
++  const code = card.set_code || card.set_id;
++  const codes = evidence.setCodes.filter((item) => item.weight >= 1.25);
++  if (code && codes.length && codes.every((item) => setCodeSimilarity(code, item.value) < 0.55)) conflicts.push("Set code needs confirmation");
++  return conflicts;
+ }
+ 
+ export function scoreCandidates(
+@@ -160,6 +178,8 @@
+       exactSet,
+       visualConfidence: null,
+       visualFrameCount: 0,
++      visualAgreement: 0,
++      identityConflicts: identityConflicts(card, evidence),
+       visualBreakdown: null,
+       reasons,
+     };
+@@ -220,6 +240,7 @@
+       evidenceCount: (text?.evidenceCount || 0) + visualSignals + agreementSignal,
+       visualConfidence: Math.round(visual * 100),
+       visualFrameCount: match.frameCount,
++      visualAgreement: match.agreement,
+       visualBreakdown: breakdown,
+       reasons: [
+         `Whole-catalogue image match ${Math.round(visual * 100)}%`,
+@@ -227,6 +248,7 @@
+           ? ["Artwork agreed across captured frames"]
+           : []),
+         ...(text?.reasons || []),
++        ...(text?.identityConflicts || []),
+       ],
+     };
+   }).sort((left, right) => right.rawScore - left.rawScore);
+--- a/lib/scanner/types.ts
++++ b/lib/scanner/types.ts
+@@ -88,6 +88,8 @@
+   exactSet: boolean;
+   visualConfidence: number | null;
+   visualFrameCount: number;
++  visualAgreement?: number;
++  identityConflicts?: string[];
+   visualBreakdown: VisualBreakdown | null;
+   reasons: string[];
+ };
+--- /dev/null
++++ b/scripts/core-regression.cjs
+@@ -0,0 +1,183 @@
++/* Offline behavioural regressions. Uses the project's TypeScript compiler; no extra dependency. */
++const test = require("node:test");
++const assert = require("node:assert/strict");
++const fs = require("node:fs");
++const path = require("node:path");
++const Module = require("node:module");
++const ts = require("typescript");
++const root = path.resolve(__dirname, "..");
++
++function loader(overrides = {}) {
++  const cache = new Map();
++  function load(relative) {
++    let filename = path.resolve(root, relative);
++    if (!path.extname(filename)) filename += ".ts";
++    const key = path.relative(root, filename).split(path.sep).join("/");
++    if (key in overrides) return overrides[key];
++    if (cache.has(filename)) return cache.get(filename).exports;
++    const mod = new Module(filename, module);
++    mod.filename = filename;
++    mod.paths = Module._nodeModulePaths(path.dirname(filename));
++    cache.set(filename, mod);
++    mod.require = (request) => request.startsWith("@/") ? load(request.slice(2))
++      : request.startsWith(".") ? load(path.resolve(path.dirname(filename), request))
++      : require(request);
++    const output = ts.transpileModule(fs.readFileSync(filename, "utf8"), {
++      compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, esModuleInterop: true },
++      fileName: filename,
++    }).outputText;
++    mod._compile(output, filename);
++    return mod.exports;
++  }
++  return load;
++}
++const load = loader();
++const { parseBrowseFilters, writeBrowseFilters } = load("lib/player/browseFilters");
++const { searchPlayerRoutes, PLAYER_ROUTES, isRouteActive } = load("lib/player/routes");
++const { createLatestSave } = load("lib/client/latestSave");
++const { shouldAutomaticallyAccept } = load("lib/scanner/acceptance");
++const { scoreCandidates, scoreImageFirstMatches, calibrateCandidates } = load("lib/scanner/scoring");
++
++test("browse filters round-trip Unicode, favourites and the selected page", () => {
++  const query = "?q=Flab%C3%A9b%C3%A9&set=Scarlet+%26+Violet&rarity=Rare&page=4&favourites=1&campaign=friend";
++  const filters = parseBrowseFilters(query);
++  assert.equal(filters.search, "Flabébé");
++  assert.equal(filters.page, 4);
++  assert.equal(filters.favouritesOnly, true);
++  assert.deepEqual(parseBrowseFilters(writeBrowseFilters(query, filters)), filters);
++  assert.equal(new URLSearchParams(writeBrowseFilters(query, filters)).get("campaign"), "friend");
++});
++test("malformed pages and availability never reach database pagination", () => {
++  for (const page of ["NaN", "Infinity", "-1", "2.5", "9007199254740992"]) assert.equal(parseBrowseFilters(`page=${page}&availability=all_stock`).page, 1);
++  assert.equal(parseBrowseFilters("page=999999&availability=all_stock").page, 100000);
++  assert.equal(parseBrowseFilters("availability=all_stock").availability, "all");
++});
++test("clearing filters removes the saved page, search and favourites", () => {
++  assert.equal(writeBrowseFilters("q=test&page=4&favourites=1", parseBrowseFilters("")), "");
++});
++test("navigation keeps merged destinations and resolves recharge correctly", () => {
++  for (const route of ["/trade", "/support", "/orders", "/history"]) assert.equal(PLAYER_ROUTES.some((item) => item.href === route), false);
++  assert.equal(isRouteActive("/wishes/shop", "/wishes"), false);
++  assert.equal(isRouteActive("/wishes/shop", "/wishes/shop"), true);
++  assert.ok(searchPlayerRoutes("shipping").some((item) => item.href === "/shipping"));
++  assert.ok(searchPlayerRoutes("history").some((item) => item.href === "/constellation?panel=history"));
++});
++test("rapid preference edits are coalesced and never written concurrently", async () => {
++  let finishFirst;
++  const calls = [];
++  let concurrent = 0;
++  const save = createLatestSave(async (value) => {
++    assert.equal(++concurrent, 1);
++    calls.push(value);
++    if (value === 1) await new Promise((resolve) => { finishFirst = resolve; });
++    concurrent--;
++  });
++  const done = save(1);
++  await Promise.resolve();
++  save(2); save(3);
++  finishFirst();
++  await done;
++  assert.deepEqual(calls, [1, 3]);
++  await save(4);
++  assert.deepEqual(calls, [1, 3, 4]);
++});
++test("a failed save does not permanently lock the save lane", async () => {
++  const calls = [];
++  const save = createLatestSave(async (value) => { calls.push(value); if (value === 1) throw new Error("offline"); });
++  await assert.rejects(save(1), /offline/);
++  await save(2);
++  assert.deepEqual(calls, [1, 2]);
++});
++
++test("wish recovery survives a module reload and remains scoped to its account", () => {
++  const values = new Map();
++  global.window = { sessionStorage: { getItem: (key) => values.get(key) || null, setItem: (key, value) => values.set(key, value), removeItem: (key) => values.delete(key) } };
++  try {
++    const first = loader()("lib/player/wishRequest");
++    const request = first.getOrCreateWishRequest("player-a");
++    const afterReload = loader()("lib/player/wishRequest");
++    assert.equal(afterReload.getOrCreateWishRequest("player-a"), request);
++    assert.notEqual(afterReload.getOrCreateWishRequest("player-b"), request);
++    afterReload.completeWishRequest("player-a", "stale-response");
++    assert.equal(afterReload.readPendingWish("player-a"), request);
++    afterReload.completeWishRequest("player-a", request);
++    assert.equal(afterReload.readPendingWish("player-a"), null);
++    assert.notEqual(afterReload.getOrCreateWishRequest("player-a"), request);
++  } finally { delete global.window; }
++});
++test("blocked storage still supports an in-memory wish retry", () => {
++  global.window = { get sessionStorage() { throw new Error("blocked"); } };
++  try {
++    const requests = loader()("lib/player/wishRequest");
++    assert.equal(requests.getOrCreateWishRequest("player"), requests.getOrCreateWishRequest("player"));
++    assert.throws(() => requests.getOrCreateWishRequest(""), /Sign in/);
++  } finally { delete global.window; }
++});
++
++const card = { id: "trumbeak-67", name: "Trumbeak", rarity: "Common", set_name: "Pitch Black", set_id: "BETS", set_code: "BETS", set_printed_total: 84, card_no: "67", hp: 90, image_url: null, image_url_large: null, market_value: null, api_id: null, supertype: "Pokémon", subtypes: null };
++const evidence = { names: [{ value: "Trumbeak", weight: 2.9 }], collectorNumbers: [{ value: "67", weight: 1.7 }], collectorFractions: [{ numerator: "67", denominator: 84, raw: "067/084", confidence: .92, weight: 1.8 }], setCodes: [{ value: "BETS", weight: 1.8 }], hpValues: [{ value: 90, weight: 1.7 }], observations: 2 };
++const match = { card, similarity: .96, agreement: .98, frameCount: 2, orientation: 0, breakdown: { artwork: .97, fullCard: .96, edge: .95, colour: .93 } };
++const good = calibrateCandidates(scoreImageFirstMatches([match], evidence))[0];
++test("independently verified two-frame identity is eligible for automatic intake", () => assert.equal(shouldAutomaticallyAccept([good]), true));
++for (const [name, change] of Object.entries({
++  "a single frame": { visualFrameCount: 1 },
++  "frames that disagree": { visualAgreement: .7 },
++  "missing agreement": { visualAgreement: undefined },
++  "a weak image match": { visualConfidence: 83 },
++  "an unproven collector number": { exactCollector: false },
++  "an unproven set": { exactSet: false },
++  "footer-only evidence": { evidence: { ...good.evidence, name: 0 } },
++  "an identity conflict": { identityConflicts: ["HP needs confirmation"] },
++  "low overall confidence": { confidence: 94 },
++})) test(`automatic intake rejects ${name}`, () => assert.equal(shouldAutomaticallyAccept([{ ...good, ...change }]), false));
++test("near-identical runners-up require a manual choice", () => assert.equal(shouldAutomaticallyAccept([good, { ...good, confidence: good.confidence - 4 }]), false));
++for (const [name, change] of Object.entries({
++  "wrong collector number": { collectorFractions: [{ ...evidence.collectorFractions[0], numerator: "68" }] },
++  "wrong printed total": { collectorFractions: [{ ...evidence.collectorFractions[0], denominator: 85 }] },
++  "wrong name": { names: [{ value: "Charizard", weight: 2 }] },
++  "wrong HP": { hpValues: [{ value: 150, weight: 2 }] },
++})) test(`strong artwork cannot automatically override a ${name}`, () => {
++  const candidates = calibrateCandidates(scoreImageFirstMatches([match], { ...evidence, ...change }));
++  assert.ok(candidates[0].identityConflicts.length > 0);
++  assert.equal(shouldAutomaticallyAccept(candidates), false);
++});
++test("the earlier low-OCR Trumbeak recovery still appears as a strong candidate", () => {
++  const candidates = calibrateCandidates(scoreCandidates([card], { ...evidence, collectorNumbers: [{ value: "67", weight: .98 }], collectorFractions: [{ numerator: "67", denominator: 84, raw: "067/084", confidence: .22, weight: .35 }] }));
++  assert.ok(candidates[0].exactCollector && candidates[0].exactSet && candidates[0].confidence >= 95);
++  assert.equal(shouldAutomaticallyAccept(candidates), false, "OCR-only recognition still needs confirmation");
++});
++
++test("cancelled recognition stops before OCR or candidate lookups", async () => {
++  const controller = new AbortController();
++  let finishVisual;
++  let calls = 0;
++  let ocrCalls = 0;
++  const { CardIdentifier } = loader({
++    "lib/admin/client-auth.ts": { adminFetch: () => { calls++; return new Promise((resolve) => { finishVisual = resolve; }); } },
++    "lib/scanner/compact-visual.ts": { fingerprintCanvasOrientations: () => [] },
++    "lib/scanner/ocr-engine.ts": { ScannerOcrEngine: class { async recogniseFrames() { ocrCalls++; } } },
++  })("lib/scanner/identify");
++  const identifier = new CardIdentifier(() => {});
++  const result = identifier.identify([{ id: "frame", qualityWeight: 1, canvas: {} }], 240, { signal: controller.signal });
++  controller.abort();
++  finishVisual({ ready: false, matches: [], indexedCount: 0, totalCount: 0 });
++  await assert.rejects(result, { name: "AbortError" });
++  assert.equal(calls, 1);
++  assert.equal(ocrCalls, 0);
++  await assert.rejects(identifier.identify([], 0, { signal: controller.signal }), { name: "AbortError" });
++  assert.equal(calls, 1);
++});
++test("invalid inventory quantities are rejected before database access", async () => {
++  const route = loader({ "lib/admin/server-auth.ts": {
++    requireAdmin: async () => ({ admin: { from() { throw new Error("Unexpected database access"); } } }),
++    adminErrorResponse(error) { throw error; },
++  } })("app/api/admin/inventory/add/route");
++  for (const quantity of [0, -1, 1.5, 10000, "", null, "NaN", true]) {
++    const response = await route.POST(new Request("https://example.test/api/admin/inventory/add", { method: "POST", body: JSON.stringify({ cardId: "123", quantity }) }));
++    assert.equal(response.status, 400);
++    assert.equal((await response.json()).error.code, "quantity_invalid");
++  }
++  const { readInventoryQuantity } = load("lib/admin/inventory-input");
++  assert.equal(readInventoryQuantity("3"), 3);
++  assert.equal(readInventoryQuantity(9999), 9999);
++});
+--- a/scripts/release-preflight.mjs
++++ b/scripts/release-preflight.mjs
+@@ -207,17 +207,19 @@
+   'redirect("/constellation?panel=history")',
+ ]);
+ requireText("components/CardScanner.tsx", [
+-  'VERSION = "52.0-visual-fast-path"',
++  'VERSION = "68.0-verified-intake"',
+   "ensureIdentifier().warmup()",
+   "trackedRef.current.length >= 2",
+-  'automatic: mode === "automatic"',
++  'automatic: modeRef.current === "automatic"',
+ ]);
+ requireText("lib/scanner/identify.ts", [
+   "supportsFastVerification",
+   "recogniseVerificationFrame",
+   'strategy === "recovery" && evidenceLooksUseful(evidence)',
+-  "best.visualFrameCount < 2",
+-]);
++]);
++requireText("lib/scanner/acceptance.ts", ["best.visualFrameCount < 2", "best.visualAgreement", "best.identityConflicts"]);
++requireText("lib/player/wishRequest.ts", ["sessionStorage", "getOrCreateWishRequest", "completeWishRequest"]);
++requireText("components/CardScanner.tsx", ["capture.session !== sessionRef.current", "recognitionAbortRef.current?.abort()"]);
+ requireText("app/api/admin/scanner/visual-search/route.ts", [
+   "COARSE_SHORTLIST = 512",
+   "compareCompactCoarseDecoded",

@@ -1,0 +1,33 @@
+ANCIENT PULLS V67.16 — HIGH-SPEED SCANNER RELEASE
+
+1. If V67.15 is not already installed, run:
+   supabase/migrations/20260901_wish_request_schema_collision_v6715.sql
+2. Deploy the V67.16 application files. This scanner release needs no new SQL.
+3. Open Admin > Add, enable Diagnostics and confirm the whole-catalogue visual
+   index is complete before testing automatic intake.
+4. Start the camera with the guide empty, choose Automatic, scan ten ordinary
+   cards, and confirm strong matches report the visual-verify strategy. Ambiguous
+   cards must report recovery and remain available for confirmation.
+5. Export the confirmed benchmark decisions and run:
+   npm run benchmark:scanner -- --input ./scanner-results.json
+6. Confirm automatic intake never accepts a one-frame image or a result without
+   two-frame visual agreement plus exact collector evidence.
+
+WHAT CHANGED
+- Strong visual matches use a targeted collector-number verification pass instead
+  of full name, number, set and HP OCR on every frame.
+- Human-confirmation scans use the strong visual result immediately without OCR;
+  automatic intake still performs collector verification.
+- Full OCR and candidate lookup remain available as an automatic recovery path.
+- Catalogue matching now uses a 512-card coarse shortlist before exact two-frame
+  comparison and caches reference metadata for repeated scans.
+- OCR starts warming during camera calibration.
+- Normal scanning no longer builds diagnostic JPEGs or large temporary rotated
+  canvases for every captured frame.
+- Stable capture completes after two useful frames and enforces two-frame safety
+  before any automatic inventory write.
+
+SAFETY
+Visual identity still searches the closed indexed catalogue. OCR only verifies or
+disambiguates a result. Any weak, close, contradictory or single-frame result goes
+to human confirmation; the speed path does not lower the automatic-add threshold.

@@ -7,16 +7,6 @@ export const dynamic = "force-dynamic";
 
 type Founder = "lukas" | "skye";
 
-class RouteError extends Error {
-  readonly status: number;
-
-  constructor(message: string, status: number) {
-    super(message);
-    this.name = "RouteError";
-    this.status = status;
-  }
-}
-
 type MoodId =
   | "sleeping"
   | "morning"
@@ -304,13 +294,11 @@ function founderFromUser(
         .POCKETPULLS_SKYE_USER_IDS,
     );
 
-  const lukasEmails = [
-    "pullspocket@gmail.com",
-    ...readList(
+  const lukasEmails =
+    readList(
       process.env
         .POCKETPULLS_LUKAS_EMAILS,
-    ),
-  ].map((email) =>
+    ).map((email) =>
       email.toLowerCase(),
     );
 
@@ -703,13 +691,6 @@ export async function GET(
 
     const viewerFounder =
       founderFromUser(user);
-
-    if (!viewerFounder) {
-      throw new RouteError(
-        "Only the configured Lukas and Skye founder accounts can access Shaymin's founder status.",
-        403,
-      );
-    }
 
     const now = new Date();
 
@@ -1321,10 +1302,7 @@ export async function GET(
             : "Shaymin could not sense the forest.",
       },
       {
-        status:
-          error instanceof RouteError
-            ? error.status
-            : 500,
+        status: 500,
 
         headers: {
           "Cache-Control":

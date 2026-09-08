@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect } from "react";
+import { createPortal } from "react-dom";
+import useModalFocus from "@/lib/client/useModalFocus";
 
 import {
   CardArtwork,
@@ -43,26 +44,13 @@ export default function PlayerCardModal({
   signatureBusy?: boolean;
   showShippingLink?: boolean;
 }) {
-  useEffect(() => {
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+  const modalRef = useModalFocus<HTMLDivElement>(true, onClose);
+  if (typeof document === "undefined") return null;
 
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        onClose();
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [onClose]);
-
-  return (
+  return createPortal(
     <div
+      ref={modalRef}
+      tabIndex={-1}
       className="fixed inset-0 z-[10000] flex items-center justify-center overflow-y-auto bg-[#02020f]/92 p-4 backdrop-blur-xl"
       role="dialog"
       aria-modal="true"
@@ -83,12 +71,12 @@ export default function PlayerCardModal({
           ×
         </button>
 
-        <div className="flex min-h-[30rem] items-center justify-center border-b border-white/10 p-8 lg:border-b-0 lg:border-r">
+        <div className="flex min-h-0 items-center justify-center border-b border-white/10 p-5 sm:p-8 lg:border-b-0 lg:border-r">
           <CardArtwork
             name={card.name}
             imageUrl={card.imageUrl}
             rarity={card.rarity}
-            className="aspect-[0.716] w-full max-w-[21rem] rounded-2xl border border-white/15 shadow-[0_30px_85px_rgba(0,0,0,0.6)]"
+            className="aspect-[0.716] w-full max-w-[min(16rem,40dvh)] lg:max-w-[21rem] rounded-2xl border border-white/15 shadow-[0_30px_85px_rgba(0,0,0,0.6)]"
           />
         </div>
 
@@ -151,7 +139,8 @@ export default function PlayerCardModal({
             />
           </div>
 
-          <div className="mt-7 flex flex-col gap-3 sm:flex-row">
+          {showShippingLink && card.quantity ? <Link href={`/constellation?card=${encodeURIComponent(card.id)}`} onClick={onClose} className="mt-5 inline-flex min-h-11 items-center text-sm font-semibold text-cyan-100/80 hover:text-white">✧ Find this card in my constellation →</Link> : null}
+          <div className="mt-5 flex flex-col gap-3 sm:flex-row">
             {onSetSignature ? (
               <PlayerSecondaryButton
                 onClick={onSetSignature}
@@ -177,17 +166,17 @@ export default function PlayerCardModal({
 
             {showShippingLink ? (
               <Link
-                href="/orders?panel=shipping"
+                href={`/shipping?card=${encodeURIComponent(card.id)}#select-cards`}
                 onClick={onClose}
                 className="flex min-h-12 flex-1 items-center justify-center rounded-xl bg-gradient-to-r from-[#e7ad46] via-[#48d5ca] to-[#d84f78] px-5 text-sm font-black text-[#111329] transition hover:-translate-y-0.5 hover:brightness-110"
               >
-                Choose for shipping
+                Shipping centre
               </Link>
             ) : null}
           </div>
         </div>
       </article>
-    </div>
+    </div>, document.body,
   );
 }
 

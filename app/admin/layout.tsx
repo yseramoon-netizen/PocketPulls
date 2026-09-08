@@ -17,7 +17,6 @@ import {
   adminFetch,
   clearAdminGate,
   readAdminGate,
-  writeAdminGate,
 } from "@/lib/admin/client-auth";
 import { adminSupabase as supabase } from "@/lib/admin/supabase";
 
@@ -30,22 +29,8 @@ type AdminSessionResponse = {
   admin: {
     userId: string;
     email: string;
-    aal: "aal1" | "aal2" | null;
-    founder: "lukas" | "skye" | null;
-    mfaRequired: boolean;
   };
 };
-
-const FOUNDER_ADMIN_PATHS = [
-  "/admin/shaymin",
-  "/admin/tree",
-] as const;
-
-function isFounderAdminPath(pathname: string): boolean {
-  return FOUNDER_ADMIN_PATHS.some(
-    (path) => pathname === path || pathname.startsWith(`${path}/`),
-  );
-}
 
 function getSignInPath(
   pathname: string,
@@ -67,17 +52,19 @@ export default function AdminLayout({
   const pathname = usePathname();
   const router = useRouter();
 
+  const [allowed, setAllowed] =
+    useState(false);
+
+  const [checking, setChecking] =
+    useState(true);
+
   const isSignIn =
     pathname === "/admin/sign-in";
 
-  const [verifiedPathname, setVerifiedPathname] =
-    useState<string | null>(null);
-
-  const allowed =
-    verifiedPathname === pathname;
-
   useEffect(() => {
     if (isSignIn) {
+      setAllowed(true);
+      setChecking(false);
       return;
     }
 
@@ -108,31 +95,16 @@ export default function AdminLayout({
 
         if (
           session.admin.userId !==
-          gate.userId ||
-          session.admin.aal !== "aal2"
+          gate.userId
         ) {
           throw new Error(
             "The active admin did not match the account that unlocked the administrator gateway.",
           );
         }
 
-        if (
-          isFounderAdminPath(pathname) &&
-          !session.admin.founder
-        ) {
-          router.replace("/admin");
-          return;
-        }
-
         if (active) {
-          writeAdminGate({
-            userId: session.admin.userId,
-            email: session.admin.email,
-            founder: session.admin.founder,
-            verifiedAt: Date.now(),
-            aal2: true,
-          });
-          setVerifiedPathname(pathname);
+          setAllowed(true);
+          setChecking(false);
         }
       } catch {
         clearAdminGate();
@@ -159,7 +131,7 @@ export default function AdminLayout({
           active
         ) {
           clearAdminGate();
-          setVerifiedPathname(null);
+          setAllowed(false);
           router.replace(
             getSignInPath(pathname),
           );
@@ -181,7 +153,7 @@ export default function AdminLayout({
     return children;
   }
 
-  if (!allowed) {
+  if (checking || !allowed) {
     return (
       <main className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden bg-[#03130d] px-5 text-white">
         <ForestBackground />

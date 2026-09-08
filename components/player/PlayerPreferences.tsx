@@ -5,12 +5,14 @@ import {
   useCallback,
   useEffect,
   useRef,
+  useMemo,
   useState,
 } from "react";
 import { createPortal } from "react-dom";
+import { createLatestSave } from "@/lib/client/latestSave";
+import useModalFocus from "@/lib/client/useModalFocus";
 
 import {
-  applyPlayerPreferences,
   DEFAULT_PLAYER_PREFERENCES,
   normalisePlayerPreferences,
   playerPreferencesRpcPayload,
@@ -26,6 +28,8 @@ export default function PlayerPreferencesPanel() {
   const router = useRouter();
   const pathname = usePathname();
   const closeButtonRef = useRef<HTMLButtonElement | null>(null);
+  const mountedRef = useRef(false);
+  const revisionRef = useRef(0);
   const saveTimerRef = useRef<number | null>(null);
   const initialPreferencesRef = useRef<PlayerPreferences | null>(null);
   if (initialPreferencesRef.current === null) {
@@ -44,35 +48,30 @@ export default function PlayerPreferencesPanel() {
     initialPreferencesRef.current,
   );
 
-  const savePreferences = useCallback(async (next: PlayerPreferences) => {
-    setSaveState("saving");
-
-    const { data, error } = await supabase.rpc(
-      "update_player_preferences",
-      playerPreferencesRpcPayload(next),
-    );
-
-    if (error) {
-      console.warn("Player preferences could not sync:", error.message);
+  const savePreferences = useMemo(() => createLatestSave(async (write: { preferences: PlayerPreferences; revision: number }) => {
+    const next = write.preferences;
+    try {
+      const { data, error } = await supabase.rpc(
+        "update_player_preferences", playerPreferencesRpcPayload(next),
+      );
+      if (error) throw error;
+      if (!mountedRef.current || revisionRef.current !== write.revision) return;
+      const saved = normalisePlayerPreferences(Array.isArray(data) ? data[0] : data, next);
+      latestPreferencesRef.current = saved;
+      setPreferences(saved);
+      publishPlayerPreferences(saved);
+      setServerAvailable(true);
+      setSaveState("saved");
+    } catch {
+      if (!mountedRef.current || revisionRef.current !== write.revision) return;
       setServerAvailable(false);
       setSaveState("local");
-      return;
     }
-
-    const saved = normalisePlayerPreferences(
-      Array.isArray(data) ? data[0] : data,
-      next,
-    );
-
-    latestPreferencesRef.current = saved;
-    setPreferences(saved);
-    publishPlayerPreferences(saved);
-    setServerAvailable(true);
-    setSaveState("saved");
-  }, []);
+  }), []);
 
   const queueSave = useCallback(
     (next: PlayerPreferences) => {
+      revisionRef.current += 1;
       latestPreferencesRef.current = next;
       publishPlayerPreferences(next);
 
@@ -84,7 +83,7 @@ export default function PlayerPreferencesPanel() {
 
       saveTimerRef.current = window.setTimeout(() => {
         saveTimerRef.current = null;
-        void savePreferences(latestPreferencesRef.current);
+        void savePreferences({ preferences: latestPreferencesRef.current, revision: revisionRef.current });
       }, 520);
     },
     [savePreferences, serverAvailable],
@@ -92,16 +91,16 @@ export default function PlayerPreferencesPanel() {
 
   const updatePreferences = useCallback(
     (change: Partial<PlayerPreferences>) => {
-      setPreferences((current) => {
-        const next = normalisePlayerPreferences({ ...current, ...change }, current);
-        queueSave(next);
-        return next;
-      });
+      const current = latestPreferencesRef.current;
+      const next = normalisePlayerPreferences({ ...current, ...change }, current);
+      queueSave(next);
+      setPreferences(next);
     },
     [queueSave],
   );
 
   useEffect(() => {
+    mountedRef.current = true;
     const cached = initialPreferencesRef.current ?? DEFAULT_PLAYER_PREFERENCES;
     publishPlayerPreferences(cached);
 
@@ -120,6 +119,10 @@ export default function PlayerPreferencesPanel() {
         return;
       }
 
+      if (revisionRef.current > 0) {
+        setLoaded(true);
+        return;
+      }
       const synced = normalisePlayerPreferences(
         Array.isArray(data) ? data[0] : data,
         cached,
@@ -135,42 +138,21 @@ export default function PlayerPreferencesPanel() {
 
     return () => {
       active = false;
-
+      mountedRef.current = false;
       if (saveTimerRef.current !== null) {
         window.clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = null;
+        void savePreferences({ preferences: latestPreferencesRef.current, revision: revisionRef.current });
       }
-
-      applyPlayerPreferences(DEFAULT_PLAYER_PREFERENCES);
     };
-  }, []);
+  }, [savePreferences]);
 
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => setOpen(false));
     return () => window.cancelAnimationFrame(frame);
   }, [pathname]);
 
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-
-    const frame = window.requestAnimationFrame(() => {
-      closeButtonRef.current?.focus();
-    });
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setOpen(false);
-      }
-    };
-
-    document.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      window.cancelAnimationFrame(frame);
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [open]);
+  const panelRef = useModalFocus<HTMLElement>(open, () => setOpen(false));
 
   const statusLabel = saveState === "saving"
     ? "Saving…"
@@ -188,6 +170,8 @@ export default function PlayerPreferencesPanel() {
       />
 
       <section
+        ref={panelRef}
+        tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-labelledby="player-preferences-title"
@@ -212,6 +196,10 @@ export default function PlayerPreferencesPanel() {
             </h2>
             <p className="mt-1 text-xs font-bold text-white/38">
               {loaded ? statusLabel : "Reading your settings…"}
+              {saveState === "local" ? <button type="button" className="ml-2 text-cyan-200 underline underline-offset-4" onClick={() => {
+                setSaveState("saving");
+                void savePreferences({ preferences: latestPreferencesRef.current, revision: revisionRef.current });
+              }}>Retry sync</button> : null}
             </p>
           </div>
 

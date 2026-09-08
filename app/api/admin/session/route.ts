@@ -1,7 +1,6 @@
 import {
   adminErrorResponse,
   requireAdmin,
-  resolveFounderIdentity,
 } from "@/lib/admin/server-auth";
 
 export const runtime = "nodejs";
@@ -15,11 +14,8 @@ export async function GET(
     const {
       user,
       email,
-      aal,
     } =
-      await requireAdmin(request, {
-        requireMfa: false,
-      });
+      await requireAdmin(request);
 
     return Response.json(
       {
@@ -27,9 +23,6 @@ export async function GET(
         admin: {
           userId: user.id,
           email,
-          founder: resolveFounderIdentity(user),
-          aal,
-          mfaRequired: true,
         },
       },
       {

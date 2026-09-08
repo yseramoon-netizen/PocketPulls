@@ -12,6 +12,7 @@ import {
   readNebuSkin,
   type NebuSkinKey,
 } from "@/lib/player/nebu";
+import { completeWishRequest, getOrCreateWishRequest, readPendingWish } from "@/lib/player/wishRequest";
 import { supabase } from "@/lib/supabase";
 
 const WishCinematic = dynamic(
@@ -173,6 +174,9 @@ function formatDate(value: string): string {
 export default function WishesPage() {
   const replayHandledRef = useRef(false);
   const wishRequestIdRef = useRef<string | null>(null);
+  const wishUserIdRef = useRef<string | null>(null);
+  const wishBusyRef = useRef(false);
+  const [pendingWish, setPendingWish] = useState(false);
   const [dashboard, setDashboard] = useState<DashboardData>(EMPTY_DASHBOARD);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -243,6 +247,9 @@ export default function WishesPage() {
         throw new Error("Your trainer session has expired. Sign in again.");
       }
 
+      wishUserIdRef.current = user.id;
+      wishRequestIdRef.current = readPendingWish(user.id);
+      setPendingWish(Boolean(wishRequestIdRef.current));
       const [
         walletResult,
         inventoryResult,
@@ -500,10 +507,11 @@ export default function WishesPage() {
   }, [replayLatestWish]);
 
   const makeWish = useCallback(async () => {
-    if (makingWish || dashboard.wishBalance < 1) {
+    if (wishBusyRef.current || (!pendingWish && dashboard.wishBalance < 1)) {
       return;
     }
 
+    wishBusyRef.current = true;
     // Resume Web Audio while this direct player gesture is still active.
     // The reveal itself begins only after the server-authoritative wish returns.
     void primeWishAudio();
@@ -516,8 +524,14 @@ export default function WishesPage() {
     const nebuSkinBeforeWish = readNebuSkin();
 
     try {
-      const requestId = wishRequestIdRef.current || crypto.randomUUID();
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError || !session || session.user.id !== wishUserIdRef.current) {
+        throw new Error("Your account changed. Refresh this page before making a wish.");
+      }
+      const userId = session.user.id;
+      const requestId = getOrCreateWishRequest(userId);
       wishRequestIdRef.current = requestId;
+      setPendingWish(true);
 
       const { data, error } = await supabase.rpc("make_player_wish", {
         p_idempotency_key: requestId,
@@ -534,7 +548,9 @@ export default function WishesPage() {
       }
 
       const result = row as Record<string, unknown>;
-      wishRequestIdRef.current = null;
+      if (!result.wish_id || !result.card_id || !Number.isFinite(Number(result.wish_balance))) {
+        throw new Error("Your wish result is incomplete. Retry to recover the same wish.");
+      }
       const nextBalance = toWholeNumber(result.wish_balance);
       const wishId = String(result.wish_id ?? "");
       const cosmicDiscovery = wishId
@@ -567,6 +583,10 @@ export default function WishesPage() {
         cosmicSourceSkin: cosmicIssueNumber > 0 ? nebuSkinBeforeWish : null,
       });
 
+      completeWishRequest(userId, requestId);
+      wishRequestIdRef.current = null;
+      setPendingWish(false);
+      setDashboard((current) => ({ ...current, wishBalance: nextBalance }));
       window.dispatchEvent(
         new CustomEvent("pocketpulls:wish-balance", {
           detail: { wishBalance: nextBalance },
@@ -578,9 +598,10 @@ export default function WishesPage() {
         getErrorMessage(error, "Nebu could not complete that wish."),
       );
     } finally {
+      wishBusyRef.current = false;
       setMakingWish(false);
     }
-  }, [dashboard.wishBalance, makingWish]);
+  }, [dashboard.wishBalance, pendingWish]);
 
   const shippingProgress = useMemo(() => {
     return Math.min(
@@ -682,6 +703,10 @@ export default function WishesPage() {
         </div>
       ) : null}
 
+      {pendingWish && !makingWish ? <div role="status" className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-100/15 bg-amber-200/[0.06] p-5">
+        <p className="max-w-xl text-sm leading-6 text-amber-50/80">Your last wish hasn’t been confirmed on this device. Retry checks the same request, so it can’t spend a second wish.</p>
+        <button type="button" onClick={() => void makeWish()} className="min-h-11 rounded-xl bg-amber-100 px-5 text-sm font-semibold text-amber-950">Recover last wish</button>
+      </div> : null}
       <div className="mt-6 grid gap-3 sm:grid-cols-3 lg:gap-4">
         <MetricCard
           label="Wish balance"

@@ -331,3 +331,23 @@ transform:translateY(-12px);
 .holo {
   animation: holo 3s infinite;
 }
+
+/* Shared native controls and keyboard affordances match the dark application. */
+:root { color-scheme: dark; }
+select option, select optgroup { background: #0a0d20; color: #f1f5f9; }
+:where(a, button, input, select, textarea, [role="button"]):focus-visible {
+  outline: 2px solid #a5f3fc;
+  outline-offset: 3px;
+}
+button, a { -webkit-tap-highlight-color: transparent; }
+button { touch-action: manipulation; }
+.skip-link {
+  position: fixed; left: 1rem; top: 1rem; z-index: 11000;
+  transform: translateY(-180%); border-radius: .75rem;
+  background: #cffafe; color: #082f49; padding: .85rem 1.15rem;
+  font-size: .875rem; font-weight: 700;
+}
+.skip-link:focus { transform: translateY(0); }
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+}

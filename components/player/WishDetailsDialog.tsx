@@ -1,9 +1,10 @@
 "use client";
 
+import useModalFocus from "@/lib/client/useModalFocus";
+
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 
-import AsterismSigil from "@/components/player/AsterismSigil";
 import { supabase } from "@/lib/supabase";
 
 import styles from "./WishDetailsDialog.module.css";
@@ -85,21 +86,16 @@ export default function WishDetailsDialog({ open, onClose }: WishDetailsDialogPr
   const [odds, setOdds] = useState<ParsedOdds[]>([]);
   const [chaseCards, setChaseCards] = useState<ChaseCard[]>([]);
   const [cosmicIssueNumber, setCosmicIssueNumber] = useState<number | null>(null);
-  const [cosmicBinderIssueNumber, setCosmicBinderIssueNumber] = useState<number | null>(null);
 
   const loadDetails = useCallback(async () => {
     setLoading(true);
     setError(null);
 
-    const [oddsResult, chaseResult, cosmicResult, cosmicBinderResult] = await Promise.all([
+    const [oddsResult, chaseResult, cosmicResult] = await Promise.all([
       supabase.rpc("get_player_wish_odds"),
       supabase.rpc("get_player_wish_chase_cards", { p_limit: 5 }),
       supabase
         .from("cosmic_nebu_ownerships")
-        .select("issue_number")
-        .maybeSingle(),
-      supabase
-        .from("cosmic_binder_ownerships")
         .select("issue_number")
         .maybeSingle(),
     ]);
@@ -141,36 +137,19 @@ export default function WishDetailsDialog({ open, onClose }: WishDetailsDialogPr
     const issue = cosmicResult.error
       ? 0
       : Math.max(0, Math.floor(toNumber(cosmicResult.data?.issue_number)));
-    const binderIssue = cosmicBinderResult.error
-      ? 0
-      : Math.max(0, Math.floor(toNumber(cosmicBinderResult.data?.issue_number)));
 
     setOdds(nextOdds);
     setChaseCards(nextCards);
     setCosmicIssueNumber(issue > 0 ? issue : null);
-    setCosmicBinderIssueNumber(binderIssue > 0 ? binderIssue : null);
     setLoading(false);
   }, []);
 
+  const dialogRef = useModalFocus<HTMLElement>(open, onClose);
   useEffect(() => {
     if (!open) return;
-    const loadTimer = window.setTimeout(() => {
-      void loadDetails();
-    }, 0);
-
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      window.clearTimeout(loadTimer);
-      document.body.style.overflow = previousOverflow;
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [loadDetails, onClose, open]);
+    const timer = window.setTimeout(() => void loadDetails(), 0);
+    return () => window.clearTimeout(timer);
+  }, [loadDetails, open]);
 
   const totalCards = useMemo(
     () => odds.reduce((sum, row) => sum + row.cards, 0),
@@ -187,6 +166,8 @@ export default function WishDetailsDialog({ open, onClose }: WishDetailsDialogPr
       }}
     >
       <section
+        ref={dialogRef}
+        tabIndex={-1}
         className={styles.dialog}
         role="dialog"
         aria-modal="true"
@@ -236,29 +217,6 @@ export default function WishDetailsDialog({ open, onClose }: WishDetailsDialogPr
                 <div className={styles.unfoundBadge}>Still hidden in your constellation</div>
               )}
             </div>
-          </article>
-
-          <article className={styles.cosmicBinderPrize}>
-            <div className={styles.cosmicBinderMini} aria-hidden="true">
-              <AsterismSigil seed="wish-details-cosmic-binder" points={9} />
-              <span />
-            </div>
-            <div className={styles.cosmicBinderCopy}>
-              <p>✦ Separate legendary artifact</p>
-              <h3>Cosmic Binder</h3>
-              <strong>1 in 50,000 · 0.002% per completed wish</strong>
-              <span>
-                Rolled independently from Cosmic Nebu and your card. It is permanent,
-                uniquely numbered and unlocks the living Cosmic Binder style.
-              </span>
-            </div>
-            {cosmicBinderIssueNumber ? (
-              <div className={styles.ownedBadge}>
-                Discovered · #{String(cosmicBinderIssueNumber).padStart(6, "0")}
-              </div>
-            ) : (
-              <div className={styles.unfoundBadge}>Undiscovered</div>
-            )}
           </article>
 
           <div className={styles.sectionHeading}>
@@ -326,7 +284,7 @@ export default function WishDetailsDialog({ open, onClose }: WishDetailsDialogPr
           )}
 
           <p className={styles.disclaimer}>
-            Market values can move. Physical copy count does
+            Market values can move. Physical warehouse quantity affects fulfilment only; it does
             not secretly change the published rarity odds. The reveal animation never rerolls a result.
           </p>
         </div>

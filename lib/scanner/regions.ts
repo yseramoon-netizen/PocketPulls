@@ -4,7 +4,6 @@ export type CardRegionName =
   | "hp"
   | "collector"
   | "collectorRight"
-  | "footer"
   | "set"
   | "symbol"
   | "artwork";
@@ -24,7 +23,6 @@ export const CARD_REGIONS: Record<CardRegionName, CardRegion> = {
   hp: { x: 0.69, y: 0.02, width: 0.285, height: 0.08 },
   collector: { x: 0.012, y: 0.922, width: 0.56, height: 0.072 },
   collectorRight: { x: 0.51, y: 0.912, width: 0.475, height: 0.082 },
-  footer: { x: 0.008, y: 0.885, width: 0.984, height: 0.108 },
   set: { x: 0.008, y: 0.895, width: 0.68, height: 0.098 },
   symbol: { x: 0.008, y: 0.89, width: 0.255, height: 0.103 },
   artwork: { x: 0.055, y: 0.125, width: 0.89, height: 0.50 },

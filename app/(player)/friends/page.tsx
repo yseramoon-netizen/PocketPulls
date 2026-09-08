@@ -18,6 +18,8 @@ import {
   PlayerSecondaryButton,
   PlayerStatCard,
 } from "@/components/player/PlayerUI";
+import { createPortal } from "react-dom";
+import useModalFocus from "@/lib/client/useModalFocus";
 import { supabase } from "@/lib/supabase";
 
 const TradePanel = dynamic(
@@ -396,19 +398,7 @@ export default function FriendsPage() {
     }
   }, []);
 
-  useEffect(() => {
-    if (!tradeOpen) return;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") closeTrade();
-    };
-    window.addEventListener("keydown", handleEscape);
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      window.removeEventListener("keydown", handleEscape);
-    };
-  }, [closeTrade, tradeOpen]);
+  const tradeModalRef = useModalFocus<HTMLDivElement>(tradeOpen, closeTrade);
 
   const loadFriends =
     useCallback(
@@ -1073,8 +1063,10 @@ export default function FriendsPage() {
           </div>
         </PlayerPanel>
       </section>
-      {tradeOpen ? (
+      {tradeOpen ? createPortal(
         <div
+          ref={tradeModalRef}
+          tabIndex={-1}
           className="fixed inset-0 z-[1200] bg-[#01020b]/88 p-2 backdrop-blur-2xl sm:p-4"
           role="dialog"
           aria-modal="true"
@@ -1096,7 +1088,7 @@ export default function FriendsPage() {
               <TradePanel key={tradePanelKey} />
             </div>
           </div>
-        </div>
+        </div>, document.body,
       ) : null}
     </section>
   );

@@ -1,6 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import useModalFocus from "@/lib/client/useModalFocus";
+import { isRouteActive } from "@/lib/player/routes";
+import QuickNavigation from "@/components/player/QuickNavigation";
 import dynamic from "next/dynamic";
 import {
   usePathname,
@@ -174,17 +177,7 @@ const DRAWER_GROUPS: NavGroup[] = [
   },
 ];
 
-function isActive(
-  pathname: string,
-  href: string,
-): boolean {
-  return (
-    pathname === href ||
-    pathname.startsWith(
-      `${href}/`,
-    )
-  );
-}
+const isActive = isRouteActive;
 
 function getInitial(
   value: string,
@@ -279,7 +272,7 @@ export default function PlayerNav({
   const currentItem =
     useMemo(
       () =>
-        ALL_ITEMS.find(
+        [...ALL_ITEMS].sort((left, right) => right.href.length - left.href.length).find(
           (item) =>
             isActive(
               pathname,
@@ -380,50 +373,18 @@ export default function PlayerNav({
     };
   }, []);
 
+  const drawerRef = useModalFocus<HTMLElement>(drawerOpen, () => setDrawerOpen(false));
+
   useEffect(() => {
-    if (!drawerOpen) {
-      return;
-    }
-
-    const original =
-      document.body.style
-        .overflow;
-
-    document.body.style
-      .overflow =
-      "hidden";
-
-    const handleEscape =
-      (
-        event:
-          KeyboardEvent,
-      ) => {
-        if (
-          event.key ===
-          "Escape"
-        ) {
-          setDrawerOpen(
-            false,
-          );
-        }
-      };
-
-    window.addEventListener(
-      "keydown",
-      handleEscape,
-    );
-
-    return () => {
-      document.body.style
-        .overflow =
-        original;
-
-      window.removeEventListener(
-        "keydown",
-        handleEscape,
-      );
+    const dismiss = (event: PointerEvent) => {
+      const details = moreDetailsRef.current;
+      if (details?.open && event.target instanceof Node && !details.contains(event.target)) details.open = false;
     };
-  }, [drawerOpen]);
+    const escape = (event: KeyboardEvent) => { if (event.key === "Escape") closeMore(); };
+    document.addEventListener("pointerdown", dismiss);
+    document.addEventListener("keydown", escape);
+    return () => { document.removeEventListener("pointerdown", dismiss); document.removeEventListener("keydown", escape); };
+  }, []);
 
   useEffect(() => {
     const handleWishBalance =
@@ -914,6 +875,7 @@ export default function PlayerNav({
               xl:ml-2
             "
           >
+            <QuickNavigation />
             {secondaryControlsReady ? (
               <>
                 <PlayerPreferencesPanel />
@@ -1056,6 +1018,7 @@ export default function PlayerNav({
             : "pointer-events-none",
         ].join(" ")}
         aria-hidden={!drawerOpen}
+        inert={!drawerOpen}
       >
         <button
           type="button"
@@ -1072,6 +1035,11 @@ export default function PlayerNav({
         />
 
         <aside
+          ref={drawerRef}
+          role="dialog"
+          aria-modal={drawerOpen || undefined}
+          aria-label="Player menu"
+          tabIndex={-1}
           className={[
             "absolute inset-y-0 left-0 flex w-[min(88vw,22rem)] flex-col border-r border-white/10 bg-[#060819]/[0.99] shadow-[35px_0_110px_rgba(0,0,0,0.5)] transition-transform duration-300",
             drawerOpen
@@ -1168,7 +1136,11 @@ export default function PlayerNav({
             </Link>
           </div>
 
-          <div className="flex-1 overflow-y-auto px-4 py-5">
+          <div className="flex-1 overflow-y-auto overscroll-contain px-4 py-5">
+            <button type="button" className="mb-5 flex min-h-12 w-full items-center gap-3 rounded-xl border border-white/15 bg-white/[0.04] px-4 text-left text-sm text-white/60" onClick={() => {
+              setDrawerOpen(false);
+              window.requestAnimationFrame(() => window.dispatchEvent(new Event("ancientpulls:quick-navigation")));
+            }}>⌕ <span>Search pages…</span></button>
             {DRAWER_GROUPS.map(
               (group) => (
                 <section
@@ -1262,6 +1234,7 @@ function DesktopLink({
   return (
     <Link
       href={item.href}
+      aria-current={active ? "page" : undefined}
       onClick={onNavigate}
       className={[
         "flex min-h-11 items-center gap-2 rounded-xl border px-3 text-sm font-black transition",
@@ -1294,6 +1267,7 @@ function DrawerLink({
   return (
     <Link
       href={item.href}
+      aria-current={active ? "page" : undefined}
       onClick={onNavigate}
       className={[
         "relative flex min-h-12 items-center gap-3 rounded-xl border px-3 py-2 transition",

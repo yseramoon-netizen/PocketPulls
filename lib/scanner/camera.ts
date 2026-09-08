@@ -68,7 +68,7 @@ export function guideSourceCrop(
 function cropVideo(
   video: HTMLVideoElement,
   crop: ScannerSourceCrop,
-  outputWidth = 504,
+  outputWidth = 756,
 ): HTMLCanvasElement {
   const canvas = document.createElement("canvas");
   canvas.width = outputWidth;
@@ -104,21 +104,26 @@ function qualityWeight(quality: CardQuality, geometry: CardGeometry | null): num
 export function captureTrackedFrame(
   video: HTMLVideoElement,
   crop: ScannerSourceCrop,
+  includePreview = true,
 ): TrackedFrame {
   const started = performance.now();
   const geometry = detectCardGeometry(video, crop);
   const canvas = geometry && geometry.confidence >= 0.36 && geometry.aspectScore >= 0.50
-    ? rectifyCard(video, geometry, 504)
-    : cropVideo(video, crop, 504);
+    ? rectifyCard(video, geometry, 756)
+    : cropVideo(video, crop, 756);
   const quality = measureCardQuality(canvas);
   return {
     id: `frame-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
     canvas,
-    preview: previewCanvas(canvas, 280),
+    preview: includePreview ? previewCanvas(canvas, 280) : "",
     qualityWeight: qualityWeight(quality, geometry),
     geometryConfidence: geometry?.confidence ?? null,
     capturedAt: started,
   };
+}
+
+export function ensureTrackedFramePreview(frame: TrackedFrame): TrackedFrame {
+  return frame.preview ? frame : { ...frame, preview: previewCanvas(frame.canvas, 280) };
 }
 
 export function frameFingerprint(
@@ -126,59 +131,6 @@ export function frameFingerprint(
   crop: ScannerSourceCrop,
 ): FrameFingerprint | null {
   return captureFrameFingerprint(video, crop);
-}
-
-/**
- * Fast gate used before an image enters the expensive recognition pipeline.
- * Motion alone is not a card: the camera must see a centred, complete 63:88
- * trading-card rectangle with four reliable edges inside the guide.
- */
-export function detectCardInGuide(
-  video: HTMLVideoElement,
-  crop: ScannerSourceCrop,
-): CardGeometry | null {
-  const geometry = detectCardGeometry(video, crop);
-  if (!geometry) return null;
-
-  if (
-    geometry.confidence < 0.44 ||
-    geometry.aspectScore < 0.68 ||
-    geometry.edgeScore < 0.28 ||
-    geometry.coverageScore < 0.32
-  ) {
-    return null;
-  }
-
-  const [topLeft, topRight, bottomRight, bottomLeft] = geometry.corners;
-  const meanWidth = (
-    Math.hypot(topRight.x - topLeft.x, topRight.y - topLeft.y) +
-    Math.hypot(bottomRight.x - bottomLeft.x, bottomRight.y - bottomLeft.y)
-  ) / 2;
-  const meanHeight = (
-    Math.hypot(bottomLeft.x - topLeft.x, bottomLeft.y - topLeft.y) +
-    Math.hypot(bottomRight.x - topRight.x, bottomRight.y - topRight.y)
-  ) / 2;
-  const centreX = geometry.corners.reduce((sum, point) => sum + point.x, 0) / 4;
-  const centreY = geometry.corners.reduce((sum, point) => sum + point.y, 0) / 4;
-  const guideCentreX = crop.x + crop.width / 2;
-  const guideCentreY = crop.y + crop.height / 2;
-  const widthFill = meanWidth / Math.max(1, crop.width);
-  const heightFill = meanHeight / Math.max(1, crop.height);
-  const horizontalOffset = Math.abs(centreX - guideCentreX) / Math.max(1, crop.width);
-  const verticalOffset = Math.abs(centreY - guideCentreY) / Math.max(1, crop.height);
-
-  if (
-    widthFill < 0.56 ||
-    widthFill > 1.16 ||
-    heightFill < 0.62 ||
-    heightFill > 1.16 ||
-    horizontalOffset > 0.18 ||
-    verticalOffset > 0.18
-  ) {
-    return null;
-  }
-
-  return geometry;
 }
 
 export function frameDifference(

@@ -118,7 +118,7 @@ function visitFiles(directory, callback) {
   }
 }
 
-console.log(`Ancient Pulls V67.15 release preflight (${productionMode ? "production" : "source"} mode)`);
+console.log(`Ancient Pulls V67.16 release preflight (${productionMode ? "production" : "source"} mode)`);
 console.log("");
 
 const requiredFiles = [
@@ -141,6 +141,7 @@ const requiredFiles = [
   "supabase/RELEASE_DATA_AUDIT.sql",
   "ANCIENT_PULLS_V67_14_INSTALL.txt",
   "ANCIENT_PULLS_V67_15_INSTALL.txt",
+  "ANCIENT_PULLS_V67_16_INSTALL.txt",
   "RELEASE_CHECKLIST.md",
 ];
 
@@ -204,6 +205,26 @@ requireText("app/(player)/orders/page.tsx", ['redirect("/shipping#orders")']);
 requireText("app/(player)/trade/page.tsx", ['redirect("/friends?panel=trade")']);
 requireText("app/(player)/history/page.tsx", [
   'redirect("/constellation?panel=history")',
+]);
+requireText("components/CardScanner.tsx", [
+  'VERSION = "68.0-verified-intake"',
+  "ensureIdentifier().warmup()",
+  "trackedRef.current.length >= 2",
+  'automatic: modeRef.current === "automatic"',
+]);
+requireText("lib/scanner/identify.ts", [
+  "supportsFastVerification",
+  "recogniseVerificationFrame",
+  'strategy === "recovery" && evidenceLooksUseful(evidence)',
+]);
+requireText("lib/scanner/acceptance.ts", ["best.visualFrameCount < 2", "best.visualAgreement", "best.identityConflicts"]);
+requireText("lib/player/wishRequest.ts", ["sessionStorage", "getOrCreateWishRequest", "completeWishRequest"]);
+requireText("components/CardScanner.tsx", ["capture.session !== sessionRef.current", "recognitionAbortRef.current?.abort()"]);
+requireText("app/api/admin/scanner/visual-search/route.ts", [
+  "COARSE_SHORTLIST = 512",
+  "compareCompactCoarseDecoded",
+  "loadCards(admin, ids)",
+  "indexCachePromise",
 ]);
 
 let founderBetaFound = false;

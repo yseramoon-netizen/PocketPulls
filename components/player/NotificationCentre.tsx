@@ -1,5 +1,7 @@
 "use client";
 
+import useModalFocus from "@/lib/client/useModalFocus";
+
 import { usePathname, useRouter } from "next/navigation";
 import {
   useCallback,
@@ -251,19 +253,10 @@ export default function NotificationCentre() {
       closeButtonRef.current?.focus();
     });
 
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setOpen(false);
-      }
-    };
-
-    document.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      window.cancelAnimationFrame(frame);
-      document.removeEventListener("keydown", handleKeyDown);
-    };
+    return () => window.cancelAnimationFrame(frame);
   }, [loadNotifications, open]);
+
+  const panelRef = useModalFocus<HTMLElement>(open, () => setOpen(false));
 
   const markRead = useCallback((notificationKey: string) => {
     setNotifications((current) =>
@@ -281,7 +274,7 @@ export default function NotificationCentre() {
       .then(({ error }) => {
         if (error) {
           console.warn("Notification could not be marked as read:", error.message);
-          void loadNotifications(true);
+          void loadNotifications(true, true);
         }
       });
   }, [loadNotifications]);
@@ -328,6 +321,8 @@ export default function NotificationCentre() {
       />
 
       <section
+        ref={panelRef}
+        tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-labelledby="notification-centre-title"

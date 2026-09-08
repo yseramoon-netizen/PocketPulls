@@ -1,6 +1,6 @@
 import {
   adminErrorResponse,
-  requireFounderAdmin,
+  requireAdmin,
   type ServerAdminClient,
 } from "@/lib/admin/server-auth";
 import {
@@ -92,7 +92,7 @@ export async function GET(request: Request) {
     const {
       admin,
       email,
-    } = await requireFounderAdmin(request);
+    } = await requireAdmin(request);
 
     const rawTree = await loadGrowthSnapshot(admin);
     const url = new URL(request.url);

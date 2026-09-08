@@ -9,6 +9,7 @@ import {
 import {
   extractCollectorFractions,
   extractCollectorNumbers,
+  extractHpValues,
   extractNameCandidates,
   extractSetCodes,
   normaliseName,
@@ -38,8 +39,13 @@ export type FrameRecognitionResult = {
   ocrMs: number;
 };
 
+type RecognitionOptions = {
+  diagnostics?: boolean;
+};
+
 const NAME_WHITELIST = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789 .:'’-éÉ";
 const NUMBER_WHITELIST = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/-| .";
+const HP_WHITELIST = "HP0123456789 ";
 
 function qualityVariant(frame: TrackedFrame, field: "name" | "collector"): PreprocessVariant {
   if (frame.qualityWeight >= 0.76) return field === "name" ? "grey" : "adaptive";
@@ -64,6 +70,10 @@ export class ScannerOcrEngine {
 
   constructor(onProgress: RecognitionProgress) {
     this.onProgress = onProgress;
+  }
+
+  async warmup(): Promise<void> {
+    await this.ensureWorker();
   }
 
   private async ensureWorker(): Promise<TesseractWorker> {
@@ -129,8 +139,12 @@ export class ScannerOcrEngine {
   ): Promise<FrameObservation> {
     const nameRaw = cropRegion(source, CARD_REGIONS.name, 920);
     const nameWideRaw = cropRegion(source, CARD_REGIONS.nameWide, 920);
-    const footerRaw = cropRegion(source, CARD_REGIONS.footer, 1100);
+    const collectorRaw = cropRegion(source, CARD_REGIONS.collector, 920);
+    const collectorRightRaw = cropRegion(source, CARD_REGIONS.collectorRight, 820);
+    const setRaw = cropRegion(source, CARD_REGIONS.set, 920);
+    const hpRaw = cropRegion(source, CARD_REGIONS.hp, 620);
     const nameVariant = qualityVariant(frame, "name");
+    const collectorVariant = qualityVariant(frame, "collector");
     this.onProgress(`Reading frame ${index + 1} name`, 12 + index * 20);
     const nameReads: OcrReading[] = [];
     const nameRead = await this.read(
@@ -152,28 +166,72 @@ export class ScannerOcrEngine {
         "wide-adaptive",
       ));
     }
-    this.onProgress(`Reading frame ${index + 1} footer`, 24 + index * 20);
-    // One constrained footer read replaces the old collector + collector-right
-    // + set + HP sequence. The parsers below only accept plausible fractions,
-    // card numbers and known-style set-code tokens.
-    const footerRead = await this.read(
+    this.onProgress(`Reading frame ${index + 1} number`, 20 + index * 20);
+    const collectorReads: OcrReading[] = [];
+    const collectorRead = await this.read(
       worker,
-      preprocessRegion(footerRaw, qualityVariant(frame, "collector")),
-      "sparse",
+      preprocessRegion(collectorRaw, collectorVariant),
+      "line",
       NUMBER_WHITELIST,
-      "footer-adaptive",
+      collectorVariant,
     );
+    collectorReads.push(collectorRead);
+    // Some WOTC/legacy layouts print the collector line on the opposite side.
+    if (index === 0) {
+      collectorReads.push(await this.read(
+        worker,
+        preprocessRegion(collectorRightRaw, "grey"),
+        "line",
+        NUMBER_WHITELIST,
+        "right-grey",
+      ));
+    }
+    // Set and HP are supporting evidence. Read them on the sharpest two frames;
+    // a third frame is reserved for recovery rather than repeated expensive OCR.
+    const setReads: OcrReading[] = [];
+    const hpReads: OcrReading[] = [];
+    if (index < 2) {
+      this.onProgress(`Reading frame ${index + 1} set`, 27 + index * 20);
+      setReads.push(await this.read(
+        worker,
+        preprocessRegion(setRaw, "adaptive"),
+        "sparse",
+        NUMBER_WHITELIST,
+        "adaptive",
+      ));
+    }
+    if (index === 0) {
+      hpReads.push(await this.read(
+        worker,
+        preprocessRegion(hpRaw, "grey"),
+        "line",
+        HP_WHITELIST,
+        "grey",
+      ));
+    }
     const nameText = nameReads.map((read) => read.text).filter(Boolean).join("\n");
-    const footerText = footerRead.text;
-    const collectorFractions = extractCollectorFractions(
-      footerText,
-      footerRead.confidence,
-    ).filter((fraction, fractionIndex, items) => items.findIndex((candidate) =>
+    const collectorText = collectorReads.map((read) => read.text).filter(Boolean).join("\n");
+    const setText = setReads.map((read) => read.text).filter(Boolean).join("\n");
+    const collectorConfidence = collectorReads.length
+      ? Math.max(...collectorReads.map((read) => read.confidence))
+      : 0;
+    const setConfidence = setReads.length
+      ? Math.max(...setReads.map((read) => read.confidence))
+      : 0;
+    // The printed fraction drifts between the collector and set crops across
+    // layouts (and with small perspective errors). Parse both lanes, but only
+    // promote strict numerator/denominator pairs from the broader set crop.
+    // This recovers reads such as "BETS 067/084" without treating attack text
+    // or copyright digits as standalone collector numbers.
+    const collectorFractions = [
+      ...extractCollectorFractions(collectorText, collectorConfidence),
+      ...extractCollectorFractions(setText, setConfidence),
+    ].filter((fraction, index, items) => items.findIndex((candidate) =>
       candidate.numerator === fraction.numerator &&
       candidate.denominator === fraction.denominator
-    ) === fractionIndex);
+    ) === index);
     const collectorNumbers = [...new Set([
-      ...extractCollectorNumbers(footerText),
+      ...extractCollectorNumbers(collectorText),
       ...collectorFractions.map((fraction) => fraction.numerator),
     ])];
     const observation: FrameObservation = {
@@ -183,24 +241,126 @@ export class ScannerOcrEngine {
       names: extractNameCandidates(nameText),
       collectorNumbers,
       collectorFractions,
-      setCodes: extractSetCodes(footerText),
-      hpValues: [],
+      setCodes: extractSetCodes(setText),
+      hpValues: extractHpValues(hpReads.map((read) => read.text).join("\n")),
       reads: {
         name: nameReads,
-        collector: [footerRead],
-        set: [footerRead],
-        hp: [],
+        collector: collectorReads,
+        set: setReads,
+        hp: hpReads,
       },
     };
     return observation;
   }
 
-  async recogniseFrames(frames: TrackedFrame[]): Promise<FrameRecognitionResult> {
+  private debugRegions(source: HTMLCanvasElement, enabled: boolean): Record<string, string> {
+    if (!enabled) return {};
+    return {
+      name: previewCanvas(cropRegion(source, CARD_REGIONS.name, 720)),
+      nameWide: previewCanvas(cropRegion(source, CARD_REGIONS.nameWide, 720)),
+      collector: previewCanvas(cropRegion(source, CARD_REGIONS.collector, 720)),
+      collectorRight: previewCanvas(cropRegion(source, CARD_REGIONS.collectorRight, 720)),
+      set: previewCanvas(cropRegion(source, CARD_REGIONS.set, 720)),
+      symbol: previewCanvas(cropRegion(source, CARD_REGIONS.symbol, 420)),
+      artwork: previewCanvas(cropRegion(source, CARD_REGIONS.artwork, 720)),
+    };
+  }
+
+  async recogniseVerificationFrame(
+    frame: TrackedFrame,
+    orientation: 0 | 180,
+    options: RecognitionOptions = {},
+  ): Promise<FrameRecognitionResult> {
+    const started = performance.now();
+    const worker = await this.ensureWorker();
+    const source = orientation === 180 ? rotateCanvas180(frame.canvas) : frame.canvas;
+    this.onProgress("Verifying collector number", 60);
+
+    const bottomRaw = cropRegion(source, CARD_REGIONS.set, 920);
+    const bottomRead = await this.read(
+      worker,
+      preprocessRegion(bottomRaw, "adaptive"),
+      "sparse",
+      NUMBER_WHITELIST,
+      "fast-bottom-adaptive",
+    );
+    const collectorReads: OcrReading[] = [bottomRead];
+    let collectorText = bottomRead.text;
+    let collectorFractions = extractCollectorFractions(collectorText, bottomRead.confidence);
+
+    // Legacy layouts place the fraction at the opposite corner. Only pay for
+    // that second OCR pass when the broad modern-card lane found no fraction.
+    if (!collectorFractions.length) {
+      const rightRead = await this.read(
+        worker,
+        preprocessRegion(cropRegion(source, CARD_REGIONS.collectorRight, 820), "grey"),
+        "line",
+        NUMBER_WHITELIST,
+        "fast-right-grey",
+      );
+      collectorReads.push(rightRead);
+      collectorText = collectorReads.map((read) => read.text).filter(Boolean).join("\n");
+      collectorFractions = collectorReads.flatMap((read) =>
+        extractCollectorFractions(read.text, read.confidence),
+      );
+    }
+
+    const nameReads: OcrReading[] = [];
+    // A footer fraction alone cannot distinguish similar artwork or misread variants.
+    // One short name pass provides independent confirmation for automatic intake.
+    {
+      this.onProgress("Verifying card name", 68);
+      const nameVariant = qualityVariant(frame, "name");
+      nameReads.push(await this.read(
+        worker,
+        preprocessRegion(cropRegion(source, CARD_REGIONS.name, 920), nameVariant),
+        "line",
+        NAME_WHITELIST,
+        `fast-${nameVariant}`,
+      ));
+    }
+
+    const fractionMap = new Map<string, (typeof collectorFractions)[number]>();
+    for (const fraction of collectorFractions) {
+      fractionMap.set(`${fraction.numerator}/${fraction.denominator ?? ""}`, fraction);
+    }
+    const fractions = [...fractionMap.values()];
+    const observation: FrameObservation = {
+      frameId: frame.id,
+      qualityWeight: frame.qualityWeight,
+      orientation,
+      names: extractNameCandidates(nameReads.map((read) => read.text).join("\n")),
+      collectorNumbers: [...new Set([
+        ...extractCollectorNumbers(collectorText),
+        ...fractions.map((fraction) => fraction.numerator),
+      ])],
+      collectorFractions: fractions,
+      setCodes: extractSetCodes(bottomRead.text),
+      hpValues: [],
+      reads: {
+        name: nameReads,
+        collector: collectorReads,
+        set: [bottomRead],
+        hp: [],
+      },
+    };
+    return {
+      observations: [observation],
+      canonicalFrames: [source],
+      debugRegions: this.debugRegions(source, Boolean(options.diagnostics)),
+      ocrMs: performance.now() - started,
+    };
+  }
+
+  async recogniseFrames(
+    frames: TrackedFrame[],
+    options: RecognitionOptions = {},
+  ): Promise<FrameRecognitionResult> {
     const started = performance.now();
     const worker = await this.ensureWorker();
     const selected = [...frames]
       .sort((left, right) => right.qualityWeight - left.qualityWeight)
-      .slice(0, 2);
+      .slice(0, 3);
     if (!selected.length) throw new Error("No usable card frame was captured.");
     const observations: FrameObservation[] = [];
     const canonicalFrames: HTMLCanvasElement[] = [];
@@ -221,13 +381,7 @@ export class ScannerOcrEngine {
       observations.push(first);
       canonicalFrames.push(firstSource);
     }
-    for (
-      let index = 1;
-      index < selected.length && !(
-        observations[0]?.names.length && observations[0]?.collectorFractions.length
-      );
-      index += 1
-    ) {
+    for (let index = 1; index < selected.length; index += 1) {
       const source = observations[0]?.orientation === 180
         ? rotateCanvas180(selected[index].canvas)
         : selected[index].canvas;
@@ -262,28 +416,22 @@ export class ScannerOcrEngine {
       // inconsistent; visual retrieval still compares all captured frames.
       if ((hasRepeatedFraction || hasRepeatedName) && observations.length >= 2) break;
     }
-    const debugRegions = {
-      name: previewCanvas(cropRegion(firstSource, CARD_REGIONS.name, 720)),
-      nameWide: previewCanvas(cropRegion(firstSource, CARD_REGIONS.nameWide, 720)),
-      collector: previewCanvas(cropRegion(firstSource, CARD_REGIONS.collector, 720)),
-      collectorRight: previewCanvas(cropRegion(firstSource, CARD_REGIONS.collectorRight, 720)),
-      footer: previewCanvas(cropRegion(firstSource, CARD_REGIONS.footer, 900)),
-      set: previewCanvas(cropRegion(firstSource, CARD_REGIONS.set, 720)),
-      symbol: previewCanvas(cropRegion(firstSource, CARD_REGIONS.symbol, 420)),
-      artwork: previewCanvas(cropRegion(firstSource, CARD_REGIONS.artwork, 720)),
-    };
     return {
       observations,
       canonicalFrames,
-      debugRegions,
+      debugRegions: this.debugRegions(firstSource, Boolean(options.diagnostics)),
       ocrMs: performance.now() - started,
     };
   }
 
   async dispose(): Promise<void> {
     this.disposed = true;
-    const worker = this.worker;
+    let worker = this.worker;
+    if (!worker && this.workerPromise) {
+      worker = await this.workerPromise.catch(() => null);
+    }
     this.worker = null;
+    this.workerPromise = null;
     if (worker) await worker.terminate();
   }
 }

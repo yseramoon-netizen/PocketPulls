@@ -15,22 +15,13 @@ function getBearerToken(request: Request): string | null {
   return authorization.match(/^Bearer\s+(.+)$/i)?.[1]?.trim() || null;
 }
 
-function isLukasAccount(user: { id: string; email?: string | null }): boolean {
-  const email = user.email?.trim().toLowerCase() || "";
-  const lukasIds = readAllowlist(process.env.POCKETPULLS_LUKAS_USER_IDS);
-  const lukasEmails = [
-    "pullspocket@gmail.com",
-    ...readAllowlist(process.env.POCKETPULLS_LUKAS_EMAILS),
-  ].map((item) => item.toLowerCase());
-
-  return lukasIds.includes(user.id) || Boolean(email && lukasEmails.includes(email));
-}
-
 function resolvePrivateSkins(user: { id: string; email?: string | null }): EntitledSkinKey[] {
   const email = user.email?.trim().toLowerCase() || "";
+  const lukasIds = readAllowlist(process.env.POCKETPULLS_LUKAS_USER_IDS);
   const skyeIds = readAllowlist(process.env.POCKETPULLS_SKYE_USER_IDS);
+  const lukasEmails = readAllowlist(process.env.POCKETPULLS_LUKAS_EMAILS).map((item) => item.toLowerCase());
   const skyeEmails = readAllowlist(process.env.POCKETPULLS_SKYE_EMAILS).map((item) => item.toLowerCase());
-  const isLukas = isLukasAccount(user);
+  const isLukas = lukasIds.includes(user.id) || Boolean(email && lukasEmails.includes(email));
   const isSkye = skyeIds.includes(user.id) || Boolean(email && skyeEmails.includes(email));
   if (isLukas && !isSkye) return ["sherry"];
   if (isSkye && !isLukas) return ["bubbles"];
@@ -69,7 +60,6 @@ export async function GET(request: Request) {
       {
         ok: true,
         skins,
-        cosmicPreviewAllowed: isLukasAccount(data.user),
         cosmicIssueNumber,
         cosmicDiscoveredAt: cosmicResult.data?.discovered_at || null,
       },

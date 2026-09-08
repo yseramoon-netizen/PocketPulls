@@ -1,4 +1,4 @@
-# Ancient Pulls V67.13 release checklist
+# Ancient Pulls V68 release checklist
 
 The source build is only one gate. Do not open paid orders until every blocking
 row below is signed off against the real production deployment and database.
@@ -7,6 +7,8 @@ row below is signed off against the real production deployment and database.
 
 - [ ] Run `npm ci` on a clean checkout.
 - [ ] Run `npm run check:release`.
+- [ ] Run `npm run test:core` (26 behavioural regressions).
+- [ ] Run `npm run audit:performance` after building.
 - [ ] Load the real deployment environment and run `npm run check:release:production`.
 - [ ] Run `npm run build` with production-equivalent environment values.
 - [ ] Run `npm audit --omit=dev`; release only when it reports zero known vulnerabilities.
@@ -18,6 +20,7 @@ row below is signed off against the real production deployment and database.
 ## Account and access gates
 
 - [ ] New registration creates exactly one profile and wallet.
+- [ ] An existing auth user with a missing profile or wallet is repaired on sign-in without receiving duplicate promotion credit.
 - [ ] Email verification lands on the intended production origin.
 - [ ] Verification resend behaves correctly and cannot be spammed accidentally.
 - [ ] Password reset and update work end to end.
@@ -30,6 +33,9 @@ row below is signed off against the real production deployment and database.
 - [ ] Enter the exact legal operator, service address and support/privacy contacts.
 - [ ] Review the Terms, Returns, Shipping, Privacy, Cookies and Contact pages with the final business facts.
 - [ ] Apply `supabase/migrations/20260901_consumer_privacy_checkout_v6712.sql`.
+- [ ] Apply `supabase/migrations/20260901_consent_and_open_wishes_v6714.sql` after V67.12.
+- [ ] Apply `supabase/migrations/20260901_wish_request_schema_collision_v6715.sql` after V67.14; this is required even if V67.14 already ran.
+- [ ] Accept the current acknowledgement twice; both calls succeed and retain one row for the current consent version.
 - [ ] Configure the live Stripe key and signing secret; verify the webhook endpoint signature.
 - [ ] Configure Resend with a verified sender domain and test delivery to two unrelated mail providers.
 - [ ] Complete one low-value live payment, then refund it through the real operator process.
@@ -44,6 +50,8 @@ row below is signed off against the real production deployment and database.
 ## Wish, inventory and persistence gates
 
 - [ ] Make ordinary, high-rarity and forced administrator test wishes; each decrements the correct balance once.
+- [ ] Make a wish from two ordinary non-Founder accounts; neither path checks any pre-release registration list.
+- [ ] Replay the same wish request UUID; it returns the original card and does not spend a second wish.
 - [ ] Verify the authoritative 1-in-100,000 black-hole route without exposing progress or the result early.
 - [ ] Verify unique issue numbering under two near-simultaneous wishes.
 - [ ] Confirm a pulled card persists after refresh in binder, history, constellation, shipping and achievements.
@@ -73,6 +81,15 @@ row below is signed off against the real production deployment and database.
 - [ ] Test `prefers-reduced-motion`, 200% zoom and landscape mobile.
 - [ ] Record Core Web Vitals and reveal-scene frame rate on mid-range hardware; investigate visible stutter.
 
+## Scanner performance and safety gates
+
+- [ ] Finish the whole-catalogue visual index before enabling automatic intake.
+- [ ] Confirm strong automatic scans use `visual-verify`, strong confirmation scans use `visual-only`, and weak or close scans use `recovery`.
+- [ ] Confirm automatic intake requires at least two captured frames and never accepts a single uploaded image.
+- [ ] Test modern left-number and legacy right-number card layouts.
+- [ ] Export at least 100 operator-confirmed scans and run `npm run benchmark:scanner`.
+- [ ] Record overall and per-strategy accuracy, p95 latency, OCR latency and visual-search latency.
+
 ## Operational sign-off
 
 - [ ] Production database backup and restore procedure tested.
@@ -86,3 +103,17 @@ row below is signed off against the real production deployment and database.
 Release owner: ____________________  Date/time: ____________________
 
 Second checker: ___________________  Deployment: ___________________
+
+## V68 interaction checks
+
+- [ ] Open page search from the mobile menu and with Ctrl/Cmd K; use arrows, Enter and Escape.
+- [ ] Set binder/catalogue filters and page, open a card, navigate away and return with Back.
+- [ ] Open a binder card in Shipping: one available copy is selected; nothing is submitted automatically.
+- [ ] Open a binder card in Constellation and confirm the camera arrives at the matching star.
+- [ ] Change preference sliders quickly and confirm the final values survive refresh.
+- [ ] Interrupt a wish response, reload, then recover the pending request; check that the same card returns and the balance changes once.
+- [ ] Confirm cinematic loading copy and screen-reader labels reveal no result early.
+- [ ] Open and close nested dialogs; keyboard focus and scrolling recover correctly.
+- [ ] Stop recognition while visual search is pending: queued scans do not write stock.
+- [ ] Scan a wrong-number lookalike and a one-frame image; both require confirmation.
+- [ ] Simulate a lost inventory-add response: check inventory before resubmitting that physical card.

@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { createPortal } from "react-dom";
+import useModalFocus from "@/lib/client/useModalFocus";
 import {
   type CSSProperties,
   useCallback,
@@ -10,6 +12,7 @@ import {
   useState,
 } from "react";
 
+import useBrowseFilters from "@/lib/player/useBrowseFilters";
 import { supabase } from "@/lib/supabase";
 
 type CatalogueRpcRow = {
@@ -347,6 +350,9 @@ function buildPageNumbers(
 
 export default function CataloguePage() {
   const requestNumberRef = useRef(0);
+  const listAbortRef = useRef<AbortController | null>(null);
+  const cardsLoadedRef = useRef(false);
+  const searchEditedRef = useRef(false);
   const searchTimerRef = useRef<number | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -356,12 +362,7 @@ export default function CataloguePage() {
     useState<CatalogueOverview>(EMPTY_OVERVIEW);
 
   const [searchInput, setSearchInput] = useState("");
-  const [search, setSearch] = useState("");
-  const [setFilter, setSetFilter] = useState("");
-  const [rarityFilter, setRarityFilter] = useState("");
-  const [favouritesOnly, setFavouritesOnly] =
-    useState(false);
-  const [page, setPage] = useState(1);
+  const { search, setSearch, setName: setFilter, setSetName: setSetFilter, rarity: rarityFilter, setRarity: setRarityFilter, favouritesOnly, setFavouritesOnly, page, setPage, ready: filtersReady } = useBrowseFilters();
 
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -373,6 +374,10 @@ export default function CataloguePage() {
     useState<CatalogueCard | null>(null);
   const [favouriteBusyCardId, setFavouriteBusyCardId] =
     useState<string | null>(null);
+
+  useEffect(() => {
+    if (filtersReady) setSearchInput(search);
+  }, [filtersReady, search]);
 
   const totalPages = Math.max(
     1,
@@ -414,7 +419,9 @@ export default function CataloguePage() {
       }
 
       setErrorMessage(null);
-
+      listAbortRef.current?.abort();
+      const controller = new AbortController();
+      listAbortRef.current = controller;
       try {
         const { data, error } = await supabase.rpc(
           "get_public_catalogue_cards",
@@ -426,7 +433,7 @@ export default function CataloguePage() {
             p_page: page,
             p_page_size: PAGE_SIZE,
           },
-        );
+        ).abortSignal(controller.signal);
 
         if (error) {
           throw error;
@@ -438,6 +445,8 @@ export default function CataloguePage() {
 
         const parsed = parseCatalogueRows(data);
 
+        if (!parsed.cards.length && page > 1) { setPage(1); return; }
+        cardsLoadedRef.current = true;
         setCards(parsed.cards);
         setTotalCount(parsed.totalCount);
 
@@ -459,8 +468,6 @@ export default function CataloguePage() {
 
         console.error("Catalogue load error:", error);
 
-        setCards([]);
-        setTotalCount(0);
         setErrorMessage(
           getErrorMessage(
             error,
@@ -560,23 +567,26 @@ export default function CataloguePage() {
   }, [loadOverview]);
 
   useEffect(() => {
-    if (!userId) {
+    if (!userId || !filtersReady) {
       return;
     }
 
     const frame = window.requestAnimationFrame(() => {
-      void loadCards(false);
+      void loadCards(cardsLoadedRef.current);
     });
 
-    return () => window.cancelAnimationFrame(frame);
-  }, [userId, loadCards]);
+    return () => { window.cancelAnimationFrame(frame); requestNumberRef.current += 1; listAbortRef.current?.abort(); };
+  }, [userId, filtersReady, loadCards]);
 
   useEffect(() => {
+    if (!searchEditedRef.current) return;
     if (searchTimerRef.current !== null) {
       window.clearTimeout(searchTimerRef.current);
     }
 
     searchTimerRef.current = window.setTimeout(() => {
+      if (searchInput.trim() === search) return;
+      searchEditedRef.current = false;
       setSearch(searchInput.trim());
       setPage(1);
     }, 320);
@@ -586,29 +596,7 @@ export default function CataloguePage() {
         window.clearTimeout(searchTimerRef.current);
       }
     };
-  }, [searchInput]);
-
-  useEffect(() => {
-    if (!selectedCard) {
-      return;
-    }
-
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setSelectedCard(null);
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [selectedCard]);
+  }, [searchInput, search, setSearch, setPage]);
 
   const clearFilters = useCallback(() => {
     setSearchInput("");
@@ -761,7 +749,7 @@ export default function CataloguePage() {
         favouritesOnly={favouritesOnly}
         hasActiveFilters={hasActiveFilters}
         filtering={filtering}
-        onSearchInput={setSearchInput}
+        onSearchInput={(value) => { searchEditedRef.current = true; setSearchInput(value); }}
         onSetFilter={(value) => {
           setSetFilter(value);
           setPage(1);
@@ -1347,8 +1335,12 @@ function CardDetailModal({
 }) {
   const theme = getRarityTheme(card.rarity);
 
-  return (
+  const modalRef = useModalFocus<HTMLDivElement>(true, onClose);
+  if (typeof document === "undefined") return null;
+  return createPortal(
     <div
+      ref={modalRef}
+      tabIndex={-1}
       className="fixed inset-0 z-[10000] flex items-center justify-center overflow-y-auto bg-[#01020d]/90 p-4 backdrop-blur-xl"
       role="dialog"
       aria-modal="true"
@@ -1369,7 +1361,7 @@ function CardDetailModal({
           ×
         </button>
 
-        <div className="relative flex min-h-[30rem] items-center justify-center overflow-hidden border-b border-white/10 p-8 lg:border-b-0 lg:border-r">
+        <div className="relative flex items-center justify-center overflow-hidden border-b border-white/10 p-8 lg:border-b-0 lg:border-r">
           <div
             className="pointer-events-none absolute inset-0 opacity-35"
             style={{
@@ -1377,7 +1369,7 @@ function CardDetailModal({
             }}
           />
 
-          <div className="relative aspect-[0.716] w-full max-w-[21rem] overflow-hidden rounded-2xl border border-white/15 bg-[#050713] shadow-[0_30px_85px_rgba(0,0,0,0.6)]">
+          <div className="relative aspect-[0.716] w-full max-w-[min(16rem,40dvh)] lg:max-w-[21rem] overflow-hidden rounded-2xl border border-white/15 bg-[#050713] shadow-[0_30px_85px_rgba(0,0,0,0.6)]">
             {card.imageUrl ? (
               <img
                 src={card.imageUrl}
@@ -1478,7 +1470,7 @@ function CardDetailModal({
           </div>
         </div>
       </article>
-    </div>
+    </div>, document.body,
   );
 }
 

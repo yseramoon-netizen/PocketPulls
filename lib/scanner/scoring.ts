@@ -105,6 +105,24 @@ function secondaryScore(card: ScannerPokemonCard, evidence: ScannerEvidence): nu
   return 0;
 }
 
+export function identityConflicts(card: ScannerPokemonCard, evidence: ScannerEvidence): string[] {
+  const conflicts: string[] = [];
+  const number = normaliseCollector(card.card_no || "");
+  const total = numeric(card.set_printed_total);
+  const reliableFractions = evidence.collectorFractions.filter((item) => item.confidence >= 0.82 || item.weight >= 1.25);
+  if (number && reliableFractions.some((item) => normaliseCollector(item.numerator) !== number)) conflicts.push("Collector number needs confirmation");
+  if (total && reliableFractions.some((item) => item.denominator !== null && item.denominator !== total)) conflicts.push("Printed set total needs confirmation");
+  const names = evidence.names.filter((item) => item.weight >= 1.25);
+  if (names.length && names.every((item) => nameSimilarity(card.name, item.value) < 0.55)) conflicts.push("Card name needs confirmation");
+  const hp = numeric(card.hp);
+  const hpReads = evidence.hpValues.filter((item) => item.weight >= 1.25);
+  if (hp && hpReads.length && hpReads.every((item) => item.value !== hp)) conflicts.push("HP needs confirmation");
+  const code = card.set_code || card.set_id;
+  const codes = evidence.setCodes.filter((item) => item.weight >= 1.25);
+  if (code && codes.length && codes.every((item) => setCodeSimilarity(code, item.value) < 0.55)) conflicts.push("Set code needs confirmation");
+  return conflicts;
+}
+
 export function scoreCandidates(
   cards: ScannerPokemonCard[],
   evidence: ScannerEvidence,
@@ -159,9 +177,9 @@ export function scoreCandidates(
       exactCollector,
       exactSet,
       visualConfidence: null,
-      visualAgreement: null,
       visualFrameCount: 0,
-      visualSupportingFrames: 0,
+      visualAgreement: 0,
+      identityConflicts: identityConflicts(card, evidence),
       visualBreakdown: null,
       reasons,
     };
@@ -188,16 +206,12 @@ export function scoreImageFirstMatches(
     // visually correct card below an OCR hallucination. Visual retrieval owns
     // identity; text only breaks close visual ties.
     const supportBonus = hasTextEvidence ? Math.max(0, support - 0.60) * 0.12 : 0;
-    const exactPrintBonus = text?.exactCollector && text.exactSet
-      ? 0.07
-      : text?.exactCollector
-        ? 0.035
-        : 0;
-    let rawScore = clamp(visual + supportBonus + exactPrintBonus);
-    if (visual >= 0.92 && match.agreement >= 0.94) rawScore = Math.max(rawScore, 0.94);
-    const visualSignals = visual >= 0.62 && match.breakdown.artwork >= 0.52 ? 1 : 0;
-    const agreementSignal = visual >= 0.62 && match.supportingFrames >= 2 &&
-      match.agreement >= 0.88 ? 1 : 0;
+    let rawScore = clamp(visual + supportBonus);
+    if (visual >= 0.92 && match.frameCount >= 2 && match.agreement >= 0.94) {
+      rawScore = Math.max(rawScore, 0.94);
+    }
+    const visualSignals = visual >= 0.78 ? 1 : 0;
+    const agreementSignal = visual >= 0.78 && match.frameCount >= 2 && match.agreement >= 0.92 ? 1 : 0;
     const breakdown: VisualBreakdown = {
       artwork: match.breakdown.artwork,
       fullCard: match.breakdown.fullCard,
@@ -205,8 +219,6 @@ export function scoreImageFirstMatches(
       structure: match.breakdown.artwork,
       edge: match.breakdown.edge,
       colour: match.breakdown.colour,
-      hash: match.breakdown.hash,
-      details: match.breakdown.details,
     };
     return {
       ...(text || {
@@ -218,9 +230,7 @@ export function scoreImageFirstMatches(
         exactCollector: false,
         exactSet: false,
         visualConfidence: null,
-        visualAgreement: null,
         visualFrameCount: 0,
-        visualSupportingFrames: 0,
         visualBreakdown: null,
         reasons: [],
       }),
@@ -229,16 +239,16 @@ export function scoreImageFirstMatches(
       evidence: { ...(text?.evidence || { collector: 0, set: 0, name: 0, secondary: 0 }), visual },
       evidenceCount: (text?.evidenceCount || 0) + visualSignals + agreementSignal,
       visualConfidence: Math.round(visual * 100),
-      visualAgreement: match.agreement,
       visualFrameCount: match.frameCount,
-      visualSupportingFrames: match.supportingFrames,
+      visualAgreement: match.agreement,
       visualBreakdown: breakdown,
       reasons: [
-        `Multi-algorithm image match ${Math.round(visual * 100)}%`,
-        ...(match.supportingFrames >= 2 && match.agreement >= 0.88 ? ["Image match agreed across captured frames"] : []),
-        ...(match.breakdown.hash >= 0.72 ? ["Perceptual hashes matched"] : []),
-        ...(match.breakdown.details >= 0.55 ? ["Title and footer printing matched"] : []),
+        `Whole-catalogue image match ${Math.round(visual * 100)}%`,
+        ...(match.frameCount >= 2 && match.agreement >= 0.92
+          ? ["Artwork agreed across captured frames"]
+          : []),
         ...(text?.reasons || []),
+        ...(text?.identityConflicts || []),
       ],
     };
   }).sort((left, right) => right.rawScore - left.rawScore);
@@ -274,8 +284,6 @@ export function applyVisualEvidence(
     structure: artwork.structure,
     edge: artwork.edge,
     colour: artwork.colour,
-    hash: artwork.dhash,
-    details: symbol.structure,
   };
   return {
     ...candidate,
@@ -284,9 +292,7 @@ export function applyVisualEvidence(
     evidence: { ...candidate.evidence, visual },
     evidenceCount: candidate.evidenceCount + (visual >= 0.78 ? 1 : 0),
     visualConfidence: Math.round(visual * 100),
-    visualAgreement: candidate.visualAgreement,
-    visualFrameCount: candidate.visualFrameCount,
-    visualSupportingFrames: candidate.visualSupportingFrames,
+    visualFrameCount: Math.max(1, candidate.visualFrameCount),
     visualBreakdown: breakdown,
     reasons: [
       ...candidate.reasons,
@@ -302,19 +308,8 @@ export function calibrateCandidates(candidates: ScannerCandidate[]): ScannerCand
     const next = sorted[index + 1];
     const margin = next ? candidate.rawScore - next.rawScore : 0.2;
     let confidence = candidate.confidence;
-    const breakdown = candidate.visualBreakdown;
-    const stableVisual = (candidate.visualConfidence || 0) >= 66 &&
-      candidate.visualFrameCount >= 2 && candidate.visualSupportingFrames >= 2 &&
-      (candidate.visualAgreement || 0) >= 0.88 &&
-      (breakdown?.artwork || 0) >= 0.52 &&
-      ((breakdown?.details || 0) >= 0.44 || candidate.exactCollector);
-    if (stableVisual && margin >= 0.08) confidence = Math.max(confidence, 95);
-    if (stableVisual && (candidate.visualConfidence || 0) >= 72 && margin >= 0.06) {
-      confidence = Math.max(confidence, 97);
-    }
     if (candidate.evidenceCount >= 3 && margin >= 0.06) confidence = Math.max(confidence, 95);
     if (candidate.evidenceCount < 2) confidence = Math.min(confidence, 79);
-    if ((candidate.visualConfidence || 0) < 34 && !candidate.exactCollector) confidence = Math.min(confidence, 59);
     if (margin < 0.025) confidence = Math.min(confidence, 89);
     return { ...candidate, confidence: Math.max(1, Math.min(99, confidence)) };
   });

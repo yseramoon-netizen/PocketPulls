@@ -8,8 +8,11 @@ import {
   useEffect,
   useMemo,
   useState,
+  useRef,
 } from "react";
 import Link from "next/link";
+import { createPortal } from "react-dom";
+import useModalFocus from "@/lib/client/useModalFocus";
 
 import {
   PlayerErrorBanner,
@@ -267,6 +270,11 @@ function statusLabel(status: string): string {
 }
 
 export default function ShippingPage() {
+  const requestRef = useRef(0);
+  const shipmentBusyRef = useRef(false);
+  const linkedCardHandledRef = useRef(false);
+  const loadedRef = useRef(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [eligibility, setEligibility] =
     useState<Eligibility>(EMPTY_ELIGIBILITY);
   const [addresses, setAddresses] =
@@ -301,7 +309,9 @@ export default function ShippingPage() {
     useState<string | null>(null);
 
   const loadShipping = useCallback(async () => {
-    setLoading(true);
+    const request = ++requestRef.current;
+    if (!loadedRef.current) setLoading(true);
+    else setRefreshing(true);
     setErrorMessage(null);
 
     try {
@@ -353,6 +363,8 @@ export default function ShippingPage() {
         throw cardsResult.error;
       }
 
+      if (request !== requestRef.current) return;
+      loadedRef.current = true;
       const nextAddresses = parseAddresses(
         addressesResult.data,
       );
@@ -366,12 +378,25 @@ export default function ShippingPage() {
       );
       const nextCards = parseShippingCards(cardsResult.data);
       setShippingCards(nextCards);
+      const linkedCardId = !linkedCardHandledRef.current ? new URLSearchParams(window.location.search).get("card") : null;
+      linkedCardHandledRef.current = true;
+      const linkedCard = nextCards.find((card) => card.cardId === linkedCardId && card.availableQuantity > 0);
+      if (linkedCardId) {
+        if (linkedCard) {
+          setCardSearch(linkedCard.name);
+          setSuccessMessage(`${linkedCard.name} is selected. Choose any other cards to include before requesting shipping.`);
+          window.requestAnimationFrame(() => document.getElementById("select-cards")?.scrollIntoView({ block: "start" }));
+        } else {
+          setSuccessMessage("That card is currently unavailable for shipping. Your available cards are listed below.");
+        }
+      }
       setSelectedCards((current) => {
         const next: Record<string, number> = {};
         for (const card of nextCards) {
           const quantity = Math.min(card.availableQuantity, Math.max(0, current[card.cardId] || 0));
           if (quantity > 0) next[card.cardId] = quantity;
         }
+        if (linkedCard) next[linkedCard.cardId] = Math.max(1, next[linkedCard.cardId] || 0);
         return next;
       });
 
@@ -394,6 +419,7 @@ export default function ShippingPage() {
         );
       });
     } catch (error: unknown) {
+      if (request !== requestRef.current) return;
       console.error("Shipping error:", error);
       setErrorMessage(
         getErrorMessage(
@@ -402,7 +428,7 @@ export default function ShippingPage() {
         ),
       );
     } finally {
-      setLoading(false);
+      if (request === requestRef.current) { setLoading(false); setRefreshing(false); }
     }
   }, []);
 
@@ -411,7 +437,7 @@ export default function ShippingPage() {
       void loadShipping();
     });
 
-    return () => window.cancelAnimationFrame(frame);
+    return () => { window.cancelAnimationFrame(frame); requestRef.current += 1; };
   }, [loadShipping]);
 
   const cardsUntilShipping = Math.max(
@@ -552,7 +578,7 @@ export default function ShippingPage() {
 
   const requestShipment = useCallback(async () => {
     if (
-      requesting ||
+      shipmentBusyRef.current || refreshing || loading ||
       !selectedAddressId ||
       !eligibility.unlocked ||
       selectedCardTotal < eligibility.threshold ||
@@ -561,6 +587,7 @@ export default function ShippingPage() {
       return;
     }
 
+    shipmentBusyRef.current = true;
     setRequesting(true);
     setErrorMessage(null);
     setSuccessMessage(null);
@@ -595,10 +622,11 @@ export default function ShippingPage() {
         ),
       );
     } finally {
+      shipmentBusyRef.current = false;
       setRequesting(false);
     }
   }, [
-    requesting,
+    refreshing, loading,
     selectedAddressId,
     eligibility.unlocked,
     eligibility.threshold,
@@ -684,8 +712,9 @@ export default function ShippingPage() {
 
             <PlayerSecondaryButton
               onClick={() => void loadShipping()}
+              disabled={loading || refreshing}
             >
-              Refresh shipping
+              {refreshing ? "Refreshing…" : "Refresh shipping"}
             </PlayerSecondaryButton>
           </>
         }
@@ -697,7 +726,7 @@ export default function ShippingPage() {
       />
 
       {successMessage ? (
-        <div className="mt-6 rounded-2xl border border-emerald-100/15 bg-emerald-300/[0.08] p-4 text-sm font-bold leading-6 text-emerald-50">
+        <div role="status" className="mt-6 rounded-2xl border border-emerald-100/15 bg-emerald-300/[0.08] p-4 text-sm font-bold leading-6 text-emerald-50">
           {successMessage}
         </div>
       ) : null}
@@ -817,6 +846,7 @@ export default function ShippingPage() {
 
       {!activeShipment ? (
         <PlayerPanel className="mt-6 overflow-hidden">
+          <div id="select-cards" className="scroll-mt-28" />
           <div className="flex flex-col gap-4 border-b border-white/10 p-5 sm:flex-row sm:items-end sm:justify-between sm:p-6">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.18em] text-cyan-100/40">Choose your cards</p>
@@ -1024,6 +1054,7 @@ export default function ShippingPage() {
                 disabled={
                   requesting ||
                   !eligibility.unlocked ||
+                  refreshing || loading ||
                   selectedCardTotal < eligibility.threshold ||
                   !selectedAddressId
                 }
@@ -1331,8 +1362,12 @@ function AddressEditor({
   onClose: () => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
 }) {
-  return (
+  const modalRef = useModalFocus<HTMLDivElement>(true, onClose);
+  if (typeof document === "undefined") return null;
+  return createPortal(
     <div
+      ref={modalRef}
+      tabIndex={-1}
       className="fixed inset-0 z-[10000] flex items-center justify-center overflow-y-auto bg-[#01020d]/90 p-4 backdrop-blur-xl"
       role="dialog"
       aria-modal="true"
@@ -1566,7 +1601,7 @@ function AddressEditor({
           }
         `}</style>
       </PlayerPanel>
-    </div>
+    </div>, document.body,
   );
 }
 

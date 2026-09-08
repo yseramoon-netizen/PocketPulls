@@ -7,6 +7,7 @@ import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import type { Session } from "@supabase/supabase-js";
 
+import ConnectionStatus from "@/components/player/ConnectionStatus";
 import PlayerNav from "@/components/player/PlayerNav";
 import PurchaseConsentGate from "@/components/player/PurchaseConsentGate";
 import UnknownPullsBackdrop from "@/components/player/UnknownPullsBackdrop";
@@ -164,6 +165,10 @@ export default function PlayerLayout({ children }: PlayerLayoutProps) {
   const router = useRouter();
   const pathname = usePathname();
   const mountedRef = useRef(true);
+  const playerRequestRef = useRef(0);
+  const sessionEpochRef = useRef(0);
+  const accountRef = useRef<string | null>(null);
+  const playerLoadRef = useRef<{ userId: string; promise: Promise<void> } | null>(null);
 
   const legalPageAllowed = Array.from(LEGAL_PATHS).some(
     (legalPath) =>
@@ -177,17 +182,24 @@ export default function PlayerLayout({ children }: PlayerLayoutProps) {
   const activePlayerUsername = player?.username || null;
 
   const redirectToSignIn = useCallback(() => {
-    const nextPath = pathname || "/wishes";
+    const nextPath = window.location.pathname + window.location.search || "/wishes";
 
     router.replace(`/sign-in?next=${encodeURIComponent(nextPath)}`);
-  }, [pathname, router]);
+  }, [router]);
 
   const loadPlayer = useCallback(
     async (
       session: Session,
       background = false,
     ) => {
-      if (!background) {
+      if (playerLoadRef.current?.userId === session.user.id) return playerLoadRef.current.promise;
+      const requestId = ++playerRequestRef.current;
+      const accountChanged = accountRef.current !== session.user.id;
+      accountRef.current = session.user.id;
+      if (accountChanged) setPlayer(null);
+      const foreground = !background || accountChanged;
+      const task = (async () => {
+      if (foreground) {
         setLoading(true);
         setErrorMessage(null);
       }
@@ -369,19 +381,16 @@ export default function PlayerLayout({ children }: PlayerLayoutProps) {
         },
       };
 
-      if (!mountedRef.current) {
-        return;
-      }
-
+      if (!mountedRef.current || requestId !== playerRequestRef.current) return;
       setPlayer(nextPlayer);
     } catch (error: unknown) {
       console.error("Player layout error:", error);
 
-      if (!mountedRef.current) {
+      if (!mountedRef.current || requestId !== playerRequestRef.current) {
         return;
       }
 
-      if (!background) {
+      if (foreground) {
         setPlayer(null);
         setErrorMessage(
           getErrorMessage(
@@ -392,12 +401,16 @@ export default function PlayerLayout({ children }: PlayerLayoutProps) {
       }
     } finally {
       if (
-        mountedRef.current &&
-        !background
+        mountedRef.current && requestId === playerRequestRef.current
       ) {
         setLoading(false);
       }
     }
+      })();
+      playerLoadRef.current = { userId: session.user.id, promise: task };
+      try { await task; } finally {
+        if (playerLoadRef.current?.promise === task) playerLoadRef.current = null;
+      }
   },
   [],
 );
@@ -406,6 +419,7 @@ export default function PlayerLayout({ children }: PlayerLayoutProps) {
     async (
       background = false,
     ) => {
+      const sessionEpoch = sessionEpochRef.current;
       if (!background) {
         setLoading(true);
         setErrorMessage(null);
@@ -427,8 +441,9 @@ export default function PlayerLayout({ children }: PlayerLayoutProps) {
         );
       }
 
+      if (!mountedRef.current || sessionEpoch !== sessionEpochRef.current) return;
       if (!session) {
-        if (legalPageAllowed) {
+        if (LEGAL_PATHS.has(window.location.pathname)) {
           setPlayer(null);
           setLoading(false);
           return;
@@ -457,7 +472,7 @@ export default function PlayerLayout({ children }: PlayerLayoutProps) {
     } catch (error: unknown) {
       console.error("Player session error:", error);
 
-      if (!mountedRef.current) {
+      if (!mountedRef.current || sessionEpoch !== sessionEpochRef.current) {
         return;
       }
 
@@ -473,7 +488,7 @@ export default function PlayerLayout({ children }: PlayerLayoutProps) {
       }
     }
   },
-  [legalPageAllowed, loadPlayer, redirectToSignIn],
+  [loadPlayer, redirectToSignIn],
 );
 
   useEffect(() => {
@@ -491,9 +506,13 @@ export default function PlayerLayout({ children }: PlayerLayoutProps) {
       // any auth event temporarily carried a null session, which could turn a
       // token refresh/network hiccup on mobile into an apparent logout.
       if (event === "SIGNED_OUT") {
+        sessionEpochRef.current += 1;
+        playerRequestRef.current += 1;
+        playerLoadRef.current = null;
+        accountRef.current = null;
         setPlayer(null);
 
-        if (legalPageAllowed) {
+        if (LEGAL_PATHS.has(window.location.pathname)) {
           setLoading(false);
           return;
         }
@@ -520,9 +539,10 @@ export default function PlayerLayout({ children }: PlayerLayoutProps) {
           { announce: false },
         );
 
+        if (event === "SIGNED_IN" && accountRef.current !== session.user.id) sessionEpochRef.current += 1;
         // A token refresh does not change profile, wallet, or consent data.
         // Avoid repeating those queries on Supabase's routine refresh cycle.
-        if (event !== "TOKEN_REFRESHED") {
+        if (event === "USER_UPDATED" || (event === "SIGNED_IN" && accountRef.current !== session.user.id)) {
           window.setTimeout(() => {
             if (mountedRef.current) {
               void loadPlayer(session, true);
@@ -543,6 +563,8 @@ export default function PlayerLayout({ children }: PlayerLayoutProps) {
 
     return () => {
       mountedRef.current = false;
+      playerRequestRef.current += 1;
+      playerLoadRef.current = null;
       window.cancelAnimationFrame(sessionFrame);
       subscription.unsubscribe();
 
@@ -551,7 +573,21 @@ export default function PlayerLayout({ children }: PlayerLayoutProps) {
         handleProfileUpdated,
       );
     };
-  }, [legalPageAllowed, loadCurrentSession, loadPlayer, redirectToSignIn]);
+  }, [loadCurrentSession, loadPlayer, redirectToSignIn]);
+
+  useEffect(() => {
+    if (!loading && !player && !legalPageAllowed && !errorMessage) redirectToSignIn();
+  }, [errorMessage, legalPageAllowed, loading, player, redirectToSignIn]);
+
+  useEffect(() => {
+    const updateWallet = (event: Event) => {
+      const value = (event as CustomEvent<{ wishBalance?: unknown }>).detail?.wishBalance;
+      if (typeof value !== "number" || !Number.isFinite(value)) return;
+      setPlayer((current) => current ? { ...current, wishBalance: normaliseWishBalance(value) } : current);
+    };
+    window.addEventListener("pocketpulls:wish-balance", updateWallet);
+    return () => window.removeEventListener("pocketpulls:wish-balance", updateWallet);
+  }, []);
 
   useEffect(() => {
     if (!activePlayerUsername || loading) {
@@ -648,7 +684,7 @@ export default function PlayerLayout({ children }: PlayerLayoutProps) {
   return (
     <div className="unknown-pulls-shell relative min-h-[100dvh] overflow-x-hidden bg-[#02030d] text-white">
       <UnknownPullsBackdrop />
-
+      <a href="#main-content" className="skip-link">Skip to content</a>
       <PlayerNav
         username={player.username}
         displayName={player.displayName}
@@ -656,7 +692,8 @@ export default function PlayerLayout({ children }: PlayerLayoutProps) {
         wishBalance={player.wishBalance}
       />
 
-      <main data-player-main className="relative z-10 min-h-[calc(100dvh-5rem)] pb-[env(safe-area-inset-bottom)]">
+      <ConnectionStatus />
+      <main id="main-content" tabIndex={-1} data-player-main className="relative z-10 min-h-[calc(100dvh-5rem)] pb-[env(safe-area-inset-bottom)]">
         {player.launchState.maintenance ? (
           <div className="mx-auto mt-3 w-[calc(100%-2rem)] max-w-[1180px] rounded-2xl border border-amber-200/20 bg-amber-200/[0.09] px-4 py-3 text-center text-sm font-black text-amber-50/80">
             {player.launchState.message || "Ancient Pulls is temporarily paused for maintenance. Your existing cards and records remain safe."}
@@ -748,7 +785,7 @@ function PublicLegalShell({ children }: { children: ReactNode }) {
   return (
     <div className="unknown-pulls-shell relative min-h-[100dvh] overflow-x-hidden bg-[#02030d] text-white">
       <UnknownPullsBackdrop />
-      <main className="relative z-10 min-h-[100dvh]">{children}</main>
+      <main id="main-content" tabIndex={-1} className="relative z-10 min-h-[100dvh]">{children}</main>
     </div>
   );
 }
