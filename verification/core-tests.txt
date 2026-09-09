@@ -1,0 +1,34 @@
+✔ browse filters round-trip Unicode, favourites and the selected page (1.903876ms)
+✔ malformed pages and availability never reach database pagination (0.290817ms)
+✔ clearing filters removes the saved page, search and favourites (0.173401ms)
+✔ navigation keeps merged destinations and resolves recharge correctly (0.562166ms)
+✔ rapid preference edits are coalesced and never written concurrently (0.396557ms)
+✔ a failed save does not permanently lock the save lane (0.538601ms)
+✔ wish recovery survives a module reload and remains scoped to its account (8.949068ms)
+✔ blocked storage still supports an in-memory wish retry (3.203471ms)
+✔ independently verified two-frame identity is eligible for automatic intake (0.276306ms)
+✔ automatic intake rejects a single frame (0.317558ms)
+✔ automatic intake rejects frames that disagree (0.169305ms)
+✔ automatic intake rejects missing agreement (0.098989ms)
+✔ automatic intake rejects a weak image match (0.108894ms)
+✔ automatic intake rejects an unproven collector number (0.064137ms)
+✔ automatic intake rejects an unproven set (0.075203ms)
+✔ automatic intake rejects footer-only evidence (0.087802ms)
+✔ automatic intake rejects an identity conflict (0.180091ms)
+✔ automatic intake rejects low overall confidence (0.105428ms)
+✔ near-identical runners-up require a manual choice (0.121824ms)
+✔ strong artwork cannot automatically override a wrong collector number (0.310167ms)
+✔ strong artwork cannot automatically override a wrong printed total (0.23887ms)
+✔ strong artwork cannot automatically override a wrong name (0.488976ms)
+✔ strong artwork cannot automatically override a wrong HP (0.15995ms)
+✔ the earlier low-OCR Trumbeak recovery still appears as a strong candidate (0.261894ms)
+✔ cancelled recognition stops before OCR or candidate lookups (129.625028ms)
+✔ invalid inventory quantities are rejected before database access (35.157101ms)
+ℹ tests 26
+ℹ suites 0
+ℹ pass 26
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 637.493785

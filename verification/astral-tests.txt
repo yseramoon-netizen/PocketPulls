@@ -1,0 +1,23 @@
+✔ every rarity, including the black hole, has the exact same opening (28.934491ms)
+✔ all rarity timelines finish with a fully revealed card and finite geometry (30.507028ms)
+✔ motion is interpolated at 60 and 120 Hz, with no held 24 fps poses (4.64525ms)
+✔ the falling star grows throughout its flight (0.41864ms)
+✔ rare and black-hole branches do not introduce position or opacity jumps (0.638891ms)
+✔ black-hole absorption precedes its card and never appears in normal rarities (0.220702ms)
+✔ tab suspension and manual pause preserve the exact ceremony position (0.155594ms)
+✔ skip advances to the award and a new clock starts at zero (0.197467ms)
+✔ invalid clock samples and negative deltas cannot corrupt progress (0.172689ms)
+✔ adaptive quality reduces pixel cost while keeping every frame renderable (0.469827ms)
+✔ existing market-value routing and public rarity configuration are preserved (0.281824ms)
+✔ the new render dependency graph contains no removed mascot or skin assets (0.809478ms)
+✔ mute, unavailable audio, seeking and repeat cleanup remain safe (25.201944ms)
+✔ the standalone preview embeds the production asset and offers all ten outcomes (1.08996ms)
+✔ the score also conceals the outcome until the terminal turn and releases its sources (5.245283ms)
+ℹ tests 15
+ℹ suites 0
+ℹ pass 15
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 418.644217

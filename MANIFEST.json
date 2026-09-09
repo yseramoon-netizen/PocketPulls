@@ -1,0 +1,147 @@
+{
+  "version": "V69 animation update",
+  "date": "2026-09-09",
+  "baseline": "V68 (newer live source unavailable)",
+  "files": [
+    {
+      "path": "ARTWORK.md",
+      "bytes": 941,
+      "sha256": "4deea505c3a94eef5892c5aa8088092cf5aff5c18af88f587a328c515e7866e2"
+    },
+    {
+      "path": "README.md",
+      "bytes": 5566,
+      "sha256": "9c603fce6167d7137015b69d7c4a8b0873b2639596c1c8c6d729680f584259b0"
+    },
+    {
+      "path": "artwork/astral-ray-mascot.png",
+      "bytes": 984334,
+      "sha256": "cf0f4848ce7fc77fb49f728e933f7c1660acbfb322bb8e55a950f52d8e304056"
+    },
+    {
+      "path": "artwork/astral-ray-mascot.prompt.txt",
+      "bytes": 2010,
+      "sha256": "ea6839115cdaac404943d16fac2f7cdcfc77406423feb9123bb1a62ff050ce88"
+    },
+    {
+      "path": "changes/V68-animation.diff",
+      "bytes": 71010,
+      "sha256": "4ac5e01775477934b6dbf811572d4e5793b9e8eed5d059b3f7e52737f940616a"
+    },
+    {
+      "path": "preview/Aster-60fps-Preview.mp4",
+      "bytes": 2848302,
+      "sha256": "2fc80ae7c840351fb7bd5f977507ee2c8068ee358f7084168b425f00f3794bb0"
+    },
+    {
+      "path": "preview/Aster-Astral-Preview.html",
+      "bytes": 285794,
+      "sha256": "81daf51a6fb267ceb001c2c5ea07a461f9e5c89e6e02f2a4f062edfb72fb995b"
+    },
+    {
+      "path": "preview/Aster-Black-Hole-60fps.mp4",
+      "bytes": 3083061,
+      "sha256": "d212f450505add91649989594fd957a64fa8c1e1744b2d974ec232eb7c172279"
+    },
+    {
+      "path": "preview/Aster-Poster.jpg",
+      "bytes": 68403,
+      "sha256": "142531280887f04854d36ae5c751a8148f0ff3e345d5659560b29249d76f6ce3"
+    },
+    {
+      "path": "source/components/player/WishCinematic.tsx",
+      "bytes": 16914,
+      "sha256": "6fdb7674e0843fdb6e23d3810740d0e059c056630a819f46436c3ce4324b908e"
+    },
+    {
+      "path": "source/components/player/astral/AstralWish.module.css",
+      "bytes": 9117,
+      "sha256": "c7d1f72f79a71b3d7fed089aa68dd6533f216f7276431b4e76aad9f3596f40c3"
+    },
+    {
+      "path": "source/components/player/astral/renderer.ts",
+      "bytes": 20882,
+      "sha256": "0e56006da82d1443c62ec9a03a4e966cc542d7c375ddfe2829d243ed51e4fcdd"
+    },
+    {
+      "path": "source/components/player/astral/shaders.ts",
+      "bytes": 7076,
+      "sha256": "af51348551c5d6d832d5c3617ceafb126c27df180b2de70affb23811aed14862"
+    },
+    {
+      "path": "source/components/player/astral/timeline.ts",
+      "bytes": 7319,
+      "sha256": "dfa619a563f0a352d12e412046996e351b3f96fbe51f96f1032422f130160ff3"
+    },
+    {
+      "path": "source/components/player/wishAudio.ts",
+      "bytes": 7936,
+      "sha256": "7c0ab4627acdbaa4c37d726daaf776d6e9520c2f56e65e30731522c08be5d6d3"
+    },
+    {
+      "path": "source/public/ancient-pulls/wish/astral/aster.webp",
+      "bytes": 160632,
+      "sha256": "579770b0daf1c5ed418cefc3ca03707b16e284d2b79dcfc6d4e3050fc76197d5"
+    },
+    {
+      "path": "source/scripts/astral-preview-entry.js",
+      "bytes": 5942,
+      "sha256": "acbb806c50607494ca335b0a1f10d9dc988f43ec673290dc226a6fde73d89fa6"
+    },
+    {
+      "path": "source/scripts/astral-preview.html",
+      "bytes": 6784,
+      "sha256": "053d47307f1e61245e34ae79f08cfb3e0e8a0e284b3570dc9c0a1a81c33deaba"
+    },
+    {
+      "path": "source/scripts/astral-regression.cjs",
+      "bytes": 8582,
+      "sha256": "468bfd7801269f9d5ab52ae9eda52ff8751faa1f71e6f67ee76388bf0aad84b9"
+    },
+    {
+      "path": "source/scripts/build-astral-preview.cjs",
+      "bytes": 1939,
+      "sha256": "9d2dfbd1e70eaac418a369658b1882514944199cdf141e2970b95041e25f1aba"
+    },
+    {
+      "path": "verification/astral-tests.txt",
+      "bytes": 1419,
+      "sha256": "4cdccc22f985745b64fb1cf56233132c42e010694bf219b578e956223e6831af"
+    },
+    {
+      "path": "verification/build.txt",
+      "bytes": 2891,
+      "sha256": "513c81e4f77289f9cd6233e7419acdec38a6b0382d5ebf2667b2263facdd5fa3"
+    },
+    {
+      "path": "verification/core-tests.txt",
+      "bytes": 2058,
+      "sha256": "f13cb2cdf3546253a6faf67f7d8e3dd123861d196ea0a9137892fccd48911142"
+    },
+    {
+      "path": "verification/lint.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "verification/performance.txt",
+      "bytes": 2670,
+      "sha256": "bcd6e2083fcfab777d36178b0049943fddc909d3eeed9c1fb472d5f533f6c910"
+    },
+    {
+      "path": "verification/preflight.txt",
+      "bytes": 6064,
+      "sha256": "ee6c37d05bef796e4e91936b638e7a2c477f368dfaedaebc291ed6e2646cea48"
+    },
+    {
+      "path": "verification/render-blackhole-video.txt",
+      "bytes": 232,
+      "sha256": "542c3656a0695680ab0e64a0b0efc32f992634f39aa779dbb0af833b9fb950a3"
+    },
+    {
+      "path": "verification/render-video.txt",
+      "bytes": 209,
+      "sha256": "20599b966fc394c55352cedc54b4aa319af0088a1f5aba5244d2a9b2880bb5df"
+    }
+  ]
+}

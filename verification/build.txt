@@ -1,0 +1,114 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> pocketpulls@0.1.0 build
+> next build --webpack
+
+▲ Next.js 16.3.4 (webpack)
+✓ Running next.config.ts took 24ms
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 5.8s
+  Running TypeScript ...
+  Finished TypeScript in 1631ms ...
+  Collecting page data using 8 workers ...
+  Generating static pages using 8 workers (0/59) ...
+  Generating static pages using 8 workers (14/59) 
+  Generating static pages using 8 workers (29/59) 
+  Generating static pages using 8 workers (44/59) 
+✓ Generating static pages using 8 workers (59/59) in 685ms
+  Finalizing page optimization ...
+  Collecting build traces ...
+
+Route (app)
+┌ ○ /
+├ ○ /_not-found
+├ ○ /achievements
+├ ○ /admin
+├ ○ /admin/add
+├ ○ /admin/database
+├ ○ /admin/inventory
+├ ○ /admin/players
+├ ○ /admin/pulls
+├ ○ /admin/shaymin
+├ ○ /admin/sign-in
+├ ○ /admin/tree
+├ ƒ /api/admin/card-database
+├ ƒ /api/admin/cards/manual
+├ ƒ /api/admin/inventory/add
+├ ƒ /api/admin/players
+├ ƒ /api/admin/scanner/candidates
+├ ƒ /api/admin/scanner/card-metadata
+├ ƒ /api/admin/scanner/reference-image
+├ ƒ /api/admin/scanner/visual-index
+├ ƒ /api/admin/scanner/visual-search
+├ ƒ /api/admin/session
+├ ƒ /api/admin/shaymin
+├ ƒ /api/admin/shaymin-art/[mood]
+├ ƒ /api/admin/test-pull
+├ ƒ /api/admin/tree
+├ ƒ /api/auth/register
+├ ƒ /api/cards/manual-price
+├ ƒ /api/founder-favourites
+├ ƒ /api/health
+├ ƒ /api/player/friends/search
+├ ƒ /api/player/nebu-entitlements
+├ ƒ /api/player/profile/signature
+├ ƒ /api/player/wishes/checkout
+├ ƒ /api/player/wishes/make
+├ ƒ /api/player/wishes/purchase-status
+├ ƒ /api/player/wishes/store
+├ ƒ /api/prices/refresh
+├ ƒ /api/pull
+├ ƒ /api/shaymin/mood
+├ ƒ /api/stripe/webhook
+├ ƒ /api/tree/progress
+├ ƒ /api/update-prices
+├ ○ /apple-icon.png
+├ ○ /auth/callback
+├ ○ /catalogue
+├ ƒ /check-email
+├ ○ /collection
+├ ○ /constellation
+├ ○ /contact
+├ ○ /cookies
+├ ○ /create-account
+├ ○ /faq
+├ ○ /forgot-password
+├ ○ /friends
+├ ƒ /friends/[trainerId]
+├ ○ /help
+├ ○ /history
+├ ○ /how-wishes-work
+├ ○ /hq
+├ ○ /icon.png
+├ ○ /leaderboard
+├ ○ /manifest.webmanifest
+├ ○ /odds
+├ ○ /orders
+├ ○ /player-protection
+├ ○ /privacy
+├ ○ /profile
+├ ○ /pulls
+├ ○ /returns
+├ ○ /rewards
+├ ○ /robots.txt
+├ ○ /rules
+├ ○ /shipping
+├ ○ /shipping-policy
+├ ○ /sign-in
+├ ○ /sign-up
+├ ○ /sitemap.xml
+├ ○ /support
+├ ○ /terms
+├ ○ /trade
+├ ○ /update-password
+├ ○ /wallet
+├ ○ /welcome
+├ ○ /wishes
+├ ○ /wishes/preview
+└ ○ /wishes/shop
+
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+

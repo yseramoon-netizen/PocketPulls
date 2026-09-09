@@ -1,0 +1,10 @@
+Use case: stylized-concept
+Asset type: one original transparent raster game mascot for Ancient Pulls, a premium constellation wish ceremony; suitable for smooth WebGL wing and tail mesh animation.
+Primary request: create a beautiful small astral ray / celestial spirit with a graceful manta-like kite silhouette, pearl and opal body, a distinct luminous diamond heart in its chest, and two subtle expressive midnight-blue eyes. Friendly, recognizable, sophisticated collectible fantasy mascot.
+Scene/backdrop: genuinely transparent alpha background. Completely isolated character only, no background artwork.
+Subject details: broad symmetrical open wings with four elegantly pointed wing/fin tips; two flowing tapered ribbon tails trailing downward, cleanly visible and separated. Fine constellation-like gold inlays on the character, delicate cool cyan rim illumination. No limbs or fins obscured.
+Style/medium: high-end polished stylized fantasy game art, convincing opalescent glass and soft silk materials, refined highlights, beautiful graceful silhouette.
+Composition/framing: square 2048 by 2048 style image. Entire character including both tails contained inside the central 80% of the canvas, generous transparent margin. Frontal view or very slightly three-quarter, extremely close to frontal for mesh animation. Quiet poised flying pose, both sides evenly visible, wings broadly open.
+Lighting/mood: consistent soft front illumination, poised and gentle. Pearl white, subtle opal pastel iridescence, midnight-blue eyes, fine gold details, restrained cyan edge light.
+Constraints: one character, one pose, no sheet, no variants. Smooth unobstructed isolated silhouette and clearly separated ribbon tails. Actual transparent alpha, preserve soft antialiased edges.
+Avoid: cat traits, Nebu, Pokémon, existing branded characters, scene, UI, text, letters, stars or props around the character, checkerboard printed into artwork, ground, cast ground shadow, huge outer glow bleeding toward canvas edges.
