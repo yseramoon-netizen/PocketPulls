@@ -1,0 +1,53 @@
+ANCIENT PULLS V67.12 — UK CONSUMER + PRIVACY SUITE
+===================================================
+
+This is an incremental replacement package for the current Ancient Pulls build.
+
+1. Back up the current project.
+
+2. Copy the package contents over the project root, preserving folders and
+   replacing matching files.
+
+3. In Supabase SQL Editor, run:
+
+   supabase/migrations/20260901_consumer_privacy_checkout_v6712.sql
+
+   Existing players will be asked once to accept the materially updated terms.
+
+4. Add the public legal/business environment variables and server-only
+   confirmation-email variables listed in ENVIRONMENT.txt.
+
+5. Read ANCIENT_PULLS_CONSUMER_PRIVACY_SETUP.md and complete the launch checks.
+
+6. Keep ANCIENT_PULLS_ORDERS_OPEN=false until:
+
+   - the real legal operator and geographic business address are published;
+   - customer-service/privacy email is monitored;
+   - Stripe and its webhook are configured;
+   - Resend sends the complete contract-confirmation email; and
+   - a test order, cancellation, refund and privacy complaint have been walked
+     through end to end.
+
+7. Install and verify:
+
+   npm install
+   npm run build
+
+NEW PUBLIC ROUTES
+-----------------
+
+/terms
+/returns
+/shipping-policy
+/privacy
+/cookies
+/contact
+
+CHECKOUT SAFETY
+---------------
+
+The paid checkout now remains unavailable unless the order-open flag, public
+business details, Stripe and the Resend confirmation-email service are all
+configured. A buyer must confirm the exact wish quantity, total, random
+physical-card nature, immediate access and delayed shipping arrangement before
+continuing. Successful payments receive a durable contract-confirmation email.

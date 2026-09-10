@@ -1,0 +1,960 @@
+"use client";
+
+import type { ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import dynamic from "next/dynamic";
+import Image from "next/image";
+import { usePathname, useRouter } from "next/navigation";
+import type { Session } from "@supabase/supabase-js";
+
+import ConnectionStatus from "@/components/player/ConnectionStatus";
+import PlayerNav from "@/components/player/PlayerNav";
+import PurchaseConsentGate from "@/components/player/PurchaseConsentGate";
+import UnknownPullsBackdrop from "@/components/player/UnknownPullsBackdrop";
+import {
+  applyNebuSkin,
+  DEFAULT_NEBU_SKIN,
+  readNebuSkinFromMetadata,
+} from "@/lib/player/nebu";
+import {
+  applyNebuPerformances,
+  DEFAULT_NEBU_PERFORMANCES,
+  readNebuPerformancesFromMetadata,
+} from "@/lib/player/nebuPerformances";
+import { supabase } from "@/lib/supabase";
+
+const FirstWishJourney = dynamic(
+  () => import("@/components/player/FirstWishJourney"),
+  { ssr: false },
+);
+
+const ONBOARDING_COMPLETE_KEY = "pocketpulls:first-wish-tour-complete-v1";
+
+type PlayerLayoutProps = {
+  children: ReactNode;
+};
+
+type PlayerProfileRow = {
+  user_id: string;
+  username: string | null;
+  display_name: string | null;
+  avatar_url: string | null;
+  is_banned: boolean | null;
+  ban_reason: string | null;
+  banned_at: string | null;
+};
+
+type PlayerWalletRow = {
+  user_id: string;
+  wish_balance: number | null;
+};
+
+type PlayerShellData = {
+  username: string;
+  displayName: string;
+  avatarUrl: string | null;
+  wishBalance: number;
+  isBanned: boolean;
+  banReason: string | null;
+  bannedAt: string | null;
+  purchaseConsentAccepted: boolean;
+  launchState: {
+    maintenance: boolean;
+    message: string;
+  };
+};
+
+type PurchaseConsentRow = {
+  accepted: boolean | null;
+};
+
+const LEGAL_PATHS = new Set([
+  "/terms",
+  "/rules",
+  "/player-protection",
+  "/how-wishes-work",
+  "/odds",
+  "/faq",
+  "/help",
+  "/privacy",
+  "/returns",
+  "/cookies",
+  "/shipping-policy",
+  "/contact",
+]);
+
+function getErrorMessage(error: unknown, fallback: string): string {
+  if (error instanceof Error && error.message.trim()) {
+    return error.message.trim();
+  }
+
+  if (typeof error === "string" && error.trim()) {
+    return error.trim();
+  }
+
+  if (typeof error === "object" && error !== null && "message" in error) {
+    const message = (error as { message?: unknown }).message;
+
+    if (typeof message === "string" && message.trim()) {
+      return message.trim();
+    }
+  }
+
+  return fallback;
+}
+
+function getFallbackDisplayName(session: Session): string {
+  const metadataName = session.user.user_metadata?.display_name;
+
+  if (typeof metadataName === "string" && metadataName.trim()) {
+    return metadataName.trim();
+  }
+
+  const emailName = (session.user.email || "").split("@")[0]?.trim();
+
+  return emailName || "Unknown Trainer";
+}
+
+function getFallbackUsername(session: Session): string {
+  const emailName = (session.user.email || "")
+    .split("@")[0]
+    ?.trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_]/g, "_")
+    .slice(0, 24);
+
+  if (emailName) {
+    return emailName;
+  }
+
+  return `trainer_${session.user.id.replace(/-/g, "").slice(0, 8)}`;
+}
+
+function normaliseWishBalance(value: unknown): number {
+  const parsed = Number(value);
+
+  if (!Number.isFinite(parsed)) {
+    return 0;
+  }
+
+  return Math.max(0, Math.floor(parsed));
+}
+
+async function settleWithin<T>(
+  request: PromiseLike<T>,
+  timeoutMs: number,
+  message: string,
+): Promise<T> {
+  let timer: number | null = null;
+
+  try {
+    return await Promise.race([
+      Promise.resolve(request),
+      new Promise<T>((_, reject) => {
+        timer = window.setTimeout(() => reject(new Error(message)), timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timer !== null) {
+      window.clearTimeout(timer);
+    }
+  }
+}
+
+export default function PlayerLayout({ children }: PlayerLayoutProps) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const mountedRef = useRef(true);
+  const playerRequestRef = useRef(0);
+  const sessionEpochRef = useRef(0);
+  const accountRef = useRef<string | null>(null);
+  const playerLoadRef = useRef<{ userId: string; promise: Promise<void> } | null>(null);
+
+  const legalPageAllowed = Array.from(LEGAL_PATHS).some(
+    (legalPath) =>
+      pathname === legalPath || pathname.startsWith(`${legalPath}/`),
+  );
+
+  const [player, setPlayer] = useState<PlayerShellData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [onboardingReadyFor, setOnboardingReadyFor] = useState<string | null>(null);
+  const activePlayerUsername = player?.username || null;
+
+  const redirectToSignIn = useCallback(() => {
+    const nextPath = window.location.pathname + window.location.search || "/wishes";
+
+    router.replace(`/sign-in?next=${encodeURIComponent(nextPath)}`);
+  }, [router]);
+
+  const loadPlayer = useCallback(
+    async (
+      session: Session,
+      background = false,
+    ) => {
+      if (playerLoadRef.current?.userId === session.user.id) return playerLoadRef.current.promise;
+      const requestId = ++playerRequestRef.current;
+      const accountChanged = accountRef.current !== session.user.id;
+      accountRef.current = session.user.id;
+      if (accountChanged) setPlayer(null);
+      const foreground = !background || accountChanged;
+      const task = (async () => {
+      if (foreground) {
+        setLoading(true);
+        setErrorMessage(null);
+      }
+
+    try {
+      const [profileResult, walletResult, consentResult, launchResult] =
+        await settleWithin(
+          Promise.all([
+            supabase
+              .from("player_profiles")
+              .select(
+                "user_id,username,display_name,avatar_url,is_banned,ban_reason,banned_at",
+              )
+              .eq("user_id", session.user.id)
+              .maybeSingle(),
+
+            supabase
+              .from("player_wallets")
+              .select("user_id,wish_balance")
+              .eq("user_id", session.user.id)
+              .maybeSingle(),
+
+            supabase.rpc("get_player_purchase_consent"),
+            supabase.rpc("get_player_launch_state"),
+          ]),
+          10_000,
+          "Ancient Pulls took too long to open. Check your connection and try again.",
+        );
+
+      if (profileResult.error) {
+        throw new Error(
+          getErrorMessage(
+            profileResult.error,
+            "The player profile query failed.",
+          ),
+        );
+      }
+
+      if (walletResult.error) {
+        throw new Error(
+          getErrorMessage(
+            walletResult.error,
+            "The wish wallet query failed.",
+          ),
+        );
+      }
+
+      if (consentResult.error) {
+        throw new Error(
+          getErrorMessage(
+            consentResult.error,
+            "Your account purchase acknowledgement could not be checked. Run the latest consent migration in Supabase.",
+          ),
+        );
+      }
+
+      if (launchResult.error) {
+        // Launch Control is advisory. A stale pre-release RPC must never lock
+        // an otherwise valid player out of the application.
+        console.warn("Launch Control check unavailable:", launchResult.error);
+      }
+
+      let profile =
+        profileResult.data as unknown as PlayerProfileRow | null;
+
+      let wallet =
+        walletResult.data as unknown as PlayerWalletRow | null;
+
+      if (!profile || !wallet) {
+        const registrationResult = await settleWithin(
+          supabase.rpc("complete_player_registration"),
+          8_000,
+          "Your player account repair took too long. Try again.",
+        );
+
+        if (registrationResult.error) {
+          throw new Error(
+            getErrorMessage(
+              registrationResult.error,
+              "Your player profile and wish wallet could not be prepared.",
+            ),
+          );
+        }
+
+        const [profileRetry, walletRetry] = await settleWithin(
+          Promise.all([
+            supabase
+              .from("player_profiles")
+              .select(
+                "user_id,username,display_name,avatar_url,is_banned,ban_reason,banned_at",
+              )
+              .eq("user_id", session.user.id)
+              .maybeSingle(),
+            supabase
+              .from("player_wallets")
+              .select("user_id,wish_balance")
+              .eq("user_id", session.user.id)
+              .maybeSingle(),
+          ]),
+          8_000,
+          "Your repaired player account could not be reloaded. Try again.",
+        );
+
+        if (profileRetry.error || walletRetry.error) {
+          throw new Error(
+            getErrorMessage(
+              profileRetry.error || walletRetry.error,
+              "Your repaired player account could not be reloaded.",
+            ),
+          );
+        }
+
+        profile = profileRetry.data as unknown as PlayerProfileRow | null;
+        wallet = walletRetry.data as unknown as PlayerWalletRow | null;
+      }
+
+      const consentRaw = Array.isArray(consentResult.data)
+        ? consentResult.data[0]
+        : consentResult.data;
+
+      const consent =
+        consentRaw as unknown as PurchaseConsentRow | null;
+
+      const launchRaw = launchResult.error
+        ? null
+        : Array.isArray(launchResult.data)
+        ? launchResult.data[0]
+        : launchResult.data;
+      const launch = (launchRaw || {}) as {
+        maintenance_mode?: unknown;
+        maintenance_message?: unknown;
+      };
+
+      if (!profile || !wallet) {
+        throw new Error(
+          "Your player profile or wish wallet could not be created. Try signing out and signing in again.",
+        );
+      }
+
+      const username =
+        typeof profile.username === "string" && profile.username.trim()
+          ? profile.username.trim()
+          : getFallbackUsername(session);
+
+      const displayName =
+        typeof profile.display_name === "string" &&
+        profile.display_name.trim()
+          ? profile.display_name.trim()
+          : getFallbackDisplayName(session);
+
+      const avatarUrl =
+        typeof profile.avatar_url === "string" && profile.avatar_url.trim()
+          ? profile.avatar_url.trim()
+          : null;
+
+      const nextPlayer: PlayerShellData = {
+        username,
+        displayName,
+        avatarUrl,
+        wishBalance: normaliseWishBalance(wallet?.wish_balance),
+        isBanned:
+          profile.is_banned === true,
+        banReason:
+          typeof profile.ban_reason === "string" &&
+          profile.ban_reason.trim()
+            ? profile.ban_reason.trim()
+            : null,
+        bannedAt:
+          typeof profile.banned_at === "string" &&
+          profile.banned_at.trim()
+            ? profile.banned_at.trim()
+            : null,
+        purchaseConsentAccepted: consent?.accepted === true,
+        launchState: {
+          maintenance: launch.maintenance_mode === true,
+          message: typeof launch.maintenance_message === "string"
+            ? launch.maintenance_message.trim()
+            : "",
+        },
+      };
+
+      if (!mountedRef.current || requestId !== playerRequestRef.current) return;
+      setPlayer(nextPlayer);
+    } catch (error: unknown) {
+      console.error("Player layout error:", error);
+
+      if (!mountedRef.current || requestId !== playerRequestRef.current) {
+        return;
+      }
+
+      if (foreground) {
+        setPlayer(null);
+        setErrorMessage(
+          getErrorMessage(
+            error,
+            "The player account could not be loaded.",
+          ),
+        );
+      }
+    } finally {
+      if (
+        mountedRef.current && requestId === playerRequestRef.current
+      ) {
+        setLoading(false);
+      }
+    }
+      })();
+      playerLoadRef.current = { userId: session.user.id, promise: task };
+      try { await task; } finally {
+        if (playerLoadRef.current?.promise === task) playerLoadRef.current = null;
+      }
+  },
+  [],
+);
+
+  const loadCurrentSession = useCallback(
+    async (
+      background = false,
+    ) => {
+      const sessionEpoch = sessionEpochRef.current;
+      if (!background) {
+        setLoading(true);
+        setErrorMessage(null);
+      }
+
+    try {
+      const {
+        data: { session },
+        error,
+      } = await settleWithin(
+        supabase.auth.getSession(),
+        4_000,
+        "Your session check took too long. Try again.",
+      );
+
+      if (error) {
+        throw new Error(
+          getErrorMessage(error, "Your session could not be checked."),
+        );
+      }
+
+      if (!mountedRef.current || sessionEpoch !== sessionEpochRef.current) return;
+      if (!session) {
+        if (LEGAL_PATHS.has(window.location.pathname)) {
+          setPlayer(null);
+          setLoading(false);
+          return;
+        }
+
+        redirectToSignIn();
+        return;
+      }
+
+      applyNebuSkin(
+        readNebuSkinFromMetadata(session.user.user_metadata?.nebu_skin) ??
+          DEFAULT_NEBU_SKIN,
+        { announce: false },
+      );
+      applyNebuPerformances(
+        readNebuPerformancesFromMetadata(
+          session.user.user_metadata?.nebu_performances,
+        ) ?? { ...DEFAULT_NEBU_PERFORMANCES },
+        { announce: false },
+      );
+
+      await loadPlayer(
+        session,
+        background,
+      );
+    } catch (error: unknown) {
+      console.error("Player session error:", error);
+
+      if (!mountedRef.current || sessionEpoch !== sessionEpochRef.current) {
+        return;
+      }
+
+      if (!background) {
+        setPlayer(null);
+        setErrorMessage(
+          getErrorMessage(
+            error,
+            "Your session could not be verified.",
+          ),
+        );
+        setLoading(false);
+      }
+    }
+  },
+  [loadPlayer, redirectToSignIn],
+);
+
+  useEffect(() => {
+    mountedRef.current = true;
+
+    const sessionFrame = window.requestAnimationFrame(() => {
+      void loadCurrentSession();
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      // Only an explicit Supabase SIGNED_OUT event is allowed to eject the
+      // player from the Nebu shell. Earlier code also redirected whenever
+      // any auth event temporarily carried a null session, which could turn a
+      // token refresh/network hiccup on mobile into an apparent logout.
+      if (event === "SIGNED_OUT") {
+        sessionEpochRef.current += 1;
+        playerRequestRef.current += 1;
+        playerLoadRef.current = null;
+        accountRef.current = null;
+        setPlayer(null);
+
+        if (LEGAL_PATHS.has(window.location.pathname)) {
+          setLoading(false);
+          return;
+        }
+
+        redirectToSignIn();
+        return;
+      }
+
+      if (
+        session &&
+        (event === "SIGNED_IN" ||
+          event === "TOKEN_REFRESHED" ||
+          event === "USER_UPDATED")
+      ) {
+        applyNebuSkin(
+          readNebuSkinFromMetadata(session.user.user_metadata?.nebu_skin) ??
+            DEFAULT_NEBU_SKIN,
+          { announce: false },
+        );
+        applyNebuPerformances(
+          readNebuPerformancesFromMetadata(
+            session.user.user_metadata?.nebu_performances,
+          ) ?? { ...DEFAULT_NEBU_PERFORMANCES },
+          { announce: false },
+        );
+
+        if (event === "SIGNED_IN" && accountRef.current !== session.user.id) sessionEpochRef.current += 1;
+        // A token refresh does not change profile, wallet, or consent data.
+        // Avoid repeating those queries on Supabase's routine refresh cycle.
+        if (event === "USER_UPDATED" || (event === "SIGNED_IN" && accountRef.current !== session.user.id)) {
+          window.setTimeout(() => {
+            if (mountedRef.current) {
+              void loadPlayer(session, true);
+            }
+          }, 0);
+        }
+      }
+    });
+
+    const handleProfileUpdated = () => {
+      void loadCurrentSession(true);
+    };
+
+    window.addEventListener(
+      "pocketpulls:profile-updated",
+      handleProfileUpdated,
+    );
+
+    return () => {
+      mountedRef.current = false;
+      playerRequestRef.current += 1;
+      playerLoadRef.current = null;
+      window.cancelAnimationFrame(sessionFrame);
+      subscription.unsubscribe();
+
+      window.removeEventListener(
+        "pocketpulls:profile-updated",
+        handleProfileUpdated,
+      );
+    };
+  }, [loadCurrentSession, loadPlayer, redirectToSignIn]);
+
+  useEffect(() => {
+    if (!loading && !player && !legalPageAllowed && !errorMessage) redirectToSignIn();
+  }, [errorMessage, legalPageAllowed, loading, player, redirectToSignIn]);
+
+  useEffect(() => {
+    const updateWallet = (event: Event) => {
+      const value = (event as CustomEvent<{ wishBalance?: unknown }>).detail?.wishBalance;
+      if (typeof value !== "number" || !Number.isFinite(value)) return;
+      setPlayer((current) => current ? { ...current, wishBalance: normaliseWishBalance(value) } : current);
+    };
+    window.addEventListener("pocketpulls:wish-balance", updateWallet);
+    return () => window.removeEventListener("pocketpulls:wish-balance", updateWallet);
+  }, []);
+
+  useEffect(() => {
+    if (!activePlayerUsername || loading) {
+      return;
+    }
+
+    try {
+      if (window.localStorage.getItem(ONBOARDING_COMPLETE_KEY) === "1") return;
+    } catch {
+      // The journey can still load when device storage is unavailable.
+    }
+
+    const start = () => setOnboardingReadyFor(activePlayerUsername);
+    const idleScheduler = window as unknown as {
+      requestIdleCallback?: (
+        callback: IdleRequestCallback,
+        options?: IdleRequestOptions,
+      ) => number;
+      cancelIdleCallback?: (handle: number) => void;
+    };
+    if (typeof idleScheduler.requestIdleCallback === "function") {
+      const handle = idleScheduler.requestIdleCallback(start, { timeout: 1800 });
+      return () => idleScheduler.cancelIdleCallback?.(handle);
+    }
+    const timer = window.setTimeout(start, 900);
+    return () => window.clearTimeout(timer);
+  }, [activePlayerUsername, loading]);
+
+  if (legalPageAllowed && !player && !loading) {
+    return <PublicLegalShell>{children}</PublicLegalShell>;
+  }
+
+  if (loading && !player) {
+    return <PlayerLoadingScreen />;
+  }
+
+  if (errorMessage && !player) {
+    return (
+      <PlayerErrorScreen
+        message={errorMessage}
+        onRetry={() => {
+          void loadCurrentSession();
+        }}
+        onSignOut={() => {
+          void supabase.auth.signOut().finally(() => {
+            redirectToSignIn();
+          });
+        }}
+      />
+    );
+  }
+
+  if (!player) {
+    return <PlayerLoadingScreen />;
+  }
+
+  if (!player.purchaseConsentAccepted && !legalPageAllowed) {
+    return (
+      <PurchaseConsentGate
+        displayName={player.displayName}
+        onAccepted={() => {
+          setPlayer((current) =>
+            current
+              ? { ...current, purchaseConsentAccepted: true }
+              : current,
+          );
+        }}
+        onSignOut={() => {
+          void supabase.auth.signOut().finally(() => {
+            redirectToSignIn();
+          });
+        }}
+      />
+    );
+  }
+
+  if (player.isBanned) {
+    return (
+      <PlayerBannedScreen
+        displayName={player.displayName}
+        reason={player.banReason}
+        bannedAt={player.bannedAt}
+        onSignOut={() => {
+          void supabase.auth
+            .signOut()
+            .finally(() => {
+              redirectToSignIn();
+            });
+        }}
+      />
+    );
+  }
+
+  return (
+    <div className="unknown-pulls-shell relative min-h-[100dvh] overflow-x-hidden bg-[#02030d] text-white">
+      <UnknownPullsBackdrop />
+      <a href="#main-content" className="skip-link">Skip to content</a>
+      <PlayerNav
+        username={player.username}
+        displayName={player.displayName}
+        avatarUrl={player.avatarUrl}
+        wishBalance={player.wishBalance}
+      />
+
+      <ConnectionStatus />
+      <main id="main-content" tabIndex={-1} data-player-main className="relative z-10 min-h-[calc(100dvh-5rem)] pb-[env(safe-area-inset-bottom)]">
+        {player.launchState.maintenance ? (
+          <div className="mx-auto mt-3 w-[calc(100%-2rem)] max-w-[1180px] rounded-2xl border border-amber-200/20 bg-amber-200/[0.09] px-4 py-3 text-center text-sm font-black text-amber-50/80">
+            {player.launchState.message || "Ancient Pulls is temporarily paused for maintenance. Your existing cards and records remain safe."}
+          </div>
+        ) : null}
+        {children}
+      </main>
+
+      {onboardingReadyFor === activePlayerUsername ? (
+        <FirstWishJourney displayName={player.displayName} />
+      ) : null}
+
+      <style jsx global>{`
+        .unknown-pulls-shell {
+          --ancient-gold: #d8c098;
+          --ancient-copper: #a85b2a;
+          --ancient-scarlet: #cf425f;
+          --ancient-cyan: #35d1c5;
+          --ancient-emerald: #3eb66f;
+          --ancient-violet: #7548b5;
+        }
+
+        .unknown-pulls-shell main input,
+        .unknown-pulls-shell main select,
+        .unknown-pulls-shell main textarea {
+          border-color: rgba(255, 255, 255, 0.1);
+          background-color: #0c1421;
+          background-image: none;
+        }
+
+        .unknown-pulls-shell main input:focus,
+        .unknown-pulls-shell main select:focus,
+        .unknown-pulls-shell main textarea:focus {
+          border-color: rgba(103, 232, 249, 0.34);
+          box-shadow:
+            0 0 0 2px rgba(103, 232, 249, 0.075);
+        }
+
+        .unknown-pulls-shell ::selection {
+          background: rgba(229, 169, 63, 0.38);
+          color: #fff8dc;
+        }
+
+        .unknown-pulls-shell * {
+          scrollbar-color:
+            rgba(229, 169, 63, 0.42)
+            rgba(5, 4, 17, 0.72);
+        }
+
+        html[data-pp-larger-text="true"] {
+          font-size: 112.5%;
+        }
+
+        html[data-pp-reduced-motion="true"] .unknown-pulls-shell *,
+        html[data-pp-reduced-motion="true"] .unknown-pulls-shell *::before,
+        html[data-pp-reduced-motion="true"] .unknown-pulls-shell *::after {
+          animation-delay: 0ms !important;
+          animation-duration: 1ms !important;
+          animation-iteration-count: 1 !important;
+          scroll-behavior: auto !important;
+          transition-delay: 0ms !important;
+          transition-duration: 1ms !important;
+        }
+
+        html[data-pp-low-effects="true"] [data-pocketpulls-ambient="heavy"],
+        html[data-pp-data-saver="true"] [data-pocketpulls-ambient="heavy"] {
+          display: none !important;
+        }
+
+        html[data-pp-low-effects="true"] .unknown-pulls-shell [class*="backdrop-blur"] {
+          backdrop-filter: none !important;
+        }
+
+        html[data-pp-low-effects="true"] .unknown-pulls-shell [class*="shadow-["] {
+          box-shadow: 0 14px 36px rgba(0, 0, 0, 0.32) !important;
+        }
+
+        @media (max-width: 520px) {
+          html[data-pp-larger-text="true"] {
+            font-size: 106.25%;
+          }
+        }
+      `}</style>
+    </div>
+  );
+}
+
+function PublicLegalShell({ children }: { children: ReactNode }) {
+  return (
+    <div className="unknown-pulls-shell relative min-h-[100dvh] overflow-x-hidden bg-[#02030d] text-white">
+      <UnknownPullsBackdrop />
+      <main id="main-content" tabIndex={-1} className="relative z-10 min-h-[100dvh]">{children}</main>
+    </div>
+  );
+}
+
+function PlayerLoadingScreen() {
+  return (
+    <main className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden bg-[#02030d] px-6 text-white">
+      <UnknownPullsBackdrop />
+
+      <div className="relative z-10 flex max-w-sm flex-col items-center text-center">
+        <div className="relative flex h-20 w-20 items-center justify-center">
+          <div className="absolute inset-1 animate-spin rounded-full border border-transparent border-r-cyan-100/38 border-t-yellow-100/65 [animation-duration:2.5s]" />
+
+          <Image
+            src="/ancient-pulls/wish/astral/aster-pixel.webp"
+            alt=""
+            width={56}
+            height={56}
+            priority
+            draggable={false}
+            onError={(event) => {
+              event.currentTarget.style.display = "none";
+            }}
+            className="relative h-14 w-14 object-contain drop-shadow-[0_10px_14px_rgba(0,0,0,0.36)]"
+          />
+        </div>
+
+        <p className="mt-5 text-sm font-black text-white/72">
+          Opening Ancient Pulls
+        </p>
+      </div>
+    </main>
+  );
+}
+
+function PlayerBannedScreen({
+  displayName,
+  reason,
+  bannedAt,
+  onSignOut,
+}: {
+  displayName: string;
+  reason: string | null;
+  bannedAt: string | null;
+  onSignOut: () => void;
+}) {
+  const formattedDate = (() => {
+    if (!bannedAt) {
+      return null;
+    }
+
+    const date =
+      new Date(bannedAt);
+
+    if (
+      Number.isNaN(
+        date.getTime(),
+      )
+    ) {
+      return null;
+    }
+
+    return new Intl.DateTimeFormat(
+      "en-GB",
+      {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      },
+    ).format(date);
+  })();
+
+  return (
+    <main className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden bg-[#02030d] px-4 py-12 text-white">
+      <UnknownPullsBackdrop />
+
+      <section className="relative z-10 w-full max-w-xl overflow-hidden rounded-[2.25rem] border border-red-200/15 bg-[#090b27]/95 shadow-[0_35px_120px_rgba(0,0,0,0.68)] backdrop-blur-3xl">
+        <div className="h-1 bg-gradient-to-r from-red-300 via-pink-200 to-yellow-200" />
+
+        <div className="p-7 text-center sm:p-10">
+          <div className="relative mx-auto flex h-24 w-24 items-center justify-center">
+            <div className="absolute inset-2 rounded-full bg-red-300/15 blur-2xl" />
+
+            <Image
+              src="/ancient-pulls/wish/astral/aster-pixel.webp"
+              alt=""
+              width={80}
+              height={80}
+              draggable={false}
+              className="relative h-20 w-20 object-contain grayscale-[0.35] drop-shadow-[0_12px_16px_rgba(0,0,0,0.45)]"
+            />
+          </div>
+
+          <p className="mt-6 text-xs font-black uppercase tracking-[0.22em] text-red-100/45">
+            Trainer access suspended
+          </p>
+
+          <h1 className="mt-3 text-3xl font-black text-white">
+            {displayName}, this account is currently unavailable.
+          </h1>
+
+          <p className="mt-5 text-sm font-semibold leading-7 text-white/55">
+            {reason ||
+              "This account has been suspended by an ancientpulls administrator."}
+          </p>
+
+          {formattedDate ? (
+            <p className="mt-3 text-xs font-bold text-white/28">
+              Suspension recorded {formattedDate}
+            </p>
+          ) : null}
+
+          <button
+            type="button"
+            onClick={onSignOut}
+            className="mt-7 min-h-12 w-full rounded-xl border border-white/10 bg-white/[0.06] px-5 text-sm font-black text-white transition hover:bg-white/[0.1]"
+          >
+            Return to sign in
+          </button>
+        </div>
+      </section>
+    </main>
+  );
+}
+
+function PlayerErrorScreen({
+  message,
+  onRetry,
+  onSignOut,
+}: {
+  message: string;
+  onRetry: () => void;
+  onSignOut: () => void;
+}) {
+  return (
+    <main className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden bg-[#02030d] px-4 py-12 text-white">
+      <UnknownPullsBackdrop />
+
+      <section className="relative z-10 w-full max-w-lg overflow-hidden rounded-2xl border border-white/10 bg-[#080b20]/95 shadow-[0_28px_90px_rgba(0,0,0,0.55)] backdrop-blur-2xl">
+        <div className="h-px bg-gradient-to-r from-transparent via-cyan-100/45 to-transparent" />
+
+        <div className="p-6 sm:p-8">
+          <h1 className="text-2xl font-black tracking-tight text-white">
+            Couldn&apos;t open your account
+          </h1>
+
+          <p className="mt-3 text-sm font-semibold leading-6 text-white/55">
+            {message}
+          </p>
+
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+            <button
+              type="button"
+              onClick={onRetry}
+              className="min-h-12 flex-1 rounded-xl bg-gradient-to-r from-cyan-100 via-yellow-100 to-violet-200 px-5 text-sm font-black text-[#111329] transition hover:bg-yellow-100"
+            >
+              Try again
+            </button>
+
+            <button
+              type="button"
+              onClick={onSignOut}
+              className="min-h-12 flex-1 rounded-xl border border-white/10 bg-white/[0.05] px-5 text-sm font-black text-white/65 transition hover:bg-white/10 hover:text-white"
+            >
+              Return to sign in
+            </button>
+          </div>
+        </div>
+      </section>
+    </main>
+  );
+}

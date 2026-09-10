@@ -1,0 +1,124 @@
+@import "tailwindcss";
+
+html {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: clip;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: clip;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+}
+
+button,
+a,
+input,
+select,
+textarea {
+  touch-action: manipulation;
+}
+
+img[src="/ancient-pulls/celestial-cat.webp"] {
+  image-rendering: pixelated;
+  filter: var(--nebu-image-filter);
+}
+
+.nebu-portrait-themed {
+  image-rendering: pixelated;
+  filter: var(--nebu-portrait-filter, var(--nebu-image-filter));
+}
+
+.nebu-portrait-themed[data-nebu-portrait-skin="cosmic_nebu"],
+img[src*="/skins/cosmic-nebu/"] {
+  image-rendering: auto;
+}
+
+/* iOS automatically zooms pages when a focused form control is below 16px. */
+@media (max-width: 767px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
+@keyframes holo {
+  0% {
+    transform: translateX(-100%);
+  }
+
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes shine {
+  0% {
+    transform: translateX(-120%);
+  }
+  50% {
+    transform: translateX(120%);
+  }
+  100% {
+    transform: translateX(120%);
+  }
+}
+
+
+@keyframes float {
+
+0%,100%{
+transform:translateY(0);
+}
+
+50%{
+transform:translateY(-12px);
+}
+
+}
+
+.holo {
+  animation: holo 3s infinite;
+}
+
+/* Shared native controls and keyboard affordances match the dark application. */
+:root { color-scheme: dark; }
+select option, select optgroup { background: #0a0d20; color: #f1f5f9; }
+:where(a, button, input, select, textarea, [role="button"]):focus-visible {
+  outline: 2px solid #a5f3fc;
+  outline-offset: 3px;
+}
+button, a { -webkit-tap-highlight-color: transparent; }
+button { touch-action: manipulation; }
+.skip-link {
+  position: fixed; left: 1rem; top: 1rem; z-index: 11000;
+  transform: translateY(-180%); border-radius: .75rem;
+  background: #cffafe; color: #082f49; padding: .85rem 1.15rem;
+  font-size: .875rem; font-weight: 700;
+}
+.skip-link:focus { transform: translateY(0); }
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+}

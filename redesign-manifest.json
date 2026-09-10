@@ -1,0 +1,655 @@
+{
+  "version": "Astral 71",
+  "date": "2026-09-10",
+  "baseline": "V68 complete source with V70 animation",
+  "files": [
+    {
+      "path": "app/(auth)/sign-in/page.tsx",
+      "mode": "replace",
+      "sha256": "c523143cd27f0b711097e60893d6bf5afe0808000c15419b803d3402d3ea8c47",
+      "previousSha256": [
+        "0250c94060e42112ae9179140ad059d40bf7cf79a9d117675adbbe87ed01dd10"
+      ]
+    },
+    {
+      "path": "app/(player)/achievements/page.tsx",
+      "mode": "replace",
+      "sha256": "1e11c657ed8569fa5e1b16b2f6f6fa4c1edc3c28cc6c7d877883af03d5b1a621",
+      "previousSha256": [
+        "8702e2f922d057a881661903882d1952a2d2e25d7572ec733434a017b859f3ca"
+      ]
+    },
+    {
+      "path": "app/(player)/catalogue/page.tsx",
+      "mode": "replace",
+      "sha256": "1e470fd2e913fb16354e9168fc965e86803350d84d93a2c6090c115cb5af93a4",
+      "previousSha256": [
+        "6cf6d00956fce43f7b0394c9061b65a6b70673c5e1817376e9f7966550937bc8"
+      ]
+    },
+    {
+      "path": "app/(player)/collection/collection.module.css",
+      "mode": "replace",
+      "sha256": "39b7c7d52a71a6448596296c276a648bcb9940575d08209b3af9e4e9f925e7b7",
+      "previousSha256": [
+        "6c2a28da035263f9c3e1d105f7c9cb3c4c8491833d345800337e3c3fffc30467"
+      ]
+    },
+    {
+      "path": "app/(player)/constellation/page.tsx",
+      "mode": "replace",
+      "sha256": "d19a66ff5671106816fdb0c9e8cf3b7047e00a80e8b0de504f88af41f54a9947",
+      "previousSha256": [
+        "932d94f12248fb7a66f79a2e49983d9360b7a65d3002597b336dcfc9f3aa4baa"
+      ]
+    },
+    {
+      "path": "app/(player)/cookies/page.tsx",
+      "mode": "replace",
+      "sha256": "1b10242fea4df455dba40ecfddf28bb0d19696b6a9c62f59f9dc5956c29fbfe3",
+      "previousSha256": [
+        "60e28bf6d015e0e2a1e01d9af5ff52f7e55b04b84e125a9a9b547eb7c93dd6c6"
+      ]
+    },
+    {
+      "path": "app/(player)/faq/page.tsx",
+      "mode": "replace",
+      "sha256": "416b92820bd1d8c8c70b972127db9efeac3531c5a9f9101332de76ddb220318b",
+      "previousSha256": [
+        "fc12d8133f50db8bd6fd0e7e3e52aff56d5a16c92450c40a556d540e01026826"
+      ]
+    },
+    {
+      "path": "app/(player)/hq/page.tsx",
+      "mode": "replace",
+      "sha256": "e4307fa531137071fa2ed375bd57d99c77714e83a888ce3cf96a55617e3bb9b7",
+      "previousSha256": [
+        "a71858bf254e4b70b6fd1a826fb261c702ef213c63f6bf947f50aee30726ea5f"
+      ]
+    },
+    {
+      "path": "app/(player)/layout.tsx",
+      "mode": "replace",
+      "sha256": "cf67f9a46d8b4c613fe76446ec6cdb52e208f9cba6a22f5b38f141a29f197149",
+      "previousSha256": [
+        "c52e910aff689e265a504669e33bf776e636f6794fb383aec2f1176a8d530f05"
+      ]
+    },
+    {
+      "path": "app/(player)/leaderboard/Leaderboard.module.css",
+      "mode": "replace",
+      "sha256": "18bcd9489a675a0d7c4731df155f690aafcf0076aa02ffcfe0f6cbaca3b218e8",
+      "previousSha256": [
+        "d4bc2a3bf5752c5e79a1a2cfe7c5035a39b89dad0b4fca59cca78b5083c91f8b"
+      ]
+    },
+    {
+      "path": "app/(player)/leaderboard/page.tsx",
+      "mode": "replace",
+      "sha256": "3063fc1253f91d23a9dd1498c64df7d3d5d25c5a8a8d4152f21c936afb306709",
+      "previousSha256": [
+        "0d48e7554051ceffbeac2d02dde3834a9664bd380a79f5c488b9343a7a8ad33f"
+      ]
+    },
+    {
+      "path": "app/(player)/profile/page.tsx",
+      "mode": "replace",
+      "sha256": "3bb8d54fca973e9dec635dce93fb13cae290e89717b88b4e55706340485c689c",
+      "previousSha256": [
+        "cc70282efb0b45b7b582cff2c05939dbbdacd4bcd6fe3dfa68424859733de8af"
+      ]
+    },
+    {
+      "path": "app/(player)/wishes/page.tsx",
+      "mode": "replace",
+      "sha256": "c08adbfa57247d942f1ee8403aa7de1016710ed9cb94eff478d8e93adef55f85",
+      "previousSha256": [
+        "aeb1f0235b3f3ebaee9cb9f5e02c68b494d086b79d36f3e1ab2df3c9f931e4f7"
+      ]
+    },
+    {
+      "path": "app/(player)/wishes/preview/page.tsx",
+      "mode": "replace",
+      "sha256": "45b9092edcedbae3e582b11a0218b3f19502b97660e6956ed5c8a16aa3196066",
+      "previousSha256": [
+        "42ba6ca178c37472953e4542bf95cde9c36b30c99290eb7aee8b1f05f6fb008d"
+      ]
+    },
+    {
+      "path": "app/(player)/wishes/shop/page.tsx",
+      "mode": "replace",
+      "sha256": "e169d395d105a7c27b93429f0a9fb81dff854be2b99d6e25dc33f63be74ed36f",
+      "previousSha256": [
+        "296460e6e69b7d46f9285750c35836eaf9882a3d9046a6f52d846f8ce5b94f64"
+      ]
+    },
+    {
+      "path": "app/(player)/wishes/shop/shop.module.css",
+      "mode": "dependency",
+      "sha256": "004f663aa7232529c123883e307a16e73da2e40209dcf5fc6049af7e92db186c",
+      "previousSha256": [
+        "004f663aa7232529c123883e307a16e73da2e40209dcf5fc6049af7e92db186c"
+      ]
+    },
+    {
+      "path": "app/astral.css",
+      "mode": "replace",
+      "sha256": "dd5953dd2818bebf9158b40af00657d439d5e4a82fc29eab3a5e348123e4e179",
+      "previousSha256": []
+    },
+    {
+      "path": "app/globals.css",
+      "mode": "replace",
+      "sha256": "514c7dd8520e331b226bdc0ae8fe10d037417335090eec3bcd1721b0df00f38d",
+      "previousSha256": [
+        "3f1fe70e03616c9ed25fb29bfb360b8d404fe5dfe0d77367ec6b9a805ecc522e"
+      ]
+    },
+    {
+      "path": "app/layout.tsx",
+      "mode": "replace",
+      "sha256": "3a08617637ac8f68b5d68c620fce6e98b572590363f267334955534435b13011",
+      "previousSha256": [
+        "cf9a5532b04b1904ad8bf431cb5628a1ebf04a420f70cf51814e60e116b61874"
+      ]
+    },
+    {
+      "path": "components/auth/AuthShell.module.css",
+      "mode": "replace",
+      "sha256": "9c4519870db5398c6c047e7d90692d4a5edb0c02946b7058ad8225c4e05e68aa",
+      "previousSha256": []
+    },
+    {
+      "path": "components/auth/AuthShell.tsx",
+      "mode": "replace",
+      "sha256": "3e33eef1650e2a246b14ca62444f3989bdb9226edca33317825c2e7f55c9bd7e",
+      "previousSha256": [
+        "9ee71cbcbb8178e493f80c5ff09206a5fa39bc34c1fa78a66b8983ce26dcea20"
+      ]
+    },
+    {
+      "path": "components/legal/CookieNotice.tsx",
+      "mode": "dependency",
+      "sha256": "19d74e471e7ed3667a067cd0c0790c73425225a79bc395349a71eff14ff8d447",
+      "previousSha256": [
+        "19d74e471e7ed3667a067cd0c0790c73425225a79bc395349a71eff14ff8d447"
+      ]
+    },
+    {
+      "path": "components/legal/LegalFooter.tsx",
+      "mode": "replace",
+      "sha256": "39c35d580f8163cc897aebf6afbf609081695e359f6b190e3de268c83988044b",
+      "previousSha256": [
+        "8d22492fe5bdcdaafcdc2fd89832e11ba295968c975af649c0ed55a0a5a5c9ac"
+      ]
+    },
+    {
+      "path": "components/player/AsterismSigil.module.css",
+      "mode": "dependency",
+      "sha256": "88b96e87289c63164b7f61349834a0d8d9bb568dadd8da66567c7a3ffd6f99b5",
+      "previousSha256": [
+        "88b96e87289c63164b7f61349834a0d8d9bb568dadd8da66567c7a3ffd6f99b5"
+      ]
+    },
+    {
+      "path": "components/player/AsterismSigil.tsx",
+      "mode": "dependency",
+      "sha256": "fe6eae4ac8c3263dd6d3182a84d32de7d4968b1ad561cbe3759e4f225184bc4c",
+      "previousSha256": [
+        "fe6eae4ac8c3263dd6d3182a84d32de7d4968b1ad561cbe3759e4f225184bc4c"
+      ]
+    },
+    {
+      "path": "components/player/astral/AstralWish.module.css",
+      "mode": "replace",
+      "sha256": "c7d1f72f79a71b3d7fed089aa68dd6533f216f7276431b4e76aad9f3596f40c3",
+      "previousSha256": [
+        "c7d1f72f79a71b3d7fed089aa68dd6533f216f7276431b4e76aad9f3596f40c3"
+      ]
+    },
+    {
+      "path": "components/player/astral/renderer.ts",
+      "mode": "replace",
+      "sha256": "0cf09f877d0aeb9a497250437ad4f68dee38d763dbcbffcfd7fe4e7a69aff293",
+      "previousSha256": [
+        "0cf09f877d0aeb9a497250437ad4f68dee38d763dbcbffcfd7fe4e7a69aff293"
+      ]
+    },
+    {
+      "path": "components/player/astral/shaders.ts",
+      "mode": "replace",
+      "sha256": "c434ebb04dbad47a77574c6d7f64353de45c2c8354850f59692f2fe97670175a",
+      "previousSha256": [
+        "c434ebb04dbad47a77574c6d7f64353de45c2c8354850f59692f2fe97670175a"
+      ]
+    },
+    {
+      "path": "components/player/astral/timeline.ts",
+      "mode": "replace",
+      "sha256": "dfa619a563f0a352d12e412046996e351b3f96fbe51f96f1032422f130160ff3",
+      "previousSha256": [
+        "dfa619a563f0a352d12e412046996e351b3f96fbe51f96f1032422f130160ff3"
+      ]
+    },
+    {
+      "path": "components/player/ConnectionStatus.tsx",
+      "mode": "dependency",
+      "sha256": "5debf37526c6116908d93afd2880135d7181ff9e26b983c5c77771fe54ebfdb8",
+      "previousSha256": [
+        "5debf37526c6116908d93afd2880135d7181ff9e26b983c5c77771fe54ebfdb8"
+      ]
+    },
+    {
+      "path": "components/player/FirstWishJourney.tsx",
+      "mode": "replace",
+      "sha256": "3ea0255062bae363933ad01e724837b578da4ca4f38a7b797ac98656731976dc",
+      "previousSha256": [
+        "26077ff3fd4bf8498d5c564f5710ee2797919fbcdfd1fc559b03e836e64fd183"
+      ]
+    },
+    {
+      "path": "components/player/NebuPortrait.tsx",
+      "mode": "replace",
+      "sha256": "5b72fcbefdb9a4d1b086113df7cc48c23467df21b41a70555203fea76270a457",
+      "previousSha256": [
+        "564d877e4ee9f0e895d9eb391656a3e9cbe9c5d23346d76c2fb8a3cf8c48c30c"
+      ]
+    },
+    {
+      "path": "components/player/NotificationCentre.tsx",
+      "mode": "dependency",
+      "sha256": "8606a796d9470a5c28dd4a974c0eca4a785bccc3a83702eee33c1cbacc4d1c31",
+      "previousSha256": [
+        "8606a796d9470a5c28dd4a974c0eca4a785bccc3a83702eee33c1cbacc4d1c31"
+      ]
+    },
+    {
+      "path": "components/player/observatory/AstralIcon.tsx",
+      "mode": "replace",
+      "sha256": "211ca17dbbc587a7d935f8efcb36fea31068c2801d760967e45044e8b7b83332",
+      "previousSha256": []
+    },
+    {
+      "path": "components/player/observatory/ConstellationArtwork.tsx",
+      "mode": "replace",
+      "sha256": "09ce508390cd89fc56c02a158d08b1c01f41793020cb707c60d734ca5c380a48",
+      "previousSha256": []
+    },
+    {
+      "path": "components/player/observatory/DeepSky.tsx",
+      "mode": "replace",
+      "sha256": "032986cab8b14ce682b4eb7cd608013a702d002d24ceb07dc4f7277f7ad51da6",
+      "previousSha256": []
+    },
+    {
+      "path": "components/player/observatory/Navigation.module.css",
+      "mode": "replace",
+      "sha256": "aa916b88248ce46916d25724e18ca5a2148d8d1fe9c9135711caa3b017e31739",
+      "previousSha256": []
+    },
+    {
+      "path": "components/player/observatory/OrbitClock.ts",
+      "mode": "replace",
+      "sha256": "e673a9154c9a65dd089333529c6e7d6b031c8e7bd21c976411aea5f92c68a707",
+      "previousSha256": []
+    },
+    {
+      "path": "components/player/observatory/Overview.module.css",
+      "mode": "replace",
+      "sha256": "5a2e63ac87c0211daa6031ca18851144243e094d9278c183ce37de4e4a9df945",
+      "previousSha256": []
+    },
+    {
+      "path": "components/player/PlayerNav.tsx",
+      "mode": "replace",
+      "sha256": "bbe4cd9e9b15a5d0e5703cd77cc2d0c6bc376c246cad3d3a466f26213e56efc4",
+      "previousSha256": [
+        "7514df87b50e1a82ca17e8033d74ba4943656c54eab16b33f0b0264e244287d6"
+      ]
+    },
+    {
+      "path": "components/player/PlayerPreferences.tsx",
+      "mode": "dependency",
+      "sha256": "3a5db337ca620194816e08a99ba3f269a8ddc06a2579638ad343b9055716803e",
+      "previousSha256": [
+        "3a5db337ca620194816e08a99ba3f269a8ddc06a2579638ad343b9055716803e"
+      ]
+    },
+    {
+      "path": "components/player/PlayerUI.tsx",
+      "mode": "dependency",
+      "sha256": "a252bfff9dd70b5a9971bd51400f6afe8dd299ec90aac91988ee252217b9a79a",
+      "previousSha256": [
+        "a252bfff9dd70b5a9971bd51400f6afe8dd299ec90aac91988ee252217b9a79a"
+      ]
+    },
+    {
+      "path": "components/player/PurchaseConsentGate.tsx",
+      "mode": "dependency",
+      "sha256": "a64dd74efada8ee0c8b16b3745c43e94bee489e3e98cf6dde2aa459cf377827b",
+      "previousSha256": [
+        "a64dd74efada8ee0c8b16b3745c43e94bee489e3e98cf6dde2aa459cf377827b"
+      ]
+    },
+    {
+      "path": "components/player/QuickNavigation.tsx",
+      "mode": "dependency",
+      "sha256": "80d4b66b4fc9f49d8eee924277474fcb0a37f1d00b14bddd067da2afed1aa07c",
+      "previousSha256": [
+        "80d4b66b4fc9f49d8eee924277474fcb0a37f1d00b14bddd067da2afed1aa07c"
+      ]
+    },
+    {
+      "path": "components/player/TrustShell.tsx",
+      "mode": "replace",
+      "sha256": "c4913da6e8f1c27d050bb8fa57843eee6956b689e4c6e8b5a94aad9a0669b9cb",
+      "previousSha256": [
+        "9477a3984bd4a631f8ca4f48153f0d365d6f45c876847de87aeeb459bec602d1"
+      ]
+    },
+    {
+      "path": "components/player/UnknownPullsBackdrop.module.css",
+      "mode": "replace",
+      "sha256": "7310950912c06e6628784701237154b6fffbc812ac88d3590fa14b717de0036c",
+      "previousSha256": [
+        "db58da168bf093bb464d01b57a2ebe7d5756e3a21ce57536231150976a9a21d5"
+      ]
+    },
+    {
+      "path": "components/player/UnknownPullsBackdrop.tsx",
+      "mode": "dependency",
+      "sha256": "b907c9ef8e1e4255f6d0319fb8f2e4ee7a32a0f7d5d0e473eb06b463df49651b",
+      "previousSha256": [
+        "b907c9ef8e1e4255f6d0319fb8f2e4ee7a32a0f7d5d0e473eb06b463df49651b"
+      ]
+    },
+    {
+      "path": "components/player/UnownText.tsx",
+      "mode": "replace",
+      "sha256": "5f1867c507a3bf3144b2cf71a4e10eb511682b6fb8c478e185ffffe33b191fc2",
+      "previousSha256": [
+        "852dbd9a7b205899cb11e8f143af76f0987247438bf739bed9f8f7590f9b1fd5"
+      ]
+    },
+    {
+      "path": "components/player/usePlayerPreferences.ts",
+      "mode": "dependency",
+      "sha256": "24a7a6d8caf262453dd8a901acd65f4d7d03236e98b57235458149eca045811d",
+      "previousSha256": [
+        "24a7a6d8caf262453dd8a901acd65f4d7d03236e98b57235458149eca045811d"
+      ]
+    },
+    {
+      "path": "components/player/wishAudio.ts",
+      "mode": "replace",
+      "sha256": "7c0ab4627acdbaa4c37d726daaf776d6e9520c2f56e65e30731522c08be5d6d3",
+      "previousSha256": [
+        "e5177eaab8ae303c6fb94ca5abb3f21f922984c1e716742711300dc8599cbf88",
+        "7c0ab4627acdbaa4c37d726daaf776d6e9520c2f56e65e30731522c08be5d6d3"
+      ]
+    },
+    {
+      "path": "components/player/WishCinematic.tsx",
+      "mode": "replace",
+      "sha256": "6fdb7674e0843fdb6e23d3810740d0e059c056630a819f46436c3ce4324b908e",
+      "previousSha256": [
+        "fec3969c66128fb9280ff9d82477ccdaff2c6a194fe45a9bf7bc8f0c0ce21c94",
+        "6fdb7674e0843fdb6e23d3810740d0e059c056630a819f46436c3ce4324b908e"
+      ]
+    },
+    {
+      "path": "components/player/WishDetailsDialog.module.css",
+      "mode": "dependency",
+      "sha256": "8cbbbb4d06fbcc7d0ce3df6bf02b4db57cd786cd048910c99c2e322efd0bf9ff",
+      "previousSha256": [
+        "8cbbbb4d06fbcc7d0ce3df6bf02b4db57cd786cd048910c99c2e322efd0bf9ff"
+      ]
+    },
+    {
+      "path": "components/player/WishDetailsDialog.tsx",
+      "mode": "replace",
+      "sha256": "e5787faecc9ea071c06504ccde035669a583285125c93f35176cd8feaedfab75",
+      "previousSha256": [
+        "766a17415ee4e4be3d056c19634d33c49047141ff5def06c8d30446374ba9d4d"
+      ]
+    },
+    {
+      "path": "lib/auth/helpers.ts",
+      "mode": "dependency",
+      "sha256": "3112a91bc3783e323424b5d469a9d3a3aca9d18406d5e04ce4f56b68b96af725",
+      "previousSha256": [
+        "3112a91bc3783e323424b5d469a9d3a3aca9d18406d5e04ce4f56b68b96af725"
+      ]
+    },
+    {
+      "path": "lib/auth/navigation.ts",
+      "mode": "dependency",
+      "sha256": "adb5910d0d6c622bb560bd5df2f83b0c79791d556d19bc1a40aebe07ef5f74b9",
+      "previousSha256": [
+        "adb5910d0d6c622bb560bd5df2f83b0c79791d556d19bc1a40aebe07ef5f74b9"
+      ]
+    },
+    {
+      "path": "lib/auth/pending-registration.ts",
+      "mode": "dependency",
+      "sha256": "d4410c0a63dcf77be82c81f3f79dc93a585105e2c9571eae89d647f56dd437b8",
+      "previousSha256": [
+        "d4410c0a63dcf77be82c81f3f79dc93a585105e2c9571eae89d647f56dd437b8"
+      ]
+    },
+    {
+      "path": "lib/client/latestSave.ts",
+      "mode": "dependency",
+      "sha256": "ff12fe877712194c5e77c1285549f3fed20910d1ffbe9e1d3174f455a50cb1cc",
+      "previousSha256": [
+        "ff12fe877712194c5e77c1285549f3fed20910d1ffbe9e1d3174f455a50cb1cc"
+      ]
+    },
+    {
+      "path": "lib/client/useModalFocus.ts",
+      "mode": "dependency",
+      "sha256": "40bb558c06cfe131f9c2a6d746f5e9ea07ba82386537f316390b1f3a135dd95b",
+      "previousSha256": [
+        "40bb558c06cfe131f9c2a6d746f5e9ea07ba82386537f316390b1f3a135dd95b"
+      ]
+    },
+    {
+      "path": "lib/client/usePageVisible.ts",
+      "mode": "dependency",
+      "sha256": "5a2c146d360ab52cf037246621a6d5447ecb5808ac55d56234b6e176f18103ab",
+      "previousSha256": [
+        "5a2c146d360ab52cf037246621a6d5447ecb5808ac55d56234b6e176f18103ab"
+      ]
+    },
+    {
+      "path": "lib/player/binder.ts",
+      "mode": "dependency",
+      "sha256": "c3ef984fa1dad944ed61474b865c2ff6fe22987c67de006c948a54cf2dde0728",
+      "previousSha256": [
+        "c3ef984fa1dad944ed61474b865c2ff6fe22987c67de006c948a54cf2dde0728"
+      ]
+    },
+    {
+      "path": "lib/player/browseFilters.ts",
+      "mode": "dependency",
+      "sha256": "e1e3cc48700971113dc19ccaa810123e0c4ec5c94ad0d8d1ee1470fade9ec700",
+      "previousSha256": [
+        "e1e3cc48700971113dc19ccaa810123e0c4ec5c94ad0d8d1ee1470fade9ec700"
+      ]
+    },
+    {
+      "path": "lib/player/display.ts",
+      "mode": "replace",
+      "sha256": "b00109973e93ebe6430107382f55bfa0c0dd98eedaf2cbd54192eb367a0be8d4",
+      "previousSha256": [
+        "6cdda99f2d2d63b3fc9756207883d91fae1a02de9d0b7f6a14b187c43de79e78"
+      ]
+    },
+    {
+      "path": "lib/player/format.ts",
+      "mode": "dependency",
+      "sha256": "b7d09ae88a3dc5b285b266ffb8140fc69f8bd1bd4803a2e2dc995fc5f5244eef",
+      "previousSha256": [
+        "b7d09ae88a3dc5b285b266ffb8140fc69f8bd1bd4803a2e2dc995fc5f5244eef"
+      ]
+    },
+    {
+      "path": "lib/player/legal.ts",
+      "mode": "dependency",
+      "sha256": "55bc21da101c280057ce4fe7d92a695a60070c291b243f5af11253c2df9d501e",
+      "previousSha256": [
+        "55bc21da101c280057ce4fe7d92a695a60070c291b243f5af11253c2df9d501e"
+      ]
+    },
+    {
+      "path": "lib/player/nebu.ts",
+      "mode": "dependency",
+      "sha256": "dadfcdd58203bd6633daf44fdc800012db76cd5a2fd3ea197e2dc5fc7ae87977",
+      "previousSha256": [
+        "dadfcdd58203bd6633daf44fdc800012db76cd5a2fd3ea197e2dc5fc7ae87977"
+      ]
+    },
+    {
+      "path": "lib/player/nebuPerformances.ts",
+      "mode": "dependency",
+      "sha256": "c1bd018da591568bd28a7c05ce592215e5746dbd5bae15a854914ec5e2fb444a",
+      "previousSha256": [
+        "c1bd018da591568bd28a7c05ce592215e5746dbd5bae15a854914ec5e2fb444a"
+      ]
+    },
+    {
+      "path": "lib/player/orders.ts",
+      "mode": "dependency",
+      "sha256": "972e718c20c6bb4c75836034a81d799797c08db067727b039706a39140c438a7",
+      "previousSha256": [
+        "972e718c20c6bb4c75836034a81d799797c08db067727b039706a39140c438a7"
+      ]
+    },
+    {
+      "path": "lib/player/preferences.ts",
+      "mode": "dependency",
+      "sha256": "bf03e7bb28ebd2e8c558d4ea37d92dd2b552e4834e3a39cb03581e8be4b58229",
+      "previousSha256": [
+        "bf03e7bb28ebd2e8c558d4ea37d92dd2b552e4834e3a39cb03581e8be4b58229"
+      ]
+    },
+    {
+      "path": "lib/player/purchase-consent.ts",
+      "mode": "dependency",
+      "sha256": "2475b75cf155b1d784cc5c4e3a5254254bcf9341ebe130f94ddb9a4e0c24f551",
+      "previousSha256": [
+        "2475b75cf155b1d784cc5c4e3a5254254bcf9341ebe130f94ddb9a4e0c24f551"
+      ]
+    },
+    {
+      "path": "lib/player/rarity.ts",
+      "mode": "dependency",
+      "sha256": "781c11c4b58237b5747054013127e0f5ee1eb22c6fb80145f91f4875bffd99b3",
+      "previousSha256": [
+        "781c11c4b58237b5747054013127e0f5ee1eb22c6fb80145f91f4875bffd99b3"
+      ]
+    },
+    {
+      "path": "lib/player/routes.ts",
+      "mode": "replace",
+      "sha256": "e90c5a981d0c4eab965869e238703346941f0a9ce6a8501712c5055de5973668",
+      "previousSha256": [
+        "511e6f37dff9c66964ac24ece0187d2a7fa7e023ca1a1c6bb45027bfe17bfab7"
+      ]
+    },
+    {
+      "path": "lib/player/useBrowseFilters.ts",
+      "mode": "dependency",
+      "sha256": "696e65ee7b08d9ec717a50c854c540a497ee8475667f4a31d86727cf84f119f3",
+      "previousSha256": [
+        "696e65ee7b08d9ec717a50c854c540a497ee8475667f4a31d86727cf84f119f3"
+      ]
+    },
+    {
+      "path": "lib/player/wish-reveal.ts",
+      "mode": "dependency",
+      "sha256": "a501f9134813c2a9c62b7a9bd640fe69384a00212e137701aa41ce3a7e7e86b1",
+      "previousSha256": [
+        "a501f9134813c2a9c62b7a9bd640fe69384a00212e137701aa41ce3a7e7e86b1"
+      ]
+    },
+    {
+      "path": "lib/player/wishRequest.ts",
+      "mode": "dependency",
+      "sha256": "4175785bf0b4365496ad162562179d96206888e511b0c831b713e241361300f2",
+      "previousSha256": [
+        "4175785bf0b4365496ad162562179d96206888e511b0c831b713e241361300f2"
+      ]
+    },
+    {
+      "path": "lib/player/zodiac-constellations.ts",
+      "mode": "dependency",
+      "sha256": "bfb7897a0a02a7219ba9261626d350b3c08a61eb267113c75e7ddcfeea20faff",
+      "previousSha256": [
+        "bfb7897a0a02a7219ba9261626d350b3c08a61eb267113c75e7ddcfeea20faff"
+      ]
+    },
+    {
+      "path": "lib/supabase.ts",
+      "mode": "dependency",
+      "sha256": "a28cac647d9713074e572eb6bb2ce4f1d5b9096c271eddde9511308be560fe7c",
+      "previousSha256": [
+        "a28cac647d9713074e572eb6bb2ce4f1d5b9096c271eddde9511308be560fe7c"
+      ]
+    },
+    {
+      "path": "public/ancient-pulls/wish/astral/aster-pixel.webp",
+      "mode": "replace",
+      "sha256": "d8ae110cac77d20838ea6ed11916453778df7fa5b6749ad683e212e261d4f288",
+      "previousSha256": [
+        "d8ae110cac77d20838ea6ed11916453778df7fa5b6749ad683e212e261d4f288"
+      ]
+    },
+    {
+      "path": "public/ancient-pulls/wish/astral/aster.webp",
+      "mode": "replace",
+      "sha256": "579770b0daf1c5ed418cefc3ca03707b16e284d2b79dcfc6d4e3050fc76197d5",
+      "previousSha256": [
+        "579770b0daf1c5ed418cefc3ca03707b16e284d2b79dcfc6d4e3050fc76197d5"
+      ]
+    },
+    {
+      "path": "scripts/astral-preview-entry.js",
+      "mode": "replace",
+      "sha256": "acbb806c50607494ca335b0a1f10d9dc988f43ec673290dc226a6fde73d89fa6",
+      "previousSha256": [
+        "acbb806c50607494ca335b0a1f10d9dc988f43ec673290dc226a6fde73d89fa6"
+      ]
+    },
+    {
+      "path": "scripts/astral-preview.html",
+      "mode": "replace",
+      "sha256": "6fe229f151165c9e2b4cdb61aa4e4754c4aa08041ab3e6c4a99d4c9b1390864a",
+      "previousSha256": [
+        "6fe229f151165c9e2b4cdb61aa4e4754c4aa08041ab3e6c4a99d4c9b1390864a"
+      ]
+    },
+    {
+      "path": "scripts/astral-regression.cjs",
+      "mode": "replace",
+      "sha256": "468bfd7801269f9d5ab52ae9eda52ff8751faa1f71e6f67ee76388bf0aad84b9",
+      "previousSha256": [
+        "468bfd7801269f9d5ab52ae9eda52ff8751faa1f71e6f67ee76388bf0aad84b9"
+      ]
+    },
+    {
+      "path": "scripts/build-astral-preview.cjs",
+      "mode": "replace",
+      "sha256": "d28e358983203a85f6d1dfee921049841fac8b670dbd0fe2077bcc0fbf790464",
+      "previousSha256": [
+        "d28e358983203a85f6d1dfee921049841fac8b670dbd0fe2077bcc0fbf790464"
+      ]
+    },
+    {
+      "path": "scripts/observatory-regression.cjs",
+      "mode": "replace",
+      "sha256": "6e09d2f9d3951e93d1d496d5fbdf092798f046bc79835e150d6a45dd5590f737",
+      "previousSha256": []
+    }
+  ]
+}

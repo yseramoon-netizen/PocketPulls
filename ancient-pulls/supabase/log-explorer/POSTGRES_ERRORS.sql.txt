@@ -1,0 +1,49 @@
+-- RUN THIS IN:
+-- Supabase Dashboard > Logs > Log Explorer
+--
+-- This is Log Explorer SQL, not Postgres SQL Editor syntax.
+--
+-- Retry signup once immediately before running it. Set the dashboard time
+-- range to the last 15 minutes.
+
+select
+  cast(
+    postgres_logs.timestamp
+    as datetime
+  )
+    as timestamp,
+
+  event_message,
+
+  parsed.error_severity,
+  parsed.user_name,
+  parsed.query,
+  parsed.detail,
+  parsed.hint,
+  parsed.sql_state_code,
+  parsed.backend_type
+
+from postgres_logs
+
+cross join unnest(metadata)
+  as metadata
+
+cross join unnest(
+  metadata.parsed
+)
+  as parsed
+
+where regexp_contains(
+    parsed.error_severity,
+    'ERROR|FATAL|PANIC'
+  )
+
+  and regexp_contains(
+    parsed.user_name,
+    'supabase_auth_admin'
+  )
+
+order by
+  timestamp desc
+
+limit 100;

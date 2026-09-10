@@ -1,0 +1,12 @@
+ANCIENT PULLS - PLAYER AVATAR UPLOADS
+
+1. In Supabase > SQL Editor, run this file once:
+   supabase/migrations/20260810_player_avatar_uploads_v59.sql
+
+2. Replace this website file:
+   app/(player)/profile/page.tsx
+
+3. Deploy normally.
+
+Players can then click their profile portrait to upload a JPG, PNG or WebP
+image up to 3 MB. After choosing a file, they must press Save trainer profile.

@@ -1,0 +1,501 @@
+"use client";
+
+import Link from "next/link";
+import { useCallback, useEffect, useMemo, useState } from "react";
+
+import AsterPortrait from "@/components/player/NebuPortrait";
+import ConstellationArtwork from "@/components/player/observatory/ConstellationArtwork";
+import DeepSky from "@/components/player/observatory/DeepSky";
+import AstralIcon from "@/components/player/observatory/AstralIcon";
+import styles from "@/components/player/observatory/Overview.module.css";
+import { formatMarketValue } from "@/lib/player/format";
+import { supabase } from "@/lib/supabase";
+
+type TrainerHqData = {
+  trainerName: string;
+  wishBalance: number;
+  totalCards: number;
+  uniqueCards: number;
+  availableCards: number;
+  collectionValue: number;
+  shippingThreshold: number;
+  shippingUnlocked: boolean;
+  shipmentStatus: string | null;
+  shipmentCardCount: number;
+  shipmentTrackingUrl: string | null;
+  zodiacSign: string | null;
+  constellationStars: number;
+  pendingFriendRequests: number;
+  activeTrades: number;
+  tradeNeedsAttention: boolean;
+  attentionTradePartner: string | null;
+  profileComplete: boolean;
+  firstWishComplete: boolean;
+  recentWishId: string | null;
+  recentCardId: string | null;
+  recentCardName: string | null;
+  recentCardSet: string | null;
+  recentCardNumber: string | null;
+  recentCardRarity: string | null;
+  recentCardImageUrl: string | null;
+  recentCardValue: number;
+  recentWishAt: string | null;
+};
+
+const REFRESH_EVENTS = [
+  "pocketpulls:wish-balance",
+  "pocketpulls:achievement-reward-claimed",
+  "pocketpulls:profile-updated",
+  "pocketpulls:friendship-updated",
+  "pocketpulls:trade-updated",
+  "pocketpulls:shipping-updated",
+] as const;
+
+function text(value: unknown, fallback = ""): string {
+  return typeof value === "string" && value.trim() ? value.trim() : fallback;
+}
+
+function nullableText(value: unknown): string | null {
+  const result = text(value);
+  return result || null;
+}
+
+function number(value: unknown): number {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? Math.max(0, parsed) : 0;
+}
+
+function whole(value: unknown): number {
+  return Math.floor(number(value));
+}
+
+function parseHqData(value: unknown): TrainerHqData | null {
+  const item = Array.isArray(value) ? value[0] : value;
+
+  if (typeof item !== "object" || item === null) {
+    return null;
+  }
+
+  const row = item as Record<string, unknown>;
+
+  return {
+    trainerName: text(row.trainer_name, "Trainer"),
+    wishBalance: whole(row.wish_balance),
+    totalCards: whole(row.total_cards),
+    uniqueCards: whole(row.unique_cards),
+    availableCards: whole(row.available_cards),
+    collectionValue: number(row.collection_value),
+    shippingThreshold: Math.max(1, whole(row.shipping_threshold) || 100),
+    shippingUnlocked: row.shipping_unlocked === true,
+    shipmentStatus: nullableText(row.shipment_status),
+    shipmentCardCount: whole(row.shipment_card_count),
+    shipmentTrackingUrl: nullableText(row.shipment_tracking_url),
+    zodiacSign: nullableText(row.zodiac_sign),
+    constellationStars: whole(row.constellation_stars),
+    pendingFriendRequests: whole(row.pending_friend_requests),
+    activeTrades: whole(row.active_trades),
+    tradeNeedsAttention: row.trade_needs_attention === true,
+    attentionTradePartner: nullableText(row.attention_trade_partner),
+    profileComplete: row.profile_complete === true,
+    firstWishComplete: row.first_wish_complete === true,
+    recentWishId: nullableText(row.recent_wish_id),
+    recentCardId: nullableText(row.recent_card_id),
+    recentCardName: nullableText(row.recent_card_name),
+    recentCardSet: nullableText(row.recent_card_set),
+    recentCardNumber: nullableText(row.recent_card_number),
+    recentCardRarity: nullableText(row.recent_card_rarity),
+    recentCardImageUrl: nullableText(row.recent_card_image_url),
+    recentCardValue: number(row.recent_card_value),
+    recentWishAt: nullableText(row.recent_wish_at),
+  };
+}
+
+function formatMoney(value: number): string {
+  return new Intl.NumberFormat("en-GB", {
+    style: "currency",
+    currency: "GBP",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(value);
+}
+
+function formatNumber(value: number): string {
+  return new Intl.NumberFormat("en-GB").format(Math.floor(value));
+}
+
+function formatDate(value: string | null): string {
+  if (!value) {
+    return "No pulls yet";
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "Recently revealed";
+  }
+
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  }).format(date);
+}
+
+function greeting(): string {
+  const hour = new Date().getHours();
+
+  if (hour < 12) return "Good morning";
+  if (hour < 18) return "Good afternoon";
+  return "Good evening";
+}
+
+function zodiacLabel(sign: string | null): string {
+  if (!sign) return "Not chosen";
+  return sign.charAt(0).toUpperCase() + sign.slice(1);
+}
+
+function shipmentLabel(status: string | null): string {
+  switch (status) {
+    case "requested":
+      return "Requested";
+    case "packing":
+      return "Being packed";
+    case "shipped":
+      return "On the way";
+    case "delivered":
+      return "Delivered";
+    case "cancelled":
+      return "Cancelled";
+    default:
+      return "No active shipment";
+  }
+}
+
+export default function TrainerHqPage() {
+  const [data, setData] = useState<TrainerHqData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const loadHq = useCallback(async () => {
+    setLoading(true);
+
+    const { data: result, error } = await supabase.rpc(
+      "get_player_trainer_hq",
+    );
+
+    if (error) {
+      console.error("Trainer HQ could not load:", error);
+      setErrorMessage(
+        "Trainer HQ could not read your archive. Run the new Supabase file, then try again.",
+      );
+      setLoading(false);
+      return;
+    }
+
+    const parsed = parseHqData(result);
+
+    if (!parsed) {
+      setErrorMessage("Trainer HQ returned no player data.");
+    } else {
+      setData(parsed);
+      setErrorMessage(null);
+    }
+
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => {
+      void loadHq();
+    });
+
+    const refresh = () => void loadHq();
+
+    window.addEventListener("focus", refresh);
+    REFRESH_EVENTS.forEach((eventName) => {
+      window.addEventListener(eventName, refresh);
+    });
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener("focus", refresh);
+      REFRESH_EVENTS.forEach((eventName) => {
+        window.removeEventListener(eventName, refresh);
+      });
+    };
+  }, [loadHq]);
+
+  const shippingProgress = useMemo(() => {
+    if (!data) return 0;
+    return Math.min(100, (data.availableCards / data.shippingThreshold) * 100);
+  }, [data]);
+
+  if (loading && !data) {
+    return <TrainerHqLoading />;
+  }
+
+  if (!data) {
+    return (
+      <section className="mx-auto flex min-h-[70dvh] w-full max-w-2xl items-center px-4 py-12">
+        <div className="w-full rounded-[2rem] border border-red-200/15 bg-red-400/[0.07] p-7 text-center">
+          <p className="text-3xl">✧</p>
+          <h1 className="mt-4 text-2xl font-black text-white">
+            Trainer HQ is waiting for its archive link
+          </h1>
+          <p className="mt-3 text-sm font-semibold leading-6 text-red-100/70">
+            {errorMessage}
+          </p>
+          <button
+            type="button"
+            onClick={() => void loadHq()}
+            className="mt-6 min-h-11 rounded-xl bg-red-100 px-5 text-sm font-black text-red-950"
+          >
+            Try again
+          </button>
+        </div>
+      </section>
+    );
+  }
+
+  return <section className={styles.page}>
+    <header className={styles.header}><div><p className={styles.eyebrow}>Your observatory</p><h1>Overview</h1></div><p className={styles.greeting}>{greeting()}, {data.trainerName}.<br/>Your sky is right where you left it.</p></header>
+    {errorMessage?<div role="alert" className="mb-6 rounded-xl border border-red-200/20 bg-red-950/30 p-4 text-sm text-red-100">{errorMessage}</div>:null}
+    <div className={styles.heroGrid}>
+      <article className={styles.skyCard}><DeepSky still/><ConstellationArtwork sign={data.zodiacSign} className={styles.art}/><div className={styles.skyCopy}><p>Your constellation</p><h2>{data.zodiacSign?`${zodiacLabel(data.zodiacSign)}, written in stars.`:"A sky of your own."}</h2><span>{formatNumber(data.constellationStars)} memories in your constellation</span><Link href="/constellation">Explore your sky <AstralIcon name="arrow"/></Link></div><span className={styles.skyMark}>ANCIENT PULLS / OBSERVATORY</span></article>
+      <article className={styles.wishCard}><span className={styles.eyebrow}>Astral wishes</span><AsterPortrait alt="Aster, your star companion"/><h2>Your next star awaits.</h2><p>{data.wishBalance>0?`${formatNumber(data.wishBalance)} wishes ready. Discover the next card in your collection.`:"Reveal a card and add a new star to your sky."}</p><Link href="/wishes">Make a wish <AstralIcon name="star"/></Link></article>
+    </div>
+    <div className={styles.metrics}>
+      {[["Wishes",formatNumber(data.wishBalance),"Ready to reveal","/wishes"],["Cards",formatNumber(data.totalCards),`${formatNumber(data.uniqueCards)} unique cards`,"/collection"],["Collection",formatMoney(data.collectionValue),"Current catalogue value","/collection"],["Stars",formatNumber(data.constellationStars),zodiacLabel(data.zodiacSign),"/constellation"]].map(([label,value,detail,href])=><Link key={label} href={href} className={styles.metric}><p>{label}</p><strong>{value}</strong><small>{detail}</small></Link>)}
+    </div>
+    <div className={styles.lower}><RecentPull data={data}/><ActivityPanel data={data}/><ProgressPanel data={data} shippingProgress={shippingProgress}/></div>
+    <nav className={styles.links} aria-label="Collection shortcuts">{[["/catalogue","Explore catalogue"],["/leaderboard","Universe ranks"],["/friends","Friends & trades"],["/shipping","Shipping & orders"]].map(([href,label])=><Link key={href} href={href}>{label}<AstralIcon name="arrow"/></Link>)}</nav>
+  </section>;
+}
+
+function RecentPull({ data }: { data: TrainerHqData }) {
+  return (
+    <article className="overflow-hidden rounded-2xl border border-violet-200/15 bg-[#080b20]/88">
+      <div className="flex items-center justify-between gap-4 border-b border-white/[0.08] px-5 py-4">
+        <div>
+          <p className="text-[0.61rem] font-black uppercase tracking-[0.17em] text-violet-100/40">
+            Latest star
+          </p>
+          <h2 className="mt-1 text-lg font-black text-white">Most recent pull</h2>
+        </div>
+        {data.recentWishId ? (
+          <Link
+            href="/wishes?replay=latest"
+            className="rounded-xl border border-yellow-100/15 bg-yellow-200/[0.06] px-3 py-2 text-xs font-black text-yellow-50/70 transition hover:bg-yellow-200/[0.1] hover:text-yellow-50"
+          >
+            Replay
+          </Link>
+        ) : null}
+      </div>
+
+      {data.recentWishId ? (
+        <div className="grid min-h-64 grid-cols-[8rem_1fr] gap-5 p-5 sm:grid-cols-[10rem_1fr]">
+          <div className="flex items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-black/25 p-2">
+            {data.recentCardImageUrl ? (
+              <img
+                src={data.recentCardImageUrl}
+                alt={data.recentCardName || "Recent card"}
+                loading="lazy"
+                className="max-h-56 w-full object-contain drop-shadow-[0_12px_18px_rgba(0,0,0,0.5)]"
+              />
+            ) : (
+              <span className="text-4xl text-yellow-100/32">✦</span>
+            )}
+          </div>
+
+          <div className="flex min-w-0 flex-col py-1">
+            <p className="text-[0.61rem] font-black uppercase tracking-[0.15em] text-cyan-100/40">
+              {data.recentCardRarity}
+            </p>
+            <h3 className="mt-2 text-2xl font-black text-white">
+              {data.recentCardName}
+            </h3>
+            <p className="mt-2 text-sm font-semibold text-white/38">
+              {data.recentCardSet} · {data.recentCardNumber}
+            </p>
+            <p className="mt-4 text-lg font-black text-yellow-50">
+              {formatMarketValue(data.recentCardValue)}
+            </p>
+            <p className="mt-auto pt-4 text-xs font-bold text-white/25">
+              Revealed {formatDate(data.recentWishAt)}
+            </p>
+          </div>
+        </div>
+      ) : (
+        <div className="flex min-h-64 flex-col items-center justify-center p-7 text-center">
+          <span className="text-5xl text-yellow-100/30">✦</span>
+          <h3 className="mt-4 text-lg font-black text-white">
+            Your first star is waiting
+          </h3>
+          <p className="mt-2 max-w-sm text-sm font-semibold leading-6 text-white/35">
+            Your latest card will appear here.
+          </p>
+        </div>
+      )}
+    </article>
+  );
+}
+
+function ActivityPanel({ data }: { data: TrainerHqData }) {
+  const items = [
+    {
+      href: "/friends",
+      glyph: "♢",
+      title: "Friend requests",
+      detail: data.pendingFriendRequests
+        ? `${data.pendingFriendRequests} waiting for you`
+        : "Nothing pending",
+      ready: data.pendingFriendRequests > 0,
+    },
+    {
+      href: "/friends?panel=trade",
+      glyph: "⇄",
+      title: "Friend trades",
+      detail: data.tradeNeedsAttention
+        ? `${data.attentionTradePartner || "A trainer"} needs your response`
+        : `${data.activeTrades} currently active`,
+      ready: data.tradeNeedsAttention,
+    },
+    {
+      href: "/shipping",
+      glyph: "S",
+      title: "Shipping",
+      detail: shipmentLabel(data.shipmentStatus),
+      ready: data.shipmentStatus === "shipped",
+    },
+  ];
+
+  return (
+    <article className="rounded-2xl border border-cyan-200/15 bg-[#080b20]/88 p-5">
+      <p className="text-[0.61rem] font-black uppercase tracking-[0.17em] text-cyan-100/40">
+        Live activity
+      </p>
+      <h2 className="mt-1 text-lg font-black text-white">Waiting for you</h2>
+
+      <div className="mt-4 space-y-2">
+        {items.map((item) => (
+          <Link
+            key={item.href}
+            href={item.href}
+            className="group flex items-center gap-3 rounded-xl border border-white/[0.07] bg-white/[0.03] p-3 transition hover:border-cyan-100/18 hover:bg-white/[0.055]"
+          >
+            <span className="relative flex h-10 w-10 flex-none items-center justify-center rounded-xl border border-white/10 bg-white/[0.045] text-base font-black text-cyan-50">
+              {item.glyph}
+              {item.ready ? (
+                <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full border-2 border-[#090b27] bg-yellow-200 shadow-[0_0_10px_rgba(250,204,21,0.7)]" />
+              ) : null}
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-black text-white/78">
+                {item.title}
+              </span>
+              <span className="mt-0.5 block truncate text-xs font-semibold text-white/30">
+                {item.detail}
+              </span>
+            </span>
+            <span className="text-white/22 transition group-hover:translate-x-0.5 group-hover:text-cyan-100/60">
+              →
+            </span>
+          </Link>
+        ))}
+      </div>
+    </article>
+  );
+}
+
+function ProgressPanel({
+  data,
+  shippingProgress,
+}: {
+  data: TrainerHqData;
+  shippingProgress: number;
+}) {
+  return (
+    <article className="rounded-2xl border border-yellow-200/15 bg-[#080b20]/88 p-5">
+      <p className="text-[0.61rem] font-black uppercase tracking-[0.17em] text-yellow-100/40">
+        Archive progress
+      </p>
+      <h2 className="mt-1 text-lg font-black text-white">Your next milestones</h2>
+
+      <div className="mt-5 rounded-2xl border border-white/[0.08] bg-white/[0.03] p-4">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-xs font-black text-white/72">Free shipping</p>
+            <p className="mt-1 text-[0.68rem] font-semibold text-white/28">
+              {data.availableCards} of {data.shippingThreshold} available cards
+            </p>
+          </div>
+          <span className="text-sm font-black text-yellow-50">
+            {Math.round(shippingProgress)}%
+          </span>
+        </div>
+        <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/[0.07]">
+          <div
+            className="h-full rounded-full bg-gradient-to-r from-cyan-300 via-yellow-200 to-violet-300 transition-[width] duration-700"
+            style={{ width: `${shippingProgress}%` }}
+          />
+        </div>
+      </div>
+
+      <Link
+        href={data.zodiacSign ? "/constellation" : "/profile"}
+        className="mt-3 flex items-center gap-3 rounded-2xl border border-white/[0.08] bg-white/[0.03] p-4 transition hover:bg-white/[0.055]"
+      >
+        <span className="flex h-11 w-11 items-center justify-center rounded-xl border border-violet-100/15 bg-violet-200/[0.06] text-lg text-violet-50">
+          ✧
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-xs font-black text-white/72">
+            {zodiacLabel(data.zodiacSign)} constellation
+          </span>
+          <span className="mt-1 block text-[0.68rem] font-semibold text-white/28">
+            {data.constellationStars} card star{data.constellationStars === 1 ? "" : "s"}
+          </span>
+        </span>
+        <span className="text-white/25">→</span>
+      </Link>
+
+      <div className="mt-3 grid grid-cols-2 gap-2">
+        <SmallMilestone label="Profile" complete={data.profileComplete} />
+        <SmallMilestone label="First wish" complete={data.firstWishComplete} />
+      </div>
+    </article>
+  );
+}
+
+function SmallMilestone({ label, complete }: { label: string; complete: boolean }) {
+  return (
+    <div className="rounded-xl border border-white/[0.07] bg-white/[0.025] px-3 py-3">
+      <p className="text-[0.66rem] font-black uppercase tracking-[0.1em] text-white/32">
+        {label}
+      </p>
+      <p className={`mt-1 text-xs font-black ${complete ? "text-emerald-100" : "text-yellow-100"}`}>
+        {complete ? "Complete ✓" : "In progress"}
+      </p>
+    </div>
+  );
+}
+
+function TrainerHqLoading() {
+  return (
+    <section className="mx-auto w-full max-w-[1440px] animate-pulse px-4 py-8 sm:px-6 lg:px-8">
+      <div className="h-4 w-40 rounded bg-white/[0.06]" />
+      <div className="mt-4 h-12 w-72 rounded-xl bg-white/[0.07]" />
+      <div className="mt-8 grid gap-6 xl:grid-cols-[1.28fr_0.72fr]">
+        <div className="h-[25rem] rounded-2xl border border-white/[0.06] bg-white/[0.035]" />
+        <div className="grid grid-cols-2 gap-4">
+          {Array.from({ length: 4 }, (_, index) => (
+            <div
+              key={index}
+              className="min-h-[8.75rem] rounded-xl border border-white/[0.06] bg-white/[0.03]"
+            />
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}

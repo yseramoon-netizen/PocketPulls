@@ -1,0 +1,136 @@
+.root {
+  --unown-size: 2.75rem;
+  --rune-gold: #f5b83b;
+  --rune-light: #ffe187;
+  --rune-cyan: #31d8d1;
+
+  display: inline-flex;
+  max-width: 100%;
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-start;
+  line-height: 1;
+  vertical-align: middle;
+}
+
+.centred { align-items: center; text-align: center; }
+
+.glyphRow {
+  display: inline-flex;
+  max-width: 100%;
+  min-width: 0;
+  align-items: center;
+  gap: calc(var(--unown-size) * 0.045);
+}
+
+.glyphRowCentred { justify-content: center; }
+.wrap { flex-wrap: wrap; row-gap: calc(var(--unown-size) * 0.12); }
+.noWrap { flex-wrap: nowrap; }
+
+.glyph {
+  position: relative;
+  width: calc(var(--unown-size) * 0.68);
+  height: var(--unown-size);
+  flex: 0 0 auto;
+  overflow: visible;
+  color: var(--rune-light);
+  filter:
+    drop-shadow(calc(var(--unown-size) * 0.045) calc(var(--unown-size) * 0.045) 0 #563716)
+    drop-shadow(0 0 calc(var(--unown-size) * 0.08) rgba(245, 184, 59, 0.32));
+  image-rendering: pixelated;
+}
+
+.glyph::before,
+.glyph::after {
+  position: absolute;
+  width: calc(var(--unown-size) * 0.075);
+  height: calc(var(--unown-size) * 0.075);
+  background: var(--rune-gold);
+  content: "";
+  opacity: 0.9;
+}
+
+.glyph::before {
+  top: 8%;
+  left: 5%;
+  box-shadow:
+    calc(var(--unown-size) * 0.075) calc(var(--unown-size) * -0.075) 0 rgba(255, 225, 135, 0.72),
+    calc(var(--unown-size) * 0.15) 0 0 rgba(245, 184, 59, 0.5);
+}
+
+.glyph::after {
+  right: 2%;
+  bottom: 9%;
+  width: calc(var(--unown-size) * 0.055);
+  height: calc(var(--unown-size) * 0.055);
+  background: var(--rune-cyan);
+  box-shadow: calc(var(--unown-size) * -0.065) calc(var(--unown-size) * -0.065) 0 rgba(49, 216, 209, 0.45);
+}
+
+.pixelInk {
+  position: absolute;
+  top: 10%;
+  left: 8%;
+  width: 0.105em;
+  height: 0.105em;
+  color: var(--rune-light);
+  font-size: var(--unown-size);
+  image-rendering: pixelated;
+}
+
+.space { width: calc(var(--unown-size) * 0.36); height: 1px; flex: 0 0 auto; }
+
+.dash {
+  width: calc(var(--unown-size) * 0.48);
+  height: calc(var(--unown-size) * 0.1);
+  flex: 0 0 auto;
+  background: currentColor;
+  box-shadow: calc(var(--unown-size) * 0.08) calc(var(--unown-size) * 0.08) 0 rgba(0, 0, 0, 0.55);
+}
+
+.translation {
+  display: block;
+  max-width: 100%;
+  margin-top: clamp(0.24rem, calc(var(--unown-size) * 0.13), 0.58rem);
+  overflow: hidden;
+  color: rgba(255, 242, 204, 0.74);
+  font-family: ui-monospace, "Cascadia Mono", "Courier New", monospace;
+  font-size: clamp(0.54rem, calc(var(--unown-size) * 0.25), 0.95rem);
+  font-weight: 900;
+  letter-spacing: 0.16em;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  text-shadow: 2px 2px 0 rgba(24, 7, 22, 0.92);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.ancient,
+.holo,
+.moon { color: var(--rune-light); }
+.ancient .translation { color: rgba(247, 216, 145, 0.76); }
+
+.holo .glyph {
+  filter:
+    drop-shadow(calc(var(--unown-size) * 0.045) calc(var(--unown-size) * 0.045) 0 #563716)
+    drop-shadow(0 0 calc(var(--unown-size) * 0.12) rgba(49, 216, 209, 0.38));
+}
+.holo .translation { color: rgba(176, 247, 239, 0.82); }
+
+.moon .glyph {
+  filter:
+    drop-shadow(calc(var(--unown-size) * 0.045) calc(var(--unown-size) * 0.045) 0 #3c2a23)
+    drop-shadow(0 0 calc(var(--unown-size) * 0.11) rgba(255, 225, 135, 0.35));
+}
+.moon .translation { color: rgba(226, 231, 255, 0.78); }
+
+.muted { color: rgba(245, 184, 59, 0.64); }
+.muted .glyph { opacity: 0.68; }
+.muted .translation { color: rgba(238, 206, 143, 0.58); }
+
+@media (max-width: 640px) {
+  .glyphRow { gap: calc(var(--unown-size) * 0.028); }
+  .glyph { width: calc(var(--unown-size) * 0.62); }
+  .space { width: calc(var(--unown-size) * 0.28); }
+  .translation { letter-spacing: 0.12em; }
+}

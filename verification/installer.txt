@@ -1,0 +1,2 @@
+{"layout": "root", "check": true, "conflictStopsBeforeWrites": true, "duplicateSourceRejected": true, "overlayInstalled": true, "repeatedInstallIdempotent": true, "backupsCreated": true}
+{"layout": "src", "check": true, "conflictStopsBeforeWrites": true, "duplicateSourceRejected": true, "overlayInstalled": true, "repeatedInstallIdempotent": true, "backupsCreated": true}

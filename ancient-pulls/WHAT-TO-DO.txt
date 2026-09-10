@@ -1,0 +1,21 @@
+V18.1 fixes this exact build failure:
+
+  You cannot have two parallel pages that resolve to the same path.
+  /(auth)/sign-in and /sign-in
+
+Cause:
+V18 accidentally added app/sign-in/page.tsx even though your real project already has app/(auth)/sign-in/page.tsx. Next.js route groups do not appear in the URL, so BOTH resolve to /sign-in.
+
+Run from PowerShell:
+
+PowerShell -ExecutionPolicy Bypass -File ".\APPLY-V18.1-HOTFIX.ps1" -ProjectRoot "C:\Users\LukasMoon\pocketpulls"
+
+The script:
+- backs up the files
+- deletes app/sign-in/page.tsx
+- installs the V18 player sign-in logic into app/(auth)/sign-in/page.tsx
+- clears generated caches
+- runs TypeScript validation
+- runs npm run build
+
+No SQL changes.

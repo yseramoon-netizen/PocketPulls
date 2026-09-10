@@ -1,0 +1,72 @@
+.sigil {
+  display: block;
+  overflow: visible;
+  color: inherit;
+  filter: drop-shadow(0 0 8px currentColor);
+}
+
+.outerPath,
+.branchPath {
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.outerPath {
+  stroke-width: 1.15;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  opacity: 0.72;
+  animation: drawAsterism 1.25s 120ms ease-out forwards;
+}
+
+.branchPath {
+  stroke-width: 0.75;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  opacity: 0.48;
+  animation: drawAsterism 900ms 420ms ease-out forwards;
+}
+
+.star,
+.core {
+  fill: currentColor;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.star {
+  opacity: 0.62;
+  animation: starBreath 2.4s var(--asterism-delay, 0ms) ease-in-out infinite alternate;
+}
+
+.core {
+  opacity: 0.95;
+  animation: coreBreath 1.8s ease-in-out infinite alternate;
+}
+
+@keyframes drawAsterism {
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes starBreath {
+  from { opacity: 0.42; transform: scale(0.75); }
+  to { opacity: 1; transform: scale(1.2); }
+}
+
+@keyframes coreBreath {
+  from { opacity: 0.72; transform: scale(0.82); }
+  to { opacity: 1; transform: scale(1.22); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .outerPath,
+  .branchPath,
+  .star,
+  .core {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
+}

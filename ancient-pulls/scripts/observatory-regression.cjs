@@ -1,0 +1,18 @@
+const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),vm=require('node:vm'),ts=require('typescript');
+const root=path.join(__dirname,'..');
+function compile(code){return ts.transpileModule(code,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.None}}).outputText}
+const clockCode=fs.readFileSync(path.join(root,'components/player/observatory/OrbitClock.ts'),'utf8').replace('export class','class');
+const {OrbitClock}=vm.runInNewContext(compile(clockCode)+';({OrbitClock})');
+const source=fs.readFileSync(path.join(root,'app/(player)/leaderboard/page.tsx'),'utf8');
+const model=source.slice(source.indexOf('const MAX_VISIBLE_RANKS'),source.indexOf('const BACKGROUND_STARS'));
+const numeric='function toNumber(v){const n=Number(v);return Number.isFinite(n)?n:0}function toWholeNumber(v){return Math.max(0,Math.floor(toNumber(v)))}';
+const {parseRows,buildGalaxyNodes,resolveGalaxyPosition,buildGalaxyParticles}=vm.runInNewContext(numeric+compile(model)+';({parseRows,buildGalaxyNodes,resolveGalaxyPosition,buildGalaxyParticles})');
+const rows=Array.from({length:240},(_,i)=>({rank_position:i+1,user_id:'user-'+i,total_cards:Math.max(0,1000000-i*3917),username:'collector'+i,display_name:'Collector '+i}));
+test('ranked universe contains at most 100 real entries and 99 orbiting galaxies',()=>{const players=parseRows(rows);assert.equal(players.length,100);const nodes=buildGalaxyNodes(players);assert.equal(nodes.length,99);assert.ok(nodes.every(n=>n.player.rank>=2));});
+test('galaxy sizes stay finite and bounded with extreme collection sizes',()=>{rows[1].total_cards=1e12;const nodes=buildGalaxyNodes(parseRows(rows));for(let i=0;i<nodes.length;i++){assert.ok(Number.isFinite(nodes[i].size));assert.ok(nodes[i].size>=.018&&nodes[i].size<=.105);if(i){assert.ok(nodes[i].size<=nodes[i-1].size);assert.ok(nodes[i].orbitRadius>=nodes[i-1].orbitRadius)}}});
+test('galaxies visibly orbit while the number one entry remains reserved for the black hole',()=>{const nodes=buildGalaxyNodes(parseRows(rows));for(const node of [nodes[0],nodes[40],nodes[98]]){const a=resolveGalaxyPosition(node,0,false),b=resolveGalaxyPosition(node,5000,false);assert.ok(Math.hypot(a.x-b.x,a.y-b.y)>.025);assert.ok(Object.values(b).every(Number.isFinite))}});
+test('pause and reduced motion preserve a galaxy position without snapping',()=>{const n=buildGalaxyNodes(parseRows(rows))[0];assert.deepEqual(resolveGalaxyPosition(n,6320,false),resolveGalaxyPosition(n,6320,true));const c=new OrbitClock();c.sample(0,true);c.sample(40,true);c.suspend();assert.equal(c.sample(60000,false),40);c.suspend();assert.equal(c.sample(61000,true),40);assert.equal(c.sample(61016,true),56)});
+test('hidden tabs do not advance the orbital clock or cause a resume jump',()=>{const c=new OrbitClock();c.sample(100,true);c.sample(116,true);c.suspend();c.sample(90116,true);assert.equal(c.time,16);c.sample(90132,true);assert.equal(c.time,32)});
+test('continuous frame time produces equivalent orbits at 60 and 120 Hz',()=>{const clocks=[60,120].map(fps=>{const c=new OrbitClock();c.sample(0,true);for(let i=1;i<=fps;i++)c.sample(i*1000/fps,true);return c});assert.ok(Math.abs(clocks[0].time-clocks[1].time)<1e-6);});
+
+test('signed account seeds never produce missing or invalid galaxy arms',()=>{for(const seed of [-2147483648,-2147483647,-2000000000,-17,-5,-2,-1,0,1,4294967295]){const particles=buildGalaxyParticles(seed,36);assert.ok(particles.length>0);for(const particle of particles)for(const value of Object.values(particle))assert.ok(Number.isFinite(value),`Invalid particle for seed ${seed}`)}});

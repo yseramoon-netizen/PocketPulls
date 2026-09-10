@@ -1,0 +1,126 @@
+import Link from "next/link";
+
+import SupportPanel from "@/components/player/SupportPanel";
+import { TrustShell } from "@/components/player/TrustShell";
+
+const CARDS = [
+  {
+    href: "/how-wishes-work",
+    glyph: "✦",
+    title: "How Wishes Work",
+    body: "From buying wishes to the card landing in your collection.",
+  },
+  {
+    href: "/odds",
+    glyph: "％",
+    title: "Live Odds",
+    body: "See the current rarity mix in the physical wish pool.",
+  },
+  {
+    href: "/rules",
+    glyph: "◆",
+    title: "Rules",
+    body: "The short rules that apply every time you make a wish.",
+  },
+  {
+    href: "/player-protection",
+    glyph: "◇",
+    title: "Player Protection",
+    body: "How random purchases, failures, payments and records are handled.",
+  },
+  {
+    href: "/faq",
+    glyph: "?",
+    title: "FAQ",
+    body: "Quick answers about pulls, duplicates, shipping, trades and payments.",
+  },
+  {
+    href: "/terms",
+    glyph: "▤",
+    title: "Terms & Conditions",
+    body: "The contract for accounts, wish credits and physical cards.",
+  },
+  {
+    href: "/returns",
+    glyph: "↩",
+    title: "Refunds & Returns",
+    body: "Cancellation periods, return costs, refunds and faulty-card rights.",
+  },
+  {
+    href: "/shipping-policy",
+    glyph: "⌂",
+    title: "Shipping Policy",
+    body: "Delivery timing, early paid shipping, tracking, loss and damage.",
+  },
+  {
+    href: "/privacy",
+    glyph: "◈",
+    title: "Privacy Notice",
+    body: "Data uses, lawful bases, retention, rights and complaint process.",
+  },
+  {
+    href: "/cookies",
+    glyph: "◎",
+    title: "Cookie Policy",
+    body: "Every browser-storage category and how to control it.",
+  },
+  {
+    href: "/contact",
+    glyph: "◇",
+    title: "Business & Contact",
+    body: "Legal operator details and the correct contact route for each issue.",
+  },
+] as const;
+
+const NEW_TAB_LINKS = new Set([
+  "/rules",
+  "/player-protection",
+  "/terms",
+  "/returns",
+  "/shipping-policy",
+  "/privacy",
+  "/cookies",
+  "/contact",
+]);
+
+export default function HelpPage() {
+  return (
+    <TrustShell
+      eyebrow="Player guide"
+      title="Everything you need, without the fine-print maze."
+      intro="Wishes are random physical-card purchases. The important rules, live odds and protections are kept here in plain English."
+    >
+      <div className="grid gap-3 sm:grid-cols-2">
+        {CARDS.map((card) => (
+          <Link
+            key={card.href}
+            href={card.href}
+            target={NEW_TAB_LINKS.has(card.href) ? "_blank" : undefined}
+            rel={NEW_TAB_LINKS.has(card.href) ? "noreferrer" : undefined}
+            className="group rounded-2xl border border-white/10 bg-white/[0.035] p-5 transition hover:-translate-y-0.5 hover:border-cyan-100/20 hover:bg-white/[0.055]"
+          >
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-cyan-100/15 bg-cyan-100/[0.06] text-lg font-black text-cyan-50/80">
+              {card.glyph}
+            </span>
+            <h2 className="mt-4 text-lg font-black text-white">{card.title}</h2>
+            <p className="mt-2 text-sm font-semibold leading-6 text-white/42">
+              {card.body}
+            </p>
+          </Link>
+        ))}
+      </div>
+
+      <section id="support" className="mt-6 scroll-mt-24 rounded-2xl border border-cyan-100/12 bg-cyan-200/[0.025] p-4 sm:p-5">
+        <div className="mb-5 flex items-start gap-3 border-b border-white/[0.07] pb-5">
+          <span className="flex h-10 w-10 flex-none items-center justify-center rounded-xl border border-cyan-100/15 bg-cyan-100/[0.06] text-lg font-black text-cyan-50/80">◇</span>
+          <div>
+            <p className="text-[0.62rem] font-black uppercase tracking-[0.17em] text-cyan-100/40">Player care</p>
+            <h2 className="mt-1 text-xl font-black text-white">Support</h2>
+            <p className="mt-1 text-sm font-semibold leading-6 text-white/42">Report a problem and keep every reply attached to your account, without leaving Help.</p>
+          </div>
+        </div>
+        <SupportPanel embedded />
+      </section>
+    </TrustShell>
+  );
+}

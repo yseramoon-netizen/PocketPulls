@@ -1,0 +1,87 @@
+Ancient Pulls V67.16 release preflight (source mode)
+
+PASS  .env.example exists
+PASS  app/robots.ts exists
+PASS  app/sitemap.ts exists
+PASS  app/api/health/route.ts exists
+PASS  app/error.tsx exists
+PASS  app/global-error.tsx exists
+PASS  app/not-found.tsx exists
+PASS  app/(player)/terms/page.tsx exists
+PASS  app/(player)/returns/page.tsx exists
+PASS  app/(player)/shipping-policy/page.tsx exists
+PASS  app/(player)/privacy/page.tsx exists
+PASS  app/(player)/cookies/page.tsx exists
+PASS  app/(player)/contact/page.tsx exists
+PASS  supabase/migrations/20260901_consumer_privacy_checkout_v6712.sql exists
+PASS  supabase/migrations/20260901_consent_and_open_wishes_v6714.sql exists
+PASS  supabase/migrations/20260901_wish_request_schema_collision_v6715.sql exists
+PASS  supabase/RELEASE_DATA_AUDIT.sql exists
+PASS  ANCIENT_PULLS_V67_14_INSTALL.txt exists
+PASS  ANCIENT_PULLS_V67_15_INSTALL.txt exists
+PASS  ANCIENT_PULLS_V67_16_INSTALL.txt exists
+PASS  RELEASE_CHECKLIST.md exists
+PASS  next.config.ts contains Strict-Transport-Security
+PASS  next.config.ts contains X-Frame-Options
+PASS  next.config.ts contains Permissions-Policy
+PASS  next.config.ts contains source: "/api/:path*"
+PASS  next.config.ts contains { source: "/support", destination: "/help#support", permanent: true }
+PASS  next.config.ts contains { source: "/orders", destination: "/shipping#orders", permanent: true }
+PASS  next.config.ts contains { source: "/trade", destination: "/friends?panel=trade", permanent: true }
+PASS  lib/player/purchase-consent.ts contains PURCHASE_CONSENT_VERSION = "2026-09-01-v2"
+PASS  lib/player/purchase-consent.ts contains CHECKOUT_ACKNOWLEDGEMENT_VERSION = "2026-09-01-v1"
+PASS  app/api/player/wishes/checkout/route.ts contains "Idempotency-Key"
+PASS  app/api/player/wishes/checkout/route.ts contains REUSABLE_CHECKOUT_WINDOW_MS
+PASS  app/api/player/wishes/checkout/route.ts contains checkout.stripe.com
+PASS  app/api/player/wishes/checkout/route.ts contains CHECKOUT_ACKNOWLEDGEMENT_VERSION
+PASS  app/api/player/wishes/make/route.ts contains request.headers.get("Idempotency-Key")
+PASS  app/api/player/wishes/make/route.ts contains p_idempotency_key: idempotencyKey
+PASS  app/(player)/layout.tsx contains supabase.rpc("complete_player_registration")
+PASS  app/(player)/layout.tsx contains console.warn("Launch Control check unavailable:"
+PASS  supabase/migrations/20260901_consent_and_open_wishes_v6714.sql contains on conflict on constraint player_legal_consents_pkey
+PASS  supabase/migrations/20260901_consent_and_open_wishes_v6714.sql contains create function public.make_player_wish(
+PASS  supabase/migrations/20260901_consent_and_open_wishes_v6714.sql contains p_idempotency_key uuid
+PASS  supabase/migrations/20260901_consent_and_open_wishes_v6714.sql contains perform * from public.complete_player_registration()
+PASS  supabase/migrations/20260901_consent_and_open_wishes_v6714.sql contains grant execute on function public.make_player_wish(uuid) to authenticated
+PASS  supabase/migrations/20260901_wish_request_schema_collision_v6715.sql contains create table if not exists public.player_wish_results_v6715
+PASS  supabase/migrations/20260901_wish_request_schema_collision_v6715.sql contains v_existing public.player_wish_results_v6715%rowtype
+PASS  supabase/migrations/20260901_wish_request_schema_collision_v6715.sql contains insert into public.player_wish_results_v6715
+PASS  supabase/migrations/20260901_wish_request_schema_collision_v6715.sql contains grant execute on function public.make_player_wish(uuid) to authenticated
+PASS  purchase-consent upserts use an unambiguous named constraint
+PASS  lib/player/orders.ts contains ANCIENT_PULLS_ORDERS_OPEN
+PASS  lib/player/orders.ts contains BUSINESS_DETAILS_COMPLETE
+PASS  lib/player/orders.ts contains isOrderConfirmationConfigured
+PASS  app/(player)/support/page.tsx contains redirect("/help#support")
+PASS  app/(player)/orders/page.tsx contains redirect("/shipping#orders")
+PASS  app/(player)/trade/page.tsx contains redirect("/friends?panel=trade")
+PASS  app/(player)/history/page.tsx contains redirect("/constellation?panel=history")
+PASS  components/CardScanner.tsx contains VERSION = "68.0-verified-intake"
+PASS  components/CardScanner.tsx contains ensureIdentifier().warmup()
+PASS  components/CardScanner.tsx contains trackedRef.current.length >= 2
+PASS  components/CardScanner.tsx contains automatic: modeRef.current === "automatic"
+PASS  lib/scanner/identify.ts contains supportsFastVerification
+PASS  lib/scanner/identify.ts contains recogniseVerificationFrame
+PASS  lib/scanner/identify.ts contains strategy === "recovery" && evidenceLooksUseful(evidence)
+PASS  lib/scanner/acceptance.ts contains best.visualFrameCount < 2
+PASS  lib/scanner/acceptance.ts contains best.visualAgreement
+PASS  lib/scanner/acceptance.ts contains best.identityConflicts
+PASS  lib/player/wishRequest.ts contains sessionStorage
+PASS  lib/player/wishRequest.ts contains getOrCreateWishRequest
+PASS  lib/player/wishRequest.ts contains completeWishRequest
+PASS  components/CardScanner.tsx contains capture.session !== sessionRef.current
+PASS  components/CardScanner.tsx contains recognitionAbortRef.current?.abort()
+PASS  app/api/admin/scanner/visual-search/route.ts contains COARSE_SHORTLIST = 512
+PASS  app/api/admin/scanner/visual-search/route.ts contains compareCompactCoarseDecoded
+PASS  app/api/admin/scanner/visual-search/route.ts contains loadCards(admin, ids)
+PASS  app/api/admin/scanner/visual-search/route.ts contains indexCachePromise
+PASS  retired Founder Beta copy is absent from user-facing source
+PASS  no common live-secret signatures were found in source files
+PASS  production build uses the verified Webpack path
+PASS  Next.js is pinned to 16.3.4
+PASS  Sharp is pinned to 0.35.4
+PASS  local Geist fonts are pinned to 1.7.2
+PASS  eslint-config-next matches the Next.js release
+PASS  production preflight command is registered
+WARN  environment values were not enforced; run npm run check:release:production with the deployment environment loaded
+
+82 checks passed, 1 warning(s), 0 failure(s).

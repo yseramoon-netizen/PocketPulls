@@ -1,0 +1,2 @@
+{"size":[1440,850],"constellationCommands":854,"totalCommands":33143,"finiteDrawing":true,"sceneInitialization":true}
+{"size":[390,650],"constellationCommands":854,"totalCommands":32447,"finiteDrawing":true,"sceneInitialization":true}
