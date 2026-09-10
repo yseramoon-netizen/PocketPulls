@@ -689,7 +689,7 @@ export default function ProfilePage() {
 
                   {cosmicIssueNumber ? (
                     <p className="mt-3 inline-flex rounded-full border border-cyan-100/30 bg-cyan-200/[0.08] px-3 py-1.5 text-[0.58rem] font-black uppercase tracking-[0.12em] text-cyan-50 shadow-[0_0_20px_rgba(34,211,238,0.12)]">
-                      ✦ Cosmic Nebu #{String(cosmicIssueNumber).padStart(6, "0")}
+                      ✦ Cosmic discovery #{String(cosmicIssueNumber).padStart(6, "0")}
                     </p>
                   ) : null}
 
@@ -772,7 +772,7 @@ export default function ProfilePage() {
                         }))
                       }
                       maxLength={40}
-                      placeholder="Nebu or a favourite card"
+                      placeholder="Aster or a favourite card"
                       className="profile-input"
                     />
                   </ProfileField>

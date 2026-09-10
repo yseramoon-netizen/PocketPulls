@@ -206,7 +206,7 @@ export default function WishPreviewPage() {
 
           <p className="mx-auto mt-3 max-w-md text-sm font-semibold leading-6 text-white/40">
             {access === "checking"
-              ? "Nebu is checking the private founder key."
+              ? "Checking access to your animation previews."
               : "Returning you to the Wish Chamber."}
           </p>
 
@@ -237,7 +237,7 @@ export default function WishPreviewPage() {
         <p className="mt-4 max-w-3xl text-sm font-semibold leading-7 text-white/45 sm:text-base">
           Every upgrade now travels beyond the current star to a farther
           destination. Cards valued above £500 end at the black hole, while
-          Cosmic Nebu stays on the planet for its transformation. Test every
+          Preview the astral ceremony and its final reveal. Test every
           route here before a real wish.
         </p>
 
@@ -278,7 +278,7 @@ export default function WishPreviewPage() {
                   {Number(card.marketValue) > 500
                     ? "Black Hole"
                     : card.cosmicIssueNumber
-                      ? "Cosmic Nebu"
+                      ? "Cosmic discovery"
                     : theme.label}
                 </h2>
 

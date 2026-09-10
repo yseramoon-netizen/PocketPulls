@@ -33,8 +33,9 @@ export function normaliseDisplayGlyph(
 
 export function modernisePlayerCopy(value: string): string {
   return repairMojibakeText(value)
-    .replace(/Jirachi's Chosen/gi, "Nebu's Chosen")
+    .replace(/Jirachi's Chosen/gi, "Starborn")
     .replace(/Living Pok(?:e|é)dex Energy/gi, "Living Archive")
-    .replace(/\bJirachi\b/gi, "Nebu")
+    .replace(/\bJirachi\b/gi, "Aster")
+    .replace(/\bNebu\b/gi, "Aster")
     .replace(/\bPok(?:e|é)mon Trainer\b/gi, "Star Trainer");
 }

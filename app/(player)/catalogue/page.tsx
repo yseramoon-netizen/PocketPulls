@@ -715,7 +715,7 @@ export default function CataloguePage() {
   );
 
   return (
-    <section className="mx-auto w-full max-w-[1600px] px-4 py-8 sm:px-6 lg:px-8">
+    <section data-astral-catalogue className="mx-auto w-full max-w-[1600px] px-4 py-8 sm:px-6 lg:px-8">
       <CatalogueHero
         refreshing={refreshing}
         onRefresh={() => {
@@ -834,14 +834,14 @@ function CatalogueHero({
   onRefresh: () => void;
 }) {
   return (
-    <header className="rounded-2xl border border-white/10 bg-[#090b27]/88 p-5 shadow-[0_24px_70px_rgba(0,0,0,0.22)] backdrop-blur-lg sm:p-7">
+    <header data-player-page-header className="rounded-2xl border border-white/10 bg-[#090b27]/88 p-5 shadow-[0_24px_70px_rgba(0,0,0,0.22)] backdrop-blur-lg sm:p-7">
       <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
         <div>
           <p className="text-xs font-black uppercase tracking-[0.22em] text-cyan-100/40">
             Card archive
           </p>
           <h1 className="mt-2 text-3xl font-black tracking-[-0.035em] text-white sm:text-4xl">
-            Card Catalogue
+            Catalogue
           </h1>
           <p className="mt-2 max-w-2xl text-sm font-semibold leading-6 text-white/45">
             Explore the complete card archive by name, set and rarity.
@@ -894,7 +894,7 @@ function CatalogueFilters({
   onClear: () => void;
 }) {
   return (
-    <div className="mt-6 rounded-[2rem] border border-white/10 bg-[#090b27]/80 p-4 backdrop-blur-xl sm:p-5">
+    <div data-astral-filters className="mt-6 rounded-[2rem] border border-white/10 bg-[#090b27]/80 p-4 backdrop-blur-xl sm:p-5">
       <div className="grid gap-3 lg:grid-cols-[minmax(15rem,1.6fr)_repeat(2,minmax(10rem,1fr))]">
         <label className="relative block">
           <span className="sr-only">Search cards</span>
@@ -958,7 +958,7 @@ function CatalogueFilters({
 
         <div className="flex flex-wrap items-center justify-between gap-4 xl:justify-end">
           <p className="text-xs font-bold text-white/30">
-            {filtering ? "Searching the archive..." : "Archive ready"}
+            {filtering ? "Searching the archive..." : ""}
           </p>
 
           {hasActiveFilters ? (
@@ -1056,6 +1056,7 @@ function CatalogueCardTile({
 
   return (
     <article
+      data-astral-catalogue-card
       className="group relative overflow-hidden rounded-2xl border border-white/10 bg-[#090b27]/88 p-2.5 shadow-[0_18px_55px_rgba(0,0,0,0.18)] transition duration-300 hover:-translate-y-1 hover:border-white/20 hover:shadow-[0_25px_70px_rgba(0,0,0,0.3)] sm:p-3"
       style={style}
     >

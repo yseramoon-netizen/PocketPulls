@@ -40,7 +40,7 @@ export function TrustShell({
   children: ReactNode;
 }) {
   return (
-    <section className="mx-auto w-full max-w-[1080px] px-4 py-7 sm:px-6 lg:px-8 lg:py-10">
+    <section data-astral-guide className="mx-auto w-full max-w-[1080px] px-4 py-7 sm:px-6 lg:px-8 lg:py-10">
       <div className="overflow-hidden rounded-2xl border border-white/[0.09] bg-[#080b20]/90 shadow-[0_20px_70px_rgba(0,0,0,0.24)] backdrop-blur-xl">
         <div className="border-b border-white/[0.08] px-5 py-5 sm:px-7 sm:py-6">
           <div className="flex flex-wrap items-center gap-2">

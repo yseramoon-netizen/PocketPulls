@@ -32,7 +32,7 @@ const STORAGE = [
   {
     category: "Nebu presentation",
     provider: "Ancient Pulls",
-    purpose: "Remember the selected Nebu skin, performance and wish sound choice.",
+    purpose: "Remember your display, motion and wish sound preferences.",
     duration: "Until you change the choice or clear site data.",
     status: "Requested preference / appearance",
   },

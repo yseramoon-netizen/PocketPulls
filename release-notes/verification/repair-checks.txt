@@ -1,0 +1,3 @@
+{"originalImportErrorsReproduced": 13}
+{"dryRun": true, "currentEditConflictProtected": true, "nestedEditProtected": true, "nestedCopyBackedUpOutsideProject": true, "idempotent": true, "typecheckAfterRepair": "passed"}
+{"srcLayout": "passed", "verifiedOverlayFiles": 83}

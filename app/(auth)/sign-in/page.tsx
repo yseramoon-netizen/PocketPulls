@@ -167,7 +167,7 @@ function PlayerSignInContent() {
     } catch (failure: unknown) {
       setError(getAuthErrorMessage(
         failure,
-        `Nebu could not open ${provider === "google" ? "Google" : "Discord"} sign-in.`,
+        `Could not open ${provider === "google" ? "Google" : "Discord"} sign-in.`,
       ));
       setSocialProvider(null);
     }
@@ -196,7 +196,7 @@ function PlayerSignInContent() {
       );
 
       if (signInError || !data.session) {
-        const details = getAuthErrorDetails(signInError, "Nebu could not sign you in.");
+        const details = getAuthErrorDetails(signInError, "You could not be signed in.");
         if (details.code === "email_not_confirmed" || details.message.toLowerCase().includes("confirm your email")) {
           const remembered = readPendingRegistration();
           setPendingRegistration(rememberPendingRegistration({
@@ -212,7 +212,7 @@ function PlayerSignInContent() {
       window.location.replace(nextPath);
     } catch (failure: unknown) {
       console.error("Player sign-in error:", failure);
-      setError(getAuthErrorMessage(failure, "Nebu could not sign you in."));
+      setError(getAuthErrorMessage(failure, "You could not be signed in."));
       setSigningIn(false);
     }
   }

@@ -169,7 +169,7 @@ export default function WishShopPage() {
       setStore(response);
     } catch (error: unknown) {
       setErrorMessage(
-        error instanceof Error ? error.message : "Nebu could not open the wish shop.",
+        error instanceof Error ? error.message : "The wish shop could not be opened.",
       );
     } finally {
       setLoading(false);
@@ -219,7 +219,7 @@ export default function WishShopPage() {
       const sessionId = params.get("session_id");
 
       if (purchase === "success" && sessionId) {
-        setSuccessMessage("Nebu is counting your new wishes...");
+        setSuccessMessage("Updating your wish balance…");
         void checkCompletedPurchase(sessionId);
       } else if (purchase === "cancelled") {
         setErrorMessage("Checkout was cancelled. No wishes were charged.");
@@ -274,7 +274,7 @@ export default function WishShopPage() {
       window.location.assign(response.checkoutUrl);
     } catch (error: unknown) {
       setErrorMessage(
-        error instanceof Error ? error.message : "Nebu could not start checkout.",
+        error instanceof Error ? error.message : "Checkout could not be started.",
       );
       setBusyPackage(null);
     }
@@ -317,7 +317,7 @@ export default function WishShopPage() {
             <p className={styles.heroBody}>
               {store?.ordersOpen
                 ? "Pick your wish bundle and head straight to checkout."
-                : "Explore the wish bundles while Nebu prepares the shop for launch."}
+                : "Explore the wish bundles. Ordering is not available yet."}
             </p>
 
             {store?.ordersOpen && store.firstRechargeAvailable ? (

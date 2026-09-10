@@ -1,0 +1,13 @@
+ancient-pulls/app/(player)/constellation/page.tsx(7,24): error TS2307: Cannot find module '@/components/player/observatory/AstralIcon' or its corresponding type declarations.
+ancient-pulls/app/(player)/constellation/page.tsx(8,21): error TS2307: Cannot find module '@/components/player/observatory/DeepSky' or its corresponding type declarations.
+ancient-pulls/app/(player)/hq/page.tsx(7,34): error TS2307: Cannot find module '@/components/player/observatory/ConstellationArtwork' or its corresponding type declarations.
+ancient-pulls/app/(player)/hq/page.tsx(8,21): error TS2307: Cannot find module '@/components/player/observatory/DeepSky' or its corresponding type declarations.
+ancient-pulls/app/(player)/hq/page.tsx(9,24): error TS2307: Cannot find module '@/components/player/observatory/AstralIcon' or its corresponding type declarations.
+ancient-pulls/app/(player)/leaderboard/page.tsx(13,24): error TS2307: Cannot find module '@/components/player/observatory/AstralIcon' or its corresponding type declarations.
+ancient-pulls/app/(player)/leaderboard/page.tsx(14,28): error TS2307: Cannot find module '@/components/player/observatory/OrbitClock' or its corresponding type declarations.
+ancient-pulls/app/(player)/wishes/page.tsx(8,21): error TS2307: Cannot find module '@/components/player/observatory/DeepSky' or its corresponding type declarations.
+ancient-pulls/app/(player)/wishes/page.tsx(9,34): error TS2307: Cannot find module '@/components/player/observatory/ConstellationArtwork' or its corresponding type declarations.
+ancient-pulls/app/(player)/wishes/page.tsx(10,24): error TS2307: Cannot find module '@/components/player/observatory/AstralIcon' or its corresponding type declarations.
+ancient-pulls/components/auth/AuthShell.tsx(4,21): error TS2307: Cannot find module '@/components/player/observatory/DeepSky' or its corresponding type declarations.
+ancient-pulls/components/auth/AuthShell.tsx(5,24): error TS2307: Cannot find module '@/components/player/observatory/AstralIcon' or its corresponding type declarations.
+ancient-pulls/components/auth/AuthShell.tsx(6,34): error TS2307: Cannot find module '@/components/player/observatory/ConstellationArtwork' or its corresponding type declarations.

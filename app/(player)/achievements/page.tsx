@@ -16,12 +16,7 @@ import {
   PlayerSecondaryButton,
   PlayerStatCard,
 } from "@/components/player/PlayerUI";
-import NebuWardrobe from "@/components/player/NebuWardrobe";
 import { modernisePlayerCopy } from "@/lib/player/display";
-import {
-  isNebuSkinKey,
-  type NebuSkinKey,
-} from "@/lib/player/nebu";
 import { supabase } from "@/lib/supabase";
 import {
   formatDate,
@@ -192,8 +187,6 @@ export default function AchievementsPage() {
   const [claimingAll, setClaimingAll] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [exclusiveSkins, setExclusiveSkins] = useState<NebuSkinKey[]>([]);
-  const [exclusiveSkinsLoading, setExclusiveSkinsLoading] = useState(true);
 
   const loadAchievements = useCallback(async () => {
     setLoading(true);
@@ -217,58 +210,10 @@ export default function AchievementsPage() {
     }
   }, []);
 
-  const loadExclusiveSkins = useCallback(async () => {
-    setExclusiveSkinsLoading(true);
-
-    try {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-
-      if (!session?.access_token) {
-        setExclusiveSkins([]);
-        return;
-      }
-
-      const response = await fetch("/api/player/nebu-entitlements", {
-        method: "GET",
-        cache: "no-store",
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-        },
-      });
-
-      if (!response.ok) {
-        setExclusiveSkins([]);
-        return;
-      }
-
-      const payload = (await response.json().catch(() => null)) as
-        | { skins?: unknown[] }
-        | null;
-
-      setExclusiveSkins(
-        Array.isArray(payload?.skins)
-          ? payload.skins.filter(isNebuSkinKey)
-          : [],
-      );
-    } catch {
-      setExclusiveSkins([]);
-    } finally {
-      setExclusiveSkinsLoading(false);
-    }
-  }, []);
-
   useEffect(() => {
-    const frame = window.requestAnimationFrame(() => {
-      void Promise.all([
-        loadAchievements(),
-        loadExclusiveSkins(),
-      ]);
-    });
-
+    const frame = window.requestAnimationFrame(() => void loadAchievements());
     return () => window.cancelAnimationFrame(frame);
-  }, [loadAchievements, loadExclusiveSkins]);
+  }, [loadAchievements]);
 
   const claimReward = useCallback(
     async (achievement: Achievement) => {
@@ -480,15 +425,6 @@ export default function AchievementsPage() {
           value={loading ? "—" : formatWholeNumber(nearlyThere)}
           detail="Badges above 70% progress"
           accent="pink"
-        />
-      </div>
-
-      <div id="nebu-wardrobe" className="scroll-mt-24">
-        <NebuWardrobe
-          achievements={achievements}
-          loading={loading}
-          exclusiveSkins={exclusiveSkins}
-          exclusiveSkinsLoading={exclusiveSkinsLoading}
         />
       </div>
 

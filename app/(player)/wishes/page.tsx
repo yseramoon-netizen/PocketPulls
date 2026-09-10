@@ -4,7 +4,10 @@ import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import NebuPortrait from "@/components/player/NebuPortrait";
+import AsterPortrait from "@/components/player/NebuPortrait";
+import DeepSky from "@/components/player/observatory/DeepSky";
+import ConstellationArtwork from "@/components/player/observatory/ConstellationArtwork";
+import AstralIcon from "@/components/player/observatory/AstralIcon";
 import { type WishRevealCard } from "@/components/player/WishCinematic";
 import { primeWishAudio } from "@/components/player/wishAudio";
 import {
@@ -442,7 +445,7 @@ export default function WishesPage() {
       setErrorMessage(
         getErrorMessage(
           error,
-          "Nebu could not load your trainer dashboard.",
+          "Your wish dashboard could not be loaded.",
         ),
       );
     } finally {
@@ -544,7 +547,7 @@ export default function WishesPage() {
       const row = Array.isArray(data) ? data[0] : data;
 
       if (!row || typeof row !== "object") {
-        throw new Error("Nebu completed the wish, but the card reveal was missing.");
+        throw new Error("The wish completed, but its card reveal was missing.");
       }
 
       const result = row as Record<string, unknown>;
@@ -595,7 +598,7 @@ export default function WishesPage() {
     } catch (error: unknown) {
       console.error("Make wish error:", error);
       setErrorMessage(
-        getErrorMessage(error, "Nebu could not complete that wish."),
+        getErrorMessage(error, "Your wish could not be completed."),
       );
     } finally {
       wishBusyRef.current = false;
@@ -639,7 +642,7 @@ export default function WishesPage() {
   }
 
   return (
-    <section className="relative mx-auto w-full max-w-[1440px] px-4 py-7 sm:px-6 lg:px-8 lg:py-10">
+    <section className="ap-wish-page relative mx-auto w-full max-w-[1440px] px-4 py-7 sm:px-6 lg:px-8 lg:py-10">
       <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <p className="text-[0.65rem] font-black uppercase tracking-[0.18em] text-yellow-100/45">
@@ -707,31 +710,7 @@ export default function WishesPage() {
         <p className="max-w-xl text-sm leading-6 text-amber-50/80">Your last wish hasn’t been confirmed on this device. Retry checks the same request, so it can’t spend a second wish.</p>
         <button type="button" onClick={() => void makeWish()} className="min-h-11 rounded-xl bg-amber-100 px-5 text-sm font-semibold text-amber-950">Recover last wish</button>
       </div> : null}
-      <div className="mt-6 grid gap-3 sm:grid-cols-3 lg:gap-4">
-        <MetricCard
-          label="Wish balance"
-          value={formatWholeNumber(dashboard.wishBalance)}
-          detail="Ready to spend"
-          accent="yellow"
-        />
-
-        <MetricCard
-          label="Cards owned"
-          value={formatWholeNumber(dashboard.totalCards)}
-          detail={`${formatWholeNumber(dashboard.availableCards)} available`}
-          accent="cyan"
-        />
-
-        <MetricCard
-          label="Collection value"
-          value={formatMoney(dashboard.collectionValue)}
-          detail="Current catalogue value"
-          accent="violet"
-        />
-
-      </div>
-
-      <div className="mt-6 grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
+      <div className="mt-6">
         <WishChamber
           wishBalance={dashboard.wishBalance}
           totalWishes={dashboard.lifetimeWishesSpent}
@@ -740,6 +719,12 @@ export default function WishesPage() {
           onShowDetails={() => setWishDetailsOpen(true)}
         />
 
+
+      </div>
+
+      <div className="mt-6 grid gap-6 xl:grid-cols-[1fr_22rem]">
+        <RecentWishes wishes={dashboard.recentWishes} />
+
         <ShippingProgress
           availableCards={dashboard.availableCards}
           reservedCards={dashboard.reservedCards}
@@ -747,12 +732,6 @@ export default function WishesPage() {
           cardsUntilShipping={cardsUntilShipping}
           progress={shippingProgress}
         />
-      </div>
-
-      <div className="mt-6 grid gap-6 xl:grid-cols-[1fr_22rem]">
-        <RecentWishes wishes={dashboard.recentWishes} />
-
-        <QuickLinks />
       </div>
 
       {wishDetailsOpen ? (
@@ -789,141 +768,17 @@ export default function WishesPage() {
   );
 }
 
-function MetricCard({
-  label,
-  value,
-  detail,
-  accent,
-}: {
-  label: string;
-  value: string;
-  detail: string;
-  accent: "yellow" | "cyan" | "violet" | "pink" | "emerald";
-}) {
-  const accentClasses = {
-    yellow: "border-yellow-200/15 from-yellow-200/[0.08]",
-    cyan: "border-cyan-200/15 from-cyan-200/[0.08]",
-    violet: "border-violet-200/15 from-violet-200/[0.08]",
-    pink: "border-pink-200/15 from-pink-200/[0.08]",
-    emerald: "border-emerald-200/15 from-emerald-200/[0.08]",
-  }[accent];
-
-  return (
-    <article
-      className={`overflow-hidden rounded-2xl border bg-gradient-to-br ${accentClasses} to-white/[0.02] p-5 backdrop-blur-xl`}
-    >
-      <p className="text-[0.62rem] font-black uppercase tracking-[0.16em] text-white/40">
-        {label}
-      </p>
-
-      <p className="mt-3 break-words text-2xl font-black text-white">
-        {value}
-      </p>
-
-      <p className="mt-2 text-xs font-semibold leading-5 text-white/35">
-        {detail}
-      </p>
-    </article>
-  );
-}
-
-function WishChamber({
-  wishBalance,
-  totalWishes,
-  makingWish,
-  onMakeWish,
-  onShowDetails,
-}: {
-  wishBalance: number;
-  totalWishes: number;
-  makingWish: boolean;
-  onMakeWish: () => void;
-  onShowDetails: () => void;
-}) {
-  const hasWishes = wishBalance > 0;
-
-  return (
-    <article data-onboarding-target="wish" className="relative overflow-hidden rounded-2xl border border-yellow-200/15 bg-[#080b20]/88 p-6 shadow-[0_24px_80px_rgba(0,0,0,0.26)] backdrop-blur-xl sm:p-7">
-      <div className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-yellow-200/10 blur-[90px]" />
-      <div className="pointer-events-none absolute -bottom-24 left-10 h-64 w-64 rounded-full bg-violet-400/10 blur-[90px]" />
-
-      <div className="relative flex flex-col gap-8 md:flex-row md:items-center">
-        <div className="relative flex h-44 w-full flex-none items-center justify-center md:w-52">
-          <div className="absolute h-36 w-36 animate-pulse rounded-full bg-yellow-200/15 blur-3xl" />
-
-          <div className="absolute h-40 w-40 animate-spin rounded-full border border-transparent border-r-cyan-100/30 border-t-yellow-100/70 [animation-duration:8s]" />
-
-          <NebuPortrait
-            alt=""
-            draggable={false}
-            onError={(event) => {
-              event.currentTarget.style.display = "none";
-            }}
-            className="relative z-10 h-36 w-36 object-contain drop-shadow-[0_18px_24px_rgba(0,0,0,0.45)]"
-          />
-
-        </div>
-
-        <div className="relative min-w-0 flex-1">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="text-xs font-black uppercase tracking-[0.2em] text-yellow-100/45">
-              Wish chamber
-            </p>
-            <button
-              type="button"
-              onClick={onShowDetails}
-              className="inline-flex min-h-9 items-center gap-2 rounded-full border border-cyan-100/15 bg-cyan-100/[0.065] px-3.5 text-[0.62rem] font-black uppercase tracking-[0.11em] text-cyan-50/75 transition hover:border-cyan-100/30 hover:bg-cyan-100/[0.11] hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-200"
-            >
-              <span aria-hidden="true">✦</span>
-              Prizes &amp; odds
-            </button>
-          </div>
-
-          <h2 className="mt-3 text-3xl font-black tracking-tight text-white">
-            {hasWishes ? "Nebu is ready." : "Your next wish is waiting."}
-          </h2>
-
-          <p className="mt-4 max-w-xl text-sm font-semibold leading-7 text-white/45">
-            {hasWishes
-              ? `${formatWholeNumber(wishBalance)} wish${wishBalance === 1 ? "" : "es"} available. Each reveals one card.`
-              : "Get wishes to reveal cards."}
-          </p>
-
-          <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-            {hasWishes ? (
-              <button
-                type="button"
-                data-onboarding-action="make-wish"
-                onClick={onMakeWish}
-                disabled={makingWish}
-                className="min-h-13 flex-1 rounded-xl bg-gradient-to-r from-yellow-200 via-cyan-100 to-violet-200 px-5 text-sm font-black text-[#111329] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-55"
-              >
-                {makingWish ? "Choosing..." : "Make a wish"}
-              </button>
-            ) : (
-              <Link
-                href="/wishes/shop"
-                className="flex min-h-13 flex-1 items-center justify-center rounded-xl bg-gradient-to-r from-yellow-200 via-cyan-100 to-violet-200 px-5 text-sm font-black text-[#111329] transition hover:brightness-105"
-              >
-              Get wishes
-              </Link>
-            )}
-
-            <Link
-              href={hasWishes ? "/wishes/shop" : "/catalogue"}
-              className="flex min-h-13 flex-1 items-center justify-center rounded-xl border border-white/10 bg-white/[0.05] px-5 text-sm font-black text-white/70 transition hover:bg-white/10 hover:text-white"
-            >
-              {hasWishes ? "Recharge" : "Catalogue"}
-            </Link>
-          </div>
-
-          <p className="mt-4 text-xs font-semibold text-white/25">
-            Lifetime wishes completed: {formatWholeNumber(totalWishes)}
-          </p>
-        </div>
-      </div>
-    </article>
-  );
+function WishChamber({wishBalance,totalWishes,makingWish,onMakeWish,onShowDetails}:{wishBalance:number;totalWishes:number;makingWish:boolean;onMakeWish:()=>void;onShowDetails:()=>void}){
+  const hasWishes=wishBalance>0;
+  return <article className="ap-wish-stage" data-onboarding-target="wish">
+    <DeepSky/><ConstellationArtwork className="ap-wish-outline"/>
+    <div className="ap-wish-stage-top"><span><AstralIcon/> {formatWholeNumber(wishBalance)} wishes available</span><button onClick={onShowDetails}>Prizes & odds <AstralIcon name="info"/></button></div>
+    <div className="ap-wish-character"><AsterPortrait alt="Aster, the astral wish companion"/><span>ASTER</span></div>
+    <div className="ap-wish-invitation"><p>THE ASTRAL CEREMONY</p><h2>A new star.<br/>An untold story.</h2><span>{hasWishes?"One wish reveals one card for your collection.":"Your next discovery is waiting among the stars."}</span>
+      <div className="ap-wish-actions">{hasWishes?<button data-onboarding-action="make-wish" onClick={onMakeWish} disabled={makingWish}>{makingWish?"Revealing your wish…":"Make a wish"}<AstralIcon/></button>:<Link href="/wishes/shop">Get wishes <AstralIcon/></Link>}<button onClick={onShowDetails}>What can I discover?<AstralIcon name="arrow"/></button></div>
+    </div>
+    <span className="ap-wish-lifetime">{formatWholeNumber(totalWishes)} wishes in your story</span>
+  </article>;
 }
 
 function ShippingProgress({
@@ -1123,8 +978,8 @@ function QuickLinks() {
       detail: "Choose your favourite card",
     },
     {
-      href: "/achievements#nebu-wardrobe",
-      title: "Customise Nebu",
+      href: "/achievements",
+      title: "Achievements",
       detail: "Change his colours with coats unlocked by badges",
     },
   ];

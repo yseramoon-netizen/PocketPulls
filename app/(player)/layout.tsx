@@ -708,7 +708,7 @@ export default function PlayerLayout({ children }: PlayerLayoutProps) {
 
       <style jsx global>{`
         .unknown-pulls-shell {
-          --ancient-gold: #e5a93f;
+          --ancient-gold: #d8c098;
           --ancient-copper: #a85b2a;
           --ancient-scarlet: #cf425f;
           --ancient-cyan: #35d1c5;
@@ -720,7 +720,7 @@ export default function PlayerLayout({ children }: PlayerLayoutProps) {
         .unknown-pulls-shell main select,
         .unknown-pulls-shell main textarea {
           border-color: rgba(255, 255, 255, 0.1);
-          background-color: rgba(255, 255, 255, 0.035);
+          background-color: #0c1421;
           background-image: none;
         }
 
@@ -800,7 +800,7 @@ function PlayerLoadingScreen() {
           <div className="absolute inset-1 animate-spin rounded-full border border-transparent border-r-cyan-100/38 border-t-yellow-100/65 [animation-duration:2.5s]" />
 
           <Image
-            src="/ancient-pulls/celestial-cat.webp"
+            src="/ancient-pulls/wish/astral/aster-pixel.webp"
             alt=""
             width={56}
             height={56}
@@ -870,7 +870,7 @@ function PlayerBannedScreen({
             <div className="absolute inset-2 rounded-full bg-red-300/15 blur-2xl" />
 
             <Image
-              src="/ancient-pulls/celestial-cat.webp"
+              src="/ancient-pulls/wish/astral/aster-pixel.webp"
               alt=""
               width={80}
               height={80}

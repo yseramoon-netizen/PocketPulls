@@ -1,6 +1,6 @@
 export const PLAYER_ROUTES = [
-  { href: "/hq", label: "HQ", detail: "Your collection at a glance", keywords: "home dashboard", glyph: "⌂" },
-  { href: "/wishes", label: "Wishes", detail: "Make a wish or replay your latest reveal", keywords: "pull nebu replay", glyph: "✦" },
+  { href: "/hq", label: "Overview", detail: "Your collection at a glance", keywords: "home dashboard", glyph: "⌂" },
+  { href: "/wishes", label: "Wishes", detail: "Make a wish or replay your latest reveal", keywords: "pull aster replay", glyph: "✦" },
   { href: "/collection", label: "Binder", detail: "Browse and arrange your cards", keywords: "collection owned duplicate signature", glyph: "▣" },
   { href: "/catalogue", label: "Catalogue", detail: "Explore cards and favourites", keywords: "cards pokemon sets favourite", glyph: "▤" },
   { href: "/constellation", label: "Constellation", detail: "Find your cards among the stars", keywords: "stars galaxy find", glyph: "✧" },

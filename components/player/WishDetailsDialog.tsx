@@ -197,16 +197,16 @@ export default function WishDetailsDialog({ open, onClose }: WishDetailsDialogPr
           <article className={styles.cosmicPrize}>
             <div className={styles.cosmicGlow} aria-hidden="true" />
             <img
-              src="/ancient-pulls/skins/cosmic-nebu/portrait.webp"
-              alt="Cosmic Nebu, the ultimate Ancient Pulls discovery"
+              src="/ancient-pulls/wish/astral/aster-pixel.webp"
+              alt="Cosmic discovery, the ultimate Ancient Pulls discovery"
               draggable={false}
             />
             <div className={styles.cosmicCopy}>
               <p>✦ The ultimate prize</p>
-              <h3>Cosmic Nebu</h3>
+              <h3>Cosmic discovery</h3>
               <strong>1 in 100,000 · 0.001% per completed wish</strong>
               <span>
-                An independent permanent cosmetic discovery. Cosmic Nebu is awarded alongside
+                An independent permanent cosmetic discovery. Cosmic discovery is awarded alongside
                 your card, receives a chronological issue number, and never changes card odds.
               </span>
               {cosmicIssueNumber ? (

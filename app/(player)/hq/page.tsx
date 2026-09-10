@@ -3,7 +3,11 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import CosmicNebuNexus from "@/components/player/CosmicNebuNexus";
+import AsterPortrait from "@/components/player/NebuPortrait";
+import ConstellationArtwork from "@/components/player/observatory/ConstellationArtwork";
+import DeepSky from "@/components/player/observatory/DeepSky";
+import AstralIcon from "@/components/player/observatory/AstralIcon";
+import styles from "@/components/player/observatory/Overview.module.css";
 import { formatMarketValue } from "@/lib/player/format";
 import { supabase } from "@/lib/supabase";
 
@@ -253,147 +257,19 @@ export default function TrainerHqPage() {
     );
   }
 
-  return (
-    <section className="relative mx-auto w-full max-w-[1440px] px-4 py-7 sm:px-6 lg:px-8 lg:py-10">
-      <header className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <p className="text-[0.65rem] font-black uppercase tracking-[0.18em] text-cyan-100/45">
-            Trainer overview
-          </p>
-          <h1 className="mt-2 text-3xl font-black tracking-[-0.04em] text-white sm:text-4xl">
-            Trainer HQ
-          </h1>
-          <p className="mt-3 text-sm font-semibold text-white/45">
-            {greeting()}, {data.trainerName}.
-          </p>
-        </div>
-
-      </header>
-
-      {errorMessage ? (
-        <div className="mt-6 rounded-xl border border-red-200/15 bg-red-400/[0.07] px-4 py-3 text-sm font-bold text-red-100">
-          {errorMessage}
-        </div>
-      ) : null}
-
-      <CosmicNebuNexus trainerName={data.trainerName} />
-
-      <div className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
-          <MetricCard
-            glyph="✦"
-            label="Wishes"
-            value={formatNumber(data.wishBalance)}
-            detail="Ready to pull"
-            tone="yellow"
-            href="/wishes"
-          />
-          <MetricCard
-            glyph="▣"
-            label="Cards"
-            value={formatNumber(data.totalCards)}
-            detail={`${formatNumber(data.uniqueCards)} unique`}
-            tone="cyan"
-            href="/collection"
-          />
-          <MetricCard
-            glyph="£"
-            label="Collection"
-            value={formatMoney(data.collectionValue)}
-            detail="Catalogue value"
-            tone="violet"
-            href="/collection"
-          />
-          <MetricCard
-            glyph="✧"
-            label="Stars"
-            value={formatNumber(data.constellationStars)}
-            detail={zodiacLabel(data.zodiacSign)}
-            tone="pink"
-            href="/constellation"
-          />
-      </div>
-
-      <div className="mt-6 grid gap-6 xl:grid-cols-[1fr_0.86fr_0.86fr]">
-        <RecentPull data={data} />
-
-        <ActivityPanel data={data} />
-
-        <ProgressPanel data={data} shippingProgress={shippingProgress} />
-      </div>
-
-      <nav
-        aria-label="Trainer HQ quick actions"
-        className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4"
-      >
-        {[
-          ["/wishes", "✦", "Make a wish", "Reveal a card"],
-          ["/collection", "▣", "Open Binder", "Owned cards"],
-          ["/friends", "♢", "Friends", "Connections"],
-          ["/shipping", "S", "Shipping", "Delivery status"],
-        ].map(([href, glyph, title, detail]) => (
-          <Link
-            key={href}
-            href={href}
-            className="group flex min-h-20 items-center gap-3 rounded-2xl border border-white/[0.09] bg-white/[0.035] px-4 transition hover:-translate-y-0.5 hover:border-cyan-100/20 hover:bg-white/[0.06]"
-          >
-            <span className="flex h-11 w-11 flex-none items-center justify-center rounded-xl border border-white/10 bg-white/[0.045] text-lg font-black text-cyan-50">
-              {glyph}
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="block text-sm font-black text-white">{title}</span>
-              <span className="mt-1 block truncate text-xs font-semibold text-white/32">
-                {detail}
-              </span>
-            </span>
-            <span className="text-white/25 transition group-hover:translate-x-0.5 group-hover:text-cyan-100/60">
-              →
-            </span>
-          </Link>
-        ))}
-      </nav>
-    </section>
-  );
-}
-
-function MetricCard({
-  glyph,
-  label,
-  value,
-  detail,
-  tone,
-  href,
-}: {
-  glyph: string;
-  label: string;
-  value: string;
-  detail: string;
-  tone: "yellow" | "cyan" | "violet" | "pink";
-  href: string;
-}) {
-  const tones = {
-    yellow: "border-yellow-100/18 from-yellow-200/[0.09] text-yellow-50",
-    cyan: "border-cyan-100/18 from-cyan-200/[0.09] text-cyan-50",
-    violet: "border-violet-100/18 from-violet-200/[0.09] text-violet-50",
-    pink: "border-pink-100/18 from-pink-200/[0.09] text-pink-50",
-  };
-
-  return (
-    <Link
-      href={href}
-      className={`group flex min-h-[8.75rem] flex-col rounded-xl border bg-gradient-to-br ${tones[tone]} to-transparent p-4 transition hover:-translate-y-0.5 hover:brightness-110`}
-    >
-      <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/[0.045] text-lg font-black">
-        {glyph}
-      </span>
-      <p className="mt-auto text-[0.61rem] font-black uppercase tracking-[0.16em] text-white/34">
-        {label}
-      </p>
-      <p className="mt-1 truncate text-2xl font-black text-white">{value}</p>
-      <p className="mt-1 truncate text-xs font-semibold text-white/32">
-        {detail}
-      </p>
-    </Link>
-  );
+  return <section className={styles.page}>
+    <header className={styles.header}><div><p className={styles.eyebrow}>Your observatory</p><h1>Overview</h1></div><p className={styles.greeting}>{greeting()}, {data.trainerName}.<br/>Your sky is right where you left it.</p></header>
+    {errorMessage?<div role="alert" className="mb-6 rounded-xl border border-red-200/20 bg-red-950/30 p-4 text-sm text-red-100">{errorMessage}</div>:null}
+    <div className={styles.heroGrid}>
+      <article className={styles.skyCard}><DeepSky still/><ConstellationArtwork sign={data.zodiacSign} className={styles.art}/><div className={styles.skyCopy}><p>Your constellation</p><h2>{data.zodiacSign?`${zodiacLabel(data.zodiacSign)}, written in stars.`:"A sky of your own."}</h2><span>{formatNumber(data.constellationStars)} memories in your constellation</span><Link href="/constellation">Explore your sky <AstralIcon name="arrow"/></Link></div><span className={styles.skyMark}>ANCIENT PULLS / OBSERVATORY</span></article>
+      <article className={styles.wishCard}><span className={styles.eyebrow}>Astral wishes</span><AsterPortrait alt="Aster, your star companion"/><h2>Your next star awaits.</h2><p>{data.wishBalance>0?`${formatNumber(data.wishBalance)} wishes ready. Discover the next card in your collection.`:"Reveal a card and add a new star to your sky."}</p><Link href="/wishes">Make a wish <AstralIcon name="star"/></Link></article>
+    </div>
+    <div className={styles.metrics}>
+      {[["Wishes",formatNumber(data.wishBalance),"Ready to reveal","/wishes"],["Cards",formatNumber(data.totalCards),`${formatNumber(data.uniqueCards)} unique cards`,"/collection"],["Collection",formatMoney(data.collectionValue),"Current catalogue value","/collection"],["Stars",formatNumber(data.constellationStars),zodiacLabel(data.zodiacSign),"/constellation"]].map(([label,value,detail,href])=><Link key={label} href={href} className={styles.metric}><p>{label}</p><strong>{value}</strong><small>{detail}</small></Link>)}
+    </div>
+    <div className={styles.lower}><RecentPull data={data}/><ActivityPanel data={data}/><ProgressPanel data={data} shippingProgress={shippingProgress}/></div>
+    <nav className={styles.links} aria-label="Collection shortcuts">{[["/catalogue","Explore catalogue"],["/leaderboard","Universe ranks"],["/friends","Friends & trades"],["/shipping","Shipping & orders"]].map(([href,label])=><Link key={href} href={href}>{label}<AstralIcon name="arrow"/></Link>)}</nav>
+  </section>;
 }
 
 function RecentPull({ data }: { data: TrainerHqData }) {

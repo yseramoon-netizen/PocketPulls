@@ -1,798 +1,296 @@
 "use client";
-
-/* eslint-disable @next/next/no-img-element -- Timed cinematic art is explicitly preloaded and must not be wrapped or deferred. */
-
-import {
-  type CSSProperties,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
-
+/* eslint-disable @next/next/no-img-element -- Awarded card art is preloaded and revealed on the ceremony clock. */
+import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import useModalFocus from "@/lib/client/useModalFocus";
 import { publishPlayerPreferences } from "@/lib/player/preferences";
-import {
-  getWishRevealConfig,
-  getWishRevealParticleCount,
-  type WishRevealConfig,
-} from "@/lib/player/wish-reveal";
-import {
-  DEFAULT_NEBU_SKIN,
-  getNebuHeatAssets,
-  isNebuSkinKey,
-  NEBU_SKIN_CHANGE_EVENT,
-  readNebuSkin,
-  type NebuSkinKey,
-} from "@/lib/player/nebu";
-import { supabase } from "@/lib/supabase";
-
-import AsterismSigil from "./AsterismSigil";
-import { getNebuSummonSprite } from "./NebuWishSummon";
-import StellarWishJourney from "./StellarWishJourney";
-import {
-  primeWishAudio,
-  startWishAudio,
-  type WishAudioSession,
-} from "./wishAudio";
+import { getWishRevealConfig, type WishRevealConfig } from "@/lib/player/wish-reveal";
 import usePlayerPreferences from "./usePlayerPreferences";
-import styles from "./WishCinematic.module.css";
-
+import { primeWishAudio, startAstralWishAudio, type WishAudioSession } from "./wishAudio";
+import { AstralRenderer, loadAstralArtwork } from "./astral/renderer";
+import { AdaptiveResolution, CeremonyClock, ceremonyDuration, sampleAstral, type AstralOptions } from "./astral/timeline";
+import styles from "./astral/AstralWish.module.css";
 export type WishRevealCard = {
-  id?: string | number;
-  name: string;
-  rarity?: string | null;
-  imageUrl?: string | null;
-  setName?: string | null;
-  cardNumber?: string | null;
-  marketValue?: number | null;
+    id?: string | number;
+    name: string;
+    rarity?: string | null;
+    imageUrl?: string | null;
+    setName?: string | null;
+    cardNumber?: string | null;
+    marketValue?: number | null;
 };
-
-type WishCinematicProps = {
-  open: boolean;
-  card: WishRevealCard | null;
-  onClose: () => void;
-  onFinished?: () => void;
-  onWishAgain?: () => void;
-  canWishAgain?: boolean;
-  busy?: boolean;
-  actionError?: string | null;
-  allowSkip?: boolean;
-  forceFullSequence?: boolean;
-  respectPreferences?: boolean;
-  cosmicIssueNumber?: number | null;
-  cosmicBinderIssueNumber?: number | null;
-  cosmicSourceSkin?: NebuSkinKey | null;
+export type WishCinematicProps = {
+    open: boolean;
+    card: WishRevealCard | null;
+    onClose: () => void;
+    onFinished?: () => void;
+    onWishAgain?: () => void;
+    canWishAgain?: boolean;
+    busy?: boolean;
+    actionError?: string | null;
+    allowSkip?: boolean;
+    forceFullSequence?: boolean;
+    respectPreferences?: boolean;
+    cosmicIssueNumber?: number | null;
+    cosmicBinderIssueNumber?: number | null;
+    /** Accepted for older callers; character skins no longer control this animation. */
+    cosmicSourceSkin?: string | null;
 };
-
-const IMAGE_PRELOAD_TIMEOUT_MS = 2600;
-const WORLD_SPRITES = [
-  "/ancient-pulls/wish/nebu-cinematic/celestial-observatory-v1.webp",
-] as const;
-
-// Kept as a public compatibility helper for the existing cinematic laboratory.
-export function getWishRarityTheme(
-  rarity: string | null | undefined,
-): WishRevealConfig {
-  return getWishRevealConfig(rarity);
+export function getWishRarityTheme(rarity: string | null | undefined): WishRevealConfig { return getWishRevealConfig(rarity); }
+const subscribeToClient = () => () => { };
+const clientSnapshot = () => true;
+const serverSnapshot = () => false;
+function readMuted() { try {
+    return typeof window === "undefined" || window.localStorage.getItem("pocketpulls-wish-muted") === "true";
 }
-
-function formatMoney(value: number | null | undefined): string {
-  if (value == null || !Number.isFinite(Number(value)) || Number(value) <= 0) {
-    return "Price pending";
-  }
-
-  return new Intl.NumberFormat("en-GB", {
-    style: "currency",
-    currency: "GBP",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(Math.max(0, Number(value) || 0));
+catch {
+    return true;
+} }
+export default function WishCinematic(props: WishCinematicProps) {
+    if (!props.open || !props.card)
+        return null;
+    return <AstralCeremony key={String(props.card.id ?? `${props.card.name}:${props.card.rarity}`)} {...props} card={props.card}/>;
 }
-
-type WishRevealTimeline = {
-  stageMomentsMs: readonly number[];
-  specialAtMs: number;
-  cosmicTransformAtMs: number | null;
-  binderFormAtMs: number | null;
-  binderOpenAtMs: number | null;
-  collapseAtMs: number;
-  impactAtMs: number;
-  cardAtMs: number;
-  infoAtMs: number;
-  durationMs: number;
-};
-
-const STRUGGLE_START_AT_MS = 850;
-const STRUGGLE_BASE_CYCLE_MS = 1000;
-const STRUGGLE_SLOWDOWN = 1.2;
-
-function buildStruggleTimeline(tier: number): {
-  stageMomentsMs: readonly number[];
-  terminalAtMs: number;
-} {
-  const safeTier = Math.max(1, Math.min(9, Math.round(tier)));
-  const stageMomentsMs: number[] = [];
-  let cursor = STRUGGLE_START_AT_MS;
-
-  for (let index = 0; index < safeTier; index += 1) {
-    stageMomentsMs.push(Math.round(cursor));
-    cursor += STRUGGLE_BASE_CYCLE_MS * STRUGGLE_SLOWDOWN ** index;
-  }
-
-  return {
-    stageMomentsMs,
-    terminalAtMs: Math.round(cursor),
-  };
-}
-
-function buildRevealTimeline(
-  config: WishRevealConfig,
-  cosmicDiscovery: boolean,
-  cosmicBinderDiscovery: boolean,
-): WishRevealTimeline {
-  if (!config.usesWorldScene) {
-    const stageStep = Math.max(180, Math.floor(config.timings.impactAtMs / config.tier));
-    return {
-      stageMomentsMs: Array.from({ length: config.tier }, (_, index) => 240 + index * stageStep),
-      specialAtMs: Math.max(300, config.timings.impactAtMs - 420),
-      cosmicTransformAtMs: null,
-      binderFormAtMs: null,
-      binderOpenAtMs: null,
-      collapseAtMs: Math.max(0, config.timings.cardAtMs - 680),
-      impactAtMs: config.timings.impactAtMs,
-      cardAtMs: config.timings.cardAtMs,
-      infoAtMs: config.timings.infoAtMs,
-      durationMs: config.timings.durationMs,
-    };
-  }
-
-  const struggle = buildStruggleTimeline(config.tier);
-  const stageMomentsMs = struggle.stageMomentsMs;
-  const specialAtMs = struggle.terminalAtMs;
-  const dualDiscovery = cosmicDiscovery && cosmicBinderDiscovery;
-
-  if (dualDiscovery) {
-    const cosmicTransformAtMs = specialAtMs + 1180;
-    const binderFormAtMs = specialAtMs + 2050;
-    const binderOpenAtMs = specialAtMs + 3220;
-    const collapseAtMs = binderOpenAtMs + 420;
-    const impactAtMs = binderOpenAtMs + 760;
-    const cardAtMs = binderOpenAtMs + 1260;
-    const infoAtMs = cardAtMs + 900;
-
-    return {
-      stageMomentsMs,
-      specialAtMs,
-      cosmicTransformAtMs,
-      binderFormAtMs,
-      binderOpenAtMs,
-      collapseAtMs,
-      impactAtMs,
-      cardAtMs,
-      infoAtMs,
-      durationMs: infoAtMs + 1750,
-    };
-  }
-
-  if (cosmicDiscovery) {
-    const cosmicTransformAtMs = specialAtMs + 1350;
-    const collapseAtMs = cosmicTransformAtMs + 760;
-    const impactAtMs = cosmicTransformAtMs + 1120;
-    const cardAtMs = cosmicTransformAtMs + 1760;
-    const infoAtMs = cardAtMs + 860;
-
-    return {
-      stageMomentsMs,
-      specialAtMs,
-      cosmicTransformAtMs,
-      binderFormAtMs: null,
-      binderOpenAtMs: null,
-      collapseAtMs,
-      impactAtMs,
-      cardAtMs,
-      infoAtMs,
-      durationMs: infoAtMs + 1600,
-    };
-  }
-
-  if (cosmicBinderDiscovery) {
-    const binderFormAtMs = specialAtMs + 260;
-    const binderOpenAtMs = specialAtMs + 1420;
-    const collapseAtMs = binderOpenAtMs + 340;
-    const impactAtMs = binderOpenAtMs + 680;
-    const cardAtMs = binderOpenAtMs + 1120;
-    const infoAtMs = cardAtMs + 820;
-
-    return {
-      stageMomentsMs,
-      specialAtMs,
-      cosmicTransformAtMs: null,
-      binderFormAtMs,
-      binderOpenAtMs,
-      collapseAtMs,
-      impactAtMs,
-      cardAtMs,
-      infoAtMs,
-      durationMs: infoAtMs + 1450,
-    };
-  }
-
-  if (config.blackHole) {
-    const collapseAtMs = specialAtMs + 2450;
-    const impactAtMs = specialAtMs + 3400;
-    const cardAtMs = specialAtMs + 3920;
-    const infoAtMs = cardAtMs + 820;
-
-    return {
-      stageMomentsMs,
-      specialAtMs,
-      cosmicTransformAtMs: null,
-      binderFormAtMs: null,
-      binderOpenAtMs: null,
-      collapseAtMs,
-      impactAtMs,
-      cardAtMs,
-      infoAtMs,
-      durationMs: infoAtMs + 1350,
-    };
-  }
-
-  const collapseAtMs = specialAtMs + 620;
-  const impactAtMs = specialAtMs + 980;
-  const cardAtMs = specialAtMs + 1290;
-  const infoAtMs = cardAtMs + 620;
-
-  return {
-    stageMomentsMs,
-    specialAtMs,
-    cosmicTransformAtMs: null,
-    binderFormAtMs: null,
-    binderOpenAtMs: null,
-    collapseAtMs,
-    impactAtMs,
-    cardAtMs,
-    infoAtMs,
-    durationMs: infoAtMs + 1150,
-  };
-}
-
-export default function WishCinematic({
-  open,
-  card,
-  onClose,
-  onFinished,
-  onWishAgain,
-  canWishAgain = false,
-  busy = false,
-  actionError = null,
-  allowSkip = true,
-  forceFullSequence = false,
-  respectPreferences = true,
-  cosmicIssueNumber = null,
-  cosmicBinderIssueNumber = null,
-  cosmicSourceSkin = null,
-}: WishCinematicProps) {
-  const preloadTimerRef = useRef<number | null>(null);
-  const completionTimerRef = useRef<number | null>(null);
-  const skipRequestedRef = useRef(false);
-  const finishedRef = useRef(false);
-  const onFinishedRef = useRef(onFinished);
-  const audioSessionRef = useRef<WishAudioSession | null>(null);
-  const markedSeenRef = useRef(false);
-  const preferences = usePlayerPreferences();
-
-  const [ready, setReady] = useState(false);
-  const [complete, setComplete] = useState(false);
-  const [skipped, setSkipped] = useState(false);
-  const [mobileEffects, setMobileEffects] = useState(false);
-  const [runNumber, setRunNumber] = useState(0);
-  const [muted, setMuted] = useState(() => {
-    if (typeof window === "undefined") return false;
-    try {
-      return window.localStorage.getItem("pocketpulls-wish-muted") === "true";
-    } catch {
-      return false;
-    }
-  });
-  const [nebuSkin, setNebuSkin] = useState<NebuSkinKey>(DEFAULT_NEBU_SKIN);
-
-  const config = useMemo(
-    () => getWishRevealConfig(card?.rarity, card?.marketValue),
-    [card?.marketValue, card?.rarity],
-  );
-  const cosmicDiscovery = Boolean(cosmicIssueNumber);
-  const cosmicBinderDiscovery = Boolean(cosmicBinderIssueNumber);
-  const dualDiscovery = cosmicDiscovery && cosmicBinderDiscovery;
-  const timeline = useMemo(
-    () => buildRevealTimeline(config, cosmicDiscovery, cosmicBinderDiscovery),
-    [config, cosmicBinderDiscovery, cosmicDiscovery],
-  );
-  const audioTravelWindows = useMemo(() => {
-    const windows = timeline.stageMomentsMs.slice(1).map((moment, index) => {
-      const previous = timeline.stageMomentsMs[index] ?? 0;
-      return {
-        startAtMs: previous + 120,
-        durationMs: Math.max(520, moment - previous - 220),
-        intensity: index + 2,
-      };
+function AstralCeremony({ card, onClose, onFinished, onWishAgain, canWishAgain = false, busy = false, actionError, allowSkip = true, forceFullSequence = false, respectPreferences = true, cosmicIssueNumber, cosmicBinderIssueNumber, }: WishCinematicProps & {
+    card: WishRevealCard;
+}) {
+    const preferences = usePlayerPreferences();
+    const mounted = useSyncExternalStore(subscribeToClient, clientSnapshot, serverSnapshot);
+    const [stage, setStage] = useState<"loading" | "playing" | "revealing" | "complete">("loading");
+    const [muted, setMuted] = useState(readMuted);
+    const [paused, setPaused] = useState(false);
+    const [fallback, setFallback] = useState(false);
+    const [imageFailed, setImageFailed] = useState(false);
+    const [canSkip, setCanSkip] = useState(false);
+    const canvas = useRef<HTMLCanvasElement>(null);
+    const scene = useRef<AstralRenderer | null>(null);
+    const clock = useRef(new CeremonyClock());
+    const audio = useRef<WishAudioSession | null>(null);
+    const frameId = useRef(0);
+    const completed = useRef(false);
+    const revealStarted = useRef(false);
+    const manuallyPaused = useRef(false);
+    const skipUnlocked = useRef(false);
+    const startAudio = useRef<() => void>(() => { });
+    const prefs = useRef(preferences);
+    const muteRef = useRef(muted);
+    const config = useMemo(() => getWishRevealConfig(card.rarity, card.marketValue), [card.rarity, card.marketValue]);
+    const options = useMemo<AstralOptions>(() => ({ tier: config.tier, blackHole: !!config.blackHole, primary: config.primary, secondary: config.secondary }), [config]);
+    const reduced = respectPreferences && preferences.reducedMotion;
+    const shouldSkip = respectPreferences && !forceFullSequence && preferences.skipPullCinematic && preferences.cinematicSeen;
+    const finishEvent = useEffectEvent(() => {
+        if (completed.current)
+            return;
+        completed.current = true;
+        setStage("complete");
+        setCanSkip(false);
+        if (respectPreferences && !preferences.cinematicSeen)
+            publishPlayerPreferences({ ...preferences, cinematicSeen: true });
+        onFinished?.();
     });
-
-    if (config.blackHole && !cosmicDiscovery && !cosmicBinderDiscovery) {
-      windows.push({
-        startAtMs: timeline.specialAtMs,
-        durationMs: Math.max(800, timeline.collapseAtMs - timeline.specialAtMs - 180),
-        intensity: 9,
-      });
-    }
-
-    return windows;
-  }, [config.blackHole, cosmicBinderDiscovery, cosmicDiscovery, timeline]);
-  const sceneNebuSkin = cosmicDiscovery
-    ? cosmicSourceSkin || (nebuSkin === "cosmic_nebu" ? DEFAULT_NEBU_SKIN : nebuSkin)
-    : nebuSkin;
-  const nebuHeatAssets = useMemo(
-    () => getNebuHeatAssets(sceneNebuSkin),
-    [sceneNebuSkin],
-  );
-  const cosmicHeatAssets = useMemo(
-    () => getNebuHeatAssets("cosmic_nebu"),
-    [],
-  );
-  const equippedCosmicNebu = !cosmicDiscovery && nebuSkin === "cosmic_nebu";
-  const cosmicMode = equippedCosmicNebu || cosmicDiscovery;
-  const preparingCopy = "Nebu is reading the constellation…";
-  const lowEffects = preferences.lowVisualEffects || preferences.dataSaver;
-  const particleCount = getWishRevealParticleCount(config, {
-    mobile: mobileEffects,
-    lowEffects,
-  });
-  const isolatedSunSequence = config.usesWorldScene;
-  const revealFromPreferences =
-    respectPreferences &&
-    (preferences.reducedMotion ||
-      (!forceFullSequence &&
-        (preferences.dataSaver ||
-          (preferences.skipPullCinematic && preferences.cinematicSeen))));
-
-  const cardKey = useMemo(() => {
-    if (!card) return "";
-    return [card.id ?? "", card.name, card.rarity ?? "", card.imageUrl ?? "", card.marketValue ?? ""].join("|");
-  }, [card]);
-
-  useEffect(() => {
-    onFinishedRef.current = onFinished;
-  }, [onFinished]);
-
-  useEffect(() => {
-    const media = window.matchMedia("(max-width: 700px)");
-    const sync = () => setMobileEffects(media.matches);
-    sync();
-    media.addEventListener("change", sync);
-    return () => media.removeEventListener("change", sync);
-  }, []);
-
-  useEffect(() => {
-    window.dispatchEvent(new CustomEvent("pocketpulls:wish-cinematic-visibility", { detail: { open } }));
-    return () => {
-      if (open) {
-        window.dispatchEvent(new CustomEvent("pocketpulls:wish-cinematic-visibility", { detail: { open: false } }));
-      }
-    };
-  }, [open]);
-
-  useEffect(() => {
-    const syncSkin = () => setNebuSkin(readNebuSkin());
-    const handleSkinChange = (event: Event) => {
-      const key = (event as CustomEvent<{ key?: unknown }>).detail?.key;
-      if (isNebuSkinKey(key)) setNebuSkin(key);
-    };
-    syncSkin();
-    window.addEventListener(NEBU_SKIN_CHANGE_EVENT, handleSkinChange);
-    return () => window.removeEventListener(NEBU_SKIN_CHANGE_EVENT, handleSkinChange);
-  }, []);
-
-  const stopAudio = useCallback(() => {
-    audioSessionRef.current?.stop();
-    audioSessionRef.current = null;
-  }, []);
-
-  const clearTimers = useCallback(() => {
-    if (preloadTimerRef.current !== null) window.clearTimeout(preloadTimerRef.current);
-    if (completionTimerRef.current !== null) window.clearTimeout(completionTimerRef.current);
-    preloadTimerRef.current = null;
-    completionTimerRef.current = null;
-  }, []);
-
-  const reportFinished = useCallback(() => {
-    if (finishedRef.current) return;
-    finishedRef.current = true;
-    onFinishedRef.current?.();
-  }, []);
-
-  const revealImmediately = useCallback(() => {
-    skipRequestedRef.current = true;
-    clearTimers();
-    stopAudio();
-    setReady(true);
-    setSkipped(true);
-    setComplete(true);
-    reportFinished();
-  }, [clearTimers, reportFinished, stopAudio]);
-
-  const handleContinue = useCallback(() => {
-    stopAudio();
-    window.dispatchEvent(new Event("pocketpulls:wish-cinematic-continued"));
-    onClose();
-  }, [onClose, stopAudio]);
-
-  /* eslint-disable react-hooks/set-state-in-effect -- Opening a new card starts a fresh, externally keyed cinematic timeline. */
-  useEffect(() => {
-    if (!open || !card) {
-      clearTimers();
-      stopAudio();
-      finishedRef.current = false;
-      setReady(false);
-      setComplete(false);
-      setSkipped(false);
-      skipRequestedRef.current = false;
-      markedSeenRef.current = false;
-      return;
-    }
-
-    let active = true;
-    let started = false;
-    clearTimers();
-    stopAudio();
-    finishedRef.current = false;
-    setReady(false);
-    setComplete(false);
-    setSkipped(false);
-    skipRequestedRef.current = false;
-
-    if (revealFromPreferences) {
-      setReady(true);
-      setSkipped(true);
-      setComplete(true);
-      reportFinished();
-      return () => {
-        active = false;
-        clearTimers();
-        stopAudio();
-      };
-    }
-
-    const startSequence = () => {
-      if (!active || started || skipRequestedRef.current) return;
-      started = true;
-      setRunNumber((current) => current + 1);
-      setReady(true);
-
-      completionTimerRef.current = window.setTimeout(() => {
-        setComplete(true);
-        reportFinished();
-      }, timeline.durationMs);
-    };
-
-    const preloadSources = [
-      card.imageUrl,
-      ...(config.usesWorldScene
-        ? [
-            ...WORLD_SPRITES,
-            getNebuSummonSprite(
-              config.tier,
-              config.blackHole && !cosmicDiscovery && !cosmicBinderDiscovery,
-            ),
-            nebuHeatAssets.portrait,
-            ...(cosmicDiscovery || equippedCosmicNebu
-              ? [cosmicHeatAssets.portrait]
-              : []),
-          ]
-        : []),
-    ].filter((source): source is string => Boolean(source));
-
-    if (preloadSources.length === 0) {
-      startSequence();
-    } else {
-      let remaining = preloadSources.length;
-      const settled = () => {
-        remaining -= 1;
-        if (remaining <= 0) startSequence();
-      };
-      for (const source of preloadSources) {
+    const exitEvent = useCallback(() => {
+        window.dispatchEvent(new Event("pocketpulls:wish-cinematic-continued"));
+        onClose();
+    }, [onClose]);
+    const revealNow = useCallback(() => {
+        clock.current.seek(ceremonyDuration(options.blackHole));
+        audio.current?.stop();
+        audio.current = null;
+        manuallyPaused.current = false;
+        clock.current.setPaused(false);
+        setPaused(false);
+    }, [options.blackHole]);
+    const modal = useModalFocus<HTMLDivElement>(mounted, () => {
+        if (completed.current)
+            exitEvent();
+        else if (allowSkip)
+            revealNow();
+    });
+    useEffect(() => {
+        window.dispatchEvent(new CustomEvent("pocketpulls:wish-cinematic-visibility", { detail: { open: true } }));
+        return () => { window.dispatchEvent(new CustomEvent("pocketpulls:wish-cinematic-visibility", { detail: { open: false } })); };
+    }, []);
+    useEffect(() => { prefs.current = preferences; audio.current?.setVolume(preferences.sfxVolume); }, [preferences]);
+    useEffect(() => { muteRef.current = muted; audio.current?.setMuted(muted); }, [muted]);
+    useEffect(() => {
+        if (!mounted || !canvas.current || !modal.current || completed.current)
+            return;
+        let cancelled = false, observer: ResizeObserver | null = null, previous: number | null = null;
+        const adaptive = new AdaptiveResolution(prefs.current.lowVisualEffects || prefs.current.dataSaver);
+        const element = modal.current;
+        const beginSound = () => {
+            audio.current?.stop();
+            audio.current = startAstralWishAudio(options, muteRef.current, prefs.current.sfxVolume, clock.current.time);
+        };
+        startAudio.current = beginSound;
+        const onVisibility = () => {
+            const suspend = document.hidden || manuallyPaused.current;
+            clock.current.setPaused(suspend);
+            previous = null;
+            audio.current?.stop();
+            audio.current = null;
+            if (!suspend && !completed.current && !reduced)
+                beginSound();
+        };
+        const tick = (now: number) => {
+            if (cancelled)
+                return;
+            const elapsed = clock.current.tick(now);
+            if (document.hidden || manuallyPaused.current) {
+                previous = null;
+                frameId.current = requestAnimationFrame(tick);
+                return;
+            }
+            const state = scene.current?.render(elapsed, options) ?? sampleAstral(elapsed, options);
+            const progress = reduced && !shouldSkip ? Math.min(1, elapsed / 900) : state.reveal;
+            if (progress > 0) {
+                element.style.setProperty("--reveal", String(progress));
+                element.style.setProperty("--card-y", `${(1 - progress) * 45}px`);
+                element.style.setProperty("--card-rotate", `${(1 - progress) * -24}deg`);
+                element.style.setProperty("--card-scale", String(.76 + progress * .24));
+            }
+            if ((progress > 0 || reduced) && !revealStarted.current) {
+                revealStarted.current = true;
+                setStage("revealing");
+            }
+            if (elapsed >= 800 && !skipUnlocked.current) {
+                skipUnlocked.current = true;
+                setCanSkip(true);
+            }
+            if (state.finished || (reduced && elapsed >= 900)) {
+                element.style.setProperty("--reveal", "1");
+                element.style.setProperty("--card-y", "0px");
+                element.style.setProperty("--card-rotate", "0deg");
+                element.style.setProperty("--card-scale", "1");
+                finishEvent();
+                return; // Settled results cost zero animation frames.
+            }
+            if (previous !== null && !manuallyPaused.current && adaptive.observe(now - previous))
+                scene.current?.resize(adaptive.scale);
+            previous = now;
+            frameId.current = requestAnimationFrame(tick);
+        };
+        const prepare = async () => {
+            const artwork = reduced || shouldSkip ? null : await loadAstralArtwork();
+            if (cancelled)
+                return;
+            if (!reduced && !shouldSkip && canvas.current) {
+                try {
+                    scene.current = new AstralRenderer(canvas.current, artwork, prefs.current.lowVisualEffects || prefs.current.dataSaver, () => {
+                        if (cancelled)
+                            return;
+                        setFallback(true);
+                        clock.current.seek(ceremonyDuration(options.blackHole) - 800);
+                    });
+                    if (!artwork) {
+                        setFallback(true);
+                        clock.current.seek(ceremonyDuration(options.blackHole) - 1100);
+                    }
+                    scene.current.resize(adaptive.scale);
+                    observer = new ResizeObserver(() => scene.current?.resize(adaptive.scale));
+                    observer.observe(canvas.current);
+                }
+                catch {
+                    setFallback(true);
+                    clock.current.seek(ceremonyDuration(options.blackHole) - 1100);
+                }
+            }
+            if (shouldSkip)
+                clock.current.seek(ceremonyDuration(options.blackHole));
+            clock.current.setPaused(document.hidden || manuallyPaused.current);
+            setStage("playing");
+            if (!document.hidden && !manuallyPaused.current && !reduced && !shouldSkip)
+                beginSound();
+            document.addEventListener("visibilitychange", onVisibility);
+            frameId.current = requestAnimationFrame(tick);
+        };
+        void prepare();
+        return () => {
+            cancelled = true;
+            cancelAnimationFrame(frameId.current);
+            observer?.disconnect();
+            document.removeEventListener("visibilitychange", onVisibility);
+            audio.current?.stop();
+            audio.current = null;
+            scene.current?.dispose();
+            scene.current = null;
+            startAudio.current = () => { };
+        };
+    }, [mounted, options, reduced, shouldSkip, modal]);
+    useEffect(() => { if (card.imageUrl) {
         const image = new Image();
-        image.onload = settled;
-        image.onerror = settled;
-        image.src = source;
-      }
-      preloadTimerRef.current = window.setTimeout(
-        startSequence,
-        config.tier <= 2 ? 420 : IMAGE_PRELOAD_TIMEOUT_MS,
-      );
-    }
-
-    return () => {
-      active = false;
-      clearTimers();
-      stopAudio();
+        image.src = card.imageUrl;
+    } }, [card.imageUrl]);
+    useEffect(() => { if (stage === "complete")
+        modal.current?.querySelector<HTMLButtonElement>("[data-continue]")?.focus({ preventScroll: true }); }, [stage, modal]);
+    const toggleSound = async () => {
+        const next = !muted;
+        setMuted(next);
+        muteRef.current = next;
+        try {
+            window.localStorage.setItem("pocketpulls-wish-muted", String(next));
+        }
+        catch { /* Device-only preference. */ }
+        await primeWishAudio();
+        if (!next && !paused && !completed.current)
+            startAudio.current();
     };
-  }, [
-    card,
-    cardKey,
-    clearTimers,
-    config,
-    cosmicDiscovery,
-    cosmicHeatAssets.portrait,
-    equippedCosmicNebu,
-    nebuHeatAssets.portrait,
-    open,
-    reportFinished,
-    revealFromPreferences,
-    stopAudio,
-    timeline.durationMs,
-  ]);
-  /* eslint-enable react-hooks/set-state-in-effect */
-
-  useEffect(() => {
-    if (!open || !ready || skipped) return;
-    let cancelled = false;
-
-    void primeWishAudio()
-      .then(() => {
-        if (cancelled) return;
-        stopAudio();
-        audioSessionRef.current = startWishAudio(
-          config.tier,
-          muted,
-          preferences.sfxVolume,
-          {
-            impactAtMs: timeline.impactAtMs,
-            revealAtMs: timeline.cardAtMs,
-            mode: dualDiscovery
-              ? "convergence"
-              : cosmicDiscovery
-                ? "cosmic"
-                : cosmicBinderDiscovery
-                  ? "binder"
-                  : "journey",
-            travelWindows: audioTravelWindows,
-          },
-        );
-      })
-      .catch(() => {
-        // The visual reveal remains fully usable when Web Audio is unavailable.
-      });
-
-    return () => {
-      cancelled = true;
-      stopAudio();
+    const togglePause = () => {
+        const next = !manuallyPaused.current;
+        manuallyPaused.current = next;
+        setPaused(next);
+        clock.current.setPaused(next || document.hidden);
+        if (next) {
+            audio.current?.stop();
+            audio.current = null;
+        }
+        else
+            startAudio.current();
     };
-  }, [audioTravelWindows, config, cosmicBinderDiscovery, cosmicDiscovery, dualDiscovery, muted, open, preferences.sfxVolume, ready, runNumber, skipped, stopAudio, timeline.cardAtMs, timeline.impactAtMs]);
-
-  useEffect(() => {
-    if (!open || !ready || skipped || lowEffects || typeof navigator.vibrate !== "function") return;
-
-    const pattern = dualDiscovery
-      ? [34, 34, 56, 34, 110]
-      : cosmicDiscovery
-        ? [42, 42, 92]
-        : cosmicBinderDiscovery
-          ? [28, 32, 72]
-          : config.tier >= 7
-            ? [24, 26, 42]
-            : config.tier >= 4
-              ? [20, 24, 30]
-              : [18];
-    const timer = window.setTimeout(() => {
-      navigator.vibrate(pattern);
-    }, timeline.impactAtMs);
-
-    return () => window.clearTimeout(timer);
-  }, [config.tier, cosmicBinderDiscovery, cosmicDiscovery, dualDiscovery, lowEffects, open, ready, skipped, timeline.impactAtMs]);
-
-  useEffect(() => {
-    audioSessionRef.current?.setMuted(muted);
-    audioSessionRef.current?.setVolume(preferences.sfxVolume);
-    try {
-      window.localStorage.setItem("pocketpulls-wish-muted", String(muted));
-    } catch {
-      // Browser storage is optional.
-    }
-  }, [muted, preferences.sfxVolume]);
-
-  useEffect(() => {
-    if (!open || !complete || !respectPreferences || markedSeenRef.current || preferences.cinematicSeen) return;
-    markedSeenRef.current = true;
-    publishPlayerPreferences({ ...preferences, cinematicSeen: true });
-    void supabase.rpc("mark_player_cinematic_seen").then(({ error }) => {
-      if (error) console.warn("Cinematic viewing could not sync:", error.message);
-    });
-  }, [complete, open, preferences, respectPreferences]);
-
-  const modalRef = useModalFocus<HTMLDivElement>(Boolean(open && card), () => {
-    if (complete) handleContinue();
-    else if (allowSkip) revealImmediately();
-  });
-
-  if (!open || !card || typeof document === "undefined") return null;
-
-  const rootStyle = {
-    "--wish-primary": skipped ? config.primary : "#e2e8f0",
-    "--wish-secondary": skipped ? config.secondary : "#94a3b8",
-    "--wish-glow": skipped ? config.glow : "rgba(226, 232, 240, 0.7)",
-    "--wish-final-primary": config.primary,
-    "--wish-final-secondary": config.secondary,
-    "--wish-final-glow": config.glow,
-    "--rarity-reveal-at": `${timeline.specialAtMs}ms`,
-    "--impact-scale": String(config.impactScale),
-    "--shake-distance": `${config.shakeDistance}px`,
-    "--flash-strength": String(config.flashStrength),
-    "--tier": String(skipped ? config.tier : 1),
-    "--final-tier": String(config.tier),
-    "--collapse-at": `${timeline.collapseAtMs}ms`,
-    "--collapse-duration": `${Math.max(1, timeline.cardAtMs - timeline.collapseAtMs)}ms`,
-    "--impact-at": `${timeline.impactAtMs}ms`,
-    "--card-at": `${timeline.cardAtMs}ms`,
-    "--info-at": `${timeline.infoAtMs}ms`,
-  } as CSSProperties;
-
-  return createPortal(
-    <div
-      ref={modalRef}
-      tabIndex={-1}
-      className={styles.overlay}
-      style={rootStyle}
-      data-tier={config.tier}
-      data-family={config.family}
-      data-sun-sequence={isolatedSunSequence ? "true" : "false"}
-      data-concealed-rarity={isolatedSunSequence && !skipped ? "true" : "false"}
-      data-cosmic-discovery={cosmicDiscovery ? "true" : "false"}
-      data-cosmic-binder-discovery={cosmicBinderDiscovery ? "true" : "false"}
-      data-dual-discovery={dualDiscovery ? "true" : "false"}
-      data-cosmic-mode={cosmicMode ? "true" : "false"}
-      data-low-effects={lowEffects ? "true" : "false"}
-      role="dialog"
-      aria-modal="true"
-      aria-label={complete ? `Wish reveal for ${card.name}` : "Wish ceremony"}
-    >
-      <div className={styles.sky} />
-      <div className={styles.stars} />
-      <div className={styles.ancientCardGhost} />
-      <div className={styles.holoDust} />
-      <div className={styles.asterismRailTop} aria-hidden="true">
-        {Array.from({ length: 11 }, (_, index) => <span key={index} />)}
-      </div>
-      <div className={styles.asterismRailBottom} aria-hidden="true">
-        {Array.from({ length: 11 }, (_, index) => <span key={index} />)}
-      </div>
-      <div className={styles.ancientFrame} />
-      <div className={styles.vignette} />
-
-      <button
-        type="button"
-        className={styles.soundButton}
-        onClick={() => {
-          void primeWishAudio();
-          setMuted((current) => !current);
-        }}
-        aria-label={muted ? "Turn wish sound on" : "Mute wish sound"}
-      >
-        {muted ? "Sound Off" : "Sound On"}
-      </button>
-
-      {!ready ? (
-        <div className={styles.preparing}>
-          <div className={styles.preparingGlow} />
-          <img src={nebuHeatAssets.portrait} alt={equippedCosmicNebu ? "Cosmic Nebu" : "Nebu"} draggable={false} className={styles.preparingNebu} />
-          <p>{preparingCopy}</p>
+    if (!mounted)
+        return null;
+    const complete = stage === "complete", revealed = stage === "revealing" || complete;
+    const issue = cosmicBinderIssueNumber ?? cosmicIssueNumber;
+    const shellStyle = { "--rarity": config.primary, "--rarity-secondary": config.secondary } as CSSProperties;
+    return createPortal(<div ref={modal} className={`${styles.ceremony} ${fallback || reduced ? styles.still : ""}`} style={shellStyle} role="dialog" aria-modal="true" aria-label={complete ? `${card.name}, wish revealed` : "Wish ceremony"} tabIndex={-1} data-stage={stage} data-paused={paused}>
+      <canvas ref={canvas} className={styles.canvas} aria-hidden="true"/><div className={styles.vignette} aria-hidden="true"/>
+      <header className={styles.topbar}>
+        <span className={styles.brand}><span aria-hidden="true" className={styles.brandMark}>✧</span> ANCIENT PULLS</span>
+        <div className={styles.controls}>
+          {!complete && stage !== "loading" && !reduced && <button type="button" onClick={togglePause} aria-label={paused ? "Resume animation" : "Pause animation"} className={styles.iconButton}>{paused ? <PlayIcon /> : <PauseIcon />}</button>}
+          <button type="button" onClick={toggleSound} aria-label={muted ? "Turn sound on" : "Mute sound"} aria-pressed={!muted} className={styles.iconButton}><SoundIcon muted={muted}/></button>
+          {!complete && allowSkip && <button type="button" disabled={!canSkip} onClick={revealNow} className={styles.skip}>Reveal <span aria-hidden="true">↗</span></button>}
         </div>
-      ) : (
-        <div
-          key={runNumber}
-          className={`${styles.sequence} ${skipped ? styles.sequenceSkipped : ""} ${config.blackHole ? styles.blackHoleSequence : ""}`}
-        >
-          {config.usesWorldScene && !skipped ? (
-            <div className={styles.catScene}>
-              <StellarWishJourney
-                tier={config.tier}
-                nebuSkin={sceneNebuSkin}
-                stageMomentsMs={timeline.stageMomentsMs}
-                specialAtMs={timeline.specialAtMs}
-                collapseAtMs={timeline.collapseAtMs}
-                impactAtMs={timeline.impactAtMs}
-                cardRevealAtMs={timeline.cardAtMs}
-                cosmicTransformAtMs={timeline.cosmicTransformAtMs}
-                binderFormAtMs={timeline.binderFormAtMs}
-                binderOpenAtMs={timeline.binderOpenAtMs}
-                cosmicNebuPortrait={cosmicHeatAssets.portrait}
-                equippedCosmicNebu={equippedCosmicNebu}
-                cosmicDiscovery={cosmicDiscovery}
-                cosmicBinderDiscovery={cosmicBinderDiscovery}
-                blackHole={config.blackHole && !cosmicDiscovery && !cosmicBinderDiscovery}
-                lowEffects={lowEffects}
-                seed={cardKey}
-              />
-            </div>
-          ) : null}
-
-          <div className={styles.darkening} />
-          {!isolatedSunSequence ? <p className={styles.omen}>{config.omen}</p> : null}
-
-          {!isolatedSunSequence && config.glyphCount > 0 ? (
-            <div className={styles.asterismOrbit} aria-hidden="true">
-              <AsterismSigil seed={cardKey} points={Math.min(9, Math.max(5, config.glyphCount))} />
-            </div>
-          ) : null}
-
-          {!isolatedSunSequence ? (
-            <div className={styles.cardSilhouette} aria-hidden="true">
-              <AsterismSigil seed={`${cardKey}:silhouette`} points={7} />
-            </div>
-          ) : null}
-
-          {!config.usesWorldScene ? (
-            <div className={styles.impact} aria-hidden="true">
-              <div className={styles.impactFlash} />
-              <div className={styles.impactRing} />
-              <div className={styles.impactRingSecond} />
-              {config.tier >= 5 ? <div className={styles.impactRingThird} /> : null}
-              <div className={styles.impactRays}>
-                {Array.from({ length: config.rayCount }, (_, index) => (
-                  <span key={index} style={{ "--ray-angle": `${(360 / config.rayCount) * index}deg`, "--ray-length": `${65 + config.tier * 10 + (index % 6) * 13}px`, "--ray-delay": `${(index % 5) * 10}ms` } as CSSProperties} />
-                ))}
-              </div>
-              <div className={styles.particles}>
-                {Array.from({ length: particleCount }, (_, index) => (
-                  <span key={index} style={{ "--particle-angle": `${(360 / particleCount) * index}deg`, "--particle-distance": `${84 + config.tier * 10 + (index % 8) * 17}px`, "--particle-delay": `${(index % 7) * 12}ms`, "--particle-size": `${2 + config.tier * 0.16 + (index % 4)}px` } as CSSProperties} />
-                ))}
-              </div>
-            </div>
-          ) : null}
-
-          <div className={styles.cardScene} data-share-ready={complete ? "true" : undefined} aria-hidden={!complete}>
-            <div className={styles.cardGlow} />
-            <div className={styles.cardFrame}>
-              {card.imageUrl ? <img src={card.imageUrl} alt={card.name} draggable={false} /> : <div className={styles.cardFallback}><span>✦</span><strong>{card.name}</strong></div>}
-              <div className={styles.cardShine} />
-              {config.tier >= 5 ? <div className={styles.premiumCardShine} /> : null}
-            </div>
-          </div>
-
-          <div className={styles.cardInfo} data-share-ready={complete ? "true" : undefined} aria-hidden={!complete} inert={!complete}>
-            {cosmicIssueNumber || cosmicBinderIssueNumber ? (
-              <div className={styles.legendaryDiscoveries}>
-                {cosmicIssueNumber ? (
-                  <div className={styles.cosmicDiscoveryBadge}>
-                    <span>✦ Permanent legendary form discovered</span>
-                    <strong>COSMIC NEBU #{String(cosmicIssueNumber).padStart(6, "0")}</strong>
-                  </div>
-                ) : null}
-                {cosmicBinderIssueNumber ? (
-                  <div className={styles.cosmicBinderDiscoveryBadge}>
-                    <span>✦ Independent 1 in 50,000 discovery</span>
-                    <strong>COSMIC BINDER #{String(cosmicBinderIssueNumber).padStart(6, "0")}</strong>
-                  </div>
-                ) : null}
-              </div>
-            ) : null}
-            <p className={styles.rarity}>{config.label}</p>
-            <h2>{card.name}</h2>
-            <p className={styles.meta}>{[card.setName, card.cardNumber ? `#${card.cardNumber}` : null].filter(Boolean).join(" · ")}</p>
-            <div className={styles.pills}><span>{card.rarity || config.label}</span><span>{formatMoney(card.marketValue)}</span></div>
-            {actionError ? <div className={styles.actionError}>{actionError}</div> : null}
-            <div className={styles.actions}>
-              {onWishAgain && canWishAgain ? <button type="button" onClick={onWishAgain} disabled={!complete || busy} className={styles.wishAgainButton}>{busy ? "Choosing next card..." : "Wish Again · 1 Wish"}</button> : null}
-              <button type="button" onClick={handleContinue} disabled={!complete || busy} className={styles.keepButton}>Continue</button>
-            </div>
+      </header>
+      {stage === "loading" && <div className={styles.loading} role="status"><span className={styles.loadingStar} aria-hidden="true">✧</span><span>Gathering starlight</span></div>}
+      {!revealed && stage !== "loading" && !paused && <div className={styles.caption} aria-hidden="true"><span className={styles.captionRule}/><span>A wish, written in the stars.</span><span className={styles.captionRule}/></div>}
+      {paused && !complete && <div className={styles.pauseNotice} role="status">Your stars can wait.</div>}
+      <p className={styles.srOnly} role="status" aria-live="polite">{complete ? `${config.label}. ${card.name}. Your card is ready.` : paused ? "Animation paused." : "Following your star."}</p>
+      {revealed && <div className={styles.result} aria-hidden={!complete} inert={!complete}>
+        <div className={styles.cardStage}>
+          <div className={styles.cardHalo} aria-hidden="true"/><div className={styles.cardOrbit} aria-hidden="true"/>
+          <div className={styles.card}>
+            {card.imageUrl && !imageFailed ? <img src={card.imageUrl} alt={complete ? card.name : ""} onError={() => setImageFailed(true)} draggable={false} className={styles.cardImage}/> : <div className={styles.cardPlaceholder}><span aria-hidden="true">✧</span><span>{card.name}</span><small>Card artwork unavailable</small></div>}
+            <div className={styles.cardSheen} aria-hidden="true"/>
           </div>
         </div>
-      )}
-
-      {allowSkip && !complete ? (
-        <button type="button" className={styles.skipButton} onClick={revealImmediately}>Reveal now</button>
-      ) : null}
-    </div>, document.body,
-  );
+        <div className={styles.details}>
+          <p className={styles.eyebrow}><span aria-hidden="true">✦</span> {config.label} <span aria-hidden="true">✦</span></p>
+          <h1 className={styles.cardName}>{card.name}</h1>
+          <p className={styles.metadata}>{[card.setName, card.cardNumber ? `No. ${card.cardNumber}` : null].filter(Boolean).join(" · ") || "A new light in your constellation"}</p>
+          {issue != null && <p className={styles.discovery}>Astral discovery · #{issue.toLocaleString("en-GB")}</p>}
+          <div className={styles.actions}>
+            <button type="button" data-continue className={styles.primary} onClick={() => exitEvent()} disabled={!complete || busy}>Continue <span aria-hidden="true">→</span></button>
+            {onWishAgain && canWishAgain && <button type="button" className={styles.secondary} disabled={!complete || busy} onClick={onWishAgain}>{busy ? "Choosing your next card…" : "Wish again · 1 wish"}</button>}
+          </div>
+          {actionError && <p className={styles.error} role="alert">{actionError}</p>}
+        </div>
+      </div>}
+      <footer className={styles.footer} aria-hidden="true"><span>THE ASTRAL CEREMONY</span><span className={styles.footerStar}>✧</span><span>{complete ? "YOURS TO DISCOVER" : "FOLLOW YOUR STAR"}</span></footer>
+    </div>, document.body);
 }
+function SoundIcon({ muted }: {
+    muted: boolean;
+}) { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4V5Z"/>{muted ? <path d="m16 9 5 6m0-6-5 6"/> : <path d="M15 8a6 6 0 0 1 0 8M18 5a10 10 0 0 1 0 14"/>}</svg>; }
+function PauseIcon() { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d="M8 5v14M16 5v14"/></svg>; }
+function PlayIcon() { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d="m8 5 11 7-11 7V5Z"/></svg>; }

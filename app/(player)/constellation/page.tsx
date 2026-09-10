@@ -1,9 +1,12 @@
 "use client";
 
-import { type PointerEvent as ReactPointerEvent, type WheelEvent as ReactWheelEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type PointerEvent as ReactPointerEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import UnownText from "@/components/player/UnownText";
+import Link from "next/link";
+import AstralIcon from "@/components/player/observatory/AstralIcon";
+import DeepSky from "@/components/player/observatory/DeepSky";
+import useModalFocus from "@/lib/client/useModalFocus";
 import { formatMarketValue } from "@/lib/player/format";
 import {
   ZODIAC_SHAPES,
@@ -280,7 +283,7 @@ const VOLUME_STARS: VolumeStar[] = (() => {
     "rgba(255,255,255,0.96)",
     "rgba(207,250,254,0.94)",
     "rgba(237,233,254,0.94)",
-    "rgba(254,249,195,0.9)",
+    "rgba(228,213,175,0.68)",
   ];
 
   return Array.from({ length: 128 }, (_, index) => {
@@ -726,7 +729,7 @@ export default function ConstellationPage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [infoPanelOpen, setInfoPanelOpen] = useState(true);
+  const [infoPanelOpen, setInfoPanelOpen] = useState(false);
   const [archiveOpen, setArchiveOpen] = useState(false);
   const [archiveSearch, setArchiveSearch] = useState("");
   const [mobileSky, setMobileSky] = useState(false);
@@ -961,14 +964,14 @@ export default function ConstellationPage() {
           drawLine(
             from,
             to,
-            "rgba(254,249,195,0.9)",
+            "rgba(228,213,175,0.68)",
             (scene.mobileSky ? 1.05 : 1.3) * depthScale,
           );
         } else {
           drawLine(
             from,
             to,
-            "rgba(196,181,253,0.46)",
+            "rgba(161,184,207,0.28)",
             1.05 * depthScale,
             scene.mobileSky ? [3, 5] : [5, 6],
           );
@@ -1042,7 +1045,7 @@ export default function ConstellationPage() {
         1.7,
         Math.min(
           active ? 11 : 8.5,
-          star.size * projected.scale * (star.zodiacAnchor ? 0.42 : 0.31),
+          star.size * projected.scale * (star.zodiacAnchor ? 0.31 : 0.21),
         ),
       );
       const rank = star.rank;
@@ -1064,6 +1067,13 @@ export default function ConstellationPage() {
       context.beginPath();
       context.arc(point.x, point.y, active ? radius * 1.22 : radius, 0, Math.PI * 2);
       context.fill();
+
+      context.shadowBlur = 0;
+      context.globalAlpha = active ? 1 : 0.85;
+      context.fillStyle = "#f3f1e8";
+      context.fillRect(point.x - .7, point.y - radius * 1.65, 1.4, radius * 3.3);
+      context.fillRect(point.x - radius * 1.65, point.y - .7, radius * 3.3, 1.4);
+      if(active){context.strokeStyle=star.colour;context.lineWidth=.8;context.beginPath();context.arc(point.x,point.y,radius*3.2,0,Math.PI*2);context.stroke();}
 
       if (star.anniversaryYears > 0) {
         context.globalAlpha = 0.92;
@@ -1390,7 +1400,7 @@ export default function ConstellationPage() {
       cameraOffsetRef.current = { x: 0, y: 0 };
       resetAfterCardRef.current = false;
       setMobileSky(mobile);
-      setInfoPanelOpen(!mobile);
+      setInfoPanelOpen(false);
       setZoom(nextZoom);
       setRotation(nextRotation);
       setCameraOffset({ x: 0, y: 0 });
@@ -1607,7 +1617,7 @@ export default function ConstellationPage() {
     }
   }, [travelToStar]);
 
-  const handleSkyWheel = useCallback((event: ReactWheelEvent<HTMLElement>) => {
+  const handleSkyWheel = useCallback((event: WheelEvent) => {
     event.preventDefault();
 
     // A card journey leaves the camera focused on the selected star. The
@@ -1808,6 +1818,16 @@ export default function ConstellationPage() {
     window.history.replaceState(window.history.state, "", url);
   }, []);
 
+  const archivePanelRef = useModalFocus<HTMLElement>(archiveOpen, closeArchive);
+  useEffect(() => {
+    const onKey=(event:KeyboardEvent)=>{
+      if(event.target instanceof HTMLElement && (event.target.matches("input,textarea,select")||event.target.isContentEditable))return;
+      if(event.key==="/"&&!event.ctrlKey&&!event.metaKey){event.preventDefault();setInfoPanelOpen(false);setArchiveOpen(true);}
+      if(event.key==="Escape"){setInfoPanelOpen(false);setSelectedStar(null);}
+    };
+    document.addEventListener("keydown",onKey);return()=>document.removeEventListener("keydown",onKey);
+  },[]);
+
   const occupiedZodiacPoints = useMemo(() => new Set(
     stars.flatMap((star) =>
       star.zodiacAnchor && typeof star.zodiacPointIndex === "number"
@@ -1908,200 +1928,43 @@ export default function ConstellationPage() {
     zoom,
   ]);
 
+  useEffect(()=>{
+    const viewport=skyViewportRef.current;if(!viewport)return;
+    viewport.addEventListener("wheel",handleSkyWheel,{passive:false});
+    return()=>viewport.removeEventListener("wheel",handleSkyWheel);
+  },[handleSkyWheel]);
+
   return (
-    <section className="relative min-h-[calc(100dvh-4.5rem)] w-full overflow-hidden bg-[#040515] text-white">
-      <h1 className="sr-only">Your Constellation</h1>
-      <p className="sr-only" aria-live="polite">
-        {travellingStarId
-          ? `Travelling to ${stars.find((star) => star.id === travellingStarId)?.name || "the selected star"}.`
-          : selectedStar
-            ? `Arrived at ${selectedStar.name}.`
-            : ""}
-      </p>
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_45%,rgba(103,232,249,0.075),transparent_32%),radial-gradient(circle_at_20%_18%,rgba(196,181,253,0.08),transparent_26%),radial-gradient(circle_at_82%_17%,rgba(249,168,212,0.06),transparent_24%),linear-gradient(180deg,rgba(3,4,18,0.96),rgba(6,7,27,0.985))]" />
-      <div className="pointer-events-none absolute inset-0 opacity-65 [background-image:radial-gradient(circle_at_7%_14%,white_0_1px,transparent_1.5px),radial-gradient(circle_at_14%_43%,white_0_1px,transparent_1.5px),radial-gradient(circle_at_26%_21%,white_0_1px,transparent_1.5px),radial-gradient(circle_at_34%_68%,white_0_1px,transparent_1.5px),radial-gradient(circle_at_42%_11%,white_0_1px,transparent_1.5px),radial-gradient(circle_at_53%_31%,white_0_1px,transparent_1.5px),radial-gradient(circle_at_61%_76%,white_0_1px,transparent_1.5px),radial-gradient(circle_at_69%_13%,white_0_1px,transparent_1.5px),radial-gradient(circle_at_79%_42%,white_0_1px,transparent_1.5px),radial-gradient(circle_at_88%_19%,white_0_1px,transparent_1.5px),radial-gradient(circle_at_94%_72%,white_0_1px,transparent_1.5px)]" />
-      <div className="pointer-events-none absolute -left-[12vw] top-[16%] h-[28rem] w-[68vw] rotate-[-12deg] rounded-[50%] bg-[linear-gradient(90deg,transparent,rgba(34,211,238,0.035),rgba(139,92,246,0.055),transparent)] blur-[34px] constellationAurora" />
-      <div className="pointer-events-none absolute -right-[18vw] bottom-[8%] h-[26rem] w-[62vw] rotate-[9deg] rounded-[50%] bg-[linear-gradient(90deg,transparent,rgba(244,114,182,0.035),rgba(103,232,249,0.045),transparent)] blur-[40px] constellationAurora constellationAuroraLate" />
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_42%,rgba(0,0,0,0.24)_78%,rgba(0,0,0,0.58)_100%)]" />
-
-      {!archiveOpen ? (
-        <button
-          type="button"
-          onClick={() => {
-            setArchiveOpen(true);
-            const url = new URL(window.location.href);
-            url.searchParams.set("panel", "history");
-            window.history.replaceState(window.history.state, "", url);
-          }}
-          className="absolute right-3 top-3 z-50 flex min-h-11 items-center gap-2 rounded-full border border-violet-100/16 bg-[#080a25]/88 px-4 text-[0.66rem] font-black uppercase tracking-[0.12em] text-violet-50/78 shadow-[0_15px_50px_rgba(0,0,0,0.35)] backdrop-blur-xl transition hover:border-cyan-100/28 hover:bg-[#10143a] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-100 sm:right-5 sm:top-5"
-        >
-          <span aria-hidden="true" className="text-sm text-cyan-100">⌕</span>
-          Find a card
-        </button>
-      ) : (
-        <aside className="absolute inset-x-3 top-3 z-[55] max-h-[calc(100dvh-6rem)] overflow-hidden rounded-[1.55rem] border border-violet-200/14 bg-[#080a25]/94 shadow-[0_24px_85px_rgba(0,0,0,0.5)] backdrop-blur-2xl sm:inset-x-auto sm:right-5 sm:top-5 sm:w-[min(92vw,25rem)]">
-          <div className="border-b border-white/8 p-4 sm:p-5">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-[0.57rem] font-black uppercase tracking-[0.18em] text-cyan-100/38">Latest pulls · Star archive</p>
-                <h2 className="mt-1 text-xl font-black tracking-tight text-white">Find a card</h2>
-              </div>
-              <button type="button" onClick={closeArchive} aria-label="Close card search" className="grid h-10 w-10 flex-none place-items-center rounded-xl border border-white/10 bg-white/[0.05] text-lg font-black text-white/58 transition hover:bg-white/10 hover:text-white">×</button>
-            </div>
-            <label className="relative mt-4 block">
-              <span className="sr-only">Search your constellation</span>
-              <input
-                autoFocus
-                value={archiveSearch}
-                onChange={(event) => setArchiveSearch(event.target.value)}
-                placeholder="Name, set, number, or rarity…"
-                className="min-h-12 w-full rounded-xl border border-white/10 bg-black/20 px-4 pr-11 text-base font-semibold text-white outline-none placeholder:text-white/24 focus:border-cyan-100/28 sm:text-sm"
-              />
-              <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-cyan-100/35" aria-hidden="true">⌕</span>
-            </label>
-          </div>
-          <div className="max-h-[calc(100dvh-15rem)] space-y-2 overflow-y-auto p-3 sm:p-4">
-            {archiveStars.length === 0 ? (
-              <div className="px-4 py-12 text-center">
-                <span className="text-3xl text-yellow-100/30">✦</span>
-                <p className="mt-3 text-sm font-black text-white/55">{stars.length ? "No stars match that search." : "Your first star is still waiting."}</p>
-              </div>
-            ) : archiveStars.map((star, index) => (
-              <button
-                key={star.id}
-                type="button"
-                onClick={() => {
-                  closeArchive();
-                  travelToStar(star);
-                }}
-                className="group grid w-full grid-cols-[3.2rem_minmax(0,1fr)_auto] items-center gap-3 rounded-2xl border border-white/[0.07] bg-white/[0.025] p-2.5 text-left transition hover:border-cyan-100/18 hover:bg-white/[0.055]"
-              >
-                <span className="aspect-[63/88] overflow-hidden rounded-lg border border-white/8 bg-black/20">
-                  {star.imageUrl ? <img src={star.imageUrl} alt="" loading="lazy" className="h-full w-full object-cover" /> : null}
-                </span>
-                <span className="min-w-0">
-                  <span className="block truncate text-sm font-black text-white/82 group-hover:text-white">{star.name}</span>
-                  <span className="mt-1 block truncate text-[0.62rem] font-semibold text-white/34">{star.setName} · {star.cardNumber ? "#" + star.cardNumber : star.rarity}</span>
-                  <span className="mt-1 block truncate text-[0.53rem] font-black uppercase tracking-[0.1em]" style={{ color: star.colour }}>{index < 8 && !archiveSearch.trim() ? "Recent · " : ""}{formatDate(star.grantedAt)}</span>
-                </span>
-                <span className="pr-1 text-sm text-cyan-100/28 transition group-hover:translate-x-0.5 group-hover:text-cyan-100/70" aria-hidden="true">→</span>
-              </button>
-            ))}
-          </div>
-        </aside>
-      )}
-
-      {infoPanelOpen ? (
-      <div className="absolute inset-x-3 top-[4.75rem] z-40 max-h-[calc(100dvh-10rem)] overflow-y-auto rounded-[1.6rem] border border-violet-200/12 bg-[#080a25]/88 p-4 shadow-[0_20px_70px_rgba(0,0,0,0.3)] backdrop-blur-2xl sm:inset-x-auto sm:left-5 sm:top-5 sm:max-w-[min(92vw,34rem)] sm:p-5">
-        <div className="flex flex-col items-stretch gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div className="min-w-0">
-            <p className="text-[0.62rem] font-black uppercase tracking-[0.2em] text-cyan-100/38">
-              Nebu&apos;s memory
-            </p>
-            <div className="mt-2 overflow-hidden">
-              <UnownText
-                text="Your Constellation"
-                size="clamp(0.92rem, 4.8vw, 2.45rem)"
-                tone="holo"
-              />
-            </div>
-            {zodiacSign ? (
-              <div className="mt-2">
-                <div className="flex flex-wrap items-center gap-2">
-                  <p className="text-xs font-black uppercase tracking-[0.15em] text-violet-100/52">
-                    {ZODIAC_SHAPES[zodiacSign].label} sky
-                  </p>
-                  <span
-                    className={[
-                      "rounded-full border px-2 py-1 text-[0.55rem] font-black uppercase tracking-[0.12em]",
-                      constellationComplete
-                        ? "border-cyan-100/20 bg-cyan-200/[0.08] text-cyan-50/80"
-                        : "border-white/10 bg-white/[0.04] text-white/36",
-                    ].join(" ")}
-                  >
-                    {constellationComplete
-                      ? "Constellation complete"
-                      : `${zodiacAnchorsFilled}/${zodiacAnchorRequirement} anchors`}
-                  </span>
-                  <span
-                    title="Real J2000 star coordinates. The IAU standardises constellation boundaries rather than a single official line figure."
-                    className="rounded-full border border-yellow-100/14 bg-yellow-200/[0.055] px-2 py-1 text-[0.55rem] font-black uppercase tracking-[0.12em] text-yellow-50/62"
-                  >
-                    J2000 · {ZODIAC_SHAPES[zodiacSign].iauCode}
-                  </span>
-                </div>
-                <p className="mt-2 text-[0.66rem] font-bold text-white/30">
-                  Real celestial positions · north up · east left in Earth view
-                </p>
-              </div>
-            ) : (
-              <p className="mt-2 text-xs font-bold text-white/28">
-                Choose a star sign in Profile to shape your sky.
-              </p>
-            )}
-          </div>
-
-          <div className="flex flex-none items-center justify-end gap-2">
-            <button
-              type="button"
-              onClick={() => void loadConstellation(true)}
-              disabled={refreshing}
-              className="min-h-10 rounded-xl border border-white/10 bg-white/[0.05] px-3 text-[0.7rem] font-black uppercase tracking-[0.12em] text-white/55 transition hover:bg-white/10 hover:text-white disabled:cursor-wait disabled:opacity-50"
-            >
-              {refreshing ? "Reading..." : "Refresh"}
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setInfoPanelOpen(false)}
-              aria-label="Hide constellation information"
-              title="Hide information"
-              className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/12 bg-white/[0.06] text-lg font-black text-white/70 transition hover:border-cyan-100/25 hover:bg-cyan-100/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-100"
-            >
-              ×
-            </button>
-          </div>
-        </div>
-
-        <div className="mt-4 grid grid-cols-3 gap-2">
-          <SkyStat label="Stars" value={String(stars.length)} />
-          <SkyStat label="Value" value={formatMoney(totalValue)} />
-          <SkyStat label="Brightest" value={rarestStar?.name || "Waiting"} />
-        </div>
+    <section className="ap-scene ap-constellation">
+      <DeepSky />
+      <header className="ap-scene-heading">
+        <p>Your personal sky</p>
+        <h1>{zodiacSign ? `${ZODIAC_SHAPES[zodiacSign].label} constellation` : "Your constellation"}</h1>
+        <span>Every card, a star. Every wish, a memory.</span>
+      </header>
+      <p className="sr-only" aria-live="polite">{travellingStarId ? "Travelling to your card." : selectedStar ? `Arrived at ${selectedStar.name}.` : ""}</p>
+      <div className="ap-scene-actions">
+        <button className="ap-scene-button" aria-expanded={archiveOpen} onClick={() => { setInfoPanelOpen(false); if(archiveOpen)closeArchive();else {setArchiveOpen(true);const url=new URL(window.location.href);url.searchParams.set("panel","history");window.history.replaceState(window.history.state,"",url);} }}><AstralIcon name="search"/> Find a card</button>
+        <button className="ap-scene-button" aria-expanded={infoPanelOpen} onClick={() => { closeArchive();setInfoPanelOpen(!infoPanelOpen); }}><AstralIcon name="info"/> Info</button>
       </div>
-      ) : (
-        <button
-          type="button"
-          onClick={() => setInfoPanelOpen(true)}
-          aria-label="Show constellation information"
-          className="absolute left-3 top-[4.75rem] z-40 flex min-h-11 items-center gap-2 rounded-full border border-cyan-100/18 bg-[#080a25]/88 px-4 text-[0.68rem] font-black uppercase tracking-[0.13em] text-cyan-50/82 shadow-[0_15px_50px_rgba(0,0,0,0.35)] backdrop-blur-xl transition hover:border-cyan-100/35 hover:bg-[#10143a] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-100 sm:left-5 sm:top-5"
-        >
-          <span aria-hidden="true" className="text-base text-yellow-100">✦</span>
-          Show info
-        </button>
-      )}
-
-      {errorMessage ? (
-        <div className="absolute left-1/2 top-4 z-50 w-[min(92vw,36rem)] -translate-x-1/2 rounded-2xl border border-red-200/15 bg-red-950/85 p-4 text-sm font-semibold text-red-100 shadow-2xl backdrop-blur-xl">
-          {errorMessage}
+      {archiveOpen ? <aside ref={archivePanelRef} className="ap-scene-panel ap-star-archive" role="dialog" aria-modal="true" aria-label="Find a card" tabIndex={-1}>
+        <div className="ap-panel-heading"><div><p>Latest pulls</p><h2>Find a card</h2></div><button className="ap-scene-button" aria-label="Close card search" onClick={closeArchive}><AstralIcon name="close"/></button></div>
+        <label><span className="sr-only">Search by card name, set, number or rarity</span><input autoFocus value={archiveSearch} onChange={event=>setArchiveSearch(event.target.value)} placeholder="Name, set, number or rarity"/></label>
+        <div className="ap-archive-results">
+          {archiveStars.length===0?<p className="ap-empty">{stars.length?"No stars match your search.":"Your first star is waiting."}</p>:archiveStars.map(star=><button key={star.id} className="ap-archive-row" onClick={()=>{closeArchive();travelToStar(star)}}>
+            <span className="ap-archive-image">{star.imageUrl?<img src={star.imageUrl} alt="" loading="lazy"/>:<AstralIcon/>}</span>
+            <span><strong>{star.name}</strong><small>{star.setName} {star.cardNumber ? `· #${star.cardNumber}` : ""}</small><small style={{color:star.colour}}>{star.rarity}</small></span><AstralIcon name="arrow"/>
+          </button>)}
         </div>
-      ) : null}
-
-      {earthView && !loading && zodiacSign ? (
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute right-3 top-1/2 z-30 h-20 w-20 -translate-y-1/2 rounded-full border border-cyan-100/10 bg-[#050619]/38 text-[0.52rem] font-black uppercase tracking-[0.12em] text-cyan-50/38 shadow-[0_0_36px_rgba(103,232,249,0.055)] backdrop-blur-sm sm:right-5"
-        >
-          <span className="absolute left-1/2 top-1 -translate-x-1/2">N</span>
-          <span className="absolute bottom-1 left-1/2 -translate-x-1/2">S</span>
-          <span className="absolute left-1 top-1/2 -translate-y-1/2">E</span>
-          <span className="absolute right-1 top-1/2 -translate-y-1/2">W</span>
-          <span className="absolute left-1/2 top-1/2 h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-yellow-100/65 shadow-[0_0_10px_rgba(250,204,21,0.65)]" />
-          <span className="absolute left-1/2 top-1/2 h-px w-10 -translate-x-1/2 bg-cyan-100/10" />
-          <span className="absolute left-1/2 top-1/2 h-10 w-px -translate-y-1/2 bg-cyan-100/10" />
-        </div>
-      ) : null}
-
+      </aside>:null}
+      {infoPanelOpen?<aside className="ap-scene-panel" aria-label="Constellation information">
+        <div className="ap-panel-heading"><h2>Your sky</h2><button className="ap-scene-button" onClick={()=>setInfoPanelOpen(false)} aria-label="Close information"><AstralIcon name="close"/></button></div>
+        <div className="ap-sky-stats"><SkyStat label="Stars" value={String(stars.length)}/><SkyStat label="Collection value" value={formatMoney(totalValue)}/></div>
+        {zodiacSign?<><p className="ap-sky-progress">{constellationComplete?"Constellation complete":`${zodiacAnchorsFilled} of ${zodiacAnchorRequirement} stars connected`}</p><progress value={zodiacAnchorsFilled} max={zodiacAnchorRequirement} aria-label="Constellation completion"/><p>View from Earth to see your {ZODIAC_SHAPES[zodiacSign].label} constellation. Drag the sky to explore its depth.</p></>:<p><Link href="/profile">Choose your star sign in Profile</Link> to shape your constellation.</p>}
+        <p className="ap-brightest">Brightest star <strong>{rarestStar?.name||"Your first wish awaits"}</strong></p>
+        <button className="ap-scene-button" onClick={()=>void loadConstellation(true)} disabled={refreshing}><AstralIcon name="reset"/>{refreshing?"Refreshing…":"Refresh sky"}</button>
+      </aside>:null}
+      {errorMessage?<div className="ap-scene-error" role="alert">{errorMessage}<button onClick={()=>void loadConstellation(true)}>Try again</button></div>:null}
       <article
         data-onboarding-target="constellation"
         ref={skyViewportRef}
@@ -2109,9 +1972,8 @@ export default function ConstellationPage() {
         onPointerMove={handleSkyPointerMove}
         onPointerUp={finishSkyPointer}
         onPointerCancel={finishSkyPointer}
-        onWheel={handleSkyWheel}
         className={[
-          "relative z-10 h-[calc(100dvh-4.5rem)] min-h-[calc(100dvh-4.5rem)] w-full overflow-hidden select-none",
+          "absolute inset-0 z-10 h-full w-full overflow-hidden select-none",
           draggingSky ? "cursor-grabbing" : "cursor-grab",
         ].join(" ")}
         style={{ touchAction: "none", perspective: "1100px", overscrollBehavior: "contain" }}
@@ -2127,8 +1989,8 @@ export default function ConstellationPage() {
           <div
             className="absolute left-1/2 top-1/2"
             style={{
-              width: mobileSky ? "150vw" : "100vw",
-              height: mobileSky ? "104dvh" : "calc(100dvh - 4.5rem)",
+              width: "100vw",
+              height: "calc(100dvh - var(--ap-nav-height) - var(--ap-bottom-space))",
               transform: "translate(-50%, -50%)",
             }}
           >
@@ -2160,14 +2022,15 @@ export default function ConstellationPage() {
             />
 
             {stars.length === 0 ? (
-              <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center px-6 text-center">
+              <div className="absolute inset-0 flex flex-col items-center justify-center px-6 text-center">
                 <div className="text-8xl text-yellow-100/30">*</div>
                 <h2 className="mt-4 text-2xl font-black text-white">
-                  The sky is waiting for you.
+                  Your story starts with a star.
                 </h2>
                 <p className="mt-3 max-w-md text-sm font-semibold leading-7 text-white/40">
-                  Return to the Wish Chamber and let Nebu place your first permanent star here.
+                  Make your first wish to place a card among the stars.
                 </p>
+                <Link href="/wishes" className="ap-scene-button mt-6">Make a wish <AstralIcon name="arrow"/></Link>
               </div>
             ) : null}
 
@@ -2239,15 +2102,7 @@ export default function ConstellationPage() {
               </button>
             ))}
 
-            <div className="pointer-events-none absolute bottom-4 left-1/2 z-30 flex -translate-x-1/2 items-center gap-3 whitespace-nowrap rounded-full border border-white/[0.06] bg-[#050619]/55 px-4 py-2 text-[0.56rem] font-black uppercase tracking-[0.16em] text-white/24 backdrop-blur-md">
-              <span>Tap a card star to travel through your archive</span>
-              {friendStars.length > 0 ? (
-                <>
-                  <span className="h-1 w-1 rounded-full bg-white/20" />
-                  <span className="text-cyan-100/36">Glowing circles are friends</span>
-                </>
-              ) : null}
-            </div>
+
             </div>
           </div>
         )}
@@ -2260,48 +2115,12 @@ export default function ConstellationPage() {
         ) : null}
       </article>
 
-      {!loading && !selectedStar && !travellingStarId ? (
-        <div className="pointer-events-auto absolute bottom-[calc(0.8rem+env(safe-area-inset-bottom))] left-1/2 z-50 flex max-w-[calc(100vw-1rem)] -translate-x-1/2 items-center gap-1.5 rounded-full border border-white/10 bg-[#050619]/88 p-1.5 shadow-[0_18px_55px_rgba(0,0,0,0.48)] backdrop-blur-xl md:bottom-4 md:gap-2">
-          <span className="hidden px-2 text-[0.56rem] font-black uppercase tracking-[0.12em] text-white/38 lg:inline">
-            {mobileSky ? "Drag to rotate · pinch to zoom" : "Drag to rotate · wheel to zoom"}
-          </span>
-          <button
-            type="button"
-            onClick={() => nudgeZoom(-1)}
-            aria-label="Zoom out"
-            className="flex h-9 w-9 items-center justify-center rounded-full border border-white/8 bg-white/[0.04] text-lg font-black text-white/62 transition hover:bg-white/10 hover:text-white"
-          >
-            −
-          </button>
-          <span className="min-w-12 text-center text-[0.6rem] font-black tabular-nums text-cyan-50/68">
-            {Math.round(zoom * 100)}%
-          </span>
-          <button
-            type="button"
-            onClick={() => nudgeZoom(1)}
-            aria-label="Zoom in"
-            className="flex h-9 w-9 items-center justify-center rounded-full border border-white/8 bg-white/[0.04] text-lg font-black text-white/62 transition hover:bg-white/10 hover:text-white"
-          >
-            +
-          </button>
-          <button
-            type="button"
-            onClick={recenterEarthView}
-            className={[
-              "min-h-9 rounded-full border px-3 text-[0.58rem] font-black uppercase tracking-[0.1em] transition sm:px-4",
-              earthView
-                ? "border-yellow-100/24 bg-yellow-200/[0.1] text-yellow-50 shadow-[0_0_20px_rgba(250,204,21,0.08)]"
-                : "border-cyan-100/16 bg-cyan-200/[0.07] text-cyan-50/82 hover:bg-cyan-100/12",
-            ].join(" ")}
-          >
-            <span aria-hidden="true">◎ </span>
-            {earthView ? "Earth view" : "View from Earth"}
-          </button>
-        </div>
-      ) : null}
-
+      {!loading && !selectedStar && !travellingStarId ? <div className="ap-scene-dock" aria-label="Sky controls">
+        <button onClick={()=>nudgeZoom(-1)} aria-label="Zoom out">−</button><span>{Math.round(zoom*100)}%</span><button onClick={()=>nudgeZoom(1)} aria-label="Zoom in">+</button><span className="divider"/>
+        <button onClick={recenterEarthView}><AstralIcon name="reset" style={{display:"inline",marginRight:8,width:16}}/>{earthView?"Earth view":"Return to Earth"}</button>
+      </div>:null}
       {selectedStar ? (
-        <aside className="fixed bottom-[calc(1rem+env(safe-area-inset-bottom))] right-3 z-[60] max-h-[72dvh] w-[min(92vw,22rem)] overflow-y-auto rounded-[1.7rem] border border-violet-200/16 bg-[#090b27]/94 p-4 shadow-[0_30px_100px_rgba(0,0,0,0.55)] backdrop-blur-2xl md:bottom-4 md:right-4">
+        <aside className="ap-scene-panel ap-memory-panel">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <p

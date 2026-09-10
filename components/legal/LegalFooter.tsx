@@ -25,7 +25,7 @@ export default function LegalFooter() {
   if (pathname.startsWith("/admin")) return null;
 
   return (
-    <footer className="relative z-10 border-t border-white/[0.07] bg-[#03040d] px-4 py-6 text-white">
+    <footer data-astral-legal-footer className="relative z-10 border-t border-white/[0.07] bg-[#03040d] px-4 py-6 text-white">
       <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-sm font-black text-white/72">{BUSINESS_TRADING_NAME}</p>

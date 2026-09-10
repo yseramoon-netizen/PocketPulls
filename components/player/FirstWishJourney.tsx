@@ -377,9 +377,9 @@ export default function FirstWishJourney({
         number: 3,
         title: "Understand wish recharging",
         description:
-          "Wishes power every pull. Recharge bundles and Nebu’s Vault will live here; before launch, a Founder can add wishes for you.",
+          "Wishes power every pull. Recharge bundles and the wish shop will live here; before launch, a Founder can add wishes for you.",
         instruction:
-          "Once your balance contains a wish, Nebu will take you straight to the Wish Chamber.",
+          "Once your balance contains a wish, Aster will take you straight to the Wish Chamber.",
         href: "/wishes/shop",
         target: "reward",
         action: "Check my wish balance",
@@ -392,7 +392,7 @@ export default function FirstWishJourney({
         description:
           "One wish reveals one real card from the active stock pool and permanently records the result.",
         instruction:
-          "Press the highlighted Make 1 Wish button and watch Nebu perform the reveal.",
+          "Press the highlighted Make 1 Wish button and watch Aster perform the reveal.",
         href: "/wishes",
         target: "wish",
         action: "Make my first wish",
@@ -655,7 +655,7 @@ export default function FirstWishJourney({
               <div className="absolute inset-2 animate-pulse rounded-full bg-yellow-200/14 blur-2xl" />
               <div className="absolute inset-0 rounded-full border border-dashed border-cyan-100/25" />
               <NebuPortrait
-                alt="Nebu"
+                alt="Aster"
                 draggable={false}
                 className="relative h-20 w-20 object-contain drop-shadow-[0_14px_20px_rgba(0,0,0,0.5)]"
               />
@@ -671,7 +671,7 @@ export default function FirstWishJourney({
                 Welcome, {firstName(displayName)}.
               </h2>
               <p className="mx-auto mt-4 max-w-md text-sm font-semibold leading-7 text-white/58 sm:text-base">
-                Nebu will guide you through the real controls one at a time.
+                Aster will guide you through the real controls one at a time.
                 Each page will move to the exact box you need, darken everything
                 else and explain what your next action does.
               </p>
@@ -698,7 +698,7 @@ export default function FirstWishJourney({
                 onClick={() => void beginJourney()}
                 className="mt-7 min-h-13 w-full rounded-2xl bg-gradient-to-r from-cyan-100 via-yellow-100 to-violet-200 px-6 py-3.5 text-sm font-black text-[#101225] shadow-[0_16px_40px_rgba(103,232,249,0.14)] transition hover:brightness-110 disabled:opacity-60"
               >
-                {beginning ? "Nebu is opening the path…" : "Start guided tutorial"}
+                {beginning ? "Aster is opening the path…" : "Start guided tutorial"}
               </button>
               <p className="mt-3 text-[0.66rem] font-bold text-white/28">
                 Your completed steps follow your account across devices.
@@ -825,7 +825,7 @@ function SpotlightTour({
             </span>
             <div className="min-w-0 flex-1">
               <p className="text-[0.58rem] font-black uppercase tracking-[0.18em] text-cyan-100/50">
-                Nebu’s guided tutorial
+                Aster’s guided tutorial
               </p>
               <h2 className="mt-1 text-lg font-black text-white">{step.title}</h2>
             </div>
@@ -862,7 +862,7 @@ function SpotlightTour({
             disabled={locating || advancing}
             className="mt-4 min-h-12 w-full rounded-xl bg-gradient-to-r from-cyan-100 via-yellow-100 to-violet-200 px-4 text-sm font-black text-[#111329] transition hover:brightness-110 disabled:cursor-wait disabled:opacity-50"
           >
-            {advancing ? "Nebu is opening the next step…" : step.action}
+            {advancing ? "Aster is opening the next step…" : step.action}
           </button>
         </div>
         </section>
@@ -903,7 +903,7 @@ function CompletionCelebration({
             <div className="absolute inset-5 animate-pulse rounded-full bg-yellow-200/20 blur-3xl" />
             <div className="absolute inset-2 rounded-full border border-dashed border-cyan-100/25" />
             <NebuPortrait
-              alt="Nebu"
+              alt="Aster"
               draggable={false}
               className="relative h-32 w-32 object-contain drop-shadow-[0_22px_30px_rgba(0,0,0,0.55)]"
             />
@@ -919,7 +919,7 @@ function CompletionCelebration({
             collect real cards in your Binder and revisit every memory among the stars.
           </p>
           <p className="mt-4 text-base font-black text-yellow-50">
-            Nebu will be waiting in the Wish Chamber. ✦
+            Aster will be waiting in the Wish Chamber. ✦
           </p>
           <button
             type="button"

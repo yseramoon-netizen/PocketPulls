@@ -5,12 +5,12 @@ import type {
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
 
-import NebuSkinController from "@/components/player/NebuSkinController";
 import CookieNotice from "@/components/legal/CookieNotice";
 import LegalFooter from "@/components/legal/LegalFooter";
 import { getConfiguredPublicOrigin } from "@/lib/auth/navigation";
 
 import "./globals.css";
+import "./astral.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL(
@@ -73,11 +73,10 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      data-nebu-skin="midnight"
+      data-design="astral-71"
       className={`${GeistSans.variable} ${GeistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        <NebuSkinController />
         {children}
         <LegalFooter />
         <CookieNotice />

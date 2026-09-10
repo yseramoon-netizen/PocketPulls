@@ -2,7 +2,6 @@
 
 import {
   type PointerEvent as ReactPointerEvent,
-  type WheelEvent as ReactWheelEvent,
   useCallback,
   useEffect,
   useMemo,
@@ -10,6 +9,10 @@ import {
   useState,
 } from "react";
 import Image from "next/image";
+import Link from "next/link";
+import AstralIcon from "@/components/player/observatory/AstralIcon";
+import { OrbitClock } from "@/components/player/observatory/OrbitClock";
+import useModalFocus from "@/lib/client/useModalFocus";
 
 import {
   formatMoney,
@@ -26,8 +29,8 @@ const MAX_VISIBLE_RANKS = 100;
 const MAX_VISIBLE_GALAXIES = MAX_VISIBLE_RANKS - 1;
 const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
 const TAU = Math.PI * 2;
-const INNER_ORBIT_SPEED = TAU / 92;
-const OUTER_ORBIT_SPEED = TAU / 210;
+const INNER_ORBIT_SPEED = TAU / 120;
+const OUTER_ORBIT_SPEED = TAU / 260;
 
 type LeaderboardRow = {
   rank_position: number | string | null;
@@ -186,6 +189,8 @@ function parseRows(value: unknown): LeaderboardPlayer[] {
 }
 
 function buildGalaxyParticles(seed: number, rank: number): GalaxyParticle[] {
+  // XOR produces a signed int32. Keep modulo arithmetic non-negative so arms never becomes zero.
+  seed = seed >>> 0;
   const random = seededRandom(seed);
   const count = Math.round(clamp(92 - rank * 0.58, 24, 92));
   const arms = 2 + (seed % 3);
@@ -239,12 +244,12 @@ function buildGalaxyNodes(players: readonly LeaderboardPlayer[]): GalaxyNode[] {
       orbitRadius: orbit,
       orbitSpeed: lerp(INNER_ORBIT_SPEED, OUTER_ORBIT_SPEED, Math.pow(progress, 0.72)),
       orbitDepth: 0.045 + progress * 0.055,
-      orbitDirection: random() > 0.14 ? 1 : -1,
+      orbitDirection: 1,
       orbitInclination,
       orbitEccentricity,
       orbitFlatten,
       size,
-      hue: (188 + (seed % 174)) % 360,
+      hue: [38, 202, 216, 228, 35, 192][seed % 6],
       tilt: (random() - 0.5) * 1.2,
       flatten: 0.34 + random() * 0.23,
       spin: (random() > 0.5 ? 1 : -1) * (0.025 + random() * 0.038),
@@ -258,9 +263,6 @@ function resolveGalaxyPosition(
   time: number,
   reducedMotion: boolean,
 ): { x: number; y: number; z: number } {
-  if (reducedMotion) {
-    return { x: node.x, y: node.y, z: node.z };
-  }
 
   const angle = node.orbitAngle + time * 0.001 * node.orbitSpeed * node.orbitDirection;
   const orbitX = Math.cos(angle) * node.orbitRadius * node.orbitEccentricity;
@@ -457,7 +459,7 @@ function drawGalaxy(
   context.arc(projected.x, projected.y, radius * 1.52 * breathe, 0, TAU);
   context.fill();
 
-  const spin = reducedMotion ? 0 : time * 0.001 * node.spin;
+  const spin = time * 0.001 * node.spin;
   const cosTilt = Math.cos(node.tilt);
   const sinTilt = Math.sin(node.tilt);
 
@@ -616,7 +618,7 @@ function drawOrbitLanes(
     const inclination = inclinations[lane];
     const cosInclination = Math.cos(inclination);
     const sinInclination = Math.sin(inclination);
-    context.lineDashOffset = reducedMotion ? 0 : -time * (0.002 + lane * 0.0004);
+    context.lineDashOffset = -time * (0.002 + lane * 0.0004);
     context.strokeStyle = lane % 2 === 0
       ? "rgba(170,235,250,0.035)"
       : "rgba(205,188,255,0.03)";
@@ -656,7 +658,7 @@ function drawBlackHoleDust(
   context.globalCompositeOperation = "lighter";
 
   for (const mote of BLACK_HOLE_DUST) {
-    const angle = mote.angle + (reducedMotion ? 0 : time * mote.speed);
+    const angle = mote.angle + (time * mote.speed);
     const orbitRadius = radius * mote.radius;
     const x = Math.cos(angle) * orbitRadius;
     const y = Math.sin(angle) * orbitRadius;
@@ -680,7 +682,7 @@ function drawBlackHole(
   active: boolean,
   reducedMotion: boolean,
 ) {
-  const spin = reducedMotion ? 0.6 : time * 0.00017;
+  const spin = 0.6 + time * 0.00017;
   const halo = context.createRadialGradient(point.x, point.y, radius * 0.24, point.x, point.y, radius * 2.35);
   halo.addColorStop(0, "rgba(0,0,0,0)");
   halo.addColorStop(0.28, active ? "rgba(177,149,255,0.2)" : "rgba(120,98,220,0.13)");
@@ -747,7 +749,7 @@ function drawBlackHole(
   context.strokeStyle = active ? "rgba(226,232,255,0.3)" : "rgba(188,197,255,0.16)";
   context.lineWidth = Math.max(0.7, radius * 0.016);
   context.setLineDash([radius * 0.04, radius * 0.085]);
-  context.lineDashOffset = reducedMotion ? 0 : time * 0.012;
+  context.lineDashOffset = time * 0.012;
   context.beginPath();
   context.arc(0, 0, radius * 1.72, 0, TAU);
   context.stroke();
@@ -786,15 +788,48 @@ function drawBlackHole(
   context.strokeStyle = active ? "rgba(254,249,219,0.36)" : "rgba(205,197,255,0.2)";
   context.lineWidth = Math.max(0.65, radius * 0.011);
   context.setLineDash([1, radius * 0.075]);
-  context.lineDashOffset = reducedMotion ? 0 : -time * 0.018;
+  context.lineDashOffset = -time * 0.018;
   context.beginPath();
   context.arc(point.x, point.y, radius * 0.99, 0, TAU);
   context.stroke();
   context.restore();
 }
 
+/** Paint detailed spiral textures once; orbit frames reuse the same bounded sprite cache. */
+function drawGalaxyCached(context: CanvasRenderingContext2D, node: GalaxyNode, projected: ProjectedPoint, radius: number, time: number, selected: boolean, hovered: boolean, reducedMotion: boolean, sprites: Map<string, HTMLCanvasElement>, compact: boolean) {
+  const key = node.player.userId + (compact ? ":compact" : ":full");
+  let sprite = sprites.get(key);
+  if (!sprite) {
+    sprite = document.createElement("canvas");
+    const pixels = compact ? 128 : 192;
+    sprite.width = pixels; sprite.height = pixels;
+    const painter = sprite.getContext("2d");
+    if (!painter) { drawGalaxy(context,node,projected,radius,time,selected,hovered,reducedMotion); return; }
+    const neutral = {...node, player:{...node.player,rank:100,isCurrentUser:false}};
+    drawGalaxy(painter,neutral,{x:pixels/2,y:pixels/2,scale:1,depth:0},pixels/3.4,0,false,false,true);
+    sprites.set(key,sprite);
+  }
+  context.save();
+  context.translate(projected.x,projected.y);
+  context.rotate(time*.0001*node.spin);
+  context.globalAlpha=selected||hovered?1:.9;
+  context.drawImage(sprite,-radius*1.7,-radius*1.7,radius*3.4,radius*3.4);
+  context.restore();
+  if(selected||hovered||node.player.isCurrentUser){
+    context.save();context.strokeStyle=node.player.isCurrentUser?"#ddc498aa":"#c7dfeb99";context.lineWidth=selected?1.15:.75;context.setLineDash(selected?[]:[2,5]);context.beginPath();context.arc(projected.x,projected.y,radius*1.28,0,TAU);context.stroke();context.restore();
+  }
+  if(node.player.rank<=10 && radius>=15){
+    context.save();context.fillStyle="#c3cddd99";context.font="400 12px system-ui, sans-serif";context.textAlign="center";context.fillText("#"+node.player.rank,projected.x,projected.y+radius+14);context.restore();
+  }
+}
+
 export default function LeaderboardPage() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const clockRef = useRef(new OrbitClock());
+  const spritesRef=useRef(new Map<string,HTMLCanvasElement>());
+  const gesturePointsRef = useRef(new Map<number,{x:number;y:number}>());
+  const pinchRef = useRef<number | null>(null);
+  const dragDistanceRef = useRef(0);
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const frameRef = useRef<number | null>(null);
   const hitsRef = useRef<GalaxyHit[]>([]);
@@ -813,7 +848,10 @@ export default function LeaderboardPage() {
   const [players, setPlayers] = useState<LeaderboardPlayer[]>([]);
   const [selectedPlayer, setSelectedPlayer] = useState<LeaderboardPlayer | null>(null);
   const [hoverLabel, setHoverLabel] = useState<HoverLabel | null>(null);
-  const [infoPanelOpen, setInfoPanelOpen] = useState(true);
+  const [infoPanelOpen, setInfoPanelOpen] = useState(false);
+  const [rankSearch, setRankSearch] = useState("");
+  const [rankListOpen, setRankListOpen] = useState(false);
+  const listRef=useModalFocus<HTMLElement>(rankListOpen,()=>setRankListOpen(false));
   const [motionActive, setMotionActive] = useState(true);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -868,16 +906,6 @@ export default function LeaderboardPage() {
     return () => window.cancelAnimationFrame(frame);
   }, [loadLeaderboard]);
 
-  useEffect(() => {
-    const compact = window.matchMedia("(max-width: 767px)");
-    const syncCompact = () => setInfoPanelOpen(!compact.matches);
-    syncCompact();
-    compact.addEventListener("change", syncCompact);
-    return () => {
-      compact.removeEventListener("change", syncCompact);
-    };
-  }, []);
-
   const nodes = useMemo(() => buildGalaxyNodes(players), [players]);
   const pharaoh = players.find((player) => player.rank === 1) ?? null;
   const currentPlayer = players.find((player) => player.isCurrentUser) ?? null;
@@ -890,11 +918,12 @@ export default function LeaderboardPage() {
     [players],
   );
 
-  useEffect(() => { nodesRef.current = nodes; }, [nodes]);
+  useEffect(() => { nodesRef.current = nodes; spritesRef.current.clear(); }, [nodes]);
   useEffect(() => { pharaohRef.current = pharaoh; }, [pharaoh]);
   useEffect(() => { selectedRef.current = selectedPlayer; }, [selectedPlayer]);
 
-  const renderScene = useCallback(function renderFrame(time: number) {
+  const renderScene = useCallback(function renderFrame(stamp: number) {
+    const time = clockRef.current.sample(stamp, !reducedMotionRef.current && pageVisibleRef.current);
     frameRef.current = null;
     const canvas = canvasRef.current;
     const viewport = viewportRef.current;
@@ -904,7 +933,7 @@ export default function LeaderboardPage() {
     const height = viewport.clientHeight;
     if (width <= 0 || height <= 0) return;
     const mobile = width < 768;
-    const dpr = Math.min(window.devicePixelRatio || 1, mobile ? 1.28 : 1.62);
+    const dpr = Math.min(window.devicePixelRatio || 1, mobile ? 1.28 : 1.62, Math.sqrt(1900000 / (width * height)));
     const pixelWidth = Math.round(width * dpr);
     const pixelHeight = Math.round(height * dpr);
     if (canvas.width !== pixelWidth || canvas.height !== pixelHeight) {
@@ -988,7 +1017,7 @@ export default function LeaderboardPage() {
       ) continue;
       const selected = selectedRef.current?.userId === item.node.player.userId;
       const hovered = hoveredRef.current?.userId === item.node.player.userId;
-      drawGalaxy(context, item.node, item.projected, radius, time, selected, hovered, reducedMotionRef.current);
+      drawGalaxyCached(context, item.node, item.projected, radius, time, selected, hovered, reducedMotionRef.current, spritesRef.current, mobile);
       if (hovered && hoverLabelRef.current) {
         hoverLabelRef.current.style.transform =
           "translate3d(" + item.projected.x + "px," + item.projected.y + "px,0) " +
@@ -1037,6 +1066,7 @@ export default function LeaderboardPage() {
     const syncReduced = () => {
       const active = motionOverrideRef.current ?? !reduced.matches;
       reducedMotionRef.current = !active;
+      clockRef.current.suspend();
       setMotionActive(active);
       queueRender();
     };
@@ -1048,6 +1078,7 @@ export default function LeaderboardPage() {
   useEffect(() => {
     const syncVisibility = () => {
       pageVisibleRef.current = document.visibilityState === "visible";
+      clockRef.current.suspend();
       if (pageVisibleRef.current) {
         queueRender();
       } else if (frameRef.current !== null) {
@@ -1077,6 +1108,7 @@ export default function LeaderboardPage() {
     const nextActive = reducedMotionRef.current;
     motionOverrideRef.current = nextActive;
     reducedMotionRef.current = !nextActive;
+    clockRef.current.suspend();
     setMotionActive(nextActive);
     queueRender();
   }, [queueRender]);
@@ -1105,7 +1137,7 @@ export default function LeaderboardPage() {
     } else {
       const node = nodesRef.current.find((candidate) => candidate.player.userId === player.userId);
       if (node) {
-        const position = resolveGalaxyPosition(node, performance.now(), reducedMotionRef.current);
+        const position = resolveGalaxyPosition(node, clockRef.current.time, reducedMotionRef.current);
         cameraTargetRef.current = {
           yaw: clamp(-position.x * 0.14, -0.16, 0.16),
           pitch: clamp(position.y * 0.11, -0.11, 0.11),
@@ -1124,11 +1156,18 @@ export default function LeaderboardPage() {
     const localX = event.clientX - bounds.left;
     const localY = event.clientY - bounds.top;
     const pointer = pointerRef.current;
+    if(gesturePointsRef.current.has(event.pointerId))gesturePointsRef.current.set(event.pointerId,{x:event.clientX,y:event.clientY});
+    if(gesturePointsRef.current.size===2){
+      const [a,b]=[...gesturePointsRef.current.values()];const distance=Math.hypot(a.x-b.x,a.y-b.y);
+      if(pinchRef.current && distance>0)cameraTargetRef.current.zoom=clamp(cameraTargetRef.current.zoom*distance/pinchRef.current,.65,2.2);
+      pinchRef.current=distance;pointer.moved=true;queueRender();return;
+    }
 
     if (pointer.down) {
       const deltaX = event.clientX - pointer.x;
       const deltaY = event.clientY - pointer.y;
-      if (Math.hypot(deltaX, deltaY) > 4) pointer.moved = true;
+      dragDistanceRef.current += Math.hypot(deltaX, deltaY);
+      if (dragDistanceRef.current > 5) pointer.moved = true;
       cameraTargetRef.current.yaw = clamp(cameraTargetRef.current.yaw + deltaX * 0.0017, -0.38, 0.38);
       cameraTargetRef.current.pitch = clamp(cameraTargetRef.current.pitch - deltaY * 0.00145, -0.26, 0.26);
       pointer.x = event.clientX;
@@ -1151,6 +1190,10 @@ export default function LeaderboardPage() {
   }, [findHit, queueRender]);
 
   const handlePointerDown = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+    event.currentTarget.setPointerCapture(event.pointerId);
+    gesturePointsRef.current.set(event.pointerId,{x:event.clientX,y:event.clientY});
+    if(gesturePointsRef.current.size===2){const [a,b]=[...gesturePointsRef.current.values()];pinchRef.current=Math.hypot(a.x-b.x,a.y-b.y);pointerRef.current.moved=true;return;}
+    dragDistanceRef.current = 0;
     pointerRef.current = { down: true, moved: false, x: event.clientX, y: event.clientY };
     event.currentTarget.setPointerCapture(event.pointerId);
     event.currentTarget.style.cursor = "grabbing";
@@ -1158,6 +1201,9 @@ export default function LeaderboardPage() {
 
   const handlePointerUp = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
     const pointer = pointerRef.current;
+    gesturePointsRef.current.delete(event.pointerId);pinchRef.current=null;
+    if(gesturePointsRef.current.size){const next=[...gesturePointsRef.current.values()][0];pointer.x=next.x;pointer.y=next.y;pointer.moved=true;return;}
+    if(event.currentTarget.hasPointerCapture(event.pointerId))event.currentTarget.releasePointerCapture(event.pointerId);
     if (!pointer.moved) {
       const hit = findHit(event.clientX, event.clientY);
       if (hit) selectPlayer(hit.player);
@@ -1166,7 +1212,7 @@ export default function LeaderboardPage() {
     event.currentTarget.style.cursor = "grab";
   }, [findHit, selectPlayer]);
 
-  const handleWheel = useCallback((event: ReactWheelEvent<HTMLDivElement>) => {
+  const handleWheel = useCallback((event: WheelEvent) => {
     event.preventDefault();
     cameraTargetRef.current.zoom = clamp(
       cameraTargetRef.current.zoom * (event.deltaY > 0 ? 0.92 : 1.08),
@@ -1176,41 +1222,34 @@ export default function LeaderboardPage() {
     queueRender();
   }, [queueRender]);
 
+  useEffect(()=>{
+    const viewport=viewportRef.current;if(!viewport)return;
+    viewport.addEventListener("wheel",handleWheel,{passive:false});
+    return()=>viewport.removeEventListener("wheel",handleWheel);
+  },[handleWheel]);
+
   return (
-    <section className={styles.page}>
-      <h1 className="sr-only">Universe Ranks</h1>
-      <div className={styles.ambientTop} aria-hidden="true" />
+    <section className={`ap-scene ${styles.page}`}>
+      <header className="ap-scene-heading"><p>The collective sky</p><h1>Universe</h1><span>One hundred galaxies. One centre of gravity.</span></header>
       <div className={styles.vignette} aria-hidden="true" />
-
-      {infoPanelOpen ? (
-        <aside className={styles.infoPanel} aria-label="Universe ranks information">
-          <div className={styles.panelHeading}>
-            <div className={styles.panelCopy}>
-              <p>Ancient Pulls · Live universe</p>
-              <h2>Universe Ranks</h2>
-              <span>One hundred collections. One gravitational centre.</span>
-            </div>
-            <div className={styles.panelActions}>
-              <button type="button" onClick={() => void loadLeaderboard(true)} disabled={refreshing}>
-                {refreshing ? "Reading…" : "Refresh"}
-              </button>
-              <button type="button" onClick={() => setInfoPanelOpen(false)} aria-label="Hide universe ranks information">×</button>
-            </div>
-          </div>
-          <div className={styles.statsGrid}>
-            <RankStat label="Ranked" value={loading ? "—" : formatWholeNumber(players.length)} />
-            <RankStat label="Cards" value={loading ? "—" : formatWholeNumber(communityCards)} />
-            <RankStat label="Wishes" value={loading ? "—" : formatWholeNumber(communityWishes)} />
-            <RankStat label="Your orbit" value={loading ? "—" : currentPlayer ? "#" + currentPlayer.rank : "Unranked"} />
-          </div>
-        </aside>
-      ) : (
-        <button type="button" onClick={() => setInfoPanelOpen(true)} className={styles.infoButton} aria-label="Show universe ranks information">
-          <span aria-hidden="true">✦</span>
-          Show info
-        </button>
-      )}
-
+      <div className="ap-scene-actions">
+        <button className="ap-scene-button" aria-expanded={rankListOpen} onClick={()=>{setInfoPanelOpen(false);setRankListOpen(!rankListOpen)}}><AstralIcon name="search"/>Find a galaxy</button>
+        <button className="ap-scene-button" aria-expanded={infoPanelOpen} onClick={()=>{setRankListOpen(false);setInfoPanelOpen(!infoPanelOpen)}}><AstralIcon name="info"/>Info</button>
+      </div>
+      {rankListOpen?<aside ref={listRef} className="ap-scene-panel" role="dialog" aria-modal="true" aria-label="Find a ranked galaxy" tabIndex={-1}>
+        <div className="ap-panel-heading"><h2>Find a galaxy</h2><button className="ap-scene-button" aria-label="Close rankings" onClick={()=>setRankListOpen(false)}><AstralIcon name="close"/></button></div>
+        <label><span className="sr-only">Search by name or rank</span><input autoFocus placeholder="Name, username or rank" value={rankSearch} onChange={e=>setRankSearch(e.target.value)}/></label>
+        {currentPlayer?<button className={styles.findMe} onClick={()=>{selectPlayer(currentPlayer);setRankListOpen(false)}}><AstralIcon name="constellation"/>Take me to my galaxy<span>#{currentPlayer.rank}</span></button>:null}
+        <ol className={styles.rankList}>{players.filter(p=>!rankSearch.trim()||`${p.displayName} ${p.username} #${p.rank}`.toLowerCase().includes(rankSearch.toLowerCase().trim())).map(player=><li key={player.userId}><button onClick={()=>{selectPlayer(player);setRankListOpen(false)}}><span className={styles.listRank}>{String(player.rank).padStart(2,"0")}</span><span><strong>{player.displayName}</strong><small>{player.rank===1?"The Pharaoh":`@${player.username}`}</small></span><AstralIcon name="arrow"/></button></li>)}</ol>
+        {!loading&&!players.some(p=>`${p.displayName} ${p.username} #${p.rank}`.toLowerCase().includes(rankSearch.toLowerCase().trim()))?<p className="ap-empty">No galaxies match your search.</p>:null}
+      </aside>:null}
+      {infoPanelOpen?<aside className="ap-scene-panel" aria-label="Universe information">
+        <div className="ap-panel-heading"><h2>The ranked universe</h2><button className="ap-scene-button" onClick={()=>setInfoPanelOpen(false)} aria-label="Close information"><AstralIcon name="close"/></button></div>
+        <p className={styles.infoDescription}>The Pharaoh is the black hole at the centre. Higher-ranked collections form larger galaxies in closer orbits.</p>
+        <div className={styles.statsGrid}><RankStat label="Galaxies" value={loading?"—":formatWholeNumber(players.length)}/><RankStat label="Your rank" value={loading?"—":currentPlayer?`#${currentPlayer.rank}`:"Outside top 100"}/><RankStat label="Cards" value={formatWholeNumber(communityCards)}/><RankStat label="Wishes" value={formatWholeNumber(communityWishes)}/></div>
+        <p className={styles.infoDescription}>Select a galaxy to explore its collection. Drag to rotate. Scroll or pinch to zoom.</p>
+        <button className="ap-scene-button" disabled={refreshing} onClick={()=>void loadLeaderboard(true)}><AstralIcon name="reset"/>{refreshing?"Refreshing…":"Refresh ranks"}</button>
+      </aside>:null}
       {errorMessage ? (
         <div className={styles.errorBanner} role="alert">
           <span>{errorMessage}</span>
@@ -1226,6 +1265,7 @@ export default function LeaderboardPage() {
         onPointerUp={handlePointerUp}
         onPointerCancel={(event) => {
           pointerRef.current.down = false;
+          gesturePointsRef.current.clear();pinchRef.current=null;
           event.currentTarget.style.cursor = "grab";
         }}
         onPointerLeave={() => {
@@ -1235,7 +1275,6 @@ export default function LeaderboardPage() {
             queueRender();
           }
         }}
-        onWheel={handleWheel}
         aria-label="Interactive map of the top one hundred collections"
       >
         <canvas ref={canvasRef} className={styles.canvas} aria-hidden="true" />
@@ -1275,18 +1314,13 @@ export default function LeaderboardPage() {
         ) : null}
       </div>
 
-      {!loading && players.length > 0 ? (
-        <div className={styles.sceneControls} aria-label="Universe motion controls">
-          <span className={motionActive ? styles.liveStatus : styles.pausedStatus}>
-            <i aria-hidden="true" />
-            {motionActive ? "Live orbit" : "Orbit paused"}
-          </span>
-          <span className={styles.controlHint}>Drag to explore · Select a galaxy</span>
-          <button type="button" onClick={toggleMotion} aria-pressed={!motionActive}>
-            {motionActive ? "Pause" : "Play"}
-          </button>
-        </div>
-      ) : null}
+      {!loading && players.length>0?<div className="ap-scene-dock" aria-label="Universe controls">
+        <span className={motionActive?styles.liveStatus:styles.pausedStatus}><i/>{motionActive?"Orbiting":"Paused"}</span>
+        <button onClick={toggleMotion} aria-pressed={!motionActive}>{motionActive?"Pause":"Play"}</button><span className="divider"/>
+        <button aria-label="Zoom out" onClick={()=>{cameraTargetRef.current.zoom=clamp(cameraTargetRef.current.zoom*.85,.65,2.2);queueRender()}}>−</button>
+        <button aria-label="Zoom in" onClick={()=>{cameraTargetRef.current.zoom=clamp(cameraTargetRef.current.zoom*1.15,.65,2.2);queueRender()}}>+</button>
+        <button onClick={()=>selectPlayer(null)} aria-label="Return to centre"><AstralIcon name="reset"/></button>
+      </div>:null}
 
       {selectedPlayer ? <RankDetails player={selectedPlayer} onClose={() => selectPlayer(null)} /> : null}
 
@@ -1332,7 +1366,7 @@ function RankDetails({ player, onClose }: { player: LeaderboardPlayer; onClose: 
       </div>
 
       {player.cosmicIssueNumber ? (
-        <div className={styles.cosmicBadge}>✦ Cosmic Nebu #{String(player.cosmicIssueNumber).padStart(6, "0")}</div>
+        <div className={styles.cosmicBadge}>✦ Cosmic discovery #{String(player.cosmicIssueNumber).padStart(6, "0")}</div>
       ) : null}
 
       <div className={styles.detailGrid}>
@@ -1341,6 +1375,7 @@ function RankDetails({ player, onClose }: { player: LeaderboardPlayer; onClose: 
         <RankStat label="Wishes" value={formatWholeNumber(player.lifetimeWishes)} />
         <RankStat label="Value" value={formatMoney(player.collectionValue)} />
       </div>
+      <Link className={styles.profileLink} href={`/friends/${encodeURIComponent(player.userId)}`}>Explore collection <AstralIcon name="arrow"/></Link>
       <div className={styles.scoreLine}>
         <span>Dynasty score</span>
         <strong>{formatWholeNumber(player.score)}</strong>
