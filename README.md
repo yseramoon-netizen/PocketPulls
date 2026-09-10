@@ -12,14 +12,14 @@ The two MP4s are 1280 × 720 motion studies rendered at 60 frames per second. Th
 
 ## Integrating into the current website
 
-This is a **focused animation update**, not a complete website snapshot. The accessible project was V68; the newer Nebu-free site source was not available. Only the animation entry point, score, renderer, artwork and preview tooling are supplied. The update has not been deployed.
+This is a **focused animation update**, not a complete website snapshot. The accessible project was V68; the newer Nebu-free site source was not available. The animation entry point, score, renderer, artwork, required helper modules and preview tooling are supplied. The update has not been deployed.
 
 If V69 is already installed, this revision changes only the renderer/shaders, the pixel sprite, and the optional preview tooling. The existing cinematic adapter and audio implementation are retained.
 
 1. Review the two replacement files in `source/components/player`: `WishCinematic.tsx` and `wishAudio.ts` against the equivalents in the current site. `changes/V68-animation.diff` shows their changes relative to the available V68 baseline; it is a review aid for that baseline.
 2. Add `source/components/player/astral/` and `source/public/ancient-pulls/wish/astral/aster-pixel.webp` at the same paths in the current project.
 3. The entry component retains the existing `open`, `card`, `onClose`, `onFinished`, `onWishAgain`, preference and numbered-discovery props. `getWishRarityTheme` and `primeWishAudio` retain their existing import paths. Pass the existing awarded-card object to `WishCinematic`; keep wish allocation and authentication in the current application.
-4. The adapter expects the project's existing `useModalFocus`, `usePlayerPreferences`, player preference utilities and `getWishRevealConfig`. It was compiled against Next 16.3.4 and React 19.2.4. If the newer site renamed these adapters, map their imports to the current equivalents rather than restoring old pages.
+4. Add `source/components/player/usePlayerPreferences.ts` beside `WishCinematic.tsx` (this hook was accidentally omitted from the initial V70 package). Required helper modules are now included under `source/lib/`. If these shared helpers already exist in your current site, preserve them and compare their exports before replacing them. It was compiled against Next 16.3.4 and React 19.2.4. If the newer site renamed these adapters, map their imports to the current equivalents rather than restoring old pages.
 5. Preserve the existing authorization on the in-app preview page. The standalone preview is a local design review file; it is not a replacement for an authenticated route.
 
 There are no new npm dependencies, database migrations, payment changes or account mutations in this update. Unrelated pages, navigation, policies, inventory and scanner code are not included.
@@ -33,6 +33,8 @@ The renderer uses requestAnimationFrame, a continuous time-based timeline, a 32 
 60 fps is the rendering target and the movie export rate, not a guarantee across every device. The live site has not been profiled on physical phones. Native browser presentation, battery state, GPU capacity and other page activity affect performance. An idle result stops requesting animation frames; paused/hidden ceremonies freeze their clock and stop audio. Reduced motion uses a gentle reveal. Missing artwork, unavailable WebGL and context loss have a card-reveal fallback.
 
 ## Verification
+
+- 10 September packaging fix: the extracted package passes isolated TypeScript checking, including the preference hook and all imported local helpers.
 
 - Production Next build passed on the available V68 source with inert test environment values.
 - 15 animation regressions passed, including all ten outcomes, outcome secrecy in visuals and score, timing continuity, pause/resume, skip, growing comet, audio cleanup and preview contents.

@@ -1,6 +1,6 @@
 {
   "version": "V70 pixel-art update",
-  "date": "2026-09-09",
+  "date": "2026-09-10",
   "baseline": "V69 animation on available V68 source; newer live site unavailable",
   "files": [
     {
@@ -10,8 +10,8 @@
     },
     {
       "path": "README.md",
-      "bytes": 6085,
-      "sha256": "069859ce10487316d294cbc824eaeda41c4ec6e24ecf8768d86713240763af49"
+      "bytes": 6452,
+      "sha256": "561f3de5954b5b1e9125dad9295bd531d9ff90cf4e8b4911699928f37dd11b68"
     },
     {
       "path": "artwork/aster-pixel-original.png",
@@ -74,9 +74,29 @@
       "sha256": "dfa619a563f0a352d12e412046996e351b3f96fbe51f96f1032422f130160ff3"
     },
     {
+      "path": "source/components/player/usePlayerPreferences.ts",
+      "bytes": 1277,
+      "sha256": "24a7a6d8caf262453dd8a901acd65f4d7d03236e98b57235458149eca045811d"
+    },
+    {
       "path": "source/components/player/wishAudio.ts",
       "bytes": 7936,
       "sha256": "7c0ab4627acdbaa4c37d726daaf776d6e9520c2f56e65e30731522c08be5d6d3"
+    },
+    {
+      "path": "source/lib/client/useModalFocus.ts",
+      "bytes": 2973,
+      "sha256": "40bb558c06cfe131f9c2a6d746f5e9ea07ba82386537f316390b1f3a135dd95b"
+    },
+    {
+      "path": "source/lib/player/preferences.ts",
+      "bytes": 4635,
+      "sha256": "bf03e7bb28ebd2e8c558d4ea37d92dd2b552e4834e3a39cb03581e8be4b58229"
+    },
+    {
+      "path": "source/lib/player/wish-reveal.ts",
+      "bytes": 7876,
+      "sha256": "a501f9134813c2a9c62b7a9bd640fe69384a00212e137701aa41ce3a7e7e86b1"
     },
     {
       "path": "source/public/ancient-pulls/wish/astral/aster-pixel.webp",
@@ -117,6 +137,11 @@
       "path": "verification/lint.txt",
       "bytes": 0,
       "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "verification/package-typecheck.txt",
+      "bytes": 44,
+      "sha256": "e9785e2e5e351b5dc92542230befff0e206c6d6d1cdce5050f1afe72e8d7a294"
     },
     {
       "path": "verification/render-blackhole-video.txt",
