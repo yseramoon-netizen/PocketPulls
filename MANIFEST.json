@@ -1,27 +1,27 @@
 {
-  "version": "V69 animation update",
+  "version": "V70 pixel-art update",
   "date": "2026-09-09",
-  "baseline": "V68 (newer live source unavailable)",
+  "baseline": "V69 animation on available V68 source; newer live site unavailable",
   "files": [
     {
       "path": "ARTWORK.md",
-      "bytes": 941,
-      "sha256": "4deea505c3a94eef5892c5aa8088092cf5aff5c18af88f587a328c515e7866e2"
+      "bytes": 1143,
+      "sha256": "67adbd1f281055ec5cc0897b3e92fcbf739babb3550d51925d788713be5c50c6"
     },
     {
       "path": "README.md",
-      "bytes": 5566,
-      "sha256": "9c603fce6167d7137015b69d7c4a8b0873b2639596c1c8c6d729680f584259b0"
+      "bytes": 6085,
+      "sha256": "069859ce10487316d294cbc824eaeda41c4ec6e24ecf8768d86713240763af49"
     },
     {
-      "path": "artwork/astral-ray-mascot.png",
-      "bytes": 984334,
-      "sha256": "cf0f4848ce7fc77fb49f728e933f7c1660acbfb322bb8e55a950f52d8e304056"
+      "path": "artwork/aster-pixel-original.png",
+      "bytes": 487262,
+      "sha256": "18a0bdf6cf7ce18d4683b5fda20988910dc10cfd9d8fa2be823bf5e1e61b4be2"
     },
     {
-      "path": "artwork/astral-ray-mascot.prompt.txt",
-      "bytes": 2010,
-      "sha256": "ea6839115cdaac404943d16fac2f7cdcfc77406423feb9123bb1a62ff050ce88"
+      "path": "artwork/aster-pixel.prompt.txt",
+      "bytes": 2221,
+      "sha256": "67f26c2653da2bfcc77817b94482bcaf100f1ebc67573f5ea1177c961fef2f64"
     },
     {
       "path": "changes/V68-animation.diff",
@@ -29,24 +29,24 @@
       "sha256": "4ac5e01775477934b6dbf811572d4e5793b9e8eed5d059b3f7e52737f940616a"
     },
     {
-      "path": "preview/Aster-60fps-Preview.mp4",
-      "bytes": 2848302,
-      "sha256": "2fc80ae7c840351fb7bd5f977507ee2c8068ee358f7084168b425f00f3794bb0"
+      "path": "changes/V69-pixel-style.diff",
+      "bytes": 4566,
+      "sha256": "b6945b7386e7f5c95865a227910112b54984935dda48d754165212712f78b119"
     },
     {
-      "path": "preview/Aster-Astral-Preview.html",
-      "bytes": 285794,
-      "sha256": "81daf51a6fb267ceb001c2c5ea07a461f9e5c89e6e02f2a4f062edfb72fb995b"
+      "path": "preview/Aster-Pixel-60fps.mp4",
+      "bytes": 2662453,
+      "sha256": "507de44c4dade94347c85e9149d282444565616c36dd281952db216dde345895"
     },
     {
-      "path": "preview/Aster-Black-Hole-60fps.mp4",
-      "bytes": 3083061,
-      "sha256": "d212f450505add91649989594fd957a64fa8c1e1744b2d974ec232eb7c172279"
+      "path": "preview/Aster-Pixel-Black-Hole.mp4",
+      "bytes": 2807814,
+      "sha256": "c11dcab549460391f66c1fc54d8ec400df6e77a57e3e8e32ed8fa118093d3862"
     },
     {
-      "path": "preview/Aster-Poster.jpg",
-      "bytes": 68403,
-      "sha256": "142531280887f04854d36ae5c751a8148f0ff3e345d5659560b29249d76f6ce3"
+      "path": "preview/Aster-Pixel-Preview.html",
+      "bytes": 79445,
+      "sha256": "b8c818057fb891bebb3118c1af1bda2925028cd2ccf2835f522674ed85008246"
     },
     {
       "path": "source/components/player/WishCinematic.tsx",
@@ -60,13 +60,13 @@
     },
     {
       "path": "source/components/player/astral/renderer.ts",
-      "bytes": 20882,
-      "sha256": "0e56006da82d1443c62ec9a03a4e966cc542d7c375ddfe2829d243ed51e4fcdd"
+      "bytes": 20985,
+      "sha256": "0cf09f877d0aeb9a497250437ad4f68dee38d763dbcbffcfd7fe4e7a69aff293"
     },
     {
       "path": "source/components/player/astral/shaders.ts",
-      "bytes": 7076,
-      "sha256": "af51348551c5d6d832d5c3617ceafb126c27df180b2de70affb23811aed14862"
+      "bytes": 7512,
+      "sha256": "c434ebb04dbad47a77574c6d7f64353de45c2c8354850f59692f2fe97670175a"
     },
     {
       "path": "source/components/player/astral/timeline.ts",
@@ -79,9 +79,9 @@
       "sha256": "7c0ab4627acdbaa4c37d726daaf776d6e9520c2f56e65e30731522c08be5d6d3"
     },
     {
-      "path": "source/public/ancient-pulls/wish/astral/aster.webp",
-      "bytes": 160632,
-      "sha256": "579770b0daf1c5ed418cefc3ca03707b16e284d2b79dcfc6d4e3050fc76197d5"
+      "path": "source/public/ancient-pulls/wish/astral/aster-pixel.webp",
+      "bytes": 5452,
+      "sha256": "d8ae110cac77d20838ea6ed11916453778df7fa5b6749ad683e212e261d4f288"
     },
     {
       "path": "source/scripts/astral-preview-entry.js",
@@ -90,8 +90,8 @@
     },
     {
       "path": "source/scripts/astral-preview.html",
-      "bytes": 6784,
-      "sha256": "053d47307f1e61245e34ae79f08cfb3e0e8a0e284b3570dc9c0a1a81c33deaba"
+      "bytes": 6800,
+      "sha256": "6fe229f151165c9e2b4cdb61aa4e4754c4aa08041ab3e6c4a99d4c9b1390864a"
     },
     {
       "path": "source/scripts/astral-regression.cjs",
@@ -100,23 +100,18 @@
     },
     {
       "path": "source/scripts/build-astral-preview.cjs",
-      "bytes": 1939,
-      "sha256": "9d2dfbd1e70eaac418a369658b1882514944199cdf141e2970b95041e25f1aba"
+      "bytes": 1945,
+      "sha256": "d28e358983203a85f6d1dfee921049841fac8b670dbd0fe2077bcc0fbf790464"
     },
     {
       "path": "verification/astral-tests.txt",
-      "bytes": 1419,
-      "sha256": "4cdccc22f985745b64fb1cf56233132c42e010694bf219b578e956223e6831af"
+      "bytes": 1422,
+      "sha256": "517d989b57aeda69ed606edbd6807e60d409a930a6142ce4f5f11860c6add922"
     },
     {
       "path": "verification/build.txt",
-      "bytes": 2891,
-      "sha256": "513c81e4f77289f9cd6233e7419acdec38a6b0382d5ebf2667b2263facdd5fa3"
-    },
-    {
-      "path": "verification/core-tests.txt",
-      "bytes": 2058,
-      "sha256": "f13cb2cdf3546253a6faf67f7d8e3dd123861d196ea0a9137892fccd48911142"
+      "bytes": 3420,
+      "sha256": "f01f5d41ffc8d8844597dd8e88954893c5eadd4743deff7f4c7295ffa154e6d3"
     },
     {
       "path": "verification/lint.txt",
@@ -124,24 +119,24 @@
       "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     {
-      "path": "verification/performance.txt",
-      "bytes": 2670,
-      "sha256": "bcd6e2083fcfab777d36178b0049943fddc909d3eeed9c1fb472d5f533f6c910"
-    },
-    {
-      "path": "verification/preflight.txt",
-      "bytes": 6064,
-      "sha256": "ee6c37d05bef796e4e91936b638e7a2c477f368dfaedaebc291ed6e2646cea48"
-    },
-    {
       "path": "verification/render-blackhole-video.txt",
       "bytes": 232,
-      "sha256": "542c3656a0695680ab0e64a0b0efc32f992634f39aa779dbb0af833b9fb950a3"
+      "sha256": "17140b71e82db55445fb18990c1d2e01bd97962f5952b47f068561714608b39c"
+    },
+    {
+      "path": "verification/render-mobile.txt",
+      "bytes": 111,
+      "sha256": "bd7e6b6a511cc46cdac24c7922cb1a932f1a383158e529ee87af776deda98109"
     },
     {
       "path": "verification/render-video.txt",
       "bytes": 209,
-      "sha256": "20599b966fc394c55352cedc54b4aa319af0088a1f5aba5244d2a9b2880bb5df"
+      "sha256": "8800ce2c73f198418a6a95491c3a9685fe28ebb0c4f91e262cb060da8be7f5ab"
+    },
+    {
+      "path": "verification/typecheck.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     }
   ]
 }

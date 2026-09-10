@@ -11,7 +11,7 @@ const files={
 };
 const modules=Object.entries(files).map(([key,file])=>JSON.stringify(key)+':function(module,exports,require){\n'+ts.transpileModule(fs.readFileSync(path.join(root,file),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText+'\n}').join(',\n');
 const runtime=`const factories={${modules}};const cache={};function require(id){if(id==='./astral/timeline')id='./timeline';if(cache[id])return cache[id].exports;const module={exports:{}};cache[id]=module;factories[id](module,module.exports,require);return module.exports;}const ASTRAL={...require('./timeline'),...require('./renderer'),...require('./audio'),...require('./rarity')};`;
-const asset='data:image/webp;base64,'+fs.readFileSync(path.join(root,'public/ancient-pulls/wish/astral/aster.webp')).toString('base64');
+const asset='data:image/webp;base64,'+fs.readFileSync(path.join(root,'public/ancient-pulls/wish/astral/aster-pixel.webp')).toString('base64');
 const css=fs.readFileSync(path.join(root,'components/player/astral/AstralWish.module.css'),'utf8');
 const preview=fs.readFileSync(path.join(root,'scripts/astral-preview.html'),'utf8');
 const entry=fs.readFileSync(path.join(root,'scripts/astral-preview-entry.js'),'utf8');

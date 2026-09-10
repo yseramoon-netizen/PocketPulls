@@ -1,0 +1,2 @@
+Rendered 0 frames
+GL error 0 Output /workspace/scratch/a25254dc06e1/work/v70/verification/render-blackhole-390

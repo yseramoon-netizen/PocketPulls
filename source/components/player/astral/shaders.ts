@@ -88,8 +88,10 @@ export const PARTICLE_FRAGMENT = `
 precision mediump float;
 varying float v_alpha,v_hue;
 void main(){
-  float r=length(gl_PointCoord-.5)*2.;
-  float alpha=exp(-r*r*5.)*v_alpha;
+  vec2 pixel=floor(gl_PointCoord*5.)-vec2(2.);
+  float core=1.-step(.5,max(abs(pixel.x),abs(pixel.y)));
+  float arms=(1.-step(.5,min(abs(pixel.x),abs(pixel.y))))*(1.-step(2.1,max(abs(pixel.x),abs(pixel.y))));
+  float alpha=(core*.78+arms*.22)*v_alpha;
   gl_FragColor=vec4(mix(vec3(.60,.74,1.),vec3(1.,.91,.73),v_hue*.5),alpha);
 }
 `;
@@ -135,21 +137,23 @@ varying vec2 v_world;
 varying float v_light;
 void main(){
   v_uv=a_position;
-  vec2 p=(a_position-vec2(.5,.43))*vec2(1.,-1.);
-  float wing=pow(abs(p.x)*2.,1.55);
-  float tail=smoothstep(.52,1.,a_position.y);
-  float beat=sin(u_time*3.3-abs(p.x)*3.7);
-  p.y+=beat*wing*.070*(1.-tail*.8);
-  p.x*=1.+cos(u_time*3.3-abs(p.x)*3.7)*wing*.045;
-  p.x+=sin(u_time*2.3-a_position.y*8.)*tail*.028;
-  p.y+=cos(u_time*2.-a_position.y*6.)*tail*.012;
+  vec2 p=(a_position-vec2(.5,.50))*vec2(1.,-1.);
+  // The face and star hood stay intact; only the little arms and lower streamers flex.
+  float arms=smoothstep(.56,.61,a_position.y)*(1.-smoothstep(.67,.72,a_position.y));
+  float reach=smoothstep(.08,.18,abs(p.x));
+  float tail=smoothstep(.70,.89,a_position.y);
+  float beat=sin(u_time*3.5+sign(p.x)*.6);
+  p.y+=beat*reach*arms*.014;
+  p.x+=cos(u_time*3.5+sign(p.x)*.6)*reach*arms*.007;
+  p.x+=sin(u_time*2.5-a_position.y*9.)*tail*.020;
+  p.y+=cos(u_time*2.1-a_position.y*7.)*tail*.008;
   p.x*=1.-u_stretch*.22;
   p.y*=1.+u_stretch;
   mat2 roll=mat2(cos(u_roll),sin(u_roll),-sin(u_roll),cos(u_roll));
   p=u_center+roll*p*u_scale;
   v_world=p;
   gl_Position=vec4(p.x*2./u_aspect,p.y*2.,0.,1.);
-  v_light=1.+beat*wing*.16+u_gather*.08;
+  v_light=1.+u_gather*.025;
 }
 `;
 export const MASCOT_FRAGMENT = `
@@ -164,6 +168,7 @@ void main(){
   vec4 tex=texture2D(u_texture,v_uv);
   vec3 tint=mix(vec3(1.),u_colour*1.08+.16,u_colourMix*.55);
   float mask=mix(1.,smoothstep(u_hole,u_hole+.012,length(v_world-vec2(0.,.06))),step(.001,u_hole));
-  gl_FragColor=vec4(tex.rgb*tint*v_light,tex.a*u_opacity*mask);
+  // Opaque texels and transparent surroundings prevent pale fringes on dark skies.
+  gl_FragColor=vec4(tex.rgb*tint*v_light,step(.5,tex.a)*u_opacity*mask);
 }
 `;

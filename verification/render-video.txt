@@ -4,4 +4,4 @@ Rendered 240 frames
 Rendered 360 frames
 Rendered 480 frames
 Rendered 600 frames
-GL error 0 Output /workspace/scratch/a25254dc06e1/work/v69/verification/render-normal-1280
+GL error 0 Output /workspace/scratch/a25254dc06e1/work/v70/verification/render-normal-1280

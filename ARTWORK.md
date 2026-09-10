@@ -1,10 +1,11 @@
-# Aster artwork provenance
+# Aster pixel-art redesign
 
-Aster was created for this animation with one built-in image-generation request. The full original prompt is in `artwork/astral-ray-mascot.prompt.txt`.
+The user requested a pixel-world style with the charm of Jirachi. Aster is redesigned as an original little star spirit with a large pale-gold star hood, cream face, navy body and two short comet streamers.
 
-Original asset: `artwork/astral-ray-mascot.png` — 1254 × 1254 RGBA, genuine transparent alpha.
-Application asset: `source/public/ancient-pulls/wish/astral/aster.webp` — 1024 × 1024 RGBA, 160,632 bytes.
+Mode: built-in image generation. The accepted original is `artwork/aster-pixel-original.png` (1254 × 1254 RGBA with transparency). The exact prompt is in `artwork/aster-pixel.prompt.txt`.
 
-The application asset is a resized WebP conversion of the original, with alpha preserved. The artwork is animated as a deforming mesh: the wings have a travelling beat, tails have a separate wave, and the entire silhouette stretches during event-horizon absorption. Glow, trails and constellation geometry are rendered separately; there is no background rectangle baked into the character.
+Application asset: `source/public/ancient-pulls/wish/astral/aster-pixel.webp` — 96 × 96 pixels, lossless WebP, 5,452 bytes. The source was reduced using nearest-neighbour sampling. The renderer also uses nearest-neighbour texture filtering and a hard alpha coverage threshold to preserve crisp, clean pixel edges.
 
-The style direction is an original celestial ray with an opal body, diamond heart and delicate gold inlays. It is not a Genshin Impact character or game asset.
+The star hood and face remain stable. Small arm movements and separate streamer motion replace the previous wing deformation. The chest light is aligned to the new sprite's diamond. The original ceremony timing, rarity secrecy, sound, comet flight and black-hole ending are preserved.
+
+The demonstration card uses the pixel sprite. Real awarded card images retain normal image rendering in the app.

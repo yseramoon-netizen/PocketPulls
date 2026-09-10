@@ -4,18 +4,23 @@ npm warn Unknown env config "http-proxy". This will stop working in the next maj
 > next build --webpack
 
 ▲ Next.js 16.3.4 (webpack)
-✓ Running next.config.ts took 24ms
+✓ Running next.config.ts took 37ms
+Attention: Next.js now collects completely anonymous telemetry regarding usage.
+This information is used to shape Next.js' roadmap and prioritize features.
+You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:
+https://nextjs.org/telemetry
+
 
   Creating an optimized production build ...
-✓ Compiled successfully in 5.8s
+✓ Compiled successfully in 8.8s
   Running TypeScript ...
-  Finished TypeScript in 1631ms ...
+  Finished TypeScript in 4.2s ...
   Collecting page data using 8 workers ...
   Generating static pages using 8 workers (0/59) ...
   Generating static pages using 8 workers (14/59) 
   Generating static pages using 8 workers (29/59) 
   Generating static pages using 8 workers (44/59) 
-✓ Generating static pages using 8 workers (59/59) in 685ms
+✓ Generating static pages using 8 workers (59/59) in 1112ms
   Finalizing page optimization ...
   Collecting build traces ...
 
@@ -112,3 +117,8 @@ Route (app)
 ○  (Static)   prerendered as static content
 ƒ  (Dynamic)  server-rendered on demand
 
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.0.2
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.0.2
+npm notice To update run: npm install -g npm@12.0.2
+npm notice

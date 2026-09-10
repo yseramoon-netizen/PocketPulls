@@ -5,7 +5,7 @@ type Program = {
     uniform: Record<string, WebGLUniformLocation | null>;
     attribute: Record<string, number>;
 };
-const DEFAULT_ASSET = "/ancient-pulls/wish/astral/aster.webp";
+const DEFAULT_ASSET = "/ancient-pulls/wish/astral/aster-pixel.webp";
 const imageCache = new Map<string, Promise<HTMLImageElement | null>>();
 export function loadAstralArtwork(url = DEFAULT_ASSET): Promise<HTMLImageElement | null> {
     const cached = imageCache.get(url);
@@ -93,8 +93,9 @@ export class AstralRenderer {
             throw new Error("Unable to allocate astral texture");
         this.texture = texture;
         gl.bindTexture(gl.TEXTURE_2D, texture);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+        // Keep the logical 96px sprite crisp while its position and pose move continuously.
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
         if (artwork) {
@@ -363,10 +364,10 @@ export class AstralRenderer {
             gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
         }
         // Diamond heart light follows the same deformed character, never an independent sticker.
-        const heartOffset = .074 * mascotScale * (1 + m.stretch);
+        const heartOffset = -.145 * mascotScale * (1 + m.stretch);
         const heartX = m.x * horizontal - Math.sin(m.roll) * heartOffset;
         const heartY = m.y + Math.cos(m.roll) * heartOffset;
-        this.halo(heartX, heartY, .016 + f.gather * .055, f.primary, m.opacity * (.6 + f.gather * .6), 1);
+        this.halo(heartX, heartY, .010 + f.gather * .038, f.primary, m.opacity * (.32 + f.gather * .6), 1);
         this.halo(f.comet.x * horizontal, f.comet.y, f.comet.size * 3.7, f.primary, f.comet.opacity * .62, .3);
         this.halo(f.comet.x * horizontal, f.comet.y, f.comet.size, f.primary, f.comet.opacity, 1);
         if (f.impact > 0)
