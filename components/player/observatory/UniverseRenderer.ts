@@ -513,37 +513,132 @@ export function projectGalaxyDisk(node:GalaxyNode,time:number,project:ReturnType
   return axes.map(axis=>{const p=project({x:position.x+axis.x*unit,y:position.y+axis.y*unit,z:position.z+axis.z*unit});return{x:(p.x-centre.x)/normalise,y:(p.y-centre.y)/normalise};});
 }
 
-/** A spherical horizon inside a world-space accretion disk, with front/back occlusion. */
-export function drawOrbitingBlackHole(c:CanvasRenderingContext2D,point:ProjectedPoint,radius:number,time:number,active:boolean,project:ReturnType<typeof createProjector>,measure:number) {
-  const worldRadius=radius/(measure*.47*point.scale),inclination=1.35;
-  const diskPoint=(angle:number,r:number)=>project({x:Math.cos(angle)*r,y:Math.sin(angle)*r*Math.cos(inclination),z:Math.sin(angle)*r*Math.sin(inclination)});
-  c.save();
-  const halo=c.createRadialGradient(point.x,point.y,radius*.55,point.x,point.y,radius*2.4);
-  halo.addColorStop(0,active?'#cce7ff35':'#93bedb20');halo.addColorStop(.45,'#829fb811');halo.addColorStop(1,'#829fb800');
-  c.fillStyle=halo;c.fillRect(point.x-radius*2.4,point.y-radius*2.4,radius*4.8,radius*4.8);
-  const disk=(front:boolean)=>{
-    c.globalCompositeOperation='lighter';
-    for(let band=0;band<18;band++){
-      c.beginPath();let connected=false;
-      for(let i=0;i<=96;i++){
-        const p=diskPoint(i/96*TAU,worldRadius*(.98+band*.059));
-        if((p.depth>=point.depth)!==front){connected=false;continue;}
-        if(connected)c.lineTo(p.x,p.y);else c.moveTo(p.x,p.y);connected=true;
-      }
-      c.strokeStyle=band%4?'#ead2a8':'#a6cee8';c.globalAlpha=(1-band/20)*.26;c.lineWidth=Math.max(.6,radius*.021);c.stroke();
-    }
-    for(let i=0;i<64;i++){
-      const a=i*2.399+time*.00016*(1+(i%5)*.08),r=worldRadius*(1+(i%17)*.06),p=diskPoint(a,r);
-      if((p.depth>=point.depth)!==front)continue;
-      const next=diskPoint(a+.035,r);c.globalAlpha=.18+(i%4)*.09;c.strokeStyle=i%3?'#ffe3b1':'#c0eaff';c.lineWidth=1;c.beginPath();c.moveTo(p.x,p.y);c.lineTo(next.x,next.y);c.stroke();
-    }
+type BlackHoleView = { angle:number; flatten:number };
+const BLACK_HOLE_TEXTURES = new Map<number,HTMLCanvasElement>();
+const HOLE_TEXTURE_WIDTH=768,HOLE_TEXTURE_HEIGHT=768,HOLE_TEXTURE_RADIUS=108;
+
+/** The disk's apparent ellipse comes from its two projected world-space axes. */
+export function blackHoleView(project:ReturnType<typeof createProjector>):BlackHoleView {
+  const origin=project({x:0,y:0,z:0}),tilt=-.075,inclination=1.43,step=.002;
+  const a=project({x:Math.cos(tilt)*step,y:Math.sin(tilt)*step,z:0});
+  const b=project({x:-Math.sin(tilt)*Math.cos(inclination)*step,y:Math.cos(tilt)*Math.cos(inclination)*step,z:Math.sin(inclination)*step});
+  const ax=a.x-origin.x,ay=a.y-origin.y,bx=b.x-origin.x,by=b.y-origin.y;
+  const xx=ax*ax+bx*bx,yy=ay*ay+by*by,xy=ax*ay+bx*by;
+  const d=Math.hypot(xx-yy,2*xy),major=Math.max(.000001,(xx+yy+d)/2),minor=Math.max(0,(xx+yy-d)/2);
+  return {angle:.5*Math.atan2(2*xy,xx-yy),flatten:clamp(Math.sqrt(minor/major),.045,1)};
+}
+
+/** An art-directed lensed ribbon; not a general-relativistic ray solver. */
+function lensedRibbon(c:CanvasRenderingContext2D,r:number,band:number,flatten:number,under=false) {
+  const lens=Math.pow(1-flatten,.65),h=r*(.83+band*.085)*lens,span=r*(.86+band*.072);
+  const side=under?1:-1,y=r*flatten*.34;
+  c.beginPath();c.moveTo(-r*3.3,y);
+  c.bezierCurveTo(-r*1.62,y,-span*1.22,y+side*h*.045,-span,y+side*h*.43);
+  c.bezierCurveTo(-span*.82,y+side*h*.89,-span*.48,y+side*h,0,y+side*h);
+  c.bezierCurveTo(span*.48,y+side*h,span*.82,y+side*h*.89,span,y+side*h*.43);
+  c.bezierCurveTo(span*1.22,y+side*h*.045,r*1.62,y,r*3.3,y);
+}
+
+function blackHoleTexture(bucket:number):HTMLCanvasElement {
+  const cached=BLACK_HOLE_TEXTURES.get(bucket);
+  if(cached){BLACK_HOLE_TEXTURES.delete(bucket);BLACK_HOLE_TEXTURES.set(bucket,cached);return cached;}
+  const canvas=document.createElement('canvas');canvas.width=HOLE_TEXTURE_WIDTH;canvas.height=HOLE_TEXTURE_HEIGHT;
+  const c=canvas.getContext('2d');if(!c)return canvas;
+  const r=HOLE_TEXTURE_RADIUS,f=Math.max(.045,bucket/24),lens=Math.pow(1-f,1.8);
+  c.translate(canvas.width/2,canvas.height/2);c.lineCap='round';
+  const haze=(rx:number,ry:number,colour:string)=>{
+    c.save();c.scale(1,ry/rx);const g=c.createRadialGradient(0,0,r*.55,0,0,rx);
+    g.addColorStop(0,colour);g.addColorStop(.5,'#dc491516');g.addColorStop(1,'#dc491500');
+    c.fillStyle=g;c.fillRect(-rx,-rx,rx*2,rx*2);c.restore();
   };
-  disk(false);
-  c.globalCompositeOperation='source-over';c.globalAlpha=1;c.fillStyle='#010309';c.beginPath();c.arc(point.x,point.y,radius*.78,0,TAU);c.fill();
-  const edge=c.createLinearGradient(point.x-radius,point.y,point.x+radius,point.y);
-  edge.addColorStop(0,'#8ebde599');edge.addColorStop(.55,'#fff4d9');edge.addColorStop(1,'#d4aa7866');
-  c.strokeStyle=edge;c.lineWidth=Math.max(1,radius*.022);c.stroke();
-  disk(true);c.restore();
+  haze(r*3.5,r*1.9,'#ff73264d');haze(r*3.5,r*(.25+f*.9),'#ff8e424a');
+  c.globalCompositeOperation='lighter';
+  const ribbonColour=(colour:string)=>{
+    const g=c.createLinearGradient(-r*3.3,0,r*3.3,0);
+    g.addColorStop(0,colour+'00');g.addColorStop(.16,colour+'22');g.addColorStop(.32,colour);
+    g.addColorStop(.68,colour);g.addColorStop(.84,colour+'22');g.addColorStop(1,colour+'00');return g;
+  };
+  // Distant disk: continuous hot gas, with fine, overlapping dust lanes.
+  for(let i=76;i>=0;i--){
+    const t=i/76,rad=r*(1.02+t*2.22);
+    c.globalAlpha=Math.pow(1-t,1.65)*.21;c.strokeStyle=i%9<2?'#ff6025':'#ffb56e';c.lineWidth=r*.04;
+    c.beginPath();c.ellipse(0,0,rad,rad*f,0,Math.PI,TAU);c.stroke();
+  }
+  // Broad warm scattering beneath several crisp, almost white lensed images.
+  for(const [width,alpha] of [[.25,.032],[.14,.06],[.065,.13]]){
+    c.strokeStyle=ribbonColour('#ff642a');c.lineWidth=r*width;c.globalAlpha=alpha*lens;
+    lensedRibbon(c,r,.65,f);c.stroke();
+  }
+  for(let i=17;i>=0;i--){
+    c.strokeStyle=ribbonColour(i%5===0?'#ffecc0':i<7?'#fff3d9':'#ff9d66');
+    c.globalAlpha=(i<7?.32:.075)*lens;c.lineWidth=r*(i<7?.014:.019);
+    lensedRibbon(c,r,i/7,f);c.stroke();
+  }
+  // A round, dark event horizon remains opaque through every viewing angle.
+  c.globalCompositeOperation='source-over';c.globalAlpha=1;
+  const dark=c.createRadialGradient(0,-r*.18,0,0,0,r*.79);
+  dark.addColorStop(0,'#030304');dark.addColorStop(.87,'#060303');dark.addColorStop(1,'#210905');
+  c.fillStyle=dark;c.beginPath();c.arc(0,0,r*.79,0,TAU);c.fill();
+  c.globalCompositeOperation='lighter';
+  for(const [width,alpha] of [[.1,.065],[.035,.18],[.009,.82]]){
+    c.strokeStyle='#ffc58e';c.lineWidth=r*width;c.globalAlpha=alpha;
+    c.beginPath();c.arc(0,0,r*.805,0,TAU);c.stroke();
+  }
+  // The faint second image wraps beneath the shadow, linking back into the disk.
+  for(let i=0;i<5;i++){
+    c.strokeStyle=ribbonColour(i%2?'#ff965c':'#ffe1b3');c.globalAlpha=.18*lens;c.lineWidth=r*.009;
+    lensedRibbon(c,r,i*.24,f,true);c.stroke();
+  }
+  // Near-side emission crosses in front of the horizon. Its bright side is asymmetric.
+  // Fade the extra foreground emission at the disk plane, avoiding a half-disk seam.
+  for(let i=76;i>=0;i--){
+    const t=i/76,rad=r*(1.02+t*2.22);
+    c.globalAlpha=Math.pow(1-t,1.65)*.21;c.strokeStyle=i%9<2?'#ff6025':'#ffb56e';c.lineWidth=r*.04;
+    c.beginPath();c.ellipse(0,0,rad,rad*f,0,0,Math.PI);c.stroke();
+  }
+  const heat=c.createLinearGradient(0,0,0,r*f*.65);
+  heat.addColorStop(0,'#ffab6000');heat.addColorStop(.38,'#ffd49b40');heat.addColorStop(.72,'#fff1c6');heat.addColorStop(1,'#fffbea');
+  for(let i=78;i>=0;i--){
+    const t=i/78,rad=r*(.89+t*2.36),strength=Math.pow(1-t,2.15);
+    c.globalAlpha=strength*.42;c.strokeStyle=heat;c.lineWidth=r*(.018+(1-t)*.038);
+    c.beginPath();c.ellipse(0,0,rad,rad*f,0,0,Math.PI);c.stroke();
+  }
+  // Radial wisps break up the outer disk without a tiled or photographic background.
+  const random=seededRandom(0x7b1ac);
+  for(let i=0;i<180;i++){
+    const a=random()*Math.PI,rad=r*(.92+random()*2.2);
+    c.globalAlpha=.02+random()*.1;c.strokeStyle=i%3?'#ffb16c':'#ffe9bc';c.lineWidth=.4+random()*.75;
+    c.beginPath();c.ellipse(0,0,rad,rad*f,0,a,a+.05+random()*.18);c.stroke();
+  }
+  // Remove the texture boundary completely, including at maximum inclination.
+  c.globalCompositeOperation='destination-in';c.globalAlpha=1;
+  const fade=c.createRadialGradient(0,0,r*1.6,0,0,r*3.54);fade.addColorStop(0,'#fff');fade.addColorStop(.65,'#fff');fade.addColorStop(1,'#ffffff00');
+  c.fillStyle=fade;c.fillRect(-canvas.width/2,-canvas.height/2,canvas.width,canvas.height);
+  if(BLACK_HOLE_TEXTURES.size>=10)BLACK_HOLE_TEXTURES.delete(BLACK_HOLE_TEXTURES.keys().next().value!);
+  BLACK_HOLE_TEXTURES.set(bucket,canvas);return canvas;
+}
+
+/** Cached lensed light plus live accretion flow; the disk follows the 3D camera. */
+export function drawOrbitingBlackHole(c:CanvasRenderingContext2D,point:ProjectedPoint,radius:number,time:number,active:boolean,project:ReturnType<typeof createProjector>,measure:number) {
+  const view=blackHoleView(project),bucket=view.flatten*24,lo=Math.floor(bucket),hi=Math.min(24,lo+1),blend=bucket-lo;
+  const scale=radius/HOLE_TEXTURE_RADIUS,draw=(texture:HTMLCanvasElement,alpha:number)=>{
+    c.globalAlpha=alpha;c.drawImage(texture,-HOLE_TEXTURE_WIDTH/2*scale,-HOLE_TEXTURE_HEIGHT/2*scale,HOLE_TEXTURE_WIDTH*scale,HOLE_TEXTURE_HEIGHT*scale);
+  };
+  c.save();c.translate(point.x,point.y);c.rotate(view.angle);
+  // Draw the opaque horizon first: interpolation must never show stars through it.
+  c.fillStyle='#030304';c.beginPath();c.arc(0,0,radius*.79,0,TAU);c.fill();
+  draw(blackHoleTexture(lo),1);
+  if(blend>.001)draw(blackHoleTexture(hi),blend);
+  c.globalCompositeOperation='lighter';
+  const motion=time*.00016;
+  for(let i=0;i<64;i++){
+    const radial=.95+(i%19)*.115,angle=i*GOLDEN_ANGLE+motion/(radial**1.5),front=Math.sin(angle)>=0;
+    if(!front)continue;
+    const a=angle%TAU,heat=1-(radial-.95)/2.3;
+    c.globalAlpha=(.08+heat*.22)*(active?1.25:1);c.strokeStyle=i%4?'#ffd6a0':'#fff9e8';c.lineWidth=Math.max(.55,radius*.008);
+    c.beginPath();c.ellipse(0,0,radius*radial,radius*radial*view.flatten,0,a,a+.025+heat*.045);c.stroke();
+  }
+  c.restore();
 }
 
 /** Paint detailed spiral textures once; orbit frames reuse the same bounded sprite cache. */

@@ -161,6 +161,20 @@ function seededRandom(seed: number): () => number {
   };
 }
 
+/** A tapered cloud rather than uniform XY coordinates with four visible edges.
+ * Each seed remains attached to its card, so adding cards does not reshuffle the sky.
+ */
+function constellationCloudPoint(random: () => number, spread = 22) {
+  const limit = 53;
+  const enclosed = 1 - Math.exp(-(limit * limit) / (2 * spread * spread));
+  const radius = spread * Math.sqrt(-2 * Math.log(1 - random() * enclosed));
+  const angle = random() * Math.PI * 2;
+  return {
+    x: 50 + Math.cos(angle) * radius,
+    y: 49 + Math.sin(angle) * radius * 0.88,
+  };
+}
+
 const VOLUME_STARS: VolumeStar[] = (() => {
   const random = seededRandom(0x51a7c0de);
   const colours = [
@@ -172,11 +186,12 @@ const VOLUME_STARS: VolumeStar[] = (() => {
 
   return Array.from({ length: 128 }, (_, index) => {
     const depthBias = Math.pow(random(), 0.82);
+    const point = constellationCloudPoint(random, 26);
 
     return {
       id: `volume-star-${index}`,
-      x: 2 + random() * 96,
-      y: 3 + random() * 94,
+      x: point.x,
+      y: point.y,
       z: -118 + depthBias * 190,
       size: 0.65 + random() * 1.85,
       brightness: 0.28 + random() * 0.62,
@@ -451,46 +466,16 @@ function buildZodiacConstellationStars(
   }
 
   const ambientStars = rankedStars.slice(anchorCount);
-  const scatteredPositions: Array<{ x: number; y: number }> = [];
 
-  ambientStars.forEach((star, index) => {
+  ambientStars.forEach((star) => {
     const random = seededRandom(
       hashString(`zodiac-scatter:${zodiacSign}:${star.id}:${star.cardId}`),
     );
-    const densityPressure = Math.min(2.05, Math.sqrt(index + 1) * 0.064);
-    const desiredSpacing = Math.max(1.45, 3.55 - densityPressure);
-    let best = { x: 50, y: 50, score: -1 };
-
-    for (let attempt = 0; attempt < 18; attempt += 1) {
-      const x = 5.5 + random() * 89;
-      const y = 7.5 + random() * 85;
-      let nearest = Number.POSITIVE_INFINITY;
-
-      for (const point of shape.points) {
-        nearest = Math.min(nearest, Math.hypot(x - point.x, y - point.y));
-      }
-
-      for (const point of scatteredPositions.slice(-280)) {
-        nearest = Math.min(nearest, Math.hypot(x - point.x, y - point.y));
-      }
-
-      if (!Number.isFinite(nearest)) {
-        nearest = 999;
-      }
-
-      if (nearest > best.score) {
-        best = { x, y, score: nearest };
-      }
-
-      if (nearest >= desiredSpacing) {
-        best = { x, y, score: nearest };
-        break;
-      }
-    }
+    const point = constellationCloudPoint(random);
 
     const placement = {
-      x: best.x,
-      y: best.y,
+      x: point.x,
+      y: point.y,
       z: -76 + seededRandom(
         hashString(`zodiac-depth:${zodiacSign}:${star.id}:${star.cardId}`),
       )() * 148,
@@ -498,7 +483,6 @@ function buildZodiacConstellationStars(
     };
 
     placements.set(star.id, placement);
-    scatteredPositions.push({ x: placement.x, y: placement.y });
   });
 
   return baseStars.map((star) => {
