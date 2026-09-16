@@ -58,9 +58,9 @@ test('the new render dependency graph contains no removed mascot or skin assets'
 test('mute, unavailable audio, seeking and repeat cleanup remain safe',async()=>{
  const api=load('components/player/wishAudio');assert.equal(api.startAstralWishAudio(options[0],true),null);await api.primeWishAudio();
 });
-test('the standalone preview embeds the production asset and offers all ten outcomes',()=>{
- const html=fs.readFileSync(path.resolve(process.argv.find(a=>a.endsWith('Aster-Astral-Preview.html'))||path.join(root,'Aster-Astral-Preview.html')),'utf8');
- assert.ok(html.includes('data:image/webp;base64,'));assert.equal((html.match(/<option value=/g)||[]).length,10);assert.ok(html.includes('class AstralRenderer'));assert.doesNotMatch(html,/<script[^>]+src=/);
+test('the current offline preview embeds the production rig and all ten outcomes',()=>{
+ const html=fs.readFileSync(path.resolve(process.argv.find(a=>a.endsWith('Astra-Flight-Preview.html'))||path.join(root,'Astra-Flight-Preview.html')),'utf8');
+ assert.ok(html.includes('data:image/png;base64,'));assert.equal((html.match(/<option value=/g)||[]).length,10);assert.ok(html.includes('class FlightRenderer'));assert.doesNotMatch(html,/<script[^>]+src=/);
 });
 
 test('the score also conceals the outcome until the terminal turn and releases its sources',()=>{
@@ -70,10 +70,12 @@ test('the score also conceals the outcome until the terminal turn and releases i
  class Context {constructor(){this.state='running';this.currentTime=0;this.sampleRate=8000;this.destination={};created.push(this);}createGain(){return new Node('gain');}createDynamicsCompressor(){return new Node('compressor');}createDelay(){return new Node('delay');}createOscillator(){return new Node('oscillator');}createBufferSource(){return new Node('noise');}createBiquadFilter(){return new Node('filter');}createBuffer(c,n){return{getChannelData:()=>new Float32Array(n)};}resume(){return Promise.resolve();}}
  global.window={AudioContext:Context,setTimeout:(cb)=>{cb();return 1;}};
  try{
-  const api=load('components/player/wishAudio');let opening;
-  for(const option of options){current.nodes=[];const session=api.startAstralWishAudio(option,false,65);assert.ok(session);const cues=current.nodes.filter(n=>n.starts.length&&n.starts[0]<T.rarity/1000).map(n=>({kind:n.kind,type:n.type,at:n.starts[0],frequency:n.frequency.events}));
+  const api=load('components/player/wishAudio');
+  for(const mode of [{},{flightV72:true,count:1},{flightV72:true,count:10}]){let opening;
+  for(const option of options){current.nodes=[];const session=api.startAstralWishAudio({...option,...mode},false,65);assert.ok(session);const cues=current.nodes.filter(n=>n.starts.length&&n.starts[0]<(mode.flightV72?(mode.count===10?11.6:9.6):T.rarity/1000)).map(n=>({kind:n.kind,type:n.type,at:n.starts[0],frequency:n.frequency.events}));
    if(opening)assert.deepEqual(cues,opening);else opening=cues;
    session.setMuted(true);session.setVolume(25);session.stop();session.stop();assert.ok(current.nodes.every(n=>n.disconnected));assert.ok(current.nodes.filter(n=>n.starts.length).every(n=>n.stops.length>=2));
+  }
   }
   assert.equal(created.length,1,'Repeated previews reuse a single audio context');
  }finally{delete global.window;}

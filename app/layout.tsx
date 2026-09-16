@@ -31,10 +31,10 @@ export const metadata: Metadata = {
       "Make wishes, build your binder and explore your constellation.",
     images: [
       {
-        url: "/ancient-pulls/celestial-cat.png",
-        width: 1254,
-        height: 1254,
-        alt: "Ancient Pulls celestial cat",
+        url: "/ancient-pulls/astral-share.png",
+        width: 1200,
+        height: 630,
+        alt: "Ancient Pulls — a universe of your own",
       },
     ],
   },
@@ -43,7 +43,7 @@ export const metadata: Metadata = {
     title: "Ancient Pulls",
     description:
       "Make wishes, build your binder and explore your constellation.",
-    images: ["/ancient-pulls/celestial-cat.png"],
+    images: ["/ancient-pulls/astral-share.png"],
   },
   robots: {
     index: true,
@@ -73,7 +73,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      data-design="astral-71"
+      data-design="astra-73"
       className={`${GeistSans.variable} ${GeistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">

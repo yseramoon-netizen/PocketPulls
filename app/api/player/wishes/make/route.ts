@@ -25,7 +25,7 @@ function getIdempotencyKey(request: Request): string | null {
   const supplied = request.headers.get("Idempotency-Key")?.trim();
 
   if (!supplied) {
-    return crypto.randomUUID();
+    return null;
   }
 
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
@@ -45,7 +45,7 @@ export async function POST(request: Request) {
 
   if (!idempotencyKey) {
     return jsonError(
-      "The wish request key is not a valid UUID.",
+      "Send a valid UUID in Idempotency-Key. Reuse the same key when retrying this wish.",
       400,
       "wish_request_key_invalid",
     );
@@ -95,7 +95,7 @@ export async function POST(request: Request) {
   });
 
   if (error) {
-    const message = error.message?.trim() || "Nebu could not complete that wish.";
+    const message = error.message?.trim() || "Astra could not complete that wish.";
     const lower = message.toLowerCase();
     const status =
       lower.includes("signed in") ||
@@ -109,9 +109,11 @@ export async function POST(request: Request) {
 
   const row = Array.isArray(data) ? data[0] : data;
 
-  if (!row || typeof row !== "object") {
+  if (!row || typeof row !== "object" || !row.wish_id || !row.card_id ||
+      row.wish_balance === null || row.wish_balance === undefined ||
+      !Number.isFinite(Number(row.wish_balance))) {
     return jsonError(
-      "The wish completed, but Nebu did not receive a reveal payload.",
+      "The wish response was incomplete. Retry with the same Idempotency-Key to recover it.",
       500,
       "wish_reveal_missing",
     );

@@ -4,8 +4,14 @@ import { type PointerEvent as ReactPointerEvent, useCallback, useEffect, useMemo
 import { useRouter } from "next/navigation";
 
 import Link from "next/link";
+import SceneHeader from "@/components/player/observatory/SceneHeader";
+import { paintStarlight } from "@/components/player/observatory/SkyArt";
 import AstralIcon from "@/components/player/observatory/AstralIcon";
 import DeepSky from "@/components/player/observatory/DeepSky";
+import AstraArrival from "@/components/player/astral/AstraArrival";
+import type { ArrivalTarget } from "@/components/player/astral/flight";
+import { getWishRevealConfig } from "@/lib/player/wish-reveal";
+import { readArrivalIds, clearArrivalQuery } from "@/lib/player/constellationArrival";
 import useModalFocus from "@/lib/client/useModalFocus";
 import { formatMarketValue } from "@/lib/player/format";
 import {
@@ -118,55 +124,6 @@ function parseZodiacSign(value: unknown): ZodiacSign | null {
   return sign in ZODIAC_SHAPES ? sign : null;
 }
 
-type RarityTheme = {
-  colour: string;
-  glow: string;
-  rank: number;
-};
-
-const RARITY_THEMES: Record<string, RarityTheme> = {
-  common: {
-    colour: "#f8fafc",
-    glow: "rgba(248,250,252,0.78)",
-    rank: 1,
-  },
-  uncommon: {
-    colour: "#86efac",
-    glow: "rgba(74,222,128,0.86)",
-    rank: 2,
-  },
-  rare: {
-    colour: "#7dd3fc",
-    glow: "rgba(56,189,248,0.9)",
-    rank: 3,
-  },
-  doubleRare: {
-    colour: "#c4b5fd",
-    glow: "rgba(167,139,250,0.94)",
-    rank: 4,
-  },
-  ultraRare: {
-    colour: "#fde68a",
-    glow: "rgba(251,191,36,0.96)",
-    rank: 5,
-  },
-  illustrationRare: {
-    colour: "#f9a8d4",
-    glow: "rgba(232,121,249,0.96)",
-    rank: 5,
-  },
-  specialIllustrationRare: {
-    colour: "#67e8f9",
-    glow: "rgba(244,114,182,1)",
-    rank: 6,
-  },
-  hyperRare: {
-    colour: "#fef08a",
-    glow: "rgba(250,204,21,1)",
-    rank: 7,
-  },
-};
-
 const MONEY_FORMATTER = new Intl.NumberFormat("en-GB", {
   style: "currency",
   currency: "GBP",
@@ -182,79 +139,6 @@ const LONG_DATE_FORMATTER = new Intl.DateTimeFormat("en-GB", {
 function toNumber(value: number | string | null | undefined): number {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : 0;
-}
-
-function normaliseRarity(value: string | null | undefined): string {
-  return (value || "")
-    .toLowerCase()
-    .replace(/pokemon/gi, "")
-    .replace(/[^a-z0-9]+/g, " ")
-    .trim();
-}
-
-function getRarityTheme(
-  rarity: string | null | undefined,
-): RarityTheme {
-  const value = normaliseRarity(rarity);
-
-  if (
-    value.includes("hyper rare") ||
-    value.includes("secret rare") ||
-    value.includes("gold rare") ||
-    value.includes("crown rare")
-  ) {
-    return RARITY_THEMES.hyperRare;
-  }
-
-  if (
-    value.includes("special illustration") ||
-    value.includes("special art") ||
-    value.includes("alternate art")
-  ) {
-    return RARITY_THEMES.specialIllustrationRare;
-  }
-
-  if (
-    value.includes("illustration rare") ||
-    value.includes("trainer gallery") ||
-    value.includes("character rare")
-  ) {
-    return RARITY_THEMES.illustrationRare;
-  }
-
-  if (
-    value.includes("ultra rare") ||
-    value.includes("full art") ||
-    value.includes("rainbow rare") ||
-    value.includes("ace spec")
-  ) {
-    return RARITY_THEMES.ultraRare;
-  }
-
-  if (
-    value.includes("double rare") ||
-    value.includes("rare holo ex") ||
-    value.includes("rare holo gx") ||
-    value.includes("rare holo v") ||
-    value.includes("rare holo vmax") ||
-    value.includes("rare holo vstar")
-  ) {
-    return RARITY_THEMES.doubleRare;
-  }
-
-  if (
-    value.includes("rare") ||
-    value.includes("holo") ||
-    value.includes("radiant")
-  ) {
-    return RARITY_THEMES.rare;
-  }
-
-  if (value.includes("uncommon")) {
-    return RARITY_THEMES.uncommon;
-  }
-
-  return RARITY_THEMES.common;
 }
 
 function hashString(value: string): number {
@@ -365,7 +249,6 @@ function buildStar(
   const id = String(wish.id);
   const cardId = String(wish.card_id ?? card?.id ?? "");
   const rarity = card?.rarity?.trim() || "Common";
-  const theme = getRarityTheme(rarity);
   const random = seededRandom(hashString(`${id}:${cardId}`));
 
   const goldenAngle = Math.PI * (3 - Math.sqrt(5));
@@ -387,6 +270,8 @@ function buildStar(
     toNumber(card?.market_value),
   );
 
+  const reveal = getWishRevealConfig(rarity, marketValue);
+  const theme = { rank: reveal.tier, colour: reveal.primary, glow: reveal.glow };
   const valueBoost = Math.min(5, Math.log10(marketValue + 1) * 2.3);
 
   return {
@@ -722,6 +607,14 @@ export default function ConstellationPage() {
   const router = useRouter();
   const preferences = usePlayerPreferences();
   const [stars, setStars] = useState<ConstellationStar[]>([]);
+  const [arrivalIds, setArrivalIds] = useState<string[]>([]);
+  const [arrivalMessage, setArrivalMessage] = useState("");
+  const arrivingIdsRef = useRef(new Set<string>());
+  useEffect(() => {
+    const ids = readArrivalIds(window.location.search);
+    arrivingIdsRef.current = new Set(ids);
+    setArrivalIds(ids);
+  }, []);
   const [friendStars, setFriendStars] = useState<FriendStar[]>([]);
   const [zodiacSign, setZodiacSign] = useState<ZodiacSign | null>(null);
   const [selectedStar, setSelectedStar] =
@@ -1038,6 +931,11 @@ export default function ConstellationPage() {
 
     for (const { star, projected } of projectedStars) {
       const point = toCanvasPoint(projected);
+      // Keep actual projected coordinates available while Astra delivers this star.
+      if (arrivingIdsRef.current.has(star.id)) {
+        hits.push({ star, x: point.x, y: point.y, radius: 15, depth: projected.depth });
+        continue;
+      }
       const active =
         scene.selectedStarId === star.id ||
         scene.travellingStarId === star.id;
@@ -1059,21 +957,7 @@ export default function ConstellationPage() {
         (scene.earthView ? 0.92 : 0.6 + projected.atmosphere * 0.4) *
           (active ? 1 : 0.94),
       );
-      context.fillStyle = star.colour;
-      context.shadowColor = useGlow ? star.glow : "transparent";
-      context.shadowBlur = useGlow
-        ? radius * (active ? 4.6 : star.zodiacAnchor ? 3.3 : 2.4)
-        : 0;
-      context.beginPath();
-      context.arc(point.x, point.y, active ? radius * 1.22 : radius, 0, Math.PI * 2);
-      context.fill();
-
-      context.shadowBlur = 0;
-      context.globalAlpha = active ? 1 : 0.85;
-      context.fillStyle = "#f3f1e8";
-      context.fillRect(point.x - .7, point.y - radius * 1.65, 1.4, radius * 3.3);
-      context.fillRect(point.x - radius * 1.65, point.y - .7, radius * 3.3, 1.4);
-      if(active){context.strokeStyle=star.colour;context.lineWidth=.8;context.beginPath();context.arc(point.x,point.y,radius*3.2,0,Math.PI*2);context.stroke();}
+      paintStarlight(context,point.x,point.y,active?radius*1.2:radius,star.colour,active,useGlow);
 
       if (star.anniversaryYears > 0) {
         context.globalAlpha = 0.92;
@@ -1688,6 +1572,17 @@ export default function ConstellationPage() {
       }
 
       const wishes = (wishResult.data || []) as WishRow[];
+      // A new award can be newer than the map's first 1,600 wishes.
+      const missingArrivalIds = readArrivalIds(window.location.search)
+        .filter((id) => !wishes.some((wish) => String(wish.id) === id));
+      if (missingArrivalIds.length) {
+        const arrivalResult = await supabase.from("player_wishes")
+          .select("id, card_id, market_value_at_wish, created_at")
+          .eq("user_id", user.id).in("id", missingArrivalIds);
+        if (arrivalResult.error) throw arrivalResult.error;
+        wishes.push(...((arrivalResult.data || []) as WishRow[]));
+        wishes.sort((a, b) => (a.created_at || "").localeCompare(b.created_at || ""));
+      }
       const friendRows = Array.isArray(friendResult.data)
         ? (friendResult.data as FriendRow[])
         : [];
@@ -1781,6 +1676,41 @@ export default function ConstellationPage() {
     if (star) travelToStar(star);
     else setErrorMessage("This card doesn’t have a wish star in your constellation yet.");
   }, [loading, stars, travelToStar]);
+
+  const getArrivalTargets = useCallback((): ArrivalTarget[] => {
+    const plane = skyPlaneRef.current;
+    if (!plane || !arrivalIds.length) return [];
+    const rect = plane.getBoundingClientRect();
+    const hits = projectedStarHitsRef.current;
+    const targets = arrivalIds.map((id) => hits.find((hit) => hit.star.id === id));
+    if (targets.some((hit) => !hit)) return [];
+    return targets.map((hit) => ({
+      id: hit!.star.id,
+      colour: hit!.star.colour,
+      x: (rect.left + hit!.x * rect.width / plane.clientWidth) / window.innerWidth,
+      y: (rect.top + hit!.y * rect.height / plane.clientHeight) / window.innerHeight,
+    }));
+  }, [arrivalIds]);
+  const starArrived = useCallback((id: string) => {
+    arrivingIdsRef.current.delete(id);
+    renderSkyView();
+  }, [renderSkyView]);
+  const finishArrival = useCallback(() => {
+    arrivingIdsRef.current.clear();
+    renderSkyView();
+    setArrivalMessage(arrivalIds.length === 1 ? "Your star is home." : `${arrivalIds.length} stars, home.`);
+    setArrivalIds([]);
+    clearArrivalQuery();
+  }, [arrivalIds, renderSkyView]);
+  useEffect(() => {
+    if (loading || errorMessage || !arrivalIds.length) return;
+    if (arrivalIds.some((id) => !stars.some((star) => star.id === id))) {
+      arrivingIdsRef.current.clear();
+      setArrivalIds([]);
+      clearArrivalQuery();
+      setErrorMessage("Your constellation is ready. One of these wish stars could not be found in your account.");
+    }
+  }, [loading, errorMessage, stars, arrivalIds]);
 
   const totalValue = useMemo(
     () => stars.reduce((sum, star) => sum + star.marketValue, 0),
@@ -1937,16 +1867,11 @@ export default function ConstellationPage() {
   return (
     <section className="ap-scene ap-constellation">
       <DeepSky />
-      <header className="ap-scene-heading">
-        <p>Your personal sky</p>
-        <h1>{zodiacSign ? `${ZODIAC_SHAPES[zodiacSign].label} constellation` : "Your constellation"}</h1>
-        <span>Every card, a star. Every wish, a memory.</span>
-      </header>
-      <p className="sr-only" aria-live="polite">{travellingStarId ? "Travelling to your card." : selectedStar ? `Arrived at ${selectedStar.name}.` : ""}</p>
-      <div className="ap-scene-actions">
+      <SceneHeader eyebrow="Your personal sky" title={zodiacSign ? `${ZODIAC_SHAPES[zodiacSign].label} constellation` : "Your constellation"} description="Every card, a star. Every wish, a memory.">
         <button className="ap-scene-button" aria-expanded={archiveOpen} onClick={() => { setInfoPanelOpen(false); if(archiveOpen)closeArchive();else {setArchiveOpen(true);const url=new URL(window.location.href);url.searchParams.set("panel","history");window.history.replaceState(window.history.state,"",url);} }}><AstralIcon name="search"/> Find a card</button>
         <button className="ap-scene-button" aria-expanded={infoPanelOpen} onClick={() => { closeArchive();setInfoPanelOpen(!infoPanelOpen); }}><AstralIcon name="info"/> Info</button>
-      </div>
+      </SceneHeader>
+      <p className="sr-only" aria-live="polite">{travellingStarId ? "Travelling to your card." : selectedStar ? `Arrived at ${selectedStar.name}.` : ""}</p>
       {archiveOpen ? <aside ref={archivePanelRef} className="ap-scene-panel ap-star-archive" role="dialog" aria-modal="true" aria-label="Find a card" tabIndex={-1}>
         <div className="ap-panel-heading"><div><p>Latest pulls</p><h2>Find a card</h2></div><button className="ap-scene-button" aria-label="Close card search" onClick={closeArchive}><AstralIcon name="close"/></button></div>
         <label><span className="sr-only">Search by card name, set, number or rarity</span><input autoFocus value={archiveSearch} onChange={event=>setArchiveSearch(event.target.value)} placeholder="Name, set, number or rarity"/></label>
@@ -1968,6 +1893,22 @@ export default function ConstellationPage() {
       <article
         data-onboarding-target="constellation"
         ref={skyViewportRef}
+        tabIndex={0}
+        aria-label="Explore your constellation"
+        aria-describedby="constellation-controls-hint"
+        onKeyDown={event=>{
+          if(event.target!==event.currentTarget)return;
+          if(event.key==='+'||event.key==='=')nudgeZoom(1);
+          else if(event.key==='-')nudgeZoom(-1);
+          else if(event.key==='0')recenterEarthView();
+          else if(event.key==='Escape'){setSelectedStar(null);closeArchive();setInfoPanelOpen(false);}
+          else if(event.key.startsWith('Arrow')){
+            const r=viewRef.current.rotation;
+            queueSkyView({rotation:{x:r.x+(event.key==='ArrowDown'?4:event.key==='ArrowUp'?-4:0),y:r.y+(event.key==='ArrowRight'?4:event.key==='ArrowLeft'?-4:0)}});
+            setEarthView(false);
+          }else return;
+          event.preventDefault();
+        }}
         onPointerDown={handleSkyPointerDown}
         onPointerMove={handleSkyPointerMove}
         onPointerUp={finishSkyPointer}
@@ -1979,10 +1920,10 @@ export default function ConstellationPage() {
         style={{ touchAction: "none", perspective: "1100px", overscrollBehavior: "contain" }}
       >
         {loading ? (
-          <div className="relative z-10 flex min-h-[calc(100dvh-4.5rem)] flex-col items-center justify-center text-center">
+          <div role="status" className="relative z-10 flex min-h-[calc(100dvh-4.5rem)] flex-col items-center justify-center text-center">
             <div className="h-16 w-16 animate-pulse rounded-full bg-white shadow-[0_0_55px_18px_rgba(255,255,255,0.3)]" />
             <p className="mt-7 text-xs font-black uppercase tracking-[0.2em] text-white/35">
-              Rebuilding your night sky
+              Mapping your constellation
             </p>
           </div>
         ) : (
@@ -2115,6 +2056,7 @@ export default function ConstellationPage() {
         ) : null}
       </article>
 
+      <p id="constellation-controls-hint" className="sr-only">Arrow keys rotate the sky. Plus and minus zoom. Zero returns to Earth. Find a card lets you visit any card star.</p>
       {!loading && !selectedStar && !travellingStarId ? <div className="ap-scene-dock" aria-label="Sky controls">
         <button onClick={()=>nudgeZoom(-1)} aria-label="Zoom out">−</button><span>{Math.round(zoom*100)}%</span><button onClick={()=>nudgeZoom(1)} aria-label="Zoom in">+</button><span className="divider"/>
         <button onClick={recenterEarthView}><AstralIcon name="reset" style={{display:"inline",marginRight:8,width:16}}/>{earthView?"Earth view":"Return to Earth"}</button>
@@ -2429,6 +2371,10 @@ export default function ConstellationPage() {
           }
         }
       `}</style>
+      {arrivalIds.length > 0 && !loading && !errorMessage && (
+        <AstraArrival getTargets={getArrivalTargets} onArrived={starArrived} onDone={finishArrival} />
+      )}
+      {arrivalMessage && <p className="ap-arrival-message" role="status">{arrivalMessage}</p>}
     </section>
   );
 }

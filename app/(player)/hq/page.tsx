@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import AsterPortrait from "@/components/player/NebuPortrait";
+import AstraCompanion from "@/components/player/astral/AstraCompanion";
 import ConstellationArtwork from "@/components/player/observatory/ConstellationArtwork";
 import DeepSky from "@/components/player/observatory/DeepSky";
 import AstralIcon from "@/components/player/observatory/AstralIcon";
@@ -262,7 +262,7 @@ export default function TrainerHqPage() {
     {errorMessage?<div role="alert" className="mb-6 rounded-xl border border-red-200/20 bg-red-950/30 p-4 text-sm text-red-100">{errorMessage}</div>:null}
     <div className={styles.heroGrid}>
       <article className={styles.skyCard}><DeepSky still/><ConstellationArtwork sign={data.zodiacSign} className={styles.art}/><div className={styles.skyCopy}><p>Your constellation</p><h2>{data.zodiacSign?`${zodiacLabel(data.zodiacSign)}, written in stars.`:"A sky of your own."}</h2><span>{formatNumber(data.constellationStars)} memories in your constellation</span><Link href="/constellation">Explore your sky <AstralIcon name="arrow"/></Link></div><span className={styles.skyMark}>ANCIENT PULLS / OBSERVATORY</span></article>
-      <article className={styles.wishCard}><span className={styles.eyebrow}>Astral wishes</span><AsterPortrait alt="Aster, your star companion"/><h2>Your next star awaits.</h2><p>{data.wishBalance>0?`${formatNumber(data.wishBalance)} wishes ready. Discover the next card in your collection.`:"Reveal a card and add a new star to your sky."}</p><Link href="/wishes">Make a wish <AstralIcon name="star"/></Link></article>
+      <article className={styles.wishCard}><span className={styles.eyebrow}>Astral wishes</span><AstraCompanion/><h2>Your next star awaits.</h2><p>{data.wishBalance>0?`${formatNumber(data.wishBalance)} wishes ready. Discover the next card in your collection.`:"Reveal a card and add a new star to your sky."}</p><Link href="/wishes">Make a wish <AstralIcon name="star"/></Link></article>
     </div>
     <div className={styles.metrics}>
       {[["Wishes",formatNumber(data.wishBalance),"Ready to reveal","/wishes"],["Cards",formatNumber(data.totalCards),`${formatNumber(data.uniqueCards)} unique cards`,"/collection"],["Collection",formatMoney(data.collectionValue),"Current catalogue value","/collection"],["Stars",formatNumber(data.constellationStars),zodiacLabel(data.zodiacSign),"/constellation"]].map(([label,value,detail,href])=><Link key={label} href={href} className={styles.metric}><p>{label}</p><strong>{value}</strong><small>{detail}</small></Link>)}

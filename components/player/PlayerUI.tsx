@@ -134,14 +134,14 @@ export function PlayerErrorBanner({
   }
 
   return (
-    <div className="mt-6 flex flex-col gap-4 rounded-2xl border border-red-200/15 bg-red-400/[0.08] p-4 text-sm font-semibold text-red-100 shadow-[inset_0_0_0_1px_rgba(244,202,114,0.04)] sm:flex-row sm:items-center sm:justify-between">
+    <div data-player-error role="alert" className="mt-6 flex flex-col gap-4 rounded-2xl border border-red-200/15 bg-red-400/[0.08] p-4 text-sm font-semibold text-red-100 shadow-[inset_0_0_0_1px_rgba(244,202,114,0.04)] sm:flex-row sm:items-center sm:justify-between">
       <span>{message}</span>
 
       {onRetry ? (
         <button
           type="button"
           onClick={onRetry}
-          className="min-h-10 flex-none rounded-xl border border-red-100/15 bg-red-100/[0.08] px-4 text-xs font-black uppercase tracking-[0.12em] text-red-50 transition hover:bg-red-100/[0.14]"
+          className="min-h-11 flex-none rounded-xl border border-red-100/15 bg-red-100/[0.08] px-4 text-xs font-black uppercase tracking-[0.12em] text-red-50 transition hover:bg-red-100/[0.14]"
         >
           Try again
         </button>
@@ -191,6 +191,7 @@ export function PlayerSecondaryButton({
 }) {
   return (
     <button
+      data-player-secondary-button
       type={type}
       onClick={onClick}
       disabled={disabled}
@@ -241,7 +242,7 @@ export function PlayerLoadingCards({
   count?: number;
 }) {
   return (
-    <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-5 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
+    <div data-player-loading role="status" aria-label="Loading your cards" aria-busy="true" className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-5 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
       {Array.from({ length: count }).map((_, index) => (
         <div
           key={index}

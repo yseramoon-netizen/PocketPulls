@@ -583,6 +583,7 @@ export default function CollectionPage() {
         />
 
         <select
+          aria-label="Filter binder by set"
           value={setName}
           onChange={(event) => { setSetName(event.target.value); setPage(1); }}
           className={styles.select}
@@ -592,6 +593,7 @@ export default function CollectionPage() {
         </select>
 
         <select
+          aria-label="Filter binder by rarity"
           value={rarity}
           onChange={(event) => { setRarity(event.target.value); setPage(1); }}
           className={styles.select}
@@ -616,6 +618,7 @@ export default function CollectionPage() {
             key={option.value}
             type="button"
             onClick={() => { setAvailability(option.value); setPage(1); }}
+            aria-pressed={availability === option.value}
             className={availability === option.value ? styles.filterActive : styles.filterButton}
           >
             {option.label}

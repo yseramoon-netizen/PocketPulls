@@ -1,0 +1,28 @@
+[
+  {
+    "name": "Astra-One-Wish-60fps",
+    "programs": [],
+    "streams": [
+      {
+        "codec_name": "h264",
+        "width": 1280,
+        "height": 720,
+        "avg_frame_rate": "60/1",
+        "nb_frames": "1158"
+      }
+    ]
+  },
+  {
+    "name": "Astra-Ten-Wishes-60fps",
+    "programs": [],
+    "streams": [
+      {
+        "codec_name": "h264",
+        "width": 1280,
+        "height": 720,
+        "avg_frame_rate": "60/1",
+        "nb_frames": "1374"
+      }
+    ]
+  }
+]

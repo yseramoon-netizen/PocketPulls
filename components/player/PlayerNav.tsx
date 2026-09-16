@@ -54,18 +54,19 @@ export default function PlayerNav({username,displayName,avatarUrl,wishBalance}:{
    <div className={styles.utilities}>
     <Link href="/wishes/shop" className={styles.balance} aria-label={`${balance} wishes. Open recharge.`}><AstralIcon/><span>{balance.toLocaleString("en-GB")}</span><small>Wishes</small><span aria-hidden="true">+</span></Link>
     <div className={styles.notifications}>{ready?<Notifications/>:null}</div>
+    <div className={styles.quick}><QuickNavigation/></div>
     <button type="button" className={styles.menuButton} aria-label="Open menu" aria-expanded={menu} onClick={()=>setMenu(true)}><AstralIcon name="menu"/>{reward?<i aria-label="Reward available"/>:null}</button>
    </div>
   </header>
   <nav className={styles.mobile} aria-label="Mobile navigation">{primary.map(item=><Link key={item.href} href={item.href} aria-current={isRouteActive(pathname,item.href)?"page":undefined}><AstralIcon name={item.icon}/><span>{item.short}</span></Link>)}</nav>
-  <QuickNavigation/>
   {menu?<div className={styles.scrim} onClick={()=>setMenu(false)}><aside ref={menuRef} className={styles.drawer} role="dialog" aria-modal="true" aria-label="Explore Ancient Pulls" tabIndex={-1} onClick={e=>e.stopPropagation()}>
    <div className={styles.drawerHead}><span>Explore</span><button onClick={()=>setMenu(false)} aria-label="Close menu"><AstralIcon name="close"/></button></div>
    <Link href="/profile" className={styles.identity}><span className={styles.avatar}>{avatarUrl?/* eslint-disable-next-line @next/next/no-img-element */<img src={avatarUrl} alt=""/>:displayName.slice(0,1)}</span><span><strong>{displayName}</strong><small>@{username}</small></span><AstralIcon name="arrow"/></Link>
+   <button className={styles.drawerSearch} onClick={()=>{setMenu(false);window.setTimeout(()=>window.dispatchEvent(new Event("ancientpulls:quick-navigation")),0)}}><span>Search all pages</span><kbd>⌘ K</kbd></button>
    <nav className={styles.drawerLinks} aria-label="Explore">{secondary.map(item=><Link key={item.href} href={item.href} aria-current={isRouteActive(pathname,item.href)?"page":undefined}><AstralIcon name={item.icon}/><span><strong>{item.label}{item.href==="/achievements"&&reward?<i className={styles.rewardDot}/>:null}</strong><small>{item.detail}</small></span><AstralIcon name="arrow"/></Link>)}</nav>
    <div className={styles.drawerBottom}><span>Appearance & sound</span>{ready?<Preferences/>:null}</div>
    <button onClick={()=>void signOut()} disabled={signingOut} className={styles.signOut}>{signingOut?"Signing out…":"Sign out"}</button>
-   <small className={styles.version}>Ancient Pulls · Astral 71</small>
+   <small className={styles.version}>Ancient Pulls · Astra 73</small>
   </aside></div>:null}
  </>;
 }

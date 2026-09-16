@@ -116,6 +116,7 @@ export default function WishPreviewPage() {
     useState(6);
 
   const [open, setOpen] = useState(false);
+  const [tenPreview, setTenPreview] = useState(false);
   const [runNumber, setRunNumber] = useState(0);
 
   useEffect(() => {
@@ -177,10 +178,23 @@ export default function WishPreviewPage() {
     };
   }, [selectedIndex, runNumber]);
 
+  const previewCards = useMemo(() => DEMO_CARDS.slice(0, 10).map((card, index) => ({
+    ...card, id: `ten-preview-${runNumber}-${index}`,
+  })), [runNumber]);
+
+  function playTenPreview() {
+    if (access !== "allowed") return;
+    void primeWishAudio();
+    setTenPreview(true);
+    setRunNumber((current) => current + 1);
+    setOpen(true);
+  }
+
   function playPreview(index: number) {
     if (access !== "allowed") return;
 
     void primeWishAudio();
+    setTenPreview(false);
     setSelectedIndex(index);
     setRunNumber((current) => current + 1);
     setOpen(true);
@@ -235,12 +249,14 @@ export default function WishPreviewPage() {
         </h1>
 
         <p className="mt-4 max-w-3xl text-sm font-semibold leading-7 text-white/45 sm:text-base">
-          Every upgrade now travels beyond the current star to a farther
-          destination. Cards valued above £500 end at the black hole, while
-          Preview the astral ceremony and its final reveal. Test every
-          route here before a real wish.
+          Follow Astra through flight, star creation, and constellation placement.
+          Preview every rarity or watch ten stars form together. These previews use
+          sample rewards and never spend wishes.
         </p>
 
+        <button onClick={playTenPreview} className="mt-7 inline-flex min-h-12 items-center gap-3 rounded-full border border-cyan-100/20 bg-cyan-100/10 px-6 py-3 text-sm font-semibold text-cyan-50 transition hover:bg-cyan-100/15">
+          <span aria-hidden="true">✧</span> Preview ten wishes · all rarities
+        </button>
         <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {DEMO_CARDS.map((card, index) => {
             const theme = getWishRarityTheme(
@@ -307,8 +323,10 @@ export default function WishPreviewPage() {
 
       <WishCinematic
         open={open}
-        card={selectedCard}
-        cosmicIssueNumber={selectedCard.cosmicIssueNumber}
+        card={tenPreview ? previewCards[0] : selectedCard}
+        cards={tenPreview ? previewCards : undefined}
+        forceFullSequence
+        cosmicIssueNumber={tenPreview ? undefined : selectedCard.cosmicIssueNumber}
         cosmicSourceSkin="midnight"
         allowSkip
         respectPreferences={false}

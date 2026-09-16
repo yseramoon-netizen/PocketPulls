@@ -1,10 +1,13 @@
 "use client";
 
 import Link from "next/link";
+import {useRouter} from "next/navigation";
+import {readArrivalIds} from "@/lib/player/constellationArrival";
+import {readWishBatch,runWishBatch,completeWishBatch,parseBatchAward,type WishBatch} from "@/lib/player/wishBatch";
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import AsterPortrait from "@/components/player/NebuPortrait";
+import AstraCompanion from "@/components/player/astral/AstraCompanion";
 import DeepSky from "@/components/player/observatory/DeepSky";
 import ConstellationArtwork from "@/components/player/observatory/ConstellationArtwork";
 import AstralIcon from "@/components/player/observatory/AstralIcon";
@@ -175,6 +178,10 @@ function formatDate(value: string): string {
 }
 
 export default function WishesPage() {
+  const router=useRouter();
+  const [pendingBatch,setPendingBatch]=useState<number|null>(null),[batchReveal,setBatchReveal]=useState<WishBatch|null>(null);
+  const pendingBatchId=useRef<string|null>(null);
+  const batchCards=useMemo<WishRevealCard[]>(()=>batchReveal?.results.map(r=>({id:r.wishId,name:r.name,rarity:r.rarity,imageUrl:r.imageUrl,setName:r.setName,cardNumber:r.cardNumber,marketValue:r.marketValue}))??[],[batchReveal]);
   const replayHandledRef = useRef(false);
   const wishRequestIdRef = useRef<string | null>(null);
   const wishUserIdRef = useRef<string | null>(null);
@@ -251,6 +258,7 @@ export default function WishesPage() {
       }
 
       wishUserIdRef.current = user.id;
+      const batch=readWishBatch(user.id);pendingBatchId.current=batch?.id??null;setPendingBatch(batch?batch.results.length:null);
       wishRequestIdRef.current = readPendingWish(user.id);
       setPendingWish(Boolean(wishRequestIdRef.current));
       const [
@@ -510,7 +518,7 @@ export default function WishesPage() {
   }, [replayLatestWish]);
 
   const makeWish = useCallback(async () => {
-    if (wishBusyRef.current || (!pendingWish && dashboard.wishBalance < 1)) {
+    if (wishBusyRef.current || pendingBatch!==null || (!pendingWish && dashboard.wishBalance < 1)) {
       return;
     }
 
@@ -604,7 +612,30 @@ export default function WishesPage() {
       wishBusyRef.current = false;
       setMakingWish(false);
     }
-  }, [dashboard.wishBalance, pendingWish]);
+  }, [dashboard.wishBalance, pendingWish,pendingBatch]);
+
+  const makeTenWishes=useCallback(async()=>{
+    if(wishBusyRef.current||pendingWish||(pendingBatch===null&&dashboard.wishBalance<10))return;
+    wishBusyRef.current=true;setMakingWish(true);setErrorMessage(null);setWishDetailsOpen(false);void primeWishAudio();
+    try{
+      const {data:{session}}=await supabase.auth.getSession();const userId=session?.user.id;
+      if(!userId||userId!==wishUserIdRef.current)throw Error("Refresh your account before making wishes.");
+      const batch=await runWishBatch(userId,{
+        checkAccount:async()=>{const {data:{session}}=await supabase.auth.getSession();return session?.user.id===userId&&wishUserIdRef.current===userId},
+        claim:async key=>{const {data,error}=await supabase.rpc("make_player_wish",{p_idempotency_key:key});if(error)throw error;return parseBatchAward(data)},
+        onProgress:next=>{pendingBatchId.current=next.id;setPendingBatch(next.results.length);const last=next.results.at(-1);if(last){setDashboard(current=>({...current,wishBalance:last.wishBalance}));window.dispatchEvent(new CustomEvent("pocketpulls:wish-balance",{detail:{wishBalance:last.wishBalance}}))}},
+      },pendingBatchId.current);
+      setBatchReveal(batch);setForceFullSequence(false);
+      const discovery=await supabase.from("cosmic_nebu_ownerships").select("issue_number").in("discovery_pull_id",batch.results.map(r=>r.wishId)).limit(1);
+      if(!discovery.error&&discovery.data?.length){applyNebuSkin("cosmic_nebu");void supabase.auth.updateUser({data:{nebu_skin:"cosmic_nebu"}})}
+    }catch(error:unknown){setErrorMessage(getErrorMessage(error,"Your batch paused. Resume to recover the same wishes."))}
+    finally{wishBusyRef.current=false;setMakingWish(false)}
+  },[dashboard.wishBalance,pendingWish,pendingBatch]);
+  const placeWishes=useCallback((cards:readonly WishRevealCard[])=>{
+    const ids=readArrivalIds("?arrive="+encodeURIComponent(cards.map(c=>String(c.id??"")).join(",")));
+    if(batchReveal)completeWishBatch(batchReveal.userId,batchReveal.id);
+    router.push(ids.length?"/constellation?arrive="+encodeURIComponent(ids.join(",")):"/constellation");
+  },[batchReveal,router]);
 
   const shippingProgress = useMemo(() => {
     return Math.min(
@@ -654,7 +685,7 @@ export default function WishesPage() {
           </h1>
 
           <p className="mt-3 max-w-xl text-sm font-semibold leading-6 text-white/45">
-            Spend one wish to reveal your next card.
+            Make one wish, or gather ten new stars for your constellation.
           </p>
         </div>
 
@@ -706,6 +737,7 @@ export default function WishesPage() {
         </div>
       ) : null}
 
+      {pendingBatch!==null&&!makingWish?<div className="ap-batch-recovery" role="status"><span>{pendingBatch===10?"Your ten wishes are ready to reveal.":`${pendingBatch} of 10 wishes confirmed. Resume to finish this batch.`}</span><button onClick={()=>void makeTenWishes()}>{pendingBatch===10?"Reveal wishes":"Resume wishes"}</button></div>:null}
       {pendingWish && !makingWish ? <div role="status" className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-100/15 bg-amber-200/[0.06] p-5">
         <p className="max-w-xl text-sm leading-6 text-amber-50/80">Your last wish hasn’t been confirmed on this device. Retry checks the same request, so it can’t spend a second wish.</p>
         <button type="button" onClick={() => void makeWish()} className="min-h-11 rounded-xl bg-amber-100 px-5 text-sm font-semibold text-amber-950">Recover last wish</button>
@@ -716,6 +748,9 @@ export default function WishesPage() {
           totalWishes={dashboard.lifetimeWishesSpent}
           makingWish={makingWish}
           onMakeWish={() => void makeWish()}
+          onMakeTen={()=>void makeTenWishes()}
+          pendingBatch={pendingBatch}
+          pendingWish={pendingWish}
           onShowDetails={() => setWishDetailsOpen(true)}
         />
 
@@ -741,10 +776,12 @@ export default function WishesPage() {
         />
       ) : null}
 
+      {batchReveal?<WishCinematic open card={batchCards[0]??null} cards={batchCards} onFinished={()=>void loadDashboard(true)} onPlace={placeWishes} onClose={()=>setBatchReveal(null)} busy={makingWish} forceFullSequence={forceFullSequence}/>:null}
       {wishReveal ? (
         <WishCinematic
           open
           card={cinematicCard}
+          onPlace={placeWishes}
           onFinished={() => {
             void loadDashboard(true);
           }}
@@ -768,16 +805,15 @@ export default function WishesPage() {
   );
 }
 
-function WishChamber({wishBalance,totalWishes,makingWish,onMakeWish,onShowDetails}:{wishBalance:number;totalWishes:number;makingWish:boolean;onMakeWish:()=>void;onShowDetails:()=>void}){
+function WishChamber({wishBalance,totalWishes,makingWish,onMakeWish,onMakeTen,onShowDetails,pendingBatch,pendingWish}:{wishBalance:number;totalWishes:number;makingWish:boolean;onMakeWish:()=>void;onMakeTen:()=>void;onShowDetails:()=>void;pendingBatch:number|null;pendingWish:boolean}){
   const hasWishes=wishBalance>0;
   return <article className="ap-wish-stage" data-onboarding-target="wish">
     <DeepSky/><ConstellationArtwork className="ap-wish-outline"/>
     <div className="ap-wish-stage-top"><span><AstralIcon/> {formatWholeNumber(wishBalance)} wishes available</span><button onClick={onShowDetails}>Prizes & odds <AstralIcon name="info"/></button></div>
-    <div className="ap-wish-character"><AsterPortrait alt="Aster, the astral wish companion"/><span>ASTER</span></div>
-    <div className="ap-wish-invitation"><p>THE ASTRAL CEREMONY</p><h2>A new star.<br/>An untold story.</h2><span>{hasWishes?"One wish reveals one card for your collection.":"Your next discovery is waiting among the stars."}</span>
-      <div className="ap-wish-actions">{hasWishes?<button data-onboarding-action="make-wish" onClick={onMakeWish} disabled={makingWish}>{makingWish?"Revealing your wish…":"Make a wish"}<AstralIcon/></button>:<Link href="/wishes/shop">Get wishes <AstralIcon/></Link>}<button onClick={onShowDetails}>What can I discover?<AstralIcon name="arrow"/></button></div>
-    </div>
-    <span className="ap-wish-lifetime">{formatWholeNumber(totalWishes)} wishes in your story</span>
+    <div className="ap-wish-character"><AstraCompanion/><span>ASTRA</span></div>
+    <div className="ap-wish-invitation"><p>THE ASTRAL CEREMONY</p><h2>A new star.<br/>An untold story.</h2><span>{hasWishes?"Choose one wish or a formation of ten.":"Your next discovery is waiting among the stars."}</span>
+      <div className="ap-wish-actions">{hasWishes?<button data-onboarding-action="make-wish" onClick={onMakeWish} disabled={makingWish||pendingBatch!==null}>{makingWish?(pendingBatch!==null?`Gathering wishes · ${pendingBatch}/10`:"Gathering your wish…"):"Make a wish · 1"}<AstralIcon/></button>:<Link href="/wishes/shop">Get wishes <AstralIcon/></Link>}<button onClick={onMakeTen} disabled={makingWish||pendingWish||(pendingBatch===null&&wishBalance<10)}>{pendingBatch!==null?"Resume ten wishes":"Make ten wishes · 10"}<AstralIcon/></button></div>
+    </div><span className="ap-wish-lifetime">{formatWholeNumber(totalWishes)} wishes in your story</span>
   </article>;
 }
 

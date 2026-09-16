@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireAdmin, AdminAccessError } from "@/lib/admin/server-auth";
 
 import { supabaseAdmin as supabase } from "@/lib/supabaseAdmin";
 
@@ -133,36 +134,8 @@ function describeCard(
   };
 }
 
-async function authenticateRequest(
-  request: Request,
-): Promise<string> {
-  const authorization =
-    request.headers.get("authorization");
-
-  const accessToken =
-    authorization?.match(
-      /^Bearer\s+(.+)$/i,
-    )?.[1];
-
-  if (!accessToken) {
-    throw new Error(
-      "AUTHENTICATION_REQUIRED",
-    );
-  }
-
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser(
-    accessToken,
-  );
-
-  if (error || !user) {
-    throw new Error(
-      "AUTHENTICATION_REQUIRED",
-    );
-  }
-
+async function authenticateRequest(request: Request): Promise<string> {
+  const {user}=await requireAdmin(request);
   return user.id;
 }
 
@@ -717,6 +690,7 @@ export async function POST(
       },
     );
   } catch (error: unknown) {
+    if(error instanceof AdminAccessError)return NextResponse.json({success:false,error:error.message},{status:error.status,headers:{"Cache-Control":"no-store"}});
     console.error(
       "Live price refresh error:",
       error,

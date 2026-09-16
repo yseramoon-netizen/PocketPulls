@@ -71,5 +71,5 @@ export default function RootTemplate({
     if (document.title !== pageTitle) document.title = pageTitle;
   }, [pathname]);
 
-  return children;
+  return <div className="ap-route-content">{children}<span className="sr-only" role="status" aria-live="polite">{getPageTitle(pathname)}</span></div>;
 }

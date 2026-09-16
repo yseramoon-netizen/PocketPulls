@@ -43,7 +43,7 @@ export async function primeWishAudio(): Promise<void> {
         catch { /* Silent playback remains available. */ }
     }
 }
-export function startAstralWishAudio(options: AstralOptions, muted: boolean, volume = 72, offsetMs = 0): WishAudioSession | null {
+export function startAstralWishAudio(options: AstralOptions & {flightV72?:boolean;count?:number}, muted: boolean, volume = 72, offsetMs = 0): WishAudioSession | null {
     const ctx = audioContext();
     if (!ctx || ctx.state !== "running")
         return null;
@@ -119,6 +119,18 @@ export function startAstralWishAudio(options: AstralOptions, muted: boolean, vol
         source.start(start);
         source.stop(start + remaining + .03);
     };
+    if(options.flightV72){
+        const ten=options.count===10,birth=ten?11.6:9.6,tier=Math.max(1,Math.min(9,options.tier));
+        tone(0,5.2,130.81,.07);tone(.18,5.0,196,.04);tone(.6,4.5,261.63,.024);
+        [523.25,783.99,1046.5,1174.66].forEach((hz,i)=>tone(1.2+i*.58,1.5,hz,.035));
+        air(1.7,ten?4.3:2.8,.12,300,3100);tone(ten?6:4.7,3.1,196,.042,'sine',2);
+        air(ten?6.5:5.1,2.5,.17,500,3500);
+        const root=tier>=7?293.66:tier>=4?261.63:220;
+        [1,1.5,2,2.5].forEach((r,i)=>tone(birth+i*.08,2.6,root*r,.065-i*.009));
+        air(birth,1.5,.19,1000,5500);
+        if(ten)Array.from({length:10},(_,i)=>tone(birth+.18+i*.16,1.4,[523.25,659.25,783.99,1046.5,1174.66][i%5],.028));
+        if(options.blackHole)tone(birth,2.6,98,.09,'sine',.5);
+    }else{
     // Original score: a quiet fifth, glass harmonics, then a breath before the final chord.
     // These cues are identical for every outcome, including the black hole.
     tone(0, 5.9, 130.81, .075);
@@ -150,6 +162,7 @@ export function startAstralWishAudio(options: AstralOptions, muted: boolean, vol
         [1, 1.5, 2, 2.5].forEach((ratio, i) => tone(impact + i * .055, 3.0 - i * .15, root * ratio, .09 - i * .015));
         if (tier >= 6)
             tone(impact + .3, 2.7, root * 4, .022);
+    }
     }
     return {
         setMuted(value) { currentMuted = value; master.gain.setTargetAtTime(currentMuted ? 0 : currentVolume * .56, ctx.currentTime, .06); },

@@ -1,0 +1,122 @@
+[
+  {
+    "check": "root dry run is read-only",
+    "passed": true,
+    "details": "Active application: /workspace/scratch/a25254dc06e1/work/v72/verification/installer-fixtures/root-xtn4qz6p\nFiles to update: 24\nVerified nested copies to move outside the project: 0\nCheck passed. Add --apply to install."
+  },
+  {
+    "check": "root installation succeeds",
+    "passed": true,
+    "details": "Active application: /workspace/scratch/a25254dc06e1/work/v72/verification/installer-fixtures/root-xtn4qz6p\nFiles to update: 24\nVerified nested copies to move outside the project: 0\nAstra V72 installed. Backup: /workspace/scratch/a25254dc06e1/work/v72/verification/installer-fixtures/root-xtn4qz6p-astra72-backup-U7MQfN\nRun npm run build, then commit the updated active files AND the removal of the nested copy. Deploy through your existing project."
+  },
+  {
+    "check": "root every payload file verified",
+    "passed": true,
+    "details": "97 files"
+  },
+  {
+    "check": "root observatory AstralIcon.tsx",
+    "passed": true,
+    "details": ""
+  },
+  {
+    "check": "root observatory DeepSky.tsx",
+    "passed": true,
+    "details": ""
+  },
+  {
+    "check": "root observatory ConstellationArtwork.tsx",
+    "passed": true,
+    "details": ""
+  },
+  {
+    "check": "root observatory OrbitClock.ts",
+    "passed": true,
+    "details": ""
+  },
+  {
+    "check": "root preferences dependency present",
+    "passed": true,
+    "details": ""
+  },
+  {
+    "check": "root backup outside active project",
+    "passed": true,
+    "details": ""
+  },
+  {
+    "check": "root repeated install is idempotent",
+    "passed": true,
+    "details": "Active application: /workspace/scratch/a25254dc06e1/work/v72/verification/installer-fixtures/root-xtn4qz6p\nFiles to update: 0\nVerified nested copies to move outside the project: 0\nAlready current. Run npm run build."
+  },
+  {
+    "check": "src dry run is read-only",
+    "passed": true,
+    "details": "Active application: /workspace/scratch/a25254dc06e1/work/v72/verification/installer-fixtures/src-ayb7o_hj/src\nFiles to update: 24\nVerified nested copies to move outside the project: 0\nCheck passed. Add --apply to install."
+  },
+  {
+    "check": "src installation succeeds",
+    "passed": true,
+    "details": "Active application: /workspace/scratch/a25254dc06e1/work/v72/verification/installer-fixtures/src-ayb7o_hj/src\nFiles to update: 24\nVerified nested copies to move outside the project: 0\nAstra V72 installed. Backup: /workspace/scratch/a25254dc06e1/work/v72/verification/installer-fixtures/src-ayb7o_hj-astra72-backup-ApUHxR\nRun npm run build, then commit the updated active files AND the removal of the nested copy. Deploy through your existing project."
+  },
+  {
+    "check": "src every payload file verified",
+    "passed": true,
+    "details": "97 files"
+  },
+  {
+    "check": "src observatory AstralIcon.tsx",
+    "passed": true,
+    "details": ""
+  },
+  {
+    "check": "src observatory DeepSky.tsx",
+    "passed": true,
+    "details": ""
+  },
+  {
+    "check": "src observatory ConstellationArtwork.tsx",
+    "passed": true,
+    "details": ""
+  },
+  {
+    "check": "src observatory OrbitClock.ts",
+    "passed": true,
+    "details": ""
+  },
+  {
+    "check": "src preferences dependency present",
+    "passed": true,
+    "details": ""
+  },
+  {
+    "check": "src backup outside active project",
+    "passed": true,
+    "details": ""
+  },
+  {
+    "check": "src repeated install is idempotent",
+    "passed": true,
+    "details": "Active application: /workspace/scratch/a25254dc06e1/work/v72/verification/installer-fixtures/src-ayb7o_hj/src\nFiles to update: 0\nVerified nested copies to move outside the project: 0\nAlready current. Run npm run build."
+  },
+  {
+    "check": "unfamiliar active edit refuses all writes",
+    "passed": true,
+    "details": "Newer edits need a manual merge; nothing changed:\ncomponents/player/WishCinematic.tsx"
+  },
+  {
+    "check": "known nested V71 copy is preserved outside project",
+    "passed": true,
+    "details": "Active application: /workspace/scratch/a25254dc06e1/work/v72/verification/installer-fixtures/known-nested-q9szd41o\nFiles to update: 24\nVerified nested copies to move outside the project: 1\nAstra V72 installed. Backup: /workspace/scratch/a25254dc06e1/work/v72/verification/installer-fixtures/known-nested-q9szd41o-astra72-backup-wzO4RV\nRun npm run build, then commit the updated active files AND the removal of the nested copy. Deploy through your existing project."
+  },
+  {
+    "check": "unfamiliar nested source refuses all writes",
+    "passed": true,
+    "details": "Nested folder contains an unfamiliar edit. Nothing changed. Review or move it outside the project first: /workspace/scratch/a25254dc06e1/work/v72/verification/installer-fixtures/unknown-nested-3i0dxtoa/ancient-pulls/app/new-local-page.tsx"
+  },
+  {
+    "check": "mismatched alias refuses all writes",
+    "passed": true,
+    "details": "The @/ alias must point to the active app root. Nothing changed."
+  }
+]

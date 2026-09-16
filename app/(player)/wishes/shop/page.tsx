@@ -405,9 +405,9 @@ export default function WishShopPage() {
 
           <div className={styles.vaultCopy}>
             <p className={styles.vaultEyebrow}>Daily login constellation pass</p>
-            <h2 id="vault-pass-title">Nebu’s Vault of Stars</h2>
+            <h2 id="vault-pass-title">Astra’s Vault of Stars</h2>
             <p className={styles.vaultBody}>
-              While your pass is active, Nebu grants one free wish star on the
+              While your pass is active, Astra grants one free wish star on the
               first day you log in each day. Return tomorrow to receive the next.
             </p>
 
