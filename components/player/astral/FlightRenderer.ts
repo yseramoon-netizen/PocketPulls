@@ -395,7 +395,9 @@ export function loadAstraRig(url = '/ancient-pulls/wish/astral/astra-rig.png'): 
                 rigPromise = null;
             resolve(ok ? image : null);
         };
-        const timer = setTimeout(() => settle(false), 5000);
+        // A mobile connection can need more than five seconds for the atlas.
+        const timer = setTimeout(() => settle(false), 15000);
+        image.fetchPriority = 'high';
         image.onload = () => settle(true);
         image.onerror = () => settle(false);
         image.src = url;

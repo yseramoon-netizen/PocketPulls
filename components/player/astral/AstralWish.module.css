@@ -1,6 +1,8 @@
 .ceremony{--reveal:0;--card-y:45px;--card-rotate:-24deg;--card-scale:.76;position:fixed;inset:0;z-index:10000;isolation:isolate;overflow:auto;overscroll-behavior:contain;background:#030711;color:#e8eef8;font-family:var(--font-geist-sans,-apple-system),BlinkMacSystemFont,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased;min-height:100dvh;color-scheme:dark;outline:none}
-.canvas{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:-3}
-.vignette{position:fixed;inset:0;pointer-events:none;background:linear-gradient(180deg,rgba(2,5,12,.25),transparent 18%,transparent 76%,rgba(2,5,12,.6));z-index:-1}
+.canvas{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:0}
+.vignette{position:fixed;inset:0;pointer-events:none;background:linear-gradient(180deg,rgba(2,5,12,.25),transparent 18%,transparent 76%,rgba(2,5,12,.6));z-index:1}
+.ceremony>:not(.canvas):not(.vignette){z-index:2}.ceremony>.topbar{z-index:5}.result,.batchResult{position:relative}
+.replay{position:absolute;z-index:6!important;top:calc(5rem + env(safe-area-inset-top));right:clamp(1rem,4vw,3.8rem);min-height:44px;border:1px solid #c2ddff35;border-radius:999px;padding:.6rem 1rem;background:#0e1a2e;color:#d5e6fa;cursor:pointer;font:inherit;font-size:.8rem}.replay:focus-visible{outline:2px solid #c2ddff;outline-offset:4px}
 .topbar{position:absolute;top:0;left:0;right:0;display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:calc(1.6rem + env(safe-area-inset-top)) clamp(1.1rem,4vw,3.8rem) 1rem;z-index:5}
 .brand{display:flex;align-items:center;gap:.65rem;font-size:.75rem;font-weight:500;letter-spacing:.21em;color:#d1dcf0;white-space:nowrap}
 .brandMark{font-size:1.8rem;line-height:1;color:#c7dcf3;font-weight:300}

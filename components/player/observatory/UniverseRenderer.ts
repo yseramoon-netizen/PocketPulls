@@ -501,8 +501,53 @@ export function drawBlackHole(context:CanvasRenderingContext2D,point:ProjectedPo
   paintSingularity(context,point.x,point.y,radius,time,active);
 }
 
+/** Project a physical disk's two axes, so it foreshortens and turns edge-on with the camera. */
+export function projectGalaxyDisk(node:GalaxyNode,time:number,project:ReturnType<typeof createProjector>,measure:number) {
+  const position=resolveGalaxyPosition(node,time,false),centre=project(position);
+  const tilt=node.tilt, inclination=Math.acos(node.flatten), spin=time*.001*node.spin;
+  const a={x:Math.cos(tilt),y:Math.sin(tilt),z:0};
+  const b={x:-Math.sin(tilt)*Math.cos(inclination),y:Math.cos(tilt)*Math.cos(inclination),z:Math.sin(inclination)};
+  const axes=[{x:a.x*Math.cos(spin)+b.x*Math.sin(spin),y:a.y*Math.cos(spin)+b.y*Math.sin(spin),z:a.z*Math.cos(spin)+b.z*Math.sin(spin)},
+    {x:b.x*Math.cos(spin)-a.x*Math.sin(spin),y:b.y*Math.cos(spin)-a.y*Math.sin(spin),z:b.z*Math.cos(spin)-a.z*Math.sin(spin)}];
+  const unit=.001,normalise=unit*measure*.47*centre.scale;
+  return axes.map(axis=>{const p=project({x:position.x+axis.x*unit,y:position.y+axis.y*unit,z:position.z+axis.z*unit});return{x:(p.x-centre.x)/normalise,y:(p.y-centre.y)/normalise};});
+}
+
+/** A spherical horizon inside a world-space accretion disk, with front/back occlusion. */
+export function drawOrbitingBlackHole(c:CanvasRenderingContext2D,point:ProjectedPoint,radius:number,time:number,active:boolean,project:ReturnType<typeof createProjector>,measure:number) {
+  const worldRadius=radius/(measure*.47*point.scale),inclination=1.35;
+  const diskPoint=(angle:number,r:number)=>project({x:Math.cos(angle)*r,y:Math.sin(angle)*r*Math.cos(inclination),z:Math.sin(angle)*r*Math.sin(inclination)});
+  c.save();
+  const halo=c.createRadialGradient(point.x,point.y,radius*.55,point.x,point.y,radius*2.4);
+  halo.addColorStop(0,active?'#cce7ff35':'#93bedb20');halo.addColorStop(.45,'#829fb811');halo.addColorStop(1,'#829fb800');
+  c.fillStyle=halo;c.fillRect(point.x-radius*2.4,point.y-radius*2.4,radius*4.8,radius*4.8);
+  const disk=(front:boolean)=>{
+    c.globalCompositeOperation='lighter';
+    for(let band=0;band<18;band++){
+      c.beginPath();let connected=false;
+      for(let i=0;i<=96;i++){
+        const p=diskPoint(i/96*TAU,worldRadius*(.98+band*.059));
+        if((p.depth>=point.depth)!==front){connected=false;continue;}
+        if(connected)c.lineTo(p.x,p.y);else c.moveTo(p.x,p.y);connected=true;
+      }
+      c.strokeStyle=band%4?'#ead2a8':'#a6cee8';c.globalAlpha=(1-band/20)*.26;c.lineWidth=Math.max(.6,radius*.021);c.stroke();
+    }
+    for(let i=0;i<64;i++){
+      const a=i*2.399+time*.00016*(1+(i%5)*.08),r=worldRadius*(1+(i%17)*.06),p=diskPoint(a,r);
+      if((p.depth>=point.depth)!==front)continue;
+      const next=diskPoint(a+.035,r);c.globalAlpha=.18+(i%4)*.09;c.strokeStyle=i%3?'#ffe3b1':'#c0eaff';c.lineWidth=1;c.beginPath();c.moveTo(p.x,p.y);c.lineTo(next.x,next.y);c.stroke();
+    }
+  };
+  disk(false);
+  c.globalCompositeOperation='source-over';c.globalAlpha=1;c.fillStyle='#010309';c.beginPath();c.arc(point.x,point.y,radius*.78,0,TAU);c.fill();
+  const edge=c.createLinearGradient(point.x-radius,point.y,point.x+radius,point.y);
+  edge.addColorStop(0,'#8ebde599');edge.addColorStop(.55,'#fff4d9');edge.addColorStop(1,'#d4aa7866');
+  c.strokeStyle=edge;c.lineWidth=Math.max(1,radius*.022);c.stroke();
+  disk(true);c.restore();
+}
+
 /** Paint detailed spiral textures once; orbit frames reuse the same bounded sprite cache. */
-export function drawGalaxyCached(context: CanvasRenderingContext2D, node: GalaxyNode, projected: ProjectedPoint, radius: number, time: number, selected: boolean, hovered: boolean, reducedMotion: boolean, sprites: Map<string, HTMLCanvasElement>, compact: boolean) {
+export function drawGalaxyCached(context: CanvasRenderingContext2D, node: GalaxyNode, projected: ProjectedPoint, radius: number, time: number, selected: boolean, hovered: boolean, reducedMotion: boolean, sprites: Map<string, HTMLCanvasElement>, compact: boolean, axes?:{x:number;y:number}[]) {
   const key = node.player.userId + (compact ? ":compact" : ":full");
   let sprite = sprites.get(key);
   if (!sprite) {
@@ -511,13 +556,14 @@ export function drawGalaxyCached(context: CanvasRenderingContext2D, node: Galaxy
     sprite.width = pixels; sprite.height = pixels;
     const painter = sprite.getContext("2d");
     if (!painter) { drawGalaxy(context,node,projected,radius,time,selected,hovered,reducedMotion); return; }
-    const neutral = {...node, player:{...node.player,rank:100,isCurrentUser:false}};
+    const neutral = {...node, tilt:0, flatten:.92, player:{...node.player,rank:100,isCurrentUser:false}};
     drawGalaxy(painter,neutral,{x:pixels/2,y:pixels/2,scale:1,depth:0},pixels/3.4,0,false,false,true);
     sprites.set(key,sprite);
   }
   context.save();
   context.translate(projected.x,projected.y);
-  context.rotate(time*.001*node.spin);
+  if(axes)context.transform(axes[0].x,axes[0].y,axes[1].x,axes[1].y,0,0);
+  else {context.rotate(node.tilt+time*.001*node.spin);context.scale(1,node.flatten);}
   context.globalAlpha=selected||hovered?1:.9;
   context.drawImage(sprite,-radius*1.7,-radius*1.7,radius*3.4,radius*3.4);
   context.restore();
@@ -536,29 +582,30 @@ export const cameraDamping=(dt:number)=>1-Math.exp(-Math.max(0,Math.min(80,dt))/
 export function paintUniverseFrame(context:CanvasRenderingContext2D,width:number,height:number,camera:Camera,time:number,nodes:readonly GalaxyNode[],pharaoh:LeaderboardPlayer|null,selectedId:string|null,hoveredId:string|null,reduced:boolean,sprites:Map<string,HTMLCanvasElement>,compact=width<768) {
   drawBackground(context,width,height,camera,time,reduced);
   drawOrbitLanes(context,camera,width,height,time,reduced);
-  const measure=Math.min(width,height),project=createProjector(camera,width,height),centre=project({x:0,y:0,z:.18});
+  const measure=Math.min(width,height),project=createProjector(camera,width,height),centre=project({x:0,y:0,z:0});
   const holeRadius=clamp(measure*.105*centre.scale,compact?32:64,compact?76:126);
   const active=!!pharaoh&&(selectedId===pharaoh.userId||hoveredId===pharaoh.userId);
   drawGalaxyTrails(context,nodes,project,measure,time,selectedId,hoveredId,reduced);
   const projected=nodes.map(node=>({node,point:project(resolveGalaxyPosition(node,time,reduced))})).sort((a,b)=>a.point.depth-b.point.depth);
   const hits:GalaxyHit[]=[];let holeDrawn=false,prepared=0,pendingSprites=0;
   for(const {node,point} of projected){
-    if(!holeDrawn&&point.depth>=centre.depth){drawBlackHole(context,centre,holeRadius,time,active,reduced);holeDrawn=true;}
+    if(!holeDrawn&&point.depth>=centre.depth){drawOrbitingBlackHole(context,centre,holeRadius,time,active,project,measure);holeDrawn=true;}
     const radius=clamp(node.size*measure*point.scale,compact?5.2:5.8,compact?40:70);
     if(point.x < -radius*2 || point.x>width+radius*2 || point.y < -radius*2 || point.y>height+radius*2)continue;
     const cached=sprites.has(node.player.userId+(compact?':compact':':full'));
     // Spread first-load texture work across frames, including in reduced-motion mode.
     if(cached||prepared<4){
-      drawGalaxyCached(context,node,point,radius,time,selectedId===node.player.userId,hoveredId===node.player.userId,reduced,sprites,compact);
+      drawGalaxyCached(context,node,point,radius,time,selectedId===node.player.userId,hoveredId===node.player.userId,reduced,sprites,compact,projectGalaxyDisk(node,time,project,measure));
       if(!cached)prepared++;
     }else{
       pendingSprites++;
       context.fillStyle=hsla(node.hue,30,76,.5);
       context.beginPath();context.ellipse(point.x,point.y,2,1,node.tilt,0,TAU);context.fill();
     }
-    hits.push({player:node.player,x:point.x,y:point.y,radius:Math.max(compact?18:13,radius*1.35),depth:point.depth});
+    if(point.depth>=centre.depth||Math.hypot(point.x-centre.x,point.y-centre.y)>holeRadius*.78)
+      hits.push({player:node.player,x:point.x,y:point.y,radius:Math.max(compact?18:13,radius*1.35),depth:point.depth});
   }
-  if(!holeDrawn)drawBlackHole(context,centre,holeRadius,time,active,reduced);
-  if(pharaoh)hits.push({player:pharaoh,x:centre.x,y:centre.y,radius:holeRadius,depth:centre.depth+2});
+  if(!holeDrawn)drawOrbitingBlackHole(context,centre,holeRadius,time,active,project,measure);
+  if(pharaoh)hits.push({player:pharaoh,x:centre.x,y:centre.y,radius:holeRadius*.8,depth:centre.depth});
   return {hits:hits.sort((a,b)=>b.depth-a.depth),centre,holeRadius,pendingSprites};
 }

@@ -299,9 +299,6 @@ export default function LeaderboardPage() {
   }, [queueRender]);
 
   const handlePointerMove = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
-    const bounds = event.currentTarget.getBoundingClientRect();
-    const localX = event.clientX - bounds.left;
-    const localY = event.clientY - bounds.top;
     const pointer = pointerRef.current;
     if(gesturePointsRef.current.has(event.pointerId))gesturePointsRef.current.set(event.pointerId,{x:event.clientX,y:event.clientY});
     if(gesturePointsRef.current.size===2){
@@ -315,17 +312,12 @@ export default function LeaderboardPage() {
       const deltaY = event.clientY - pointer.y;
       dragDistanceRef.current += Math.hypot(deltaX, deltaY);
       if (dragDistanceRef.current > 5) pointer.moved = true;
-      cameraTargetRef.current.yaw = clamp(cameraTargetRef.current.yaw + deltaX * 0.0017, -0.38, 0.38);
-      cameraTargetRef.current.pitch = clamp(cameraTargetRef.current.pitch - deltaY * 0.00145, -0.26, 0.26);
+      cameraTargetRef.current.yaw += deltaX * 0.006;
+      cameraTargetRef.current.pitch -= deltaY * 0.006;
       pointer.x = event.clientX;
       pointer.y = event.clientY;
       setHoverLabel(null);
     } else if (event.pointerType !== "touch") {
-      const selected = selectedRef.current;
-      if (!selected) {
-        cameraTargetRef.current.yaw = ((localX / Math.max(1, bounds.width)) - 0.5) * 0.085;
-        cameraTargetRef.current.pitch = -((localY / Math.max(1, bounds.height)) - 0.5) * 0.06;
-      }
       const hit = findHit(event.clientX, event.clientY);
       if (hoveredRef.current?.userId !== hit?.player.userId) {
         hoveredRef.current = hit?.player ?? null;
@@ -349,8 +341,8 @@ export default function LeaderboardPage() {
   const handlePointerUp = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
     const pointer = pointerRef.current;
     gesturePointsRef.current.delete(event.pointerId);pinchRef.current=null;
-    if(gesturePointsRef.current.size){const next=[...gesturePointsRef.current.values()][0];pointer.x=next.x;pointer.y=next.y;pointer.moved=true;return;}
     if(event.currentTarget.hasPointerCapture(event.pointerId))event.currentTarget.releasePointerCapture(event.pointerId);
+    if(gesturePointsRef.current.size){const next=[...gesturePointsRef.current.values()][0];pointer.x=next.x;pointer.y=next.y;pointer.moved=true;return;}
     if (!pointer.moved) {
       const hit = findHit(event.clientX, event.clientY);
       if (hit) selectPlayer(hit.player);
@@ -363,8 +355,8 @@ export default function LeaderboardPage() {
     event.preventDefault();
     cameraTargetRef.current.zoom = clamp(
       cameraTargetRef.current.zoom * (event.deltaY > 0 ? 0.92 : 1.08),
-      0.74,
-      1.58,
+      0.65,
+      2.2,
     );
     queueRender();
   }, [queueRender]);
@@ -393,7 +385,7 @@ export default function LeaderboardPage() {
         <div className="ap-panel-heading"><h2>The ranked universe</h2><button className="ap-scene-button" onClick={()=>setInfoPanelOpen(false)} aria-label="Close information"><AstralIcon name="close"/></button></div>
         <p className={styles.infoDescription}>The Pharaoh is the black hole at the centre. Higher-ranked collections form larger galaxies in closer orbits.</p>
         <div className={styles.statsGrid}><RankStat label="Galaxies" value={loading?"—":formatWholeNumber(players.length)}/><RankStat label="Your rank" value={loading?"—":currentPlayer?`#${currentPlayer.rank}`:"Outside top 100"}/><RankStat label="Cards" value={formatWholeNumber(communityCards)}/><RankStat label="Wishes" value={formatWholeNumber(communityWishes)}/></div>
-        <p className={styles.infoDescription}>Select a galaxy to explore its collection. Drag to rotate. Scroll or pinch to zoom.</p>
+        <p className={styles.infoDescription}>Select a galaxy to explore its collection. Drag in any direction to orbit through 360°. Scroll or pinch to zoom. Reset returns to the original view.</p>
         <button className="ap-scene-button" disabled={refreshing} onClick={()=>void loadLeaderboard(true)}><AstralIcon name="reset"/>{refreshing?"Refreshing…":"Refresh ranks"}</button>
       </aside>:null}
       {errorMessage ? (
@@ -412,8 +404,8 @@ export default function LeaderboardPage() {
           const camera=cameraTargetRef.current;
           if(event.key==='ArrowLeft')camera.yaw-=.12;
           else if(event.key==='ArrowRight')camera.yaw+=.12;
-          else if(event.key==='ArrowUp')camera.pitch=clamp(camera.pitch-.09,-.55,.55);
-          else if(event.key==='ArrowDown')camera.pitch=clamp(camera.pitch+.09,-.55,.55);
+          else if(event.key==='ArrowUp')camera.pitch-=.12;
+          else if(event.key==='ArrowDown')camera.pitch+=.12;
           else if(event.key==='+'||event.key==='=')camera.zoom=clamp(camera.zoom*1.15,.65,2.2);
           else if(event.key==='-')camera.zoom=clamp(camera.zoom*.85,.65,2.2);
           else if(event.key==='0'||event.key==='Escape')selectPlayer(null);

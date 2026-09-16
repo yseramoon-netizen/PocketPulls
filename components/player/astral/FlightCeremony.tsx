@@ -22,7 +22,7 @@ function initialMute() {
         return true;
     }
 }
-type Stage = 'loading' | 'playing' | 'ready' | 'placing';
+type Stage = 'loading' | 'playing' | 'ready' | 'placing' | 'error';
 export default function FlightCeremony(props: WishCinematicProps) {
     const rewards = useMemo(() => props.cards?.length ? props.cards : props.card ? [props.card] : [], [props.cards, props.card]);
     if (!props.open || !rewards.length)
@@ -34,6 +34,7 @@ function Ceremony({ rewards, onClose, onFinished, onPlace, busy = false, actionE
 }) {
     const mounted = useSyncExternalStore(subscribe, () => true, () => false), preferences = usePlayerPreferences();
     const [stage, setStage] = useState<Stage>('loading'), [muted, setMuted] = useState(initialMute), [paused, setPaused] = useState(false), [still, setStill] = useState(false), [canSkip, setCanSkip] = useState(false), [caption, setCaption] = useState('');
+    const [attempt, setAttempt] = useState(0), [explicitPlayback, setExplicitPlayback] = useState(false);
     const canvas = useRef<HTMLCanvasElement>(null), renderer = useRef<FlightRenderer | null>(null), clock = useRef(new CeremonyClock()), audio = useRef<WishAudioSession | null>(null), frame = useRef(0);
     const phase = useRef<Stage>('loading'), finished = useRef(false), manualPause = useRef(false), tickRef = useRef<(now: number) => void>(() => {
     }), audioRef = useRef(() => {
@@ -41,7 +42,9 @@ function Ceremony({ rewards, onClose, onFinished, onPlace, busy = false, actionE
     const configs = useMemo(() => rewards.map(c => getWishRevealConfig(c.rarity, c.marketValue)), [rewards]);
     const options = useMemo<AstralOptions[]>(() => configs.map(c => ({ tier: c.tier, blackHole: c.blackHole, primary: c.primary, secondary: c.secondary })), [configs]);
     const strongest = useMemo(() => configs.reduce((a, b) => b.tier > a.tier || b.blackHole ? b : a, configs[0]), [configs]);
-    const reduced = respectPreferences && preferences.reducedMotion, skip = useRef(respectPreferences && !forceFullSequence && preferences.skipPullCinematic && preferences.cinematicSeen).current;
+    const reduced = !explicitPlayback && respectPreferences && preferences.reducedMotion;
+    const savedSkip = useRef(respectPreferences && !forceFullSequence && preferences.skipPullCinematic && preferences.cinematicSeen).current;
+    const skip = !explicitPlayback && savedSkip;
     const announceReady = useEffectEvent(() => {
         phase.current = 'ready';
         setStage('ready');
@@ -120,7 +123,20 @@ function Ceremony({ rewards, onClose, onFinished, onPlace, busy = false, actionE
     useEffect(() => {
         if (!mounted || !canvas.current)
             return;
+        phase.current = 'loading';
+        setStage('loading');
+        setStill(false);
+        setCanSkip(false);
+        setCaption('');
+        clock.current.seek(0);
         let disposed = false, previous: number | null = null, observer: ResizeObserver | null = null, lastCaption = '', unlocked = false;
+        const fail = () => {
+            audio.current?.stop();
+            phase.current = 'error';
+            setStage('error');
+            setStill(true);
+            setCanSkip(true);
+        };
         const adaptive = new AdaptiveResolution(prefs.current.lowVisualEffects || prefs.current.dataSaver);
         const playAudio = () => {
             audio.current?.stop();
@@ -132,6 +148,11 @@ function Ceremony({ rewards, onClose, onFinished, onPlace, busy = false, actionE
             if (disposed || document.hidden || manualPause.current)
                 return;
             const ms = clock.current.tick(now);
+            if (phase.current !== 'placing' && (ms >= flightDuration(rewards.length) || (reduced && ms >= 650) || skip)) {
+                announceReady();
+                return;
+            }
+            try {
             if (phase.current === 'placing') {
                 const s = renderer.current?.renderArrival(ms, demoTargets);
                 if (s?.done || ms >= FLIGHT_TIMING.arrival) {
@@ -149,10 +170,10 @@ function Ceremony({ rewards, onClose, onFinished, onPlace, busy = false, actionE
                     unlocked = true;
                     setCanSkip(true);
                 }
-                if (ms >= flightDuration(rewards.length) || (reduced && ms >= 650) || skip) {
-                    announceReady();
-                    return;
-                }
+            }
+            } catch {
+                fail();
+                return;
             }
             if (previous !== null && adaptive.observe(now - previous))
                 renderer.current?.resize(adaptive.scale);
@@ -184,15 +205,19 @@ function Ceremony({ rewards, onClose, onFinished, onPlace, busy = false, actionE
                     observer.observe(canvas.current);
                 }
                 catch {
-                    setStill(true);
+                    fail();
+                    return;
                 }
             }
-            else
+            else if (!reduced && !skip) {
+                fail();
+                return;
+            } else
                 setStill(true);
             phase.current = 'playing';
             setStage('playing');
             clock.current.setPaused(document.hidden || manualPause.current);
-            if ((!renderer.current && !reduced) || skip || finished.current)
+            if (skip)
                 clock.current.seek(flightDuration(rewards.length));
             if (image && !document.hidden)
                 playAudio();
@@ -207,7 +232,7 @@ function Ceremony({ rewards, onClose, onFinished, onPlace, busy = false, actionE
             renderer.current?.dispose();
             renderer.current = null;
         };
-    }, [mounted, options, rewards.length, reduced, skip, close]);
+    }, [mounted, options, rewards.length, reduced, skip, close, attempt]);
     useEffect(() => {
         for (const c of rewards)
             if (c.imageUrl) {
@@ -247,8 +272,17 @@ function Ceremony({ rewards, onClose, onFinished, onPlace, busy = false, actionE
     if (!mounted)
         return null;
     const ready = stage === 'ready', batch = rewards.length > 1, issue = cosmicBinderIssueNumber ?? cosmicIssueNumber;
+    const replay = () => {
+        setExplicitPlayback(true);
+        placementSent.current = false;
+        manualPause.current = false;
+        setPaused(false);
+        setAttempt(value => value + 1);
+    };
     return createPortal(<div ref={modal} className={`${styles.ceremony} ${still ? styles.still : ''}`} style={{ '--rarity': strongest.primary, '--rarity-secondary': strongest.secondary, '--reveal': ready ? 1 : 0, '--card-y': '0px', '--card-rotate': '0deg', '--card-scale': 1 } as CSSProperties} role="dialog" aria-modal="true" aria-label={ready ? `${rewards.length} wish${batch ? 'es' : ''} revealed` : 'Astra wish ceremony'} tabIndex={-1} data-stage={stage} data-paused={paused}>
  <canvas ref={canvas} className={styles.canvas} aria-hidden="true"/><div className={styles.vignette}/>
+ {stage === 'error' && <div className={styles.loading} role="alert"><span>The animation could not load.</span><span>Your cards are safe. Retry without spending another wish.</span><button className={styles.primary} onClick={() => setAttempt(value => value + 1)}>Retry animation</button><button className={styles.secondary} onClick={revealNow}>Show my cards</button></div>}
+ {ready && <button className={styles.replay} onClick={replay}>Play animation again</button>}
  <header className={styles.topbar}><span className={styles.brand}><span className={styles.brandMark}>✧</span> ANCIENT PULLS</span><div className={styles.controls}>{!ready && stage !== 'loading' && !reduced && <button className={styles.iconButton} aria-label={paused ? 'Resume animation' : 'Pause animation'} onClick={togglePause}>{paused ? '▷' : 'Ⅱ'}</button>}<button className={styles.iconButton} aria-label={muted ? 'Turn sound on' : 'Mute sound'} aria-pressed={!muted} onClick={() => void toggleSound()}><SoundIcon muted={muted}/></button>{!ready && allowSkip && <button className={styles.skip} disabled={!canSkip} onClick={revealNow}>{stage === 'placing' ? 'Finish' : 'Reveal'} ↗</button>}</div></header>
  {stage === 'loading' && <div className={styles.loading} role="status"><span className={styles.loadingStar}>✧</span><span>Gathering starlight</span></div>}{caption && !ready && !paused && <p className={styles.flightCaption}>{caption}</p>}{paused && <p className={styles.pauseNotice}>Your stars can wait.</p>}
  <p className={styles.srOnly} role="status" aria-live="polite">{ready ? `${rewards.map((c, i) => `${c.name}, ${configs[i].label}`).join('. ')}. Continue to place your stars.` : paused ? 'Animation paused.' : stage === 'placing' ? 'Astra is placing your stars.' : 'Astra is following your wishes.'}</p>

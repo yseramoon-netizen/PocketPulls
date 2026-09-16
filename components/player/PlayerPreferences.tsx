@@ -27,6 +27,7 @@ type SaveState = "idle" | "saving" | "saved" | "local";
 export default function PlayerPreferencesPanel() {
   const router = useRouter();
   const pathname = usePathname();
+  const previousPathname = useRef(pathname);
   const closeButtonRef = useRef<HTMLButtonElement | null>(null);
   const mountedRef = useRef(false);
   const revisionRef = useRef(0);
@@ -148,6 +149,8 @@ export default function PlayerPreferencesPanel() {
   }, [savePreferences]);
 
   useEffect(() => {
+    if (previousPathname.current === pathname) return;
+    previousPathname.current = pathname;
     const frame = window.requestAnimationFrame(() => setOpen(false));
     return () => window.cancelAnimationFrame(frame);
   }, [pathname]);
@@ -161,7 +164,7 @@ export default function PlayerPreferencesPanel() {
       : "Saved on this device";
 
   const panel = open ? (
-    <div className="fixed inset-0 z-[165]">
+    <div className="fixed inset-0 z-[1100]" onClick={event => event.stopPropagation()}>
       <button
         type="button"
         aria-label="Close player preferences"
@@ -285,7 +288,7 @@ export default function PlayerPreferencesPanel() {
               />
               <ToggleRow
                 title="Mobile data-saving mode"
-                description="Uses lighter backgrounds and immediate card reveals."
+                description="Uses lighter backgrounds while keeping the pull animation."
                 checked={preferences.dataSaver}
                 onChange={(dataSaver) => updatePreferences({ dataSaver })}
               />
