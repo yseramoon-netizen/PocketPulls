@@ -34,6 +34,7 @@ export default function UnknownPullsBackdrop() {
   }, []);
 
   if (
+    pathname === "/observatory" ||
     pathname === "/constellation" ||
     pathname === "/leaderboard" ||
     pathname === "/wishes/preview" ||

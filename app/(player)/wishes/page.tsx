@@ -634,7 +634,7 @@ export default function WishesPage() {
   const placeWishes=useCallback((cards:readonly WishRevealCard[])=>{
     const ids=readArrivalIds("?arrive="+encodeURIComponent(cards.map(c=>String(c.id??"")).join(",")));
     if(batchReveal)completeWishBatch(batchReveal.userId,batchReveal.id);
-    router.push(ids.length?"/constellation?arrive="+encodeURIComponent(ids.join(",")):"/constellation");
+    router.push(ids.length?"/observatory?arrive="+encodeURIComponent(ids.join(",")):"/observatory");
   },[batchReveal,router]);
 
   const shippingProgress = useMemo(() => {
@@ -1004,7 +1004,7 @@ function QuickLinks() {
       detail: "See every card you own",
     },
     {
-      href: "/leaderboard",
+      href: "/observatory?view=universe",
       title: "Leaderboard",
       detail: "Compare trainer scores",
     },

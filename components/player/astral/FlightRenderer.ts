@@ -187,7 +187,7 @@ export class FlightRenderer {
             c.lineTo(px + Math.sin(a) * 6, py - Math.cos(a) * 4);
             c.stroke();
         }
-        const size = u * .42 * s.pose.scale * (w / h < .72 ? 1.25 : 1);
+        const size = u * .30 * s.pose.scale * (w / h < .72 ? 1.1 : 1);
         for (const side of [-1, 1]) {
             const a = side < 0 ? s.pose.leftArm : s.pose.rightArm, hx = s.pose.x * w + (side * 14 - Math.sin(a) * 21) / 100 * size, hy = s.pose.y * h + (4 + Math.cos(a) * 21) / 100 * size;
             c.strokeStyle = '#e0d7ad';
@@ -255,7 +255,7 @@ export class FlightRenderer {
         const count = options.length, s = sampleFlight(ms, count), colours = visibleOptions(ms, options), c = this.context, u = this.unit;
         // Keep the ten-wish seed above the crown at every viewport aspect ratio.
         if (count === 10)
-            s.seed.y = s.pose.y - (u / this.height) * (this.width / this.height < .72 ? .34 : .28);
+            s.seed.y = s.pose.y - (u / this.height) * (this.width / this.height < .72 ? .24 : .20);
         this.space(s.time, s.ascent, s.time * .002 + (count === 10 ? ascentDistance(s.time) * .16 : 0));
         this.trail(ms, count, 1 - s.cast);
         this.disk(s, false);
@@ -267,7 +267,7 @@ export class FlightRenderer {
             c.restore();
         }
         const reflected=colours[0].primary;
-        this.rig.draw(c, s.pose, s.time, u * .42 * s.pose.scale * (this.width / this.height < .72 ? 1.25 : 1), this.width, this.height, {colour:reflected,amount:s.reveal*.27+s.pose.charge*.09});
+        this.rig.draw(c, s.pose, s.time, u * .30 * s.pose.scale * (this.width / this.height < .72 ? 1.1 : 1), this.width, this.height, {colour:reflected,amount:s.reveal*.27+s.pose.charge*.09});
         this.disk(s, true);
         if (count === 10 && s.reveal > 0) {
             const portrait = this.width / this.height < .72, orbit = u * .4 * ease(s.reveal), cy = s.pose.y * this.height - u * .075;
@@ -343,7 +343,7 @@ export class FlightRenderer {
             }
             c.globalAlpha = 1 - a.fade;
         }
-        this.rig.draw(c, a.pose, ms / 1000, u * .42 * a.pose.scale, this.width, this.height);
+        this.rig.draw(c, a.pose, ms / 1000, u * .30 * a.pose.scale, this.width, this.height);
         for (let i = 0; i < targets.length; i++) {
             const t = targets[i], p = a.starProgress(i), angle = i / Math.max(1, targets.length) * TAU + ms * .001, sx = a.pose.x + Math.cos(angle) * .085, sy = a.pose.y - .12 + Math.sin(angle) * .055, [x, y] = curve([[sx, sy], [lerp(sx, t.x, .38), Math.min(sy, t.y) - .12], [t.x, t.y]], ease(p));
             if (p > .01 && p < .995) {

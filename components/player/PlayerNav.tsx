@@ -13,10 +13,9 @@ const Preferences = dynamic(() => import("./PlayerPreferences"), { ssr: false })
 const Notifications = dynamic(() => import("./NotificationCentre"), { ssr: false });
 const primary: {href:string;label:string;short:string;icon:AstralIconName}[] = [
  {href:"/hq",label:"Overview",short:"Home",icon:"home"},
- {href:"/constellation",label:"Constellation",short:"Stars",icon:"constellation"},
+ {href:"/observatory",label:"Observatory",short:"Observatory",icon:"constellation"},
  {href:"/wishes",label:"Wishes",short:"Wish",icon:"star"},
  {href:"/collection",label:"Binder",short:"Binder",icon:"binder"},
- {href:"/leaderboard",label:"Universe",short:"Ranks",icon:"universe"},
 ];
 const secondary = [
  {href:"/catalogue",label:"Catalogue",detail:"Explore every card",icon:"catalogue" as const},

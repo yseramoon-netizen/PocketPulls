@@ -1,12 +1,13 @@
 import { toNumber, toWholeNumber } from "@/lib/player/format";
 import { paintSingularity, paintObservatorySky } from "./SkyArt";
+import { paintBlackHoleShader } from "./BlackHoleRenderer";
 
 export const MAX_VISIBLE_RANKS = 100;
 export const MAX_VISIBLE_GALAXIES = MAX_VISIBLE_RANKS - 1;
 export const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
 export const TAU = Math.PI * 2;
-export const INNER_ORBIT_SPEED = TAU / 120;
-export const OUTER_ORBIT_SPEED = TAU / 260;
+export const INNER_ORBIT_SPEED = TAU / 90;
+export const OUTER_ORBIT_SPEED = TAU / 210;
 
 export type LeaderboardRow = {
   rank_position: number | string | null;
@@ -192,30 +193,47 @@ export function buildGalaxyNodes(players: readonly LeaderboardPlayer[]): GalaxyN
     .slice(0, MAX_VISIBLE_GALAXIES);
   const maximumCards = Math.max(1, ...galaxyPlayers.map((player) => player.totalCards));
   let previousSize = 0.108;
+  const placed:{x:number;y:number;size:number}[]=[];
 
   return galaxyPlayers.map((player, index) => {
     const progress = clamp((player.rank - 2) / (MAX_VISIBLE_RANKS - 2), 0, 1);
     const rankPower = Math.pow(1 - progress, 1.6);
     const cardPower = Math.sqrt(player.totalCards / maximumCards);
-    const requestedSize = 0.018 + rankPower * 0.049 + cardPower * 0.012;
-    const size = clamp(Math.min(previousSize - 0.00042, requestedSize), 0.018, 0.105);
+    const requestedSize = 0.018 + rankPower * 0.035 + cardPower * 0.009;
+    const size = clamp(Math.min(previousSize - 0.00038, requestedSize), 0.018, 0.092);
     previousSize = size;
 
     const seed = hashString(player.userId + ":" + player.rank);
     const random = seededRandom(seed);
-    const angle = index * GOLDEN_ANGLE + (random() - 0.5) * 0.09;
-    const orbit = 0.37 + Math.pow(progress, 0.72) * 0.78;
-    const orbitInclination = (random() - 0.5) * 0.46;
-    const orbitEccentricity = 1.06 + random() * 0.16;
-    const orbitFlatten = 0.56 + random() * 0.13;
+    let angle = index * GOLDEN_ANGLE + (random() - 0.5) * 0.09;
+    const orbit = 0.74 + Math.pow(progress, 0.72) * 0.64;
+    const orbitInclination = (random() - 0.5) * 0.64;
+    const orbitEccentricity = 1.02 + random() * 0.12;
+    const orbitFlatten = 0.64 + random() * 0.14;
+    const positionAt=(a:number)=>{
+      const x=Math.cos(a)*orbit*orbitEccentricity,y=Math.sin(a)*orbit*orbitFlatten;
+      return {x:x*Math.cos(orbitInclination)-y*Math.sin(orbitInclination),y:x*Math.sin(orbitInclination)+y*Math.cos(orbitInclination)};
+    };
+    // Distribute the initial view around already placed, larger galaxies. This is
+    // computed once, leaving each galaxy free to follow its continuous 3D orbit.
+    if(placed.length){
+      let best=-Infinity,chosen=angle;
+      for(let attempt=0;attempt<48;attempt++){
+        const candidate=angle+attempt*GOLDEN_ANGLE,point=positionAt(candidate);
+        const clearance=Math.min(...placed.map(other=>Math.hypot(point.x-other.x,(point.y-other.y)*1.25)/(2.05*(size+other.size)+.025)));
+        if(clearance>best){best=clearance;chosen=candidate;}
+      }
+      angle=chosen;
+    }
     const orbitX = Math.cos(angle) * orbit * orbitEccentricity;
     const orbitY = Math.sin(angle) * orbit * orbitFlatten;
+    placed.push({...positionAt(angle),size});
 
     return {
       player,
       x: orbitX * Math.cos(orbitInclination) - orbitY * Math.sin(orbitInclination),
       y: orbitX * Math.sin(orbitInclination) + orbitY * Math.cos(orbitInclination),
-      z: 0.03 + (random() - 0.5) * 0.24,
+      z: 0.03 + (random() - 0.5) * 0.32,
       orbitAngle: angle,
       orbitRadius: orbit,
       orbitSpeed: lerp(INNER_ORBIT_SPEED, OUTER_ORBIT_SPEED, Math.pow(progress, 0.72)),
@@ -228,7 +246,7 @@ export function buildGalaxyNodes(players: readonly LeaderboardPlayer[]): GalaxyN
       hue: [38, 202, 212, 222, 35, 195][seed % 6],
       tilt: (random() - 0.5) * 1.2,
       flatten: 0.34 + random() * 0.23,
-      spin: (random() > 0.5 ? 1 : -1) * (0.025 + random() * 0.038),
+      spin: (random() > 0.5 ? 1 : -1) * (0.045 + random() * 0.062),
       particles: buildGalaxyParticles(seed ^ 0xa57ea, player.rank),
     };
   });
@@ -298,7 +316,8 @@ export function createProjector(
     const depth = worldY * sinPitch + yawZ * cosPitch;
     const perspective = 2.9 / Math.max(1.45, 2.9 - depth);
     // Fit the full orbital array in portrait without changing saved zoom levels.
-    const scale = perspective * camera.zoom * (width / height < .8 ? .72 : 1);
+    const viewportFit = lerp(.60, 1, clamp((width / height - .65) / .75, 0, 1));
+    const scale = perspective * camera.zoom * viewportFit;
 
     return {
       x: width / 2 + yawX * measure * 0.47 * scale,
@@ -618,8 +637,11 @@ function blackHoleTexture(bucket:number):HTMLCanvasElement {
   BLACK_HOLE_TEXTURES.set(bucket,canvas);return canvas;
 }
 
-/** Cached lensed light plus live accretion flow; the disk follows the 3D camera. */
-export function drawOrbitingBlackHole(c:CanvasRenderingContext2D,point:ProjectedPoint,radius:number,time:number,active:boolean,project:ReturnType<typeof createProjector>,measure:number) {
+/** A live GPU accretion flow, with a Canvas fallback when WebGL is unavailable. */
+export function drawOrbitingBlackHole(c:CanvasRenderingContext2D,point:ProjectedPoint,radius:number,time:number,active:boolean,project:ReturnType<typeof createProjector>,measure:number,camera?:Camera) {
+  const extent=radius*3.6,transform=c.getTransform(),width=c.canvas.width/Math.max(.01,transform.a),height=c.canvas.height/Math.max(.01,transform.d);
+  if(point.x+extent<0||point.y+extent<0||point.x-extent>width||point.y-extent>height)return;
+  if(camera&&paintBlackHoleShader(c,point.x,point.y,radius,time,camera))return;
   const view=blackHoleView(project),bucket=view.flatten*24,lo=Math.floor(bucket),hi=Math.min(24,lo+1),blend=bucket-lo;
   const scale=radius/HOLE_TEXTURE_RADIUS,draw=(texture:HTMLCanvasElement,alpha:number)=>{
     c.globalAlpha=alpha;c.drawImage(texture,-HOLE_TEXTURE_WIDTH/2*scale,-HOLE_TEXTURE_HEIGHT/2*scale,HOLE_TEXTURE_WIDTH*scale,HOLE_TEXTURE_HEIGHT*scale);
@@ -665,7 +687,7 @@ export function drawGalaxyCached(context: CanvasRenderingContext2D, node: Galaxy
   if(selected||hovered||node.player.isCurrentUser){
     context.save();context.strokeStyle=node.player.isCurrentUser?"#ddc498aa":"#c7dfeb99";context.lineWidth=selected?1.15:.75;context.setLineDash(selected?[]:[2,5]);context.beginPath();context.arc(projected.x,projected.y,radius*1.28,0,TAU);context.stroke();context.restore();
   }
-  if(node.player.rank<=10 && radius>=15){
+  if(node.player.rank>0 && node.player.rank<=10 && radius>=15){
     context.save();context.fillStyle="#c3cddd99";context.font="400 12px system-ui, sans-serif";context.textAlign="center";context.fillText("#"+node.player.rank,projected.x,projected.y+radius+14);context.restore();
   }
 }
@@ -678,13 +700,13 @@ export function paintUniverseFrame(context:CanvasRenderingContext2D,width:number
   drawBackground(context,width,height,camera,time,reduced);
   drawOrbitLanes(context,camera,width,height,time,reduced);
   const measure=Math.min(width,height),project=createProjector(camera,width,height),centre=project({x:0,y:0,z:0});
-  const holeRadius=clamp(measure*.105*centre.scale,compact?32:64,compact?76:126);
+  const holeRadius=clamp(measure*.105*centre.scale,compact?24:56,compact?76:126);
   const active=!!pharaoh&&(selectedId===pharaoh.userId||hoveredId===pharaoh.userId);
   drawGalaxyTrails(context,nodes,project,measure,time,selectedId,hoveredId,reduced);
   const projected=nodes.map(node=>({node,point:project(resolveGalaxyPosition(node,time,reduced))})).sort((a,b)=>a.point.depth-b.point.depth);
   const hits:GalaxyHit[]=[];let holeDrawn=false,prepared=0,pendingSprites=0;
   for(const {node,point} of projected){
-    if(!holeDrawn&&point.depth>=centre.depth){drawOrbitingBlackHole(context,centre,holeRadius,time,active,project,measure);holeDrawn=true;}
+    if(!holeDrawn&&point.depth>=centre.depth){drawOrbitingBlackHole(context,centre,holeRadius,time,active,project,measure,camera);holeDrawn=true;}
     const radius=clamp(node.size*measure*point.scale,compact?5.2:5.8,compact?40:70);
     if(point.x < -radius*2 || point.x>width+radius*2 || point.y < -radius*2 || point.y>height+radius*2)continue;
     const cached=sprites.has(node.player.userId+(compact?':compact':':full'));
@@ -700,7 +722,7 @@ export function paintUniverseFrame(context:CanvasRenderingContext2D,width:number
     if(point.depth>=centre.depth||Math.hypot(point.x-centre.x,point.y-centre.y)>holeRadius*.78)
       hits.push({player:node.player,x:point.x,y:point.y,radius:Math.max(compact?18:13,radius*1.35),depth:point.depth});
   }
-  if(!holeDrawn)drawOrbitingBlackHole(context,centre,holeRadius,time,active,project,measure);
+  if(!holeDrawn)drawOrbitingBlackHole(context,centre,holeRadius,time,active,project,measure,camera);
   if(pharaoh)hits.push({player:pharaoh,x:centre.x,y:centre.y,radius:holeRadius*.8,depth:centre.depth});
   return {hits:hits.sort((a,b)=>b.depth-a.depth),centre,holeRadius,pendingSprites};
 }

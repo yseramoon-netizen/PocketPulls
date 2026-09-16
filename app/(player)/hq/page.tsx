@@ -261,14 +261,14 @@ export default function TrainerHqPage() {
     <header className={styles.header}><div><p className={styles.eyebrow}>Your observatory</p><h1>Overview</h1></div><p className={styles.greeting}>{greeting()}, {data.trainerName}.<br/>Your sky is right where you left it.</p></header>
     {errorMessage?<div role="alert" className="mb-6 rounded-xl border border-red-200/20 bg-red-950/30 p-4 text-sm text-red-100">{errorMessage}</div>:null}
     <div className={styles.heroGrid}>
-      <article className={styles.skyCard}><DeepSky still/><ConstellationArtwork sign={data.zodiacSign} className={styles.art}/><div className={styles.skyCopy}><p>Your constellation</p><h2>{data.zodiacSign?`${zodiacLabel(data.zodiacSign)}, written in stars.`:"A sky of your own."}</h2><span>{formatNumber(data.constellationStars)} memories in your constellation</span><Link href="/constellation">Explore your sky <AstralIcon name="arrow"/></Link></div><span className={styles.skyMark}>ANCIENT PULLS / OBSERVATORY</span></article>
+      <article className={styles.skyCard}><DeepSky still/><ConstellationArtwork sign={data.zodiacSign} className={styles.art}/><div className={styles.skyCopy}><p>Your constellation</p><h2>{data.zodiacSign?`${zodiacLabel(data.zodiacSign)}, written in stars.`:"A sky of your own."}</h2><span>{formatNumber(data.constellationStars)} memories in your constellation</span><Link href="/observatory">Explore your sky <AstralIcon name="arrow"/></Link></div><span className={styles.skyMark}>ANCIENT PULLS / OBSERVATORY</span></article>
       <article className={styles.wishCard}><span className={styles.eyebrow}>Astral wishes</span><AstraCompanion/><h2>Your next star awaits.</h2><p>{data.wishBalance>0?`${formatNumber(data.wishBalance)} wishes ready. Discover the next card in your collection.`:"Reveal a card and add a new star to your sky."}</p><Link href="/wishes">Make a wish <AstralIcon name="star"/></Link></article>
     </div>
     <div className={styles.metrics}>
-      {[["Wishes",formatNumber(data.wishBalance),"Ready to reveal","/wishes"],["Cards",formatNumber(data.totalCards),`${formatNumber(data.uniqueCards)} unique cards`,"/collection"],["Collection",formatMoney(data.collectionValue),"Current catalogue value","/collection"],["Stars",formatNumber(data.constellationStars),zodiacLabel(data.zodiacSign),"/constellation"]].map(([label,value,detail,href])=><Link key={label} href={href} className={styles.metric}><p>{label}</p><strong>{value}</strong><small>{detail}</small></Link>)}
+      {[["Wishes",formatNumber(data.wishBalance),"Ready to reveal","/wishes"],["Cards",formatNumber(data.totalCards),`${formatNumber(data.uniqueCards)} unique cards`,"/collection"],["Collection",formatMoney(data.collectionValue),"Current catalogue value","/collection"],["Stars",formatNumber(data.constellationStars),zodiacLabel(data.zodiacSign),"/observatory"]].map(([label,value,detail,href])=><Link key={label} href={href} className={styles.metric}><p>{label}</p><strong>{value}</strong><small>{detail}</small></Link>)}
     </div>
     <div className={styles.lower}><RecentPull data={data}/><ActivityPanel data={data}/><ProgressPanel data={data} shippingProgress={shippingProgress}/></div>
-    <nav className={styles.links} aria-label="Collection shortcuts">{[["/catalogue","Explore catalogue"],["/leaderboard","Universe ranks"],["/friends","Friends & trades"],["/shipping","Shipping & orders"]].map(([href,label])=><Link key={href} href={href}>{label}<AstralIcon name="arrow"/></Link>)}</nav>
+    <nav className={styles.links} aria-label="Collection shortcuts">{[["/catalogue","Explore catalogue"],["/observatory?view=universe","Explore the Observatory"],["/friends","Friends & trades"],["/shipping","Shipping & orders"]].map(([href,label])=><Link key={href} href={href}>{label}<AstralIcon name="arrow"/></Link>)}</nav>
   </section>;
 }
 
@@ -442,7 +442,7 @@ function ProgressPanel({
       </div>
 
       <Link
-        href={data.zodiacSign ? "/constellation" : "/profile"}
+        href={data.zodiacSign ? "/observatory" : "/profile"}
         className="mt-3 flex items-center gap-3 rounded-2xl border border-white/[0.08] bg-white/[0.03] p-4 transition hover:bg-white/[0.055]"
       >
         <span className="flex h-11 w-11 items-center justify-center rounded-xl border border-violet-100/15 bg-violet-200/[0.06] text-lg text-violet-50">

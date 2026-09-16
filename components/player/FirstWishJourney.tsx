@@ -417,7 +417,7 @@ export default function FirstWishJourney({
         description:
           "Every wish also becomes a star. Select stars to revisit cards, drag to travel through space and use Earth view to recenter your zodiac.",
         instruction: "This 3D sky grows permanently with every wish you make.",
-        href: "/constellation",
+        href: "/observatory",
         target: "constellation",
         action: "Finish my tutorial",
         complete: journey.constellation_seen,

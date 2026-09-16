@@ -60,7 +60,9 @@ test("navigation keeps merged destinations and resolves recharge correctly", () 
   assert.equal(isRouteActive("/wishes/shop", "/wishes"), false);
   assert.equal(isRouteActive("/wishes/shop", "/wishes/shop"), true);
   assert.ok(searchPlayerRoutes("shipping").some((item) => item.href === "/shipping"));
-  assert.ok(searchPlayerRoutes("history").some((item) => item.href === "/constellation?panel=history"));
+  assert.ok(searchPlayerRoutes("history").some((item) => item.href === "/observatory?panel=history"));
+  assert.equal(searchPlayerRoutes("leaderboard")[0].href, "/observatory");
+  assert.ok(!PLAYER_ROUTES.some((item) => ["/constellation", "/leaderboard"].includes(item.href)));
 });
 test("rapid preference edits are coalesced and never written concurrently", async () => {
   let finishFirst;

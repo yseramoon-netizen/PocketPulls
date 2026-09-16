@@ -20,7 +20,7 @@ const PAGE_TITLES: ReadonlyArray<readonly [string, string]> = [
   ["/wishes", "Wishes"],
   ["/collection", "Collection"],
   ["/catalogue", "Card Catalogue"],
-  ["/constellation", "Constellation"],
+  ["/observatory", "Observatory"],
   ["/achievements", "Achievements"],
   ["/leaderboard", "Universe Ranks"],
   ["/friends", "Friends"],

@@ -802,14 +802,14 @@ function PlayerLoadingScreen() {
           <Image
             src="/ancient-pulls/wish/astral/aster-pixel.webp"
             alt=""
-            width={56}
-            height={56}
+            width={40}
+            height={40}
             priority
             draggable={false}
             onError={(event) => {
               event.currentTarget.style.display = "none";
             }}
-            className="relative h-14 w-14 object-contain drop-shadow-[0_10px_14px_rgba(0,0,0,0.36)]"
+            className="relative h-10 w-10 object-contain drop-shadow-[0_10px_14px_rgba(0,0,0,0.36)]"
           />
         </div>
 
@@ -872,10 +872,10 @@ function PlayerBannedScreen({
             <Image
               src="/ancient-pulls/wish/astral/aster-pixel.webp"
               alt=""
-              width={80}
-              height={80}
+              width={56}
+              height={56}
               draggable={false}
-              className="relative h-20 w-20 object-contain grayscale-[0.35] drop-shadow-[0_12px_16px_rgba(0,0,0,0.45)]"
+              className="relative h-14 w-14 object-contain grayscale-[0.35] drop-shadow-[0_12px_16px_rgba(0,0,0,0.45)]"
             />
           </div>
 

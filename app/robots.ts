@@ -10,6 +10,7 @@ const PRIVATE_PATHS = [
   "/catalogue",
   "/check-email",
   "/collection",
+  "/observatory",
   "/constellation",
   "/friends",
   "/forgot-password",

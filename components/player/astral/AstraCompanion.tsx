@@ -35,7 +35,7 @@ export default function AstraCompanion({className='',label='Astra, your star com
       if(!w||!h)return;
       if(canvas.width!==Math.round(w*dpr)||canvas.height!==Math.round(h*dpr)){canvas.width=Math.round(w*dpr);canvas.height=Math.round(h*dpr);}
       c.setTransform(dpr,0,0,dpr,0,0);c.clearRect(0,0,w,h);
-      rig.draw(c,companionPose(reduced?1:elapsed/1000),reduced?1:elapsed/1000,Math.min(w,h)*1.02,w,h);
+      rig.draw(c,companionPose(reduced?1:elapsed/1000),reduced?1:elapsed/1000,Math.min(w,h)*.74,w,h);
       if(!reduced)frame=requestAnimationFrame(draw);
     };
     const queue=()=>{if(active&&visible&&!document.hidden&&!frame)frame=requestAnimationFrame(draw);};
