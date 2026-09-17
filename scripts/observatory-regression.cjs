@@ -83,7 +83,7 @@ test('unranked accounts retain a personal galaxy without a fabricated ranking',(
   assert.equal(scene.players.length,100);assert.equal(scene.owner.rank,0);assert.equal(scene.nodes.length,100);
   assert.equal(scene.nodes.filter(node=>node.player.isCurrentUser).length,1);
   assert.equal(scene.ownerNode.player.userId,'outside-ranking');
-  const pharaoh=makeScene('user-0');assert.equal(pharaoh.owner.rank,1);assert.equal(pharaoh.ownerNode,null);
+  const leader=makeScene('user-0');assert.equal(leader.owner.rank,1);assert.equal(leader.ownerNode,null);
   const empty=Observatory.buildObservatoryScene([],null,[],{id:'new-account',name:'New player'});
   assert.equal(empty.players.length,0);assert.equal(empty.owner.rank,0);assert.ok(empty.ownerNode);
 });
@@ -110,4 +110,50 @@ test('Observatory camera damping behaves consistently at 30, 60 and 120 Hz',()=>
   for(const key of ['distance','yaw','pitch'])assert.ok(Math.abs(views[0][key]-views[2][key])<1e-9);
   const current={...Observatory.HOME_VIEW},target={...Observatory.HOME_VIEW,distance:1,pitch:2};
   Observatory.dampView(current,target,16,true);assert.deepEqual(current,target);
+});
+
+test('singularity entry belongs only to the authenticated first-place account',()=>{
+  const owner=makeScene('user-0'),visitor=makeScene('user-7'),unranked=makeScene('outside-ranking');
+  assert.equal(Observatory.ownsBlackHole(owner),true);
+  for(const scene of [visitor,unranked]){
+    assert.equal(Observatory.ownsBlackHole(scene),false);
+    assert.equal(Observatory.clampSingularityDepth(1,scene),Observatory.BLACK_HOLE_VISITOR_LIMIT);
+    assert.equal(Observatory.clampSingularityDepth(100,scene),Observatory.BLACK_HOLE_VISITOR_LIMIT);
+  }
+  assert.equal(Observatory.clampSingularityDepth(1,owner),1);
+  assert.equal(Observatory.clampSingularityDepth(1,{...owner,entryConfirmed:false}),Observatory.BLACK_HOLE_VISITOR_LIMIT);
+  assert.equal(Observatory.clampSingularityDepth(1,{...owner,leader:{...owner.leader,userId:'another-account'}}),Observatory.BLACK_HOLE_VISITOR_LIMIT);
+  for(const value of [NaN,Infinity,-Infinity,-1])assert.equal(Observatory.clampSingularityDepth(value,owner),0);
+  assert.equal(Observatory.clampSingularityDepth(1,null),0);
+});
+
+test('the black-hole approach grows continuously on desktop and mobile without a camera jump',()=>{
+  const camera={yaw:.3,pitch:-.2,zoom:1,focusX:0,focusY:0,focusZ:0};
+  for(const [width,height]of [[1280,800],[390,720],[320,500]]){
+    let previous=0;
+    for(let i=0;i<=1000;i++){
+      const depth=i/1000,p=Observatory.blackHoleApproach(width,height,depth,camera);
+      assert.ok(Number.isFinite(p.radius)&&p.radius>=previous);
+      if(i)assert.ok(p.radius/previous<1.01,'no frame-scale discontinuity');
+      previous=p.radius;
+      assert.ok(Object.values(p.camera).every(Number.isFinite));
+    }
+    assert.deepEqual(Observatory.blackHoleApproach(width,height,0,camera).camera,camera);
+  }
+});
+
+test('close-up shader crops preserve screen coordinates while bounding the painted area',()=>{
+  const {blackHoleCrop}=loadProduction('components/player/observatory/BlackHoleRenderer');
+  for(const [width,height]of [[1280,800],[390,720]])for(const radius of [24,84,300,900,2200]){
+    const x=width*.52,y=height*.48,crop=blackHoleCrop(width,height,x,y,radius),extent=radius*3.58;
+    assert.ok(crop.size<=Math.max(width,height)+.001);
+    assert.ok(crop.scale>0&&crop.scale<=1);
+    for(const uv of [-1,0,1]){
+      const screenX=crop.x+(uv+1)*crop.size/2;
+      const sourceX=x+(uv*crop.scale+crop.offsetX)*extent;
+      const screenY=crop.y+(1-uv)*crop.size/2;
+      const sourceY=y-(uv*crop.scale+crop.offsetY)*extent;
+      assert.ok(Math.abs(screenX-sourceX)<1e-8&&Math.abs(screenY-sourceY)<1e-8);
+    }
+  }
 });

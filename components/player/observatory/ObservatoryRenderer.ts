@@ -3,12 +3,29 @@ import { type ConstellationStar, type SpatialPoint, VOLUME_STARS, getZodiacSpati
 import { paintObservatorySky, paintStarlight } from './SkyArt';
 import { buildGalaxyNodes, createProjector, drawGalaxyCached, drawOrbitingBlackHole, paintUniverseFrame, projectGalaxyDisk, resolveGalaxyPosition, hashString, clamp, lerp, type GalaxyNode, type GalaxyHit, type LeaderboardPlayer, type Camera } from './UniverseRenderer';
 import { disposeBlackHoleRenderer } from './BlackHoleRenderer';
+import { paintSingularity } from './SingularityArt';
 
-export type ObservatoryView = { distance:number; yaw:number; pitch:number; focusX:number; focusY:number; focusZ:number; starX:number; starY:number; starZ:number };
-export const HOME_VIEW:ObservatoryView={distance:0,yaw:0,pitch:0,focusX:0,focusY:0,focusZ:0,starX:0,starY:0,starZ:0};
+export type ObservatoryView = { distance:number; singularity:number; yaw:number; pitch:number; focusX:number; focusY:number; focusZ:number; starX:number; starY:number; starZ:number };
+export const HOME_VIEW:ObservatoryView={distance:0,singularity:0,yaw:0,pitch:0,focusX:0,focusY:0,focusZ:0,starX:0,starY:0,starZ:0};
 export const clampDistance=(value:number)=>clamp(Number.isFinite(value)?value:0,-.62,1.34);
 export const smooth=(a:number,b:number,value:number)=>{const t=clamp((value-a)/(b-a),0,1);return t*t*(3-2*t);};
-export const observatoryLevel=(distance:number)=>distance<.24?'stars':distance<.78?'galaxy':'universe';
+export const observatoryLevel=(distance:number,singularity=0)=>singularity>.82?'singularity':singularity>.001?'black-hole':distance<.24?'stars':distance<.78?'galaxy':'universe';
+export type ObservatoryLevel=ReturnType<typeof observatoryLevel>;
+export const BLACK_HOLE_VISITOR_LIMIT=.46;
+export const ownsBlackHole=(scene:ObservatoryScene|null)=>!!scene?.entryConfirmed&&!!scene.leader&&scene.leader.rank===1&&scene.owner.rank===1&&scene.leader.userId===scene.owner.userId&&scene.owner.isCurrentUser;
+export function clampSingularityDepth(value:number,scene:ObservatoryScene|null){
+  if(!scene?.leader)return 0;
+  return clamp(Number.isFinite(value)?value:0,0,ownsBlackHole(scene)?1:BLACK_HOLE_VISITOR_LIMIT);
+}
+export function blackHoleApproach(width:number,height:number,depth:number,camera:Camera){
+  const measure=Math.min(width,height),compact=width<768;
+  const centre=createProjector(camera,width,height)({x:0,y:0,z:0});
+  const baseRadius=clamp(measure*.105*centre.scale,compact?24:56,compact?76:126);
+  const coverage=Math.hypot(width,height)*.71;
+  const scale=Math.exp(Math.log(Math.max(1,coverage/baseRadius))*Math.min(depth,.72)/.68);
+  const focus=1-smooth(0,.13,depth);
+  return {camera:{...camera,zoom:camera.zoom*scale,focusX:camera.focusX*focus,focusY:camera.focusY*focus,focusZ:camera.focusZ*focus},radius:baseRadius*scale};
+}
 export function dampView(current:ObservatoryView,target:ObservatoryView,delta:number,reduced:boolean):boolean {
   const amount=reduced?1:1-Math.exp(-Math.min(64,Math.max(0,delta))/155);
   let unsettled=false;
@@ -19,7 +36,7 @@ export function dampView(current:ObservatoryView,target:ObservatoryView,delta:nu
   return unsettled;
 }
 
-export type ObservatoryScene={stars:ConstellationStar[];zodiac:ZodiacSign|null;players:LeaderboardPlayer[];nodes:GalaxyNode[];owner:LeaderboardPlayer;ownerNode:GalaxyNode|null;pharaoh:LeaderboardPlayer|null};
+export type ObservatoryScene={stars:ConstellationStar[];zodiac:ZodiacSign|null;players:LeaderboardPlayer[];nodes:GalaxyNode[];owner:LeaderboardPlayer;ownerNode:GalaxyNode|null;leader:LeaderboardPlayer|null;entryConfirmed:boolean};
 export function buildObservatoryScene(stars:ConstellationStar[],zodiac:ZodiacSign|null,players:LeaderboardPlayer[],user:{id:string;name:string}):ObservatoryScene {
   const ranked=players.map(player=>({...player,isCurrentUser:player.userId===user.id}));
   const owner=ranked.find(player=>player.isCurrentUser)??{rank:0,userId:user.id,username:'',displayName:user.name,avatarUrl:null,totalCards:0,uniqueCards:0,collectionValue:0,lifetimeWishes:0,score:0,isCurrentUser:true,cosmicIssueNumber:null};
@@ -30,7 +47,7 @@ export function buildObservatoryScene(stars:ConstellationStar[],zodiac:ZodiacSig
     ownerNode={...personal,player:owner,orbitRadius:1.49,orbitAngle:(hashString(user.id)%6283)/1000,orbitEccentricity:1.03,orbitFlatten:.68,size:.032,orbitSpeed:Math.PI*2/250};
     nodes.push(ownerNode);
   }
-  return {stars,zodiac,players:ranked,nodes,owner,ownerNode,pharaoh:ranked.find(player=>player.rank===1)??null};
+  return {stars,zodiac,players:ranked,nodes,owner,ownerNode,leader:ranked.find(player=>player.rank===1)??null,entryConfirmed:true};
 }
 
 export function observatoryProjection(scene:ObservatoryScene,view:ObservatoryView,width:number,height:number,time:number,insets={top:0,bottom:0}){
@@ -89,14 +106,17 @@ export class ObservatoryRenderer {
     }
     c.setTransform(density,0,0,density,0,0);c.globalAlpha=1;c.drawImage(this.sky,0,0,width,height);
     const p=observatoryProjection(scene,view,width,height,time,options.insets),compact=width<768;
+    // Clamp at the renderer as well as the controls, including after a ranking refresh.
+    const entry=clampSingularityDepth(view.singularity,scene),interior=smooth(.56,.82,entry);
+    const approach=blackHoleApproach(width,height,entry,p.camera);
     let galaxyHits:GalaxyHit[]=[],pending=false;
-    if(view.distance>.16){
+    if(view.distance>.16&&interior<1){
       const uc=this.universeContext;uc.setTransform(density,0,0,density,0,0);
-      const frame=paintUniverseFrame(uc,width,height,p.camera,time,scene.nodes,scene.pharaoh,options.selectedGalaxy,null,options.reduced,this.sprites,compact);
+      const frame=paintUniverseFrame(uc,width,height,approach.camera,time,scene.nodes,scene.leader,options.selectedGalaxy,null,options.reduced,this.sprites,compact,entry>0?approach.radius:undefined);
       pending=frame.pendingSprites>0;galaxyHits=frame.hits;
       c.globalAlpha=p.universeOpacity;c.drawImage(this.universe,0,0,width,height);c.globalAlpha=1;
     }
-    if(p.galaxyOpacity>.001){
+    if(p.galaxyOpacity>.001&&entry===0){
       c.save();c.globalAlpha=p.galaxyOpacity;
       // Composite the near galaxy on its own layer because its painter also controls alpha.
       // Reuse the detailed local galaxy sprite; the viewport itself stays fixed in size.
@@ -113,7 +133,7 @@ export class ObservatoryRenderer {
       c.restore();
     }
     const hits:StarHit[]=[];
-    if(p.starOpacity>.001){
+    if(p.starOpacity>.001&&entry===0){
       const ambient=options.low?40:compact?72:VOLUME_STARS.length;
       for(let i=0;i<ambient;i++){
         const star=VOLUME_STARS[i],point=p.starPoint(star);
@@ -142,11 +162,16 @@ export class ObservatoryRenderer {
       }
     }
     c.globalAlpha=1;
-    if(view.distance>.70){
+    if(view.distance>.70&&entry<.01){
       const alpha=smooth(.7,.94,view.distance),radius=Math.max(14,p.radius*1.42);
       c.save();c.globalAlpha=alpha*.75;c.strokeStyle='#e2c89b';c.lineWidth=.8;c.setLineDash([2,6]);c.beginPath();c.arc(p.anchor.x,p.anchor.y,radius,0,Math.PI*2);c.stroke();c.restore();
     }
-    return {stars:hits,galaxies:view.distance>.65?galaxyHits:[],owner:{x:p.anchor.x,y:p.anchor.y,radius:p.radius},pending};
+    if(interior>0){
+      const layer=this.localLayer(width,height,density);
+      paintSingularity(layer,width,height,time,view.yaw,view.pitch,options.low);
+      c.save();c.globalAlpha=interior;c.drawImage(this.local!,0,0,width,height);c.restore();
+    }
+    return {stars:hits,galaxies:view.distance>.65&&entry<.04?galaxyHits:[],owner:{x:p.anchor.x,y:p.anchor.y,radius:p.radius},pending};
   }
   private local:HTMLCanvasElement|null=null;
   private localLayer(width:number,height:number,density:number){

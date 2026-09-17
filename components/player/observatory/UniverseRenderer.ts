@@ -696,12 +696,12 @@ export function drawGalaxyCached(context: CanvasRenderingContext2D, node: Galaxy
 /** Frame-rate-independent camera damping (the same response at 30, 60 and 120 Hz). */
 export const cameraDamping=(dt:number)=>1-Math.exp(-Math.max(0,Math.min(80,dt))/210);
 
-export function paintUniverseFrame(context:CanvasRenderingContext2D,width:number,height:number,camera:Camera,time:number,nodes:readonly GalaxyNode[],pharaoh:LeaderboardPlayer|null,selectedId:string|null,hoveredId:string|null,reduced:boolean,sprites:Map<string,HTMLCanvasElement>,compact=width<768) {
+export function paintUniverseFrame(context:CanvasRenderingContext2D,width:number,height:number,camera:Camera,time:number,nodes:readonly GalaxyNode[],leader:LeaderboardPlayer|null,selectedId:string|null,hoveredId:string|null,reduced:boolean,sprites:Map<string,HTMLCanvasElement>,compact=width<768,approachRadius?:number) {
   drawBackground(context,width,height,camera,time,reduced);
   drawOrbitLanes(context,camera,width,height,time,reduced);
   const measure=Math.min(width,height),project=createProjector(camera,width,height),centre=project({x:0,y:0,z:0});
-  const holeRadius=clamp(measure*.105*centre.scale,compact?24:56,compact?76:126);
-  const active=!!pharaoh&&(selectedId===pharaoh.userId||hoveredId===pharaoh.userId);
+  const holeRadius=approachRadius??clamp(measure*.105*centre.scale,compact?24:56,compact?76:126);
+  const active=!!leader&&(selectedId===leader.userId||hoveredId===leader.userId);
   drawGalaxyTrails(context,nodes,project,measure,time,selectedId,hoveredId,reduced);
   const projected=nodes.map(node=>({node,point:project(resolveGalaxyPosition(node,time,reduced))})).sort((a,b)=>a.point.depth-b.point.depth);
   const hits:GalaxyHit[]=[];let holeDrawn=false,prepared=0,pendingSprites=0;
@@ -723,6 +723,6 @@ export function paintUniverseFrame(context:CanvasRenderingContext2D,width:number
       hits.push({player:node.player,x:point.x,y:point.y,radius:Math.max(compact?18:13,radius*1.35),depth:point.depth});
   }
   if(!holeDrawn)drawOrbitingBlackHole(context,centre,holeRadius,time,active,project,measure,camera);
-  if(pharaoh)hits.push({player:pharaoh,x:centre.x,y:centre.y,radius:holeRadius*.8,depth:centre.depth});
+  if(leader)hits.push({player:leader,x:centre.x,y:centre.y,radius:holeRadius*.8,depth:centre.depth});
   return {hits:hits.sort((a,b)=>b.depth-a.depth),centre,holeRadius,pendingSprites};
 }

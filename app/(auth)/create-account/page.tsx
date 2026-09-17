@@ -373,7 +373,7 @@ export default function CreateAccountPage() {
     <AuthShell
       eyebrow="New trainer"
       title="Create Your Symbol"
-      description="Create the identity that will follow every wish, physical card and constellation memory."
+      description=""
       storyTitle="Every collection begins with one unknown symbol"
       storyDescription="Your account creates a private wish wallet and collection. The cards you pull remain attached to your trainer identity."
       footer={

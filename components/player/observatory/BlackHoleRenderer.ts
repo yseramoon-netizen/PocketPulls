@@ -11,6 +11,8 @@ varying vec2 vUv;
 uniform float uTime;
 uniform vec3 uDiskU;
 uniform vec3 uDiskV;
+uniform float uViewScale;
+uniform vec2 uViewOffset;
 const float RS=0.385;
 const float INNER=1.155;
 float hash(vec3 p){p=fract(p*0.3183099+vec3(.17,.31,.47));p*=17.0;return fract(p.x*p.y*p.z*(p.x+p.y+p.z));}
@@ -39,7 +41,7 @@ vec3 diskLight(vec3 p,vec3 direction,vec3 normal){
  return warm*energy*2.1;
 }
 void main(){
- vec2 uv=vUv*4.35;
+ vec2 uv=(vUv*uViewScale+uViewOffset)*4.35;
  vec3 position=vec3(uv,8.0),direction=vec3(0,0,-1),normal=normalize(cross(uDiskU,uDiskV));
  float h2=dot(cross(position,direction),cross(position,direction));
  vec3 radiance=vec3(0);float opacity=0.0;float captured=0.0;
@@ -102,6 +104,14 @@ void main(){
 `;
 
 type CameraAngles={yaw:number;pitch:number};
+/** Keep close approaches sharp by shading the visible region, rather than enlarging a tiny texture. */
+export function blackHoleCrop(width:number,height:number,x:number,y:number,radius:number){
+ const extent=radius*3.58,side=extent*2;
+ if(side<=Math.max(width,height))return {x:x-extent,y:y-extent,size:side,scale:1,offsetX:0,offsetY:0};
+ const left=Math.max(0,x-extent),right=Math.min(width,x+extent),top=Math.max(0,y-extent),bottom=Math.min(height,y+extent);
+ const size=Math.max(1,right-left,bottom-top),cx=(left+right)/2,cy=(top+bottom)/2;
+ return {x:cx-size/2,y:cy-size/2,size,scale:size/side,offsetX:(cx-x)/extent,offsetY:(y-cy)/extent};
+}
 export function blackHoleDiskAxes(camera:CameraAngles):[number[],number[]] {
  const tilt=-.075,inclination=1.43;
  const rotate=([x,y,z]:number[])=>{
@@ -128,6 +138,8 @@ class BlackHoleRenderer {
  private time:WebGLUniformLocation|null;
  private diskU:WebGLUniformLocation|null;
  private diskV:WebGLUniformLocation|null;
+ private viewScale:WebGLUniformLocation|null;
+ private viewOffset:WebGLUniformLocation|null;
  private lost=false;
  constructor(){
   const gl=this.canvas.getContext('webgl',{alpha:true,premultipliedAlpha:true,antialias:false,depth:false,stencil:false,preserveDrawingBuffer:true,powerPreference:'low-power'});
@@ -140,6 +152,7 @@ class BlackHoleRenderer {
   this.buffer=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,this.buffer);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,-1,1,1,-1,1,1]),gl.STATIC_DRAW);
   const position=gl.getAttribLocation(program,'aPosition');gl.enableVertexAttribArray(position);gl.vertexAttribPointer(position,2,gl.FLOAT,false,0,0);
   this.time=gl.getUniformLocation(program,'uTime');this.diskU=gl.getUniformLocation(program,'uDiskU');this.diskV=gl.getUniformLocation(program,'uDiskV');
+  this.viewScale=gl.getUniformLocation(program,'uViewScale');this.viewOffset=gl.getUniformLocation(program,'uViewOffset');
   this.bloomSource=gl.getUniformLocation(this.bloom,'uSource');this.bloomScene=gl.getUniformLocation(this.bloom,'uScene');this.bloomDirection=gl.getUniformLocation(this.bloom,'uDirection');this.bloomComposite=gl.getUniformLocation(this.bloom,'uComposite');
   for(let i=0;i<2;i++){
    const texture=gl.createTexture(),framebuffer=gl.createFramebuffer();if(!texture||!framebuffer)throw new Error('Render target unavailable');
@@ -148,13 +161,15 @@ class BlackHoleRenderer {
   }
   this.canvas.addEventListener('webglcontextlost',event=>{event.preventDefault();this.lost=true;});
  }
- render(radius:number,time:number,camera:CameraAngles){
+ render(radius:number,time:number,camera:CameraAngles,crop:ReturnType<typeof blackHoleCrop>){
   if(this.lost||this.gl.isContextLost())return null;
   // Quantised sizes avoid reallocating textures on every damped camera frame.
-  const requested=Math.min(512,radius*7.2*Math.min(1.35,typeof devicePixelRatio==='number'?devicePixelRatio:1))*this.quality;
-  const pixels=Math.max(192,Math.min(512,Math.ceil(requested/32)*32));
+  const ceiling=crop.scale<1?768:512;
+  const requested=Math.min(ceiling,crop.size*Math.min(1.35,typeof devicePixelRatio==='number'?devicePixelRatio:1))*this.quality;
+  const pixels=Math.max(192,Math.min(ceiling,Math.ceil(requested/32)*32));
   if(this.canvas.width!==pixels){this.canvas.width=this.canvas.height=pixels;this.gl.viewport(0,0,pixels,pixels);for(const target of this.targets){this.gl.bindTexture(this.gl.TEXTURE_2D,target.texture);this.gl.texImage2D(this.gl.TEXTURE_2D,0,this.gl.RGBA,pixels,pixels,0,this.gl.RGBA,this.gl.UNSIGNED_BYTE,null);}}
   const gl=this.gl,axes=blackHoleDiskAxes(camera);gl.useProgram(this.program);gl.uniform1f(this.time,time/1000);gl.uniform3fv(this.diskU,axes[0]);gl.uniform3fv(this.diskV,axes[1]);
+  gl.uniform1f(this.viewScale,crop.scale);gl.uniform2f(this.viewOffset,crop.offsetX,crop.offsetY);
   gl.bindFramebuffer(gl.FRAMEBUFFER,this.targets[0].framebuffer);gl.drawArrays(gl.TRIANGLES,0,6);
   gl.useProgram(this.bloom);gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,this.targets[0].texture);gl.uniform1i(this.bloomSource,0);
   gl.uniform1f(this.bloomComposite,0);gl.uniform2f(this.bloomDirection,2.4/pixels,0);gl.bindFramebuffer(gl.FRAMEBUFFER,this.targets[1].framebuffer);gl.drawArrays(gl.TRIANGLES,0,6);
@@ -176,5 +191,10 @@ export function disposeBlackHoleRenderer(context:CanvasRenderingContext2D){rende
 export function paintBlackHoleShader(context:CanvasRenderingContext2D,x:number,y:number,radius:number,time:number,camera:CameraAngles):boolean {
  if(!renderers.has(context)){try{const renderer=new BlackHoleRenderer();renderers.set(context,renderer);renderer.canvas.addEventListener('webglcontextrestored',()=>{renderers.delete(context);},{once:true});}catch{renderers.set(context,null);}}
  const renderer=renderers.get(context);if(!renderer)return false;
- try{const started=performance.now(),canvas=renderer.render(radius,time,camera);if(!canvas)return false;const extent=radius*3.58;context.drawImage(canvas,x-extent,y-extent,extent*2,extent*2);renderer.recordCost(performance.now()-started);return true;}catch{disposeBlackHoleRenderer(context);renderers.set(context,null);return false;}
+ try{
+  const started=performance.now(),transform=context.getTransform();
+  const width=context.canvas.width/Math.max(.01,transform.a),height=context.canvas.height/Math.max(.01,transform.d);
+  const crop=blackHoleCrop(width,height,x,y,radius),canvas=renderer.render(radius,time,camera,crop);if(!canvas)return false;
+  context.drawImage(canvas,crop.x,crop.y,crop.size,crop.size);renderer.recordCost(performance.now()-started);return true;
+ }catch{disposeBlackHoleRenderer(context);renderers.set(context,null);return false;}
 }

@@ -100,7 +100,7 @@ export default function WelcomePage() {
     <AuthShell
       eyebrow="Account ready"
       title="Welcome To ancientpulls"
-      description={`${displayName}, your trainer identity, wish wallet and private collection are ready.`}
+      description=""
       storyTitle="Your symbol has joined the constellation"
     >
       <div className="space-y-5">

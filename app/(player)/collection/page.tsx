@@ -559,7 +559,6 @@ export default function CollectionPage() {
     <section className={styles.pageShell}>
       <header className={styles.header}>
         <div>
-          <p className={styles.eyebrow}>Your binder</p>
           <h1 className={styles.title}>{binderName}</h1>
         </div>
 

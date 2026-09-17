@@ -10,36 +10,27 @@ import NebuPortrait from "@/components/player/NebuPortrait";
 import { getPlayerRarityTheme } from "@/lib/player/rarity";
 
 export function PlayerPageHeader({
-  eyebrow,
   title,
-  description,
   actions,
 }: {
-  eyebrow: string;
+  eyebrow?: string;
   title: string;
-  description: string;
+  description?: string;
   actions?: ReactNode;
 }) {
   return (
     <header data-player-page-header className="relative overflow-hidden rounded-2xl border border-white/[0.09] bg-[#080b20]/88 p-5 shadow-[0_18px_60px_rgba(0,0,0,0.22)] backdrop-blur-xl sm:p-6">
       <div data-player-surface-line className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-cyan-200/42 to-transparent" />
       <div data-cosmic-page-sigil aria-hidden="true">
-        <AsterismSigil seed={`${eyebrow}:${title}`} points={7} />
+        <AsterismSigil seed={title} points={7} />
       </div>
 
       <div className="relative flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div className="min-w-0">
-          <p className="text-[0.65rem] font-black uppercase tracking-[0.18em] text-cyan-100/46">
-            {eyebrow}
-          </p>
-
-          <h1 className="mt-2 text-3xl font-black tracking-[-0.04em] text-white sm:text-4xl">
+          <h1 className="text-3xl font-black tracking-[-0.04em] text-white sm:text-4xl">
             {title}
           </h1>
 
-          <p className="mt-3 max-w-2xl text-sm font-semibold leading-6 text-white/45">
-            {description}
-          </p>
         </div>
 
         {actions ? (

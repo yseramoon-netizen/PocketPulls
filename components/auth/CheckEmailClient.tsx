@@ -126,7 +126,7 @@ export default function CheckEmailClient({
     <AuthShell
       eyebrow="One final step"
       title="Check Your Email"
-      description="Your trainer identity has been created, but the email address must be confirmed before the gateway can open."
+      description="Confirm your email address to finish setting up your account."
       storyTitle="A symbol becomes real when it is recognised"
       footer={
         <Link

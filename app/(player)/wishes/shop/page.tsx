@@ -312,7 +312,6 @@ export default function WishShopPage() {
 
         <header className={styles.hero}>
           <div className={styles.heroCopy}>
-            <p className={styles.eyebrow}>Wish recharge</p>
             <h1>Recharge wishes</h1>
             <p className={styles.heroBody}>
               {store?.ordersOpen
@@ -450,7 +449,7 @@ export default function WishShopPage() {
         {loading ? (
           <div className={styles.loadingCard}>
             <div className={styles.loadingStar}>✦</div>
-            <p>Nebu is preparing the wish bundles...</p>
+            <p>Loading wish bundles…</p>
           </div>
         ) : (
           <div className={styles.mainGrid}>

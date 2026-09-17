@@ -676,17 +676,10 @@ export default function WishesPage() {
     <section className="ap-wish-page relative mx-auto w-full max-w-[1440px] px-4 py-7 sm:px-6 lg:px-8 lg:py-10">
       <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p className="text-[0.65rem] font-black uppercase tracking-[0.18em] text-yellow-100/45">
-            Wish chamber
-          </p>
-
-          <h1 className="mt-3 text-4xl font-black tracking-tight text-white sm:text-5xl">
+          <h1 className="text-4xl font-black tracking-tight text-white sm:text-5xl">
             Make a Wish
           </h1>
 
-          <p className="mt-3 max-w-xl text-sm font-semibold leading-6 text-white/45">
-            Make one wish, or gather ten new stars for your constellation.
-          </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
@@ -810,10 +803,10 @@ function WishChamber({wishBalance,totalWishes,makingWish,onMakeWish,onMakeTen,on
   return <article className="ap-wish-stage" data-onboarding-target="wish">
     <DeepSky/><ConstellationArtwork className="ap-wish-outline"/>
     <div className="ap-wish-stage-top"><span><AstralIcon/> {formatWholeNumber(wishBalance)} wishes available</span><button onClick={onShowDetails}>Prizes & odds <AstralIcon name="info"/></button></div>
-    <div className="ap-wish-character"><AstraCompanion/><span>ASTRA</span></div>
-    <div className="ap-wish-invitation"><p>THE ASTRAL CEREMONY</p><h2>A new star.<br/>An untold story.</h2><span>{hasWishes?"Choose one wish or a formation of ten.":"Your next discovery is waiting among the stars."}</span>
+    <div className="ap-wish-character"><AstraCompanion/></div>
+    <div className="ap-wish-invitation"><h2>{hasWishes?'Make a wish':'Get wishes'}</h2>
       <div className="ap-wish-actions">{hasWishes?<button data-onboarding-action="make-wish" onClick={onMakeWish} disabled={makingWish||pendingBatch!==null}>{makingWish?(pendingBatch!==null?`Gathering wishes · ${pendingBatch}/10`:"Gathering your wish…"):"Make a wish · 1"}<AstralIcon/></button>:<Link href="/wishes/shop">Get wishes <AstralIcon/></Link>}<button onClick={onMakeTen} disabled={makingWish||pendingWish||(pendingBatch===null&&wishBalance<10)}>{pendingBatch!==null?"Resume ten wishes":"Make ten wishes · 10"}<AstralIcon/></button></div>
-    </div><span className="ap-wish-lifetime">{formatWholeNumber(totalWishes)} wishes in your story</span>
+    </div><span className="ap-wish-lifetime">{formatWholeNumber(totalWishes)} total wishes</span>
   </article>;
 }
 

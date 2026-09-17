@@ -3,7 +3,7 @@ export const PLAYER_ROUTES = [
   { href: "/wishes", label: "Wishes", detail: "Make a wish or replay your latest reveal", keywords: "pull astra replay", glyph: "✦" },
   { href: "/collection", label: "Binder", detail: "Browse and arrange your cards", keywords: "collection owned duplicate signature", glyph: "▣" },
   { href: "/catalogue", label: "Catalogue", detail: "Explore cards and favourites", keywords: "cards pokemon sets favourite", glyph: "▤" },
-  { href: "/observatory", label: "Observatory", detail: "Your constellation, galaxy and universe in one sky", keywords: "stars constellation galaxy universe leaderboard rank pharaoh find", glyph: "✧" },
+  { href: "/observatory", label: "Observatory", detail: "Constellation and universe", keywords: "stars constellation galaxy universe leaderboard rank black hole singularity find", glyph: "✧" },
   { href: "/observatory?panel=history", label: "Latest pulls", detail: "Your wish history in the Observatory", keywords: "history archive recent", glyph: "↺" },
   { href: "/friends", label: "Friends", detail: "Visit friends and open trades", keywords: "trade social trainer", glyph: "♢" },
   { href: "/achievements", label: "Badges", detail: "Milestones and unlocked rewards", keywords: "achievement reward skin", glyph: "✪" },

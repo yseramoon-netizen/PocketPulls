@@ -33,7 +33,7 @@ function Ceremony({ rewards, onClose, onFinished, onPlace, busy = false, actionE
     rewards: readonly WishRevealCard[];
 }) {
     const mounted = useSyncExternalStore(subscribe, () => true, () => false), preferences = usePlayerPreferences();
-    const [stage, setStage] = useState<Stage>('loading'), [muted, setMuted] = useState(initialMute), [paused, setPaused] = useState(false), [still, setStill] = useState(false), [canSkip, setCanSkip] = useState(false), [caption, setCaption] = useState('');
+    const [stage, setStage] = useState<Stage>('loading'), [muted, setMuted] = useState(initialMute), [paused, setPaused] = useState(false), [still, setStill] = useState(false), [canSkip, setCanSkip] = useState(false);
     const [attempt, setAttempt] = useState(0), [explicitPlayback, setExplicitPlayback] = useState(false);
     const canvas = useRef<HTMLCanvasElement>(null), renderer = useRef<FlightRenderer | null>(null), clock = useRef(new CeremonyClock()), audio = useRef<WishAudioSession | null>(null), frame = useRef(0);
     const phase = useRef<Stage>('loading'), finished = useRef(false), manualPause = useRef(false), tickRef = useRef<(now: number) => void>(() => {
@@ -48,7 +48,6 @@ function Ceremony({ rewards, onClose, onFinished, onPlace, busy = false, actionE
     const announceReady = useEffectEvent(() => {
         phase.current = 'ready';
         setStage('ready');
-        setCaption('');
         setCanSkip(false);
         audio.current?.stop();
         if (finished.current)
@@ -81,7 +80,6 @@ function Ceremony({ rewards, onClose, onFinished, onPlace, busy = false, actionE
         phase.current = 'placing';
         setStage('placing');
         setCanSkip(true);
-        setCaption('A place among your stars.');
         clock.current.seek(0);
         clock.current.setPaused(false);
         manualPause.current = false;
@@ -127,9 +125,8 @@ function Ceremony({ rewards, onClose, onFinished, onPlace, busy = false, actionE
         setStage('loading');
         setStill(false);
         setCanSkip(false);
-        setCaption('');
         clock.current.seek(0);
-        let disposed = false, previous: number | null = null, observer: ResizeObserver | null = null, lastCaption = '', unlocked = false;
+        let disposed = false, previous: number | null = null, observer: ResizeObserver | null = null, unlocked = false;
         const fail = () => {
             audio.current?.stop();
             phase.current = 'error';
@@ -161,11 +158,7 @@ function Ceremony({ rewards, onClose, onFinished, onPlace, busy = false, actionE
                 }
             }
             else {
-                const s = renderer.current?.render(ms, options);
-                if (s && s.caption !== lastCaption) {
-                    lastCaption = s.caption;
-                    setCaption(lastCaption);
-                }
+                renderer.current?.render(ms, options);
                 if (ms >= 800 && !unlocked) {
                     unlocked = true;
                     setCanSkip(true);
@@ -284,9 +277,9 @@ function Ceremony({ rewards, onClose, onFinished, onPlace, busy = false, actionE
  {stage === 'error' && <div className={styles.loading} role="alert"><span>The animation could not load.</span><span>Your cards are safe. Retry without spending another wish.</span><button className={styles.primary} onClick={() => setAttempt(value => value + 1)}>Retry animation</button><button className={styles.secondary} onClick={revealNow}>Show my cards</button></div>}
  {ready && <button className={styles.replay} onClick={replay}>Play animation again</button>}
  <header className={styles.topbar}><span className={styles.brand}><span className={styles.brandMark}>✧</span> ANCIENT PULLS</span><div className={styles.controls}>{!ready && stage !== 'loading' && !reduced && <button className={styles.iconButton} aria-label={paused ? 'Resume animation' : 'Pause animation'} onClick={togglePause}>{paused ? '▷' : 'Ⅱ'}</button>}<button className={styles.iconButton} aria-label={muted ? 'Turn sound on' : 'Mute sound'} aria-pressed={!muted} onClick={() => void toggleSound()}><SoundIcon muted={muted}/></button>{!ready && allowSkip && <button className={styles.skip} disabled={!canSkip} onClick={revealNow}>{stage === 'placing' ? 'Finish' : 'Reveal'} ↗</button>}</div></header>
- {stage === 'loading' && <div className={styles.loading} role="status"><span className={styles.loadingStar}>✧</span><span>Gathering starlight</span></div>}{caption && !ready && !paused && <p className={styles.flightCaption}>{caption}</p>}{paused && <p className={styles.pauseNotice}>Your stars can wait.</p>}
+ {stage === 'loading' && <div className={styles.loading} role="status"><span className={styles.loadingStar}>✧</span><span>Loading…</span></div>}{paused && <p className={styles.pauseNotice}>Paused</p>}
  <p className={styles.srOnly} role="status" aria-live="polite">{ready ? `${rewards.map((c, i) => `${c.name}, ${configs[i].label}`).join('. ')}. Continue to place your stars.` : paused ? 'Animation paused.' : stage === 'placing' ? 'Astra is placing your stars.' : 'Astra is following your wishes.'}</p>
- {ready && (batch ? <div className={styles.batchResult}><div className={styles.batchHeading}><p className={styles.eyebrow}>YOUR WISHES</p><h1 className={styles.cardName}>{rewards.length} new lights.</h1><p className={styles.metadata}>Every star has a place in your sky.</p></div><div className={styles.batchGrid}>{rewards.map((c, i) => <div key={String(c.id ?? i)} className={styles.batchItem} style={{ '--rarity': configs[i].primary } as CSSProperties}><CardArtwork card={c}/><span className={styles.batchRarity}>{configs[i].label}</span><strong>{c.name}</strong></div>)}</div><div className={styles.batchActions}><button data-continue className={styles.primary} onClick={place} disabled={busy}>Continue to constellation <span>→</span></button>{actionError && <p className={styles.error} role="alert">{actionError}</p>}</div></div> : <div className={styles.result}><div className={styles.cardStage}><div className={styles.cardHalo}/><div className={styles.cardOrbit}/><CardArtwork card={rewards[0]}/></div><div className={styles.details}><p className={styles.eyebrow}>✦ {configs[0].label} ✦</p><h1 className={styles.cardName}>{rewards[0].name}</h1><p className={styles.metadata}>{[rewards[0].setName, rewards[0].cardNumber ? `No. ${rewards[0].cardNumber}` : null].filter(Boolean).join(' · ') || 'A new light in your constellation'}</p>{issue != null && <p className={styles.discovery}>Astral discovery · #{issue.toLocaleString('en-GB')}</p>}<div className={styles.actions}><button data-continue className={styles.primary} onClick={place} disabled={busy}>Continue to constellation <span>→</span></button></div>{actionError && <p className={styles.error} role="alert">{actionError}</p>}</div></div>)}
+ {ready && (batch ? <div className={styles.batchResult}><div className={styles.batchHeading}><h1 className={styles.cardName}>{rewards.length} cards</h1></div><div className={styles.batchGrid}>{rewards.map((c, i) => <div key={String(c.id ?? i)} className={styles.batchItem} style={{ '--rarity': configs[i].primary } as CSSProperties}><CardArtwork card={c}/><span className={styles.batchRarity}>{configs[i].label}</span><strong>{c.name}</strong></div>)}</div><div className={styles.batchActions}><button data-continue className={styles.primary} onClick={place} disabled={busy}>Continue to Observatory <span>→</span></button>{actionError && <p className={styles.error} role="alert">{actionError}</p>}</div></div> : <div className={styles.result}><div className={styles.cardStage}><div className={styles.cardHalo}/><div className={styles.cardOrbit}/><CardArtwork card={rewards[0]}/></div><div className={styles.details}><p className={styles.eyebrow}>✦ {configs[0].label} ✦</p><h1 className={styles.cardName}>{rewards[0].name}</h1><p className={styles.metadata}>{[rewards[0].setName, rewards[0].cardNumber ? `No. ${rewards[0].cardNumber}` : null].filter(Boolean).join(' · ') || ''}</p>{issue != null && <p className={styles.discovery}>Issue #{issue.toLocaleString('en-GB')}</p>}<div className={styles.actions}><button data-continue className={styles.primary} onClick={place} disabled={busy}>Continue to Observatory <span>→</span></button></div>{actionError && <p className={styles.error} role="alert">{actionError}</p>}</div></div>)}
  {!ready && <footer className={styles.footer}><span>ASTRA · THE STARKEEPER</span><span>FOLLOW YOUR STAR</span></footer>}</div>, document.body);
 }
 function CardArtwork({ card }: {
