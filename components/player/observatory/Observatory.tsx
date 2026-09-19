@@ -15,7 +15,7 @@ import AstralIcon from './AstralIcon';
 import { OrbitClock } from './OrbitClock';
 import { parseRows, resolveGalaxyPosition, type LeaderboardPlayer } from './UniverseRenderer';
 import { buildConstellationStars, parseZodiacSign, formatMoney, formatDate, anniversaryMessage, type WishRow, type CardRow, type ConstellationStar } from './ConstellationModel';
-import { ObservatoryRenderer, HOME_VIEW, BLACK_HOLE_VISITOR_LIMIT, buildObservatoryScene, clampDistance, clampSingularityDepth, ownsBlackHole, dampView, observatoryLevel, type ObservatoryLevel, type ObservatoryView, type ObservatoryFrame, type ObservatoryScene } from './ObservatoryRenderer';
+import { ObservatoryRenderer, HOME_VIEW, BLACK_HOLE_PASSAGE_END, singularityRailValue, singularityRailDepth, buildObservatoryScene, clampDistance, clampSingularityDepth, ownsBlackHole, dampView, observatoryLevel, type ObservatoryLevel, type ObservatoryView, type ObservatoryFrame, type ObservatoryScene } from './ObservatoryRenderer';
 import styles from './Observatory.module.css';
 
 type Panel='cards'|'galaxies'|'info'|null;
@@ -30,22 +30,23 @@ export default function Observatory(){
   const [panel,setPanel]=useState<Panel>(null),[search,setSearch]=useState('');
   const [selectedStar,setSelectedStar]=useState<ConstellationStar|null>(null),[selectedGalaxy,setSelectedGalaxy]=useState<LeaderboardPlayer|null>(null);
   const [level,setLevel]=useState<ObservatoryLevel>('stars'),[paused,setPaused]=useState(false),[systemReduced,setSystemReduced]=useState(false);
+  const [rankVerified,setRankVerified]=useState(false);
   const [holeMode,setHoleModeState]=useState(false),holeModeRef=useRef(false);
   const setHoleMode=useCallback((value:boolean)=>{holeModeRef.current=value;setHoleModeState(value);},[]);
   const [arrivalIds,setArrivalIds]=useState<string[]>([]),[arrivalMessage,setArrivalMessage]=useState('');
   const viewport=useRef<HTMLDivElement>(null),canvas=useRef<HTMLCanvasElement>(null),ownerLabel=useRef<HTMLButtonElement>(null);
-  const zoomInput=useRef<HTMLInputElement>(null),zoomRail=useRef<HTMLDivElement>(null);
+  const zoomInput=useRef<HTMLInputElement>(null),zoomRail=useRef<HTMLDivElement>(null),railGesture=useRef({pressed:false,advance:false});
   const renderer=useRef<ObservatoryRenderer|null>(null),frame=useRef<ObservatoryFrame>(emptyFrame),clock=useRef(new OrbitClock());
   const current=useRef<ObservatoryView>({...HOME_VIEW}),target=useRef<ObservatoryView>({...HOME_VIEW});
   const requestFrame=useRef<()=>void>(()=>{}),loadVersion=useRef(0),levelRef=useRef(level),arriving=useRef(new Set<string>());
   const gestures=useRef({points:new Map<number,{x:number;y:number}>(),moved:false,travel:0});
   const deepLinkHandled=useRef(false);
-  const scene=useMemo(()=>user?{...buildObservatoryScene(stars,zodiac,players,user),entryConfirmed:!rankError}:null,[stars,zodiac,players,user,rankError]);
+  const scene=useMemo(()=>user?{...buildObservatoryScene(stars,zodiac,players,user),entryConfirmed:rankVerified&&!rankError}:null,[stars,zodiac,players,user,rankError,rankVerified]);
   const reduced=preferences.reducedMotion||systemReduced;
   const runtime=useRef<{scene:ObservatoryScene|null;reduced:boolean;low:boolean;paused:boolean;star:string|null;galaxy:string|null}>({scene:null,reduced:false,low:false,paused:false,star:null,galaxy:null});
 
   const load=useCallback(async()=>{
-    const version=++loadVersion.current;setRefreshing(true);setError('');setRankError('');
+    const version=++loadVersion.current;setRefreshing(true);setError('');setRankError('');setRankVerified(false);
     try{
       const {data:{user:account},error:authError}=await supabase.auth.getUser();
       if(authError)throw authError;if(!account)throw new Error('Sign in to open your Observatory.');
@@ -73,7 +74,7 @@ export default function Observatory(){
       const sign=zodiacResult.error?null:parseZodiacSign(Array.isArray(zodiacResult.data)?zodiacResult.data[0]:zodiacResult.data);
       const nextStars=buildConstellationStars(wishes,new Map(cards.map(card=>[String(card.id),card])),sign);
       setUser({id:account.id,name:account.user_metadata?.display_name||account.user_metadata?.username||'Your galaxy'});
-      setZodiac(sign);setStars(nextStars);setPlayers(rankResult.error?[]:parseRows(rankResult.data));
+      setZodiac(sign);setStars(nextStars);setPlayers(rankResult.error?[]:parseRows(rankResult.data));setRankVerified(!rankResult.error);
       if(rankResult.error)setRankError('The rankings are unavailable. Your constellation is still here.');
       setSelectedStar(selected=>selected?nextStars.find(star=>star.id===selected.id)??null:null);
       const arrivals=readArrivalIds(window.location.search),available=arrivals.filter(id=>nextStars.some(star=>star.id===id));
@@ -101,18 +102,23 @@ export default function Observatory(){
     requestFrame.current();
   },[scene,reduced,preferences.lowVisualEffects,preferences.dataSaver,paused,selectedStar,selectedGalaxy]);
   useEffect(()=>{renderer.current?.invalidate();requestFrame.current();},[scene]);
-  useEffect(()=>{requestFrame.current();},[panel,holeMode,loading]);
+  useEffect(()=>{railGesture.current.advance=false;requestFrame.current();},[panel,holeMode,loading]);
+  useEffect(()=>{
+    const release=()=>{railGesture.current={pressed:false,advance:false};};
+    window.addEventListener('pointerup',release);window.addEventListener('pointercancel',release);window.addEventListener('blur',release);document.addEventListener('visibilitychange',release);
+    return()=>{window.removeEventListener('pointerup',release);window.removeEventListener('pointercancel',release);window.removeEventListener('blur',release);document.removeEventListener('visibilitychange',release);};
+  },[]);
   useEffect(()=>{
     if(!holeMode)return;
     let active=true,pending=false;
     const refreshRank=async()=>{
-      if(pending||document.hidden)return;pending=true;
+      if(pending||document.hidden)return;pending=true;setRankVerified(false);
       try{
         const result=await supabase.rpc('get_player_leaderboard',{p_limit:100});
         if(!active)return;
         if(result.error)throw result.error;
-        setPlayers(parseRows(result.data));setRankError('');
-      }catch{if(active)setRankError('Rankings could not be verified. Singularity entry is paused.');}
+        setPlayers(parseRows(result.data));setRankError('');setRankVerified(true);
+      }catch{if(active)setRankError('Rankings could not be verified. The passage to your constellation is unavailable.');}
       finally{pending=false;}
     };
     void refreshRank();const timer=window.setInterval(()=>void refreshRank(),60000);
@@ -132,6 +138,7 @@ export default function Observatory(){
       target.current.singularity=clampSingularityDepth(target.current.singularity,r.scene);
       current.current.singularity=clampSingularityDepth(current.current.singularity,r.scene);
       const dt=last===null?1000/60:stamp-last;last=stamp;
+      if(railGesture.current.advance&&holeModeRef.current&&!ownsBlackHole(r.scene))target.current.singularity+=Math.min(64,dt)*.0007;
       const unsettled=dampView(current.current,target.current,dt,r.reduced);
       const moving=!r.reduced&&!r.paused&&current.current.distance>.16;
       const time=clock.current.sample(stamp,moving);
@@ -140,6 +147,13 @@ export default function Observatory(){
       try{
         frame.current=painter.render(width,height,density,current.current,time,r.scene,{reduced:r.reduced||r.paused,low:r.low,selectedStar:r.star,selectedGalaxy:r.galaxy,arriving:arriving.current,insets});
       }catch{last=null;setError('The sky could not be drawn. Try again to restore your Observatory.');return;}
+      if(holeModeRef.current&&ownsBlackHole(r.scene)&&current.current.singularity>=BLACK_HOLE_PASSAGE_END-.0001){
+        const {yaw,pitch}=current.current;
+        Object.assign(current.current,{...HOME_VIEW,yaw,pitch});Object.assign(target.current,current.current);
+        setHoleMode(false);railGesture.current.advance=false;
+        const url=new URL(window.location.href);url.searchParams.delete('view');window.history.replaceState(window.history.state,'',url.pathname+url.search+url.hash);
+        queue();
+      }
       const nextLevel=observatoryLevel(current.current.distance,current.current.singularity);
       if(nextLevel!==levelRef.current){levelRef.current=nextLevel;setLevel(nextLevel);}
       const label=ownerLabel.current;if(label){
@@ -148,14 +162,14 @@ export default function Observatory(){
         label.style.visibility=current.current.singularity<.005&&!holeModeRef.current&&current.current.distance>.44&&point.x>-20&&point.x<width+20&&point.y>-20&&point.y<height+20?'visible':'hidden';
         label.style.opacity=String(Math.max(0,Math.min(1,(current.current.distance-.44)/.24)));
       }
-      const railValue=holeModeRef.current?target.current.singularity:(1.34-target.current.distance)/1.96;
+      const railValue=holeModeRef.current?singularityRailValue(target.current.singularity,ownsBlackHole(runtime.current.scene)):(1.34-target.current.distance)/1.96;
       if(zoomInput.current){
         zoomInput.current.value=String(railValue*100);
-        zoomInput.current.setAttribute('aria-valuetext',holeModeRef.current&&!ownsBlackHole(r.scene)&&railValue>=BLACK_HOLE_VISITOR_LIMIT-.001?'Event horizon. Only first place can enter the singularity.':`${Math.round(railValue*100)}%`);
+        zoomInput.current.setAttribute('aria-valuetext',holeModeRef.current?(ownsBlackHole(r.scene)?`${Math.round(railValue*100)}% to your constellation`:'Endless descent. Keep zooming to fall deeper.'):`${Math.round(railValue*100)}%`);
       }
       zoomRail.current?.style.setProperty('--zoom-position',`${Math.max(0,Math.min(1,railValue))*100}%`);
       if(!didPaint){didPaint=true;setPainted(true);}
-      if(unsettled||moving||frame.current.pending)queue();else last=null;
+      if(unsettled||moving||frame.current.pending||railGesture.current.advance)queue();else last=null;
     };
     const queue=()=>{if(active&&!raf&&!document.hidden)raf=requestAnimationFrame(draw);};requestFrame.current=queue;
     const heading=container.parentElement?.querySelector('.ap-scene-header');
@@ -171,12 +185,19 @@ export default function Observatory(){
     url.searchParams.delete('panel');url.searchParams.delete('target');
     window.history.replaceState(window.history.state,'',url.pathname+url.search+url.hash);
   },[]);
+  const leaveHole=useCallback(()=>{
+    if(current.current.singularity<.04)return;
+    renderer.current?.captureDeparture();
+    current.current.singularity=0;current.current.exitFade=1;target.current.exitFade=0;
+    railGesture.current.advance=false;
+  },[]);
   const goTo=useCallback((distance:number)=>{
+    leaveHole();
     const blackHole=distance>0&&distance<.78&&ownsBlackHole(runtime.current.scene);
     setHoleMode(blackHole);
     Object.assign(target.current,{...HOME_VIEW,distance:blackHole?1:distance,singularity:blackHole?.24:0});setSelectedStar(null);setSelectedGalaxy(null);setPanel(null);setSearch('');
     updateUrl(distance>=.8?'universe':null);requestFrame.current();
-  },[updateUrl,setHoleMode]);
+  },[updateUrl,setHoleMode,leaveHole]);
   const zoomBy=useCallback((amount:number)=>{
     if(arriving.current.size)return;
     if(!holeModeRef.current&&ownsBlackHole(runtime.current.scene)&&target.current.distance>=.78&&amount<0){setHoleMode(true);Object.assign(target.current,{distance:1,singularity:0,focusX:0,focusY:0,focusZ:0});}
@@ -198,22 +219,28 @@ export default function Observatory(){
     if(arriving.current.size)return;
     const amount=Math.max(0,Math.min(1,Number.isFinite(value)?value:0));
     if(!holeModeRef.current&&ownsBlackHole(runtime.current.scene)&&target.current.distance>=.78&&amount>(1.34-target.current.distance)/1.96){setHoleMode(true);Object.assign(target.current,{distance:1,singularity:0,focusX:0,focusY:0,focusZ:0});}
-    if(holeModeRef.current)target.current.singularity=clampSingularityDepth(amount,runtime.current.scene);
+    if(holeModeRef.current){
+      const owner=ownsBlackHole(runtime.current.scene);
+      target.current.singularity=clampSingularityDepth(singularityRailDepth(amount,target.current.singularity,owner),runtime.current.scene);
+      railGesture.current.advance=!owner&&amount>=.97&&railGesture.current.pressed;
+    }
     else {target.current.distance=clampDistance(1.34-amount*1.96);target.current.starX=target.current.starY=target.current.starZ=0;}
     setSelectedStar(null);setSelectedGalaxy(null);requestFrame.current();
   },[setHoleMode]);
   const visitStar=useCallback((star:ConstellationStar)=>{
+    leaveHole();
     setHoleMode(false);
     Object.assign(target.current,{...HOME_VIEW,distance:-.34,starX:star.x-50,starY:star.y-50,starZ:star.z});
     setSelectedGalaxy(null);setSelectedStar(star);setPanel(null);updateUrl(null);requestFrame.current();
-  },[updateUrl,setHoleMode]);
+  },[updateUrl,setHoleMode,leaveHole]);
   const visitGalaxy=useCallback((player:LeaderboardPlayer)=>{
+    leaveHole();
     const r=runtime.current.scene;if(!r)return;
     const node=r.nodes.find(node=>node.player.userId===player.userId),position=node?resolveGalaxyPosition(node,clock.current.time,false):{x:0,y:0,z:0};
     setHoleMode(player.rank===1&&player.userId===r.leader?.userId);
     Object.assign(target.current,{distance:1,singularity:0,focusX:position.x*.64,focusY:position.y*.64,focusZ:position.z*.64,starX:0,starY:0,starZ:0});
     setSelectedStar(null);setSelectedGalaxy(player);setPanel(null);updateUrl('universe');requestFrame.current();
-  },[updateUrl,setHoleMode]);
+  },[updateUrl,setHoleMode,leaveHole]);
   const exploreBlackHole=useCallback(()=>{
     if(!runtime.current.scene?.leader)return;
     setHoleMode(true);Object.assign(target.current,{...HOME_VIEW,distance:1,singularity:.24});
@@ -329,7 +356,7 @@ export default function Observatory(){
       </>:<>
         <p>Zoom out from your stars to see your galaxy, then continue into the universe. Your galaxy stays marked. Select it to return.</p>
         <div className={styles.stats}><Stat label="Wish stars" value={String(stars.length)}/><Stat label="Star value" value={formatMoney(totalValue)}/><Stat label="Your rank" value={rankError?'Unavailable':rank?`#${rank}`:'Outside top 100'}/><Stat label="Ranked collections" value={String(ranked.length)}/></div>
-        <p>The #1 collection owns the black hole. Only that account can zoom past the event horizon into the singularity.</p>
+        <p>The #1 collection owns the black hole. Everyone can descend into the singularity. Only that account can pass through into their constellation; other players can keep falling indefinitely.</p>
         {zodiac?<p>Your {ZODIAC_SHAPES[zodiac].label} constellation is clearest from its home view.</p>:<p><Link href="/profile">Choose your star sign</Link> to give your constellation a shape.</p>}
         {stars.length>=1600&&<p>The map shows your latest 1,600 wish stars and any stars arriving now.</p>}
         <button className="ap-scene-button" onClick={()=>void load()} disabled={refreshing}><AstralIcon name="reset"/>{refreshing?'Refreshing…':'Refresh Observatory'}</button>
@@ -341,14 +368,14 @@ export default function Observatory(){
     {!loading&&!error&&!panel&&!selectedStar&&!selectedGalaxy&&<div ref={zoomRail} className={styles.zoomRail} aria-label="Zoom controls">
       <button aria-label="Zoom in" onClick={()=>zoomBy(-.1)}>+</button>
       <div className={styles.zoomTrack}>
-        {holeMode&&!ownsBlackHole(scene)&&<><span className={styles.zoomBlocked} style={{height:`${(1-BLACK_HOLE_VISITOR_LIMIT)*100}%`}} aria-hidden="true"/><span className={styles.zoomLimit} style={{top:`${(1-BLACK_HOLE_VISITOR_LIMIT)*100}%`}} title="Only the #1 account can enter the singularity"><svg width="12" height="14" viewBox="0 0 12 14" aria-hidden="true"><rect x="2" y="6" width="8" height="7" rx="2" fill="none" stroke="currentColor"/><path d="M3.5 6V4a2.5 2.5 0 0 1 5 0v2" fill="none" stroke="currentColor"/></svg></span></>}
-        <input ref={zoomInput} type="range" min="0" max="100" step="0.1" defaultValue={(holeModeRef.current?target.current.singularity:(1.34-target.current.distance)/1.96)*100} aria-orientation="vertical" aria-label={holeMode?'Black hole zoom':'Observatory zoom'} aria-describedby={holeMode&&!ownsBlackHole(scene)?'singularity-access':undefined}
-          onChange={event=>{setRailZoom(Number(event.currentTarget.value)/100);event.currentTarget.value=String((holeModeRef.current?target.current.singularity:(1.34-target.current.distance)/1.96)*100);}}
+        {holeMode&&!ownsBlackHole(scene)&&<span className={styles.zoomInfinity} aria-hidden="true">∞</span>}
+        <input ref={zoomInput} type="range" min="0" max="100" step="0.1" defaultValue={(holeModeRef.current?singularityRailValue(target.current.singularity,ownsBlackHole(runtime.current.scene)):(1.34-target.current.distance)/1.96)*100} onPointerDown={()=>{railGesture.current.pressed=true;}} onPointerUp={()=>{railGesture.current={pressed:false,advance:false};}} onPointerCancel={()=>{railGesture.current={pressed:false,advance:false};}} onBlur={()=>{railGesture.current={pressed:false,advance:false};}} aria-orientation="vertical" aria-label={holeMode?'Black hole zoom':'Observatory zoom'} aria-describedby={holeMode&&!ownsBlackHole(scene)?'singularity-access':undefined}
+          onChange={event=>{setRailZoom(Number(event.currentTarget.value)/100);event.currentTarget.value=String((holeModeRef.current?singularityRailValue(target.current.singularity,ownsBlackHole(runtime.current.scene)):(1.34-target.current.distance)/1.96)*100);}}
           onKeyDown={event=>{const value=Number(event.currentTarget.value)/100;const next=event.key==='Home'?0:event.key==='End'?1:['ArrowUp','ArrowRight'].includes(event.key)?value+.025:['ArrowDown','ArrowLeft'].includes(event.key)?value-.025:event.key==='PageUp'?value+.1:event.key==='PageDown'?value-.1:null;if(next===null)return;event.preventDefault();setRailZoom(next);}}
         />
       </div>
       <button aria-label="Zoom out" onClick={()=>zoomBy(.1)}>−</button>
-      <span id="singularity-access" className="sr-only">Only the current first-place account can fully enter the black hole. Other accounts stop at the event horizon.</span>
+      <span id="singularity-access" className="sr-only">Keep scrolling, pressing plus, or holding the top of the slider to descend indefinitely. Only first place can pass through into their constellation.</span>
     </div>}
     {!loading&&!panel&&<div className={styles.controls}>
       <nav className={styles.stages} aria-label="Observatory scale"><button aria-current={level==='stars'?'step':undefined} onClick={()=>goTo(0)}>My stars</button><span/><button aria-current={level==='galaxy'?'step':undefined} onClick={()=>goTo(.54)}>{rank===1?'My black hole':'My galaxy'}</button><span/><button aria-current={level==='universe'?'step':undefined} onClick={()=>goTo(1)}>Universe</button></nav>

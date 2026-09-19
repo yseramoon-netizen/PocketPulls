@@ -1,6 +1,6 @@
 import { paintObservatorySky } from "../observatory/SkyArt";
 import { AstraRig } from './AstraRig';
-import { sampleArrival, sampleFlight, visibleOptions, ascentDistance, type ArrivalTarget, type FlightFrame } from './flight';
+import { sampleArrival, sampleFlight, visibleOptions, ascentDistance, flightHand, type ArrivalTarget, type FlightFrame } from './flight';
 import { clamp, curve, ease, lerp, smooth, type AstralOptions } from './timeline';
 const TAU = Math.PI * 2, fract = (n: number) => n - Math.floor(n), random = (n: number) => fract(Math.sin(n * 127.1 + 311.7) * 43758.5453), NEUTRAL = '#cce9ff';
 export class FlightRenderer {
@@ -189,7 +189,7 @@ export class FlightRenderer {
         }
         const size = u * .30 * s.pose.scale * (w / h < .72 ? 1.1 : 1);
         for (const side of [-1, 1]) {
-            const a = side < 0 ? s.pose.leftArm : s.pose.rightArm, hx = s.pose.x * w + (side * 14 - Math.sin(a) * 21) / 100 * size, hy = s.pose.y * h + (4 + Math.cos(a) * 21) / 100 * size;
+            const hand=flightHand(s.pose,side,size,w,h),hx=hand.x,hy=hand.y;
             c.strokeStyle = '#e0d7ad';
             c.globalAlpha = cast * .65;
             c.lineWidth = 1.4;
@@ -197,6 +197,15 @@ export class FlightRenderer {
             c.moveTo(hx, hy);
             c.bezierCurveTo(hx + side * u * .1, hy - u * .1, x + side * u * .12, y + u * .09, x, y);
             c.stroke();
+            for(let strand=0;strand<3;strand++){
+                const phase=s.time*2.4+strand*2.1,offset=Math.sin(phase)*u*.025;
+                c.globalAlpha=cast*(.15+strand*.035);c.lineWidth=.65;c.strokeStyle=strand%2?'#b4d8ef':'#f7dfac';
+                c.beginPath();c.moveTo(hx,hy);c.bezierCurveTo(hx+side*u*.13+offset,hy-u*.09,x+side*u*.14-offset,y+u*.06,x,y);c.stroke();
+                const age=fract(s.time*.55+strand/3),q=1-age;
+                const px=q*q*q*hx+3*q*q*age*(hx+side*u*.1)+3*q*age*age*(x+side*u*.12)+age*age*age*x;
+                const py=q*q*q*hy+3*q*q*age*(hy-u*.1)+3*q*age*age*(y+u*.09)+age*age*age*y;
+                this.star(px,py,1.8,'#d4eafa',cast*Math.sin(age*Math.PI),s.time);
+            }
             this.light(hx, hy, u * .045, NEUTRAL, cast * .8);
             this.star(hx, hy, 3.5, '#f6df9b', cast, s.time);
         }
@@ -221,7 +230,7 @@ export class FlightRenderer {
         }
         const amount = this.low ? 230 : 480;
         for (let i = 0; i < amount; i++) {
-            const a = i / amount * TAU + s.time * .52, r = radius * (.62 + random(i + 1400) * .4);
+            const band=.62+random(i+1400)*.4,r=radius*band,a=i/amount*TAU+s.time*.48/Math.pow(band,1.5);
             if ((Math.sin(a) > 0) !== front)
                 continue;
             c.strokeStyle = i % 6 === 0 ? '#b2d9ff' : i % 3 === 0 ? '#f8ecc4' : '#c2a477';
@@ -251,6 +260,23 @@ export class FlightRenderer {
         }
         c.restore();
     }
+    private orbitStars(s:FlightFrame,colours:readonly AstralOptions[],front:boolean){
+        if(colours.length!==10||s.reveal<=0)return;
+        const c=this.context,u=this.unit,portrait=this.width/this.height<.72,orbit=u*.4*ease(s.reveal),cy=s.pose.y*this.height-u*.075;
+        const nodes=colours.map((o,i)=>{const angle=i/10*TAU+s.time*.4;return {o,i,angle,z:Math.sin(angle),x:this.width*.5+Math.cos(angle)*orbit,y:cy+Math.sin(angle)*orbit*(portrait?1.02:.77)};}).filter(n=>(n.z>=0)===front).sort((a,b)=>a.z-b.z);
+        for(const n of nodes){
+            const m=smooth(n.i*.055,.48+n.i*.045,s.reveal);
+            const x=lerp(s.seed.x*this.width,n.x,ease(s.reveal)),y=lerp(s.seed.y*this.height,n.y,ease(s.reveal));
+            if(s.reveal>.8&&!this.low){
+                c.save();c.globalCompositeOperation='lighter';c.strokeStyle=n.o.primary;c.lineWidth=.8;
+                for(let j=0;j<12;j++){
+                    const a=n.angle-j*.014,b=a-.014;c.globalAlpha=(1-j/12)*.20*m;
+                    c.beginPath();c.moveTo(this.width*.5+Math.cos(a)*orbit,cy+Math.sin(a)*orbit*(portrait?1.02:.77));c.lineTo(this.width*.5+Math.cos(b)*orbit,cy+Math.sin(b)*orbit*(portrait?1.02:.77));c.stroke();
+                }c.restore();
+            }
+            this.star(x,y,u*(.012+n.o.tier*.0009)*m*(1+n.z*.16),n.o.primary,m,s.time*.13,n.o.blackHole);
+        }
+    }
     render(ms: number, options: readonly AstralOptions[]): FlightFrame {
         const count = options.length, s = sampleFlight(ms, count), colours = visibleOptions(ms, options), c = this.context, u = this.unit;
         // Keep the ten-wish seed above the crown at every viewport aspect ratio.
@@ -259,6 +285,7 @@ export class FlightRenderer {
         this.space(s.time, s.ascent, s.time * .002 + (count === 10 ? ascentDistance(s.time) * .16 : 0));
         this.trail(ms, count, 1 - s.cast);
         this.disk(s, false);
+        this.orbitStars(s,colours,false);
         this.magic(s);
         if (s.pose.charge > .05) {
             c.save();
@@ -270,21 +297,19 @@ export class FlightRenderer {
         this.rig.draw(c, s.pose, s.time, u * .30 * s.pose.scale * (this.width / this.height < .72 ? 1.1 : 1), this.width, this.height, {colour:reflected,amount:s.reveal*.27+s.pose.charge*.09});
         this.disk(s, true);
         if (count === 10 && s.reveal > 0) {
-            const portrait = this.width / this.height < .72, orbit = u * .4 * ease(s.reveal), cy = s.pose.y * this.height - u * .075;
-            this.star(s.seed.x * this.width, s.seed.y * this.height, u * .028 * (1 - s.reveal), NEUTRAL, s.seed.opacity * (1 - s.reveal), s.time * .07);
-            const nodes = colours.map((o, i) => {
-                const a = i / 10 * TAU + s.time * .4;
-                return { o, i, z: Math.sin(a), x: this.width * .5 + Math.cos(a) * orbit, y: cy + Math.sin(a) * orbit * (portrait ? 1.02 : .77) };
-            }).sort((a, b) => a.z - b.z);
-            for (const n of nodes) {
-                const m = smooth(n.i * .055, .48 + n.i * .045, s.reveal);
-                this.star(lerp(s.seed.x * this.width, n.x, ease(s.reveal)), lerp(s.seed.y * this.height, n.y, ease(s.reveal)), u * (.012 + n.o.tier * .0009) * m * (1 + n.z * .16), n.o.primary, m, s.time * .13, n.o.blackHole);
-            }
+            this.star(s.seed.x*this.width,s.seed.y*this.height,u*.028*(1-s.reveal),NEUTRAL,s.seed.opacity*(1-s.reveal),s.time*.07);
+            this.orbitStars(s,colours,true);
         }
         else {
             const o = colours[0], r = s.seed.radius * (u / 720) * (1 + s.reveal * (o.tier * .08 + (o.blackHole ? .3 : 0))), x = s.seed.x * this.width, y = s.seed.y * this.height;
             this.star(x, y, r, NEUTRAL, s.seed.opacity * (1 - s.reveal), s.time * .07);
             this.star(x, y, r, o.primary, s.seed.opacity * s.reveal, s.time * .07, o.blackHole);
+            if(s.reveal>0&&!this.low){
+                c.save();c.globalCompositeOperation='lighter';c.translate(x,y);c.rotate(-.12);
+                const flare=c.createLinearGradient(-u*.45,0,u*.45,0);
+                flare.addColorStop(0,o.primary+'00');flare.addColorStop(.42,o.primary+'28');flare.addColorStop(.5,'#fff8e4');flare.addColorStop(.58,o.primary+'28');flare.addColorStop(1,o.primary+'00');
+                c.fillStyle=flare;c.globalAlpha=(.13+s.burst*.45)*s.reveal;c.fillRect(-u*.45,-.6,u*.9,1.2);c.restore();
+            }
         }
         if (s.burst > 0) {
             c.save();

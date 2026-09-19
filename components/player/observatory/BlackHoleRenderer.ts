@@ -13,6 +13,10 @@ uniform vec3 uDiskU;
 uniform vec3 uDiskV;
 uniform float uViewScale;
 uniform vec2 uViewOffset;
+uniform sampler2D uBackdrop;
+uniform vec2 uBackdropSize;
+uniform vec2 uLensCentre;
+uniform float uLensExtent;
 const float RS=0.385;
 const float INNER=1.155;
 float hash(vec3 p){p=fract(p*0.3183099+vec3(.17,.31,.47));p*=17.0;return fract(p.x*p.y*p.z*(p.x+p.y+p.z));}
@@ -75,9 +79,15 @@ void main(){
  // A faint corona softens the photon boundary, without washing out disk structure.
  float corona=exp(-abs(length(uv)-1.005)*15.0)*.008;
  colour+=vec3(.9,.38,.1)*corona;
- float light=max(colour.r,max(colour.g,colour.b));
- float alpha=max(captured,clamp(light*1.55,0.0,1.0));
- float feather=1.0-smoothstep(4.0,4.32,length(uv));alpha*=feather;
+ // Sample the actual sky along the escaped ray. Near the photon boundary the
+ // ray reverses its source direction, stretching background stars into arcs.
+ float lensWeight=1.0-smoothstep(2.7,4.25,length(uv));
+ vec2 source=uv+normalize(direction).xy*3.2*lensWeight;
+ vec2 pixel=uLensCentre+vec2(source.x,-source.y)*(uLensExtent/4.35);
+ vec2 skyUv=vec2(pixel.x/uBackdropSize.x,1.0-pixel.y/uBackdropSize.y);
+ vec3 background=texture2D(uBackdrop,clamp(skyUv,vec2(.001),vec2(.999))).rgb;
+ colour+=background*(1.0-opacity)*(1.0-captured)*(1.0-photonBand*.8);
+ float alpha=1.0-smoothstep(4.0,4.32,length(uv));
  gl_FragColor=vec4(colour*alpha,alpha);
 }
 `;
@@ -140,6 +150,12 @@ class BlackHoleRenderer {
  private diskV:WebGLUniformLocation|null;
  private viewScale:WebGLUniformLocation|null;
  private viewOffset:WebGLUniformLocation|null;
+ private backdrop:WebGLTexture;
+ private backdropCanvas=document.createElement('canvas');
+ private backdropContext=this.backdropCanvas.getContext('2d')!;
+ private backdropSize:WebGLUniformLocation|null;
+ private lensCentre:WebGLUniformLocation|null;
+ private lensExtent:WebGLUniformLocation|null;
  private lost=false;
  constructor(){
   const gl=this.canvas.getContext('webgl',{alpha:true,premultipliedAlpha:true,antialias:false,depth:false,stencil:false,preserveDrawingBuffer:true,powerPreference:'low-power'});
@@ -153,6 +169,10 @@ class BlackHoleRenderer {
   const position=gl.getAttribLocation(program,'aPosition');gl.enableVertexAttribArray(position);gl.vertexAttribPointer(position,2,gl.FLOAT,false,0,0);
   this.time=gl.getUniformLocation(program,'uTime');this.diskU=gl.getUniformLocation(program,'uDiskU');this.diskV=gl.getUniformLocation(program,'uDiskV');
   this.viewScale=gl.getUniformLocation(program,'uViewScale');this.viewOffset=gl.getUniformLocation(program,'uViewOffset');
+  this.backdropSize=gl.getUniformLocation(program,'uBackdropSize');this.lensCentre=gl.getUniformLocation(program,'uLensCentre');this.lensExtent=gl.getUniformLocation(program,'uLensExtent');
+  const backdrop=gl.createTexture();if(!backdrop)throw new Error('Lens texture unavailable');this.backdrop=backdrop;
+  gl.activeTexture(gl.TEXTURE2);gl.bindTexture(gl.TEXTURE_2D,backdrop);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
+  gl.uniform1i(gl.getUniformLocation(program,'uBackdrop'),2);gl.activeTexture(gl.TEXTURE0);
   this.bloomSource=gl.getUniformLocation(this.bloom,'uSource');this.bloomScene=gl.getUniformLocation(this.bloom,'uScene');this.bloomDirection=gl.getUniformLocation(this.bloom,'uDirection');this.bloomComposite=gl.getUniformLocation(this.bloom,'uComposite');
   for(let i=0;i<2;i++){
    const texture=gl.createTexture(),framebuffer=gl.createFramebuffer();if(!texture||!framebuffer)throw new Error('Render target unavailable');
@@ -161,7 +181,7 @@ class BlackHoleRenderer {
   }
   this.canvas.addEventListener('webglcontextlost',event=>{event.preventDefault();this.lost=true;});
  }
- render(radius:number,time:number,camera:CameraAngles,crop:ReturnType<typeof blackHoleCrop>){
+ render(radius:number,time:number,camera:CameraAngles,crop:ReturnType<typeof blackHoleCrop>,source:HTMLCanvasElement,x:number,y:number,width:number,height:number){
   if(this.lost||this.gl.isContextLost())return null;
   // Quantised sizes avoid reallocating textures on every damped camera frame.
   const ceiling=crop.scale<1?768:512;
@@ -170,6 +190,13 @@ class BlackHoleRenderer {
   if(this.canvas.width!==pixels){this.canvas.width=this.canvas.height=pixels;this.gl.viewport(0,0,pixels,pixels);for(const target of this.targets){this.gl.bindTexture(this.gl.TEXTURE_2D,target.texture);this.gl.texImage2D(this.gl.TEXTURE_2D,0,this.gl.RGBA,pixels,pixels,0,this.gl.RGBA,this.gl.UNSIGNED_BYTE,null);}}
   const gl=this.gl,axes=blackHoleDiskAxes(camera);gl.useProgram(this.program);gl.uniform1f(this.time,time/1000);gl.uniform3fv(this.diskU,axes[0]);gl.uniform3fv(this.diskV,axes[1]);
   gl.uniform1f(this.viewScale,crop.scale);gl.uniform2f(this.viewOffset,crop.offsetX,crop.offsetY);
+  const backdropScale=Math.min(1,1024/Math.max(width,height));
+  const bw=Math.max(1,Math.round(width*backdropScale)),bh=Math.max(1,Math.round(height*backdropScale));
+  if(this.backdropCanvas.width!==bw||this.backdropCanvas.height!==bh){this.backdropCanvas.width=bw;this.backdropCanvas.height=bh;}
+  this.backdropContext.drawImage(source,0,0,bw,bh);
+  gl.activeTexture(gl.TEXTURE2);gl.bindTexture(gl.TEXTURE_2D,this.backdrop);gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,true);
+  gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,this.backdropCanvas);gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,false);
+  gl.uniform2f(this.backdropSize,width,height);gl.uniform2f(this.lensCentre,x,y);gl.uniform1f(this.lensExtent,radius*3.58);gl.activeTexture(gl.TEXTURE0);
   gl.bindFramebuffer(gl.FRAMEBUFFER,this.targets[0].framebuffer);gl.drawArrays(gl.TRIANGLES,0,6);
   gl.useProgram(this.bloom);gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,this.targets[0].texture);gl.uniform1i(this.bloomSource,0);
   gl.uniform1f(this.bloomComposite,0);gl.uniform2f(this.bloomDirection,2.4/pixels,0);gl.bindFramebuffer(gl.FRAMEBUFFER,this.targets[1].framebuffer);gl.drawArrays(gl.TRIANGLES,0,6);
@@ -183,6 +210,7 @@ class BlackHoleRenderer {
  }
  dispose(){
   const gl=this.gl;for(const target of this.targets){gl.deleteTexture(target.texture);gl.deleteFramebuffer(target.framebuffer);}
+  gl.deleteTexture(this.backdrop);this.backdropCanvas.width=this.backdropCanvas.height=1;
   gl.deleteBuffer(this.buffer);gl.deleteProgram(this.program);gl.deleteProgram(this.bloom);gl.getExtension('WEBGL_lose_context')?.loseContext();
  }
 }
@@ -194,7 +222,7 @@ export function paintBlackHoleShader(context:CanvasRenderingContext2D,x:number,y
  try{
   const started=performance.now(),transform=context.getTransform();
   const width=context.canvas.width/Math.max(.01,transform.a),height=context.canvas.height/Math.max(.01,transform.d);
-  const crop=blackHoleCrop(width,height,x,y,radius),canvas=renderer.render(radius,time,camera,crop);if(!canvas)return false;
+  const crop=blackHoleCrop(width,height,x,y,radius),canvas=renderer.render(radius,time,camera,crop,context.canvas,x,y,width,height);if(!canvas)return false;
   context.drawImage(canvas,crop.x,crop.y,crop.size,crop.size);renderer.recordCost(performance.now()-started);return true;
  }catch{disposeBlackHoleRenderer(context);renderers.set(context,null);return false;}
 }

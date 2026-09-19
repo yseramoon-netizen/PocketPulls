@@ -17,7 +17,7 @@ export function companionPose(t:number):FlightPose {
   const wave=Math.max(0,Math.sin(t*.6))**8;
   return {x:.5+Math.sin(t*.65)*.013,y:.55+Math.sin(t*1.4)*.017,scale:1,
     roll:Math.sin(t*.8)*.055,yaw:Math.sin(t*.48)*.27,leftArm:.35+Math.sin(t*1.6)*.09,
-    rightArm:-.4-wave*(1.1+Math.sin(t*6)*.18),kick:Math.sin(t*1.8)*.13,gaze:.5,charge:.2,expression:wave>.5?3:0};
+    rightArm:-.4-wave*(1.1+Math.sin(t*6)*.18),kick:Math.sin(t*1.8)*.13,leftLeg:Math.sin(t*1.8)*.13,rightLeg:-Math.sin(t*1.8+.7)*.13,stretch:1+Math.sin(t*2.2)*.012,headTilt:-wave*.08+Math.sin(t*.8)*.025,wind:.08,gaze:.5,charge:.2,expression:wave>.5?3:0};
 }
 
 /** A real articulated idle: cape inertia, body breathing, feet and a small wave. */

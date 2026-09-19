@@ -25,3 +25,26 @@ test('malformed saved recovery cannot silently start ten new charges',async()=>{
 test('a slower tab cannot overwrite a newer confirmed prefix without Web Locks',async()=>{storage();const user=randomUUID(),committed=new Map();cache.delete(path.resolve(root,'lib/player/wishBatch.ts'));const second=load('lib/player/wishBatch');const claim=async key=>{if(!committed.has(key))committed.set(key,award(committed.size+1));return committed.get(key)};const progress=[];let delayed=false;const fast={checkAccount:async()=>true,onProgress:b=>progress.push(b.results.length),claim};const slow={...fast,claim:async key=>{const r=await claim(key);if(!delayed){delayed=true;await new Promise(resolve=>setTimeout(resolve,10));}return r}};try{const [a,b]=await Promise.all([B.runWishBatch(user,slow),second.runWishBatch(user,fast)]);assert.equal(committed.size,10);assert.deepEqual(a,b);assert.equal(B.readWishBatch(user).results.length,10);assert.deepEqual(progress,[...progress].sort((a,b)=>a-b))}finally{delete global.window}});
 
 test('ascent starfield decelerates without a backwards jump',()=>{let previous=0;for(let t=0;t<=20;t+=1/120){const next=F.ascentDistance(t);assert.ok(Number.isFinite(next));assert.ok(next>=previous-1e-10);previous=next;}assert.ok(F.ascentDistance(20)>0);assert.ok(Math.abs(F.ascentDistance(7)-F.ascentDistance(20))<1e-10)});
+
+test('flight articulation remains continuous through the turn, gather, recoil and settle',()=>{
+ for(const count of [1,10]){
+  let previous=F.sampleFlight(0,count).pose;
+  for(let ms=1000/60;ms<=F.flightDuration(count);ms+=1000/60){
+   const pose=F.sampleFlight(ms,count).pose;
+   assert.ok(Math.hypot(pose.x-previous.x,pose.y-previous.y)<.045,'The mascot must not jump between flight beats');
+   for(const key of ['roll','yaw','headTilt','leftArm','rightArm'])assert.ok(Math.abs(pose[key]-previous[key])<.16,key+' changes continuously');
+   assert.ok(pose.stretch>.85&&pose.stretch<1.2);previous=pose;
+  }
+ }
+});
+
+test('spell attachment points follow body rotation and foreshortening at mobile and desktop sizes',()=>{
+ for(const [w,h] of [[390,720],[1280,720]])for(const count of [1,10])for(let ms=0;ms<17000;ms+=17){
+  const pose=F.sampleFlight(ms,count).pose,size=Math.min(w,h)*.3*pose.scale;
+  for(const side of [-1,1]){
+   const hand=F.flightHand(pose,side,size,w,h);
+   assert.ok(Number.isFinite(hand.x)&&Number.isFinite(hand.y));
+   assert.ok(Math.hypot(hand.x-pose.x*w,hand.y-pose.y*h)<size*.5);
+  }
+ }
+});

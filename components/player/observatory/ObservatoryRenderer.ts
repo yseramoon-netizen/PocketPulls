@@ -5,18 +5,26 @@ import { buildGalaxyNodes, createProjector, drawGalaxyCached, drawOrbitingBlackH
 import { disposeBlackHoleRenderer } from './BlackHoleRenderer';
 import { paintSingularity } from './SingularityArt';
 
-export type ObservatoryView = { distance:number; singularity:number; yaw:number; pitch:number; focusX:number; focusY:number; focusZ:number; starX:number; starY:number; starZ:number };
-export const HOME_VIEW:ObservatoryView={distance:0,singularity:0,yaw:0,pitch:0,focusX:0,focusY:0,focusZ:0,starX:0,starY:0,starZ:0};
+export type ObservatoryView = { distance:number; singularity:number; exitFade:number; yaw:number; pitch:number; focusX:number; focusY:number; focusZ:number; starX:number; starY:number; starZ:number };
+export const HOME_VIEW:ObservatoryView={distance:0,singularity:0,exitFade:0,yaw:0,pitch:0,focusX:0,focusY:0,focusZ:0,starX:0,starY:0,starZ:0};
 export const clampDistance=(value:number)=>clamp(Number.isFinite(value)?value:0,-.62,1.34);
 export const smooth=(a:number,b:number,value:number)=>{const t=clamp((value-a)/(b-a),0,1);return t*t*(3-2*t);};
 export const observatoryLevel=(distance:number,singularity=0)=>singularity>.82?'singularity':singularity>.001?'black-hole':distance<.24?'stars':distance<.78?'galaxy':'universe';
 export type ObservatoryLevel=ReturnType<typeof observatoryLevel>;
-export const BLACK_HOLE_VISITOR_LIMIT=.46;
+export const BLACK_HOLE_PASSAGE_END=2.2;
 export const ownsBlackHole=(scene:ObservatoryScene|null)=>!!scene?.entryConfirmed&&!!scene.leader&&scene.leader.rank===1&&scene.owner.rank===1&&scene.leader.userId===scene.owner.userId&&scene.owner.isCurrentUser;
 export function clampSingularityDepth(value:number,scene:ObservatoryScene|null){
   if(!scene?.leader)return 0;
-  return clamp(Number.isFinite(value)?value:0,0,ownsBlackHole(scene)?1:BLACK_HOLE_VISITOR_LIMIT);
+  const depth=Math.max(0,Number.isFinite(value)?value:0);
+  return ownsBlackHole(scene)?Math.min(BLACK_HOLE_PASSAGE_END,depth):depth;
 }
+/** Travel is unbounded for visitors; only the visual phases wrap. No growing meshes or textures. */
+export const singularityRailValue=(depth:number,owner:boolean)=>owner?clamp(depth/BLACK_HOLE_PASSAGE_END,0,1):Math.min(.97,Math.max(0,depth)/(Math.max(0,depth)+1.2));
+export function singularityRailDepth(value:number,current:number,owner:boolean){
+  const v=clamp(Number.isFinite(value)?value:0,0,1);
+  return owner?v*BLACK_HOLE_PASSAGE_END:v>=.97?current+.24:1.2*v/(1-v);
+}
+export const singularityPassage=(depth:number,scene:ObservatoryScene|null)=>ownsBlackHole(scene)?smooth(1.32,BLACK_HOLE_PASSAGE_END,depth):0;
 export function blackHoleApproach(width:number,height:number,depth:number,camera:Camera){
   const measure=Math.min(width,height),compact=width<768;
   const centre=createProjector(camera,width,height)({x:0,y:0,z:0});
@@ -31,7 +39,11 @@ export function dampView(current:ObservatoryView,target:ObservatoryView,delta:nu
   let unsettled=false;
   for(const key of Object.keys(current) as (keyof ObservatoryView)[]){
     const difference=target[key]-current[key];
-    if(Math.abs(difference)>.00008){current[key]+=difference*amount;unsettled=true;}else current[key]=target[key];
+    if(Math.abs(difference)>.00008){
+      const step=difference*amount;
+      current[key]+=key==='singularity'&&!reduced?clamp(step,-Math.min(64,delta)*.00085,Math.min(64,delta)*.00085):step;
+      unsettled=true;
+    }else current[key]=target[key];
   }
   return unsettled;
 }
@@ -94,9 +106,15 @@ export class ObservatoryRenderer {
   private width=0;
   private height=0;
   private density=0;
+  private departure:HTMLCanvasElement|null=null;
   constructor(private context:CanvasRenderingContext2D){}
   invalidate(){this.sprites.clear();}
-  dispose(){disposeBlackHoleRenderer(this.universeContext);if(this.local)disposeBlackHoleRenderer(this.local.getContext('2d')!);this.sprites.clear();this.sky.width=this.universe.width=1;if(this.local)this.local.width=1;}
+  captureDeparture(){
+    if(!this.departure)this.departure=document.createElement('canvas');
+    this.departure.width=this.context.canvas.width;this.departure.height=this.context.canvas.height;
+    this.departure.getContext('2d')?.drawImage(this.context.canvas,0,0);
+  }
+  dispose(){disposeBlackHoleRenderer(this.universeContext);if(this.local)disposeBlackHoleRenderer(this.local.getContext('2d')!);this.sprites.clear();this.sky.width=this.universe.width=1;if(this.local)this.local.width=1;if(this.departure)this.departure.width=1;}
   render(width:number,height:number,density:number,view:ObservatoryView,time:number,scene:ObservatoryScene,options:{reduced:boolean;low:boolean;selectedStar:string|null;selectedGalaxy:string|null;arriving:Set<string>;insets?:{top:number;bottom:number}}):ObservatoryFrame {
     const c=this.context;
     if(width!==this.width||height!==this.height||density!==this.density){
@@ -105,9 +123,9 @@ export class ObservatoryRenderer {
       this.skyContext.setTransform(density,0,0,density,0,0);paintObservatorySky(this.skyContext,width,height);
     }
     c.setTransform(density,0,0,density,0,0);c.globalAlpha=1;c.drawImage(this.sky,0,0,width,height);
-    const p=observatoryProjection(scene,view,width,height,time,options.insets),compact=width<768;
-    // Clamp at the renderer as well as the controls, including after a ranking refresh.
-    const entry=clampSingularityDepth(view.singularity,scene),interior=smooth(.56,.82,entry);
+    const entry=clampSingularityDepth(view.singularity,scene),interior=smooth(.54,.84,entry),passage=singularityPassage(entry,scene);
+    const starView=passage>0?{...view,distance:0,starX:0,starY:0,starZ:0}:view;
+    const p=observatoryProjection(scene,starView,width,height,time,options.insets),compact=width<768;
     const approach=blackHoleApproach(width,height,entry,p.camera);
     let galaxyHits:GalaxyHit[]=[],pending=false;
     if(view.distance>.16&&interior<1){
@@ -133,7 +151,7 @@ export class ObservatoryRenderer {
       c.restore();
     }
     const hits:StarHit[]=[];
-    if(p.starOpacity>.001&&entry===0){
+    if(p.starOpacity>.001&&(entry===0||passage>0)){
       const ambient=options.low?40:compact?72:VOLUME_STARS.length;
       for(let i=0;i<ambient;i++){
         const star=VOLUME_STARS[i],point=p.starPoint(star);
@@ -144,7 +162,7 @@ export class ObservatoryRenderer {
       if(scene.zodiac){
         const shape=ZODIAC_SHAPES[scene.zodiac],points=shape.points.map((_,i)=>p.starPoint(getZodiacSpatialPoint(scene.zodiac!,i)));
         const complete=scene.stars.filter(star=>star.zodiacAnchor).length>=shape.points.length;
-        const lineOpacity=1-smooth(.08,.35,view.distance);
+        const lineOpacity=1-smooth(.08,.35,starView.distance);
         c.strokeStyle=complete?'#d0c7ab':'#9db9ce';c.lineWidth=compact?.65:.85;c.globalAlpha=lineOpacity*(complete?.40:.18);
         c.setLineDash(complete?[]:[3,6]);c.beginPath();
         for(const [a,b] of shape.segments){c.moveTo(points[a].x,points[a].y);c.lineTo(points[b].x,points[b].y);}c.stroke();c.setLineDash([]);
@@ -153,10 +171,10 @@ export class ObservatoryRenderer {
       for(const star of scene.stars){
         const point=p.starPoint(star,star.id),active=options.selectedStar===star.id;
         const radius=Math.max(.36,Math.min(active?8:5.8,star.size*(star.zodiacAnchor?.29:.18)*point.scale));
-        if(p.starOpacity>.25)hits.push({star,...point,radius:Math.max(compact?18:12,radius+7)});
+        if(p.starOpacity>.25&&(entry===0||passage===1))hits.push({star,...point,radius:Math.max(compact?18:12,radius+7)});
         if(options.arriving.has(star.id))continue;
         if(point.x < -30||point.x>width+30||point.y < -30||point.y>height+30)continue;
-        c.globalAlpha=p.starOpacity*(active?1:star.zodiacAnchor?.95:.72)*lerp(1,.24,smooth(.16,.58,view.distance));
+        c.globalAlpha=p.starOpacity*(active?1:star.zodiacAnchor?.95:.72)*lerp(1,.24,smooth(.16,.58,starView.distance));
         if(radius<1){c.fillStyle=star.colour;c.beginPath();c.arc(point.x,point.y,Math.max(.24,radius*.7),0,Math.PI*2);c.fill();}
         else paintStarlight(c,point.x,point.y,radius,star.colour,active,!options.low&&(active||!!star.zodiacAnchor||star.rank>=5));
       }
@@ -166,10 +184,14 @@ export class ObservatoryRenderer {
       const alpha=smooth(.7,.94,view.distance),radius=Math.max(14,p.radius*1.42);
       c.save();c.globalAlpha=alpha*.75;c.strokeStyle='#e2c89b';c.lineWidth=.8;c.setLineDash([2,6]);c.beginPath();c.arc(p.anchor.x,p.anchor.y,radius,0,Math.PI*2);c.stroke();c.restore();
     }
-    if(interior>0){
+    if(interior>0&&passage<1){
       const layer=this.localLayer(width,height,density);
-      paintSingularity(layer,width,height,time,view.yaw,view.pitch,options.low);
+      paintSingularity(layer,width,height,time,view.yaw,view.pitch,options.low,entry,passage);
       c.save();c.globalAlpha=interior;c.drawImage(this.local!,0,0,width,height);c.restore();
+    }
+    if(this.departure){
+      if(view.exitFade>.001){c.save();c.globalAlpha=view.exitFade;c.drawImage(this.departure,0,0,width,height);c.restore();}
+      else {this.departure.width=1;this.departure=null;}
     }
     return {stars:hits,galaxies:view.distance>.65&&entry<.04?galaxyHits:[],owner:{x:p.anchor.x,y:p.anchor.y,radius:p.radius},pending};
   }

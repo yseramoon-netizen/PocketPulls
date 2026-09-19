@@ -112,19 +112,41 @@ test('Observatory camera damping behaves consistently at 30, 60 and 120 Hz',()=>
   Observatory.dampView(current,target,16,true);assert.deepEqual(current,target);
 });
 
-test('singularity entry belongs only to the authenticated first-place account',()=>{
-  const owner=makeScene('user-0'),visitor=makeScene('user-7'),unranked=makeScene('outside-ranking');
+test('only verified first place can pass through the singularity',()=>{
+  const owner=makeScene('user-0');
   assert.equal(Observatory.ownsBlackHole(owner),true);
-  for(const scene of [visitor,unranked]){
+  assert.equal(Observatory.singularityPassage(2.2,owner),1);
+  for(const scene of [makeScene('user-7'),makeScene('outside-ranking'),{...owner,entryConfirmed:false},{...owner,leader:{...owner.leader,userId:'another-account'}}]){
     assert.equal(Observatory.ownsBlackHole(scene),false);
-    assert.equal(Observatory.clampSingularityDepth(1,scene),Observatory.BLACK_HOLE_VISITOR_LIMIT);
-    assert.equal(Observatory.clampSingularityDepth(100,scene),Observatory.BLACK_HOLE_VISITOR_LIMIT);
+    for(const depth of [0,.46,1,2.2,10,100,100000]){
+      assert.equal(Observatory.clampSingularityDepth(depth,scene),depth);
+      assert.equal(Observatory.singularityPassage(depth,scene),0);
+      assert.ok(Observatory.singularityRailValue(depth,false)<1);
+    }
   }
-  assert.equal(Observatory.clampSingularityDepth(1,owner),1);
-  assert.equal(Observatory.clampSingularityDepth(1,{...owner,entryConfirmed:false}),Observatory.BLACK_HOLE_VISITOR_LIMIT);
-  assert.equal(Observatory.clampSingularityDepth(1,{...owner,leader:{...owner.leader,userId:'another-account'}}),Observatory.BLACK_HOLE_VISITOR_LIMIT);
   for(const value of [NaN,Infinity,-Infinity,-1])assert.equal(Observatory.clampSingularityDepth(value,owner),0);
   assert.equal(Observatory.clampSingularityDepth(1,null),0);
+});
+
+test('visitor zoom continues through repeated rail advances without exhausting the range',()=>{
+  const scene=makeScene('user-7');let depth=0;
+  for(let i=0;i<20000;i++){
+    const next=Observatory.clampSingularityDepth(Observatory.singularityRailDepth(1,depth,false),scene);
+    assert.ok(next>depth&&Number.isFinite(next));depth=next;
+  }
+  assert.ok(depth>4000);assert.equal(Observatory.singularityRailValue(depth,false),.97);
+  assert.equal(Observatory.singularityRailDepth(0,depth,false),0);
+  assert.equal(Observatory.singularityRailDepth(1,0,true),Observatory.BLACK_HOLE_PASSAGE_END);
+});
+
+test('a fast zoom still traverses the horizon and aperture instead of skipping their frames',()=>{
+  const current={...Observatory.HOME_VIEW,distance:1},target={...current,singularity:2.2};let interior=0;
+  for(let i=0;i<420;i++){
+    const before=current.singularity;Observatory.dampView(current,target,1000/60,false);
+    assert.ok(current.singularity-before<=.014167);
+    if(current.singularity>.84&&current.singularity<1.32)interior++;
+  }
+  assert.ok(interior>25);assert.equal(current.singularity,2.2);
 });
 
 test('the black-hole approach grows continuously on desktop and mobile without a camera jump',()=>{
