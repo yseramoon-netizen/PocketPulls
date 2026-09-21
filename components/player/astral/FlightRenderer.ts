@@ -1,6 +1,6 @@
 import { paintObservatorySky } from "../observatory/SkyArt";
 import { AstraRig } from './AstraRig';
-import { sampleArrival, sampleFlight, visibleOptions, ascentDistance, flightHand, type ArrivalTarget, type FlightFrame } from './flight';
+import { sampleArrival, sampleFlight, sampleFlightCamera, visibleOptions, ascentDistance, flightHand, type ArrivalTarget, type FlightFrame } from './flight';
 import { clamp, curve, ease, lerp, smooth, type AstralOptions } from './timeline';
 const TAU = Math.PI * 2, fract = (n: number) => n - Math.floor(n), random = (n: number) => fract(Math.sin(n * 127.1 + 311.7) * 43758.5453), NEUTRAL = '#cce9ff';
 export class FlightRenderer {
@@ -74,7 +74,7 @@ export class FlightRenderer {
         c.fillStyle = colour;
         c.beginPath();
         for (let i = 0; i < 8; i++) {
-            const a = -Math.PI / 2 + i * Math.PI / 4, rr = i % 2 ? r * .25 : r, xx = Math.cos(a) * rr, yy = Math.sin(a) * rr;
+            const a = -Math.PI / 2 + i * Math.PI / 4, rr = i % 2 ? r * .13 : r, xx = Math.cos(a) * rr, yy = Math.sin(a) * rr;
             if (i)
                 c.lineTo(xx, yy);
             else
@@ -82,6 +82,9 @@ export class FlightRenderer {
         }
         c.closePath();
         c.fill();
+        const core=c.createRadialGradient(0,0,0,0,0,Math.max(.5,r*.34));
+        core.addColorStop(0,'#fffdf0');core.addColorStop(.22,'#fffdf0');core.addColorStop(1,colour+'00');
+        c.fillStyle=core;c.fillRect(-r*.34,-r*.34,r*.68,r*.68);
         c.fillStyle = '#fff';
         c.fillRect(-r * .08, -r * .25, r * .16, r * .5);
         c.fillRect(-r * .25, -r * .08, r * .5, r * .16);
@@ -99,23 +102,25 @@ export class FlightRenderer {
         }
         c.restore();
     }
-    private space(time: number, ascent = 0, travel = time * .002) {
+    private space(time: number, ascent = 0, travel = time * .002, hush=0) {
         const c = this.context, w = this.width, h = this.height;
         c.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
         c.clearRect(0, 0, w, h);
         c.globalAlpha = 1;
-        c.drawImage(this.background, 0, 0, w, h);
+        c.drawImage(this.background, -w*.025-Math.sin(time*.11)*w*.008, -h*.025-Math.cos(time*.09)*h*.008, w*1.05,h*1.05);
+        if(hush>0){c.fillStyle=`rgba(1,4,10,${hush*.42})`;c.fillRect(0,0,w,h);}
         c.save();
         c.globalCompositeOperation = 'lighter';
         for (let i = 0; i < (this.low ? 140 : 340); i++) {
             const p = this.particles[i], x = fract(p.x + Math.sin(time * .11 + p.phase) * .001) * w, y = fract(p.y + travel * (p.z + .3)) * h;
-            c.globalAlpha = (.18 + p.z * .4) * (.75 + Math.sin(time * .9 + p.phase) * .25);
+            c.globalAlpha = (.13 + p.z * .35) * (.8 + Math.sin(time * .9 + p.phase) * .2)*(1-hush*.6);
             c.strokeStyle = '#a7c7e6';
             c.lineWidth = .6 + p.z;
             if (ascent > .1) {
                 c.beginPath();
                 c.moveTo(x, y);
-                c.lineTo(x, y - ascent * (p.z + .2) * h * .16);
+                const stretch=ascent*(p.z+.2)*h*.13;
+                c.quadraticCurveTo(x+(x-w*.5)*ascent*.014,y-stretch*.5,x+(x-w*.5)*ascent*.045,y-stretch);
                 c.stroke();
             }
             else {
@@ -165,15 +170,12 @@ export class FlightRenderer {
             c.lineWidth = .7;
             c.globalAlpha = .4 * cast;
             c.beginPath();
-            c.ellipse(0, 0, r, r * (.45 + ring * .17), ring * .8, 0, TAU);
+            c.ellipse(0,0,r,r*(.45+ring*.17),ring*.8,s.time*.3+ring,s.time*.3+ring+Math.PI*1.32);
             c.stroke();
-            for (let n = 0; n < 8; n++) {
-                const a = n / 8 * TAU;
-                c.save();
-                c.translate(Math.cos(a) * r, Math.sin(a) * r * (.45 + ring * .17));
-                c.rotate(a);
-                c.strokeRect(-2, -2, 4, 4);
-                c.restore();
+            for (let n = 0; n < 4; n++) {
+                const a=n/4*TAU+s.time*.34;
+                const px=Math.cos(a)*r,py=Math.sin(a)*r*(.45+ring*.17);
+                this.star(px,py,1.2,'#dbe8eb',cast*.65,0);
             }
             c.restore();
         }
@@ -241,13 +243,13 @@ export class FlightRenderer {
             c.lineTo(Math.cos(a + .018) * r, Math.sin(a + .018) * r * .26);
             c.stroke();
         }
-        for (let j = 0; j < 5; j++) {
-            c.strokeStyle = j % 2 ? '#93a7c5' : '#f7d599';
-            c.lineWidth = .55;
-            c.globalAlpha = s.disk * .3;
-            c.beginPath();
-            c.ellipse(0, 0, radius * (.65 + j * .095), radius * (.65 + j * .095) * .26, 0, front ? 0 : Math.PI, front ? Math.PI : TAU);
-            c.stroke();
+        // Continuous differentially rotating ribbons replace the wireframe hoops.
+        for(let j=0;j<(this.low?16:30);j++){
+            const band=.60+j*.015,phase=s.time*.34/Math.pow(band,1.5)+j*.63;
+            c.strokeStyle=j<10?'#f2e5c6':j%3?'#a7bfd2':'#d4b887';
+            c.globalAlpha=s.disk*(.035+.035*Math.sin(phase)**2)*(1-j/42);
+            c.lineWidth=radius*(.008+.003*Math.sin(phase));
+            c.beginPath();c.ellipse(0,0,radius*band,radius*band*.26,0,front?0:Math.PI,front?Math.PI:TAU);c.stroke();
         }
         for (let j = 0; j < 12; j++) {
             const r = radius * (.6 + j * .007);
@@ -278,11 +280,12 @@ export class FlightRenderer {
         }
     }
     render(ms: number, options: readonly AstralOptions[]): FlightFrame {
-        const count = options.length, s = sampleFlight(ms, count), colours = visibleOptions(ms, options), c = this.context, u = this.unit;
+        const count = options.length, s = sampleFlight(ms, count), camera=sampleFlightCamera(ms,count), colours = visibleOptions(ms, options), c = this.context, u = this.unit;
         // Keep the ten-wish seed above the crown at every viewport aspect ratio.
         if (count === 10)
             s.seed.y = s.pose.y - (u / this.height) * (this.width / this.height < .72 ? .24 : .20);
-        this.space(s.time, s.ascent, s.time * .002 + (count === 10 ? ascentDistance(s.time) * .16 : 0));
+        this.space(s.time,s.ascent,s.time*.002+(count===10?ascentDistance(s.time)*.16:0),camera.hush);
+        c.save();c.translate(this.width*.5+camera.x*this.width,this.height*.5+camera.y*this.height);c.rotate(camera.roll);c.scale(camera.zoom,camera.zoom);c.translate(-this.width*.5,-this.height*.5);
         this.trail(ms, count, 1 - s.cast);
         this.disk(s, false);
         this.orbitStars(s,colours,false);
@@ -294,7 +297,7 @@ export class FlightRenderer {
             c.restore();
         }
         const reflected=colours[0].primary;
-        this.rig.draw(c, s.pose, s.time, u * .30 * s.pose.scale * (this.width / this.height < .72 ? 1.1 : 1), this.width, this.height, {colour:reflected,amount:s.reveal*.27+s.pose.charge*.09});
+        this.rig.draw(c, s.pose, s.time, u * .30 * s.pose.scale * (this.width / this.height < .72 ? 1.1 : 1), this.width, this.height, {colour:reflected,amount:s.reveal*.14+s.pose.charge*.045});
         this.disk(s, true);
         if (count === 10 && s.reveal > 0) {
             this.star(s.seed.x*this.width,s.seed.y*this.height,u*.028*(1-s.reveal),NEUTRAL,s.seed.opacity*(1-s.reveal),s.time*.07);
@@ -342,6 +345,10 @@ export class FlightRenderer {
             }
             c.restore();
         }
+        c.restore();
+        // Optical finishing is independent of the award: a soft edge, never a flashing overlay.
+        c.save();const edge=c.createRadialGradient(this.width*.5,this.height*.46,u*.28,this.width*.5,this.height*.46,Math.max(this.width,this.height)*.72);
+        edge.addColorStop(0,'#01040900');edge.addColorStop(1,'#01040999');c.fillStyle=edge;c.fillRect(0,0,this.width,this.height);c.restore();
         return s;
     }
     renderArrival(ms: number, targets: readonly ArrivalTarget[], overlay = false) {

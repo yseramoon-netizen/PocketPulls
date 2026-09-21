@@ -13,7 +13,7 @@ import {
 } from "@/lib/player/legal";
 
 const LINKS = [
-  { href: "/help", label: "Player Guide" },
+  { href: "/help", label: "Help" },
   { href: "/how-wishes-work", label: "How Wishes Work" },
   { href: "/odds", label: "Live Odds" },
   { href: "/rules", label: "Rules" },
@@ -34,7 +34,7 @@ export function TrustShell({
   intro,
   children,
 }: {
-  eyebrow: string;
+  eyebrow?: string;
   title: string;
   intro?: string;
   children: ReactNode;
@@ -50,9 +50,9 @@ export function TrustShell({
             >
               ← Wishes
             </Link>
-            <span className="rounded-full border border-cyan-100/15 bg-cyan-100/[0.06] px-3 py-1.5 text-[0.62rem] font-black uppercase tracking-[0.15em] text-cyan-50/65">
+            {eyebrow && <span className="rounded-full border border-cyan-100/15 bg-cyan-100/[0.06] px-3 py-1.5 text-[0.62rem] font-black uppercase tracking-[0.15em] text-cyan-50/65">
               {eyebrow}
-            </span>
+            </span>}
           </div>
 
           <h1 className="mt-4 text-3xl font-black tracking-[-0.04em] text-white sm:text-4xl">
@@ -67,7 +67,7 @@ export function TrustShell({
         </div>
 
         <div className="grid gap-0 lg:grid-cols-[13rem_minmax(0,1fr)]">
-          <nav className="border-b border-white/10 bg-black/10 p-3 lg:border-b-0 lg:border-r lg:p-4">
+          <nav aria-label="Help topics" className="border-b border-white/10 bg-black/10 p-3 lg:border-b-0 lg:border-r lg:p-4">
             <div className="flex gap-2 overflow-x-auto pb-1 lg:grid lg:overflow-visible lg:pb-0">
               {LINKS.map((item) => (
                 <Link

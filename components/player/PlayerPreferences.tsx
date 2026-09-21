@@ -5,7 +5,6 @@ import {
   useCallback,
   useEffect,
   useRef,
-  useMemo,
   useState,
 } from "react";
 import { createPortal } from "react-dom";
@@ -23,6 +22,7 @@ import {
 import { supabase } from "@/lib/supabase";
 
 type SaveState = "idle" | "saving" | "saved" | "local";
+type PreferenceWrite = { preferences: PlayerPreferences; revision: number };
 
 export default function PlayerPreferencesPanel() {
   const router = useRouter();
@@ -32,12 +32,9 @@ export default function PlayerPreferencesPanel() {
   const mountedRef = useRef(false);
   const revisionRef = useRef(0);
   const saveTimerRef = useRef<number | null>(null);
-  const initialPreferencesRef = useRef<PlayerPreferences | null>(null);
-  if (initialPreferencesRef.current === null) {
-    initialPreferencesRef.current = readCachedPlayerPreferences();
-  }
+  const [initialPreferences] = useState(readCachedPlayerPreferences);
   const latestPreferencesRef = useRef<PlayerPreferences>(
-    initialPreferencesRef.current,
+    initialPreferences,
   );
 
   const [mounted] = useState(() => typeof document !== "undefined");
@@ -46,10 +43,10 @@ export default function PlayerPreferencesPanel() {
   const [serverAvailable, setServerAvailable] = useState(true);
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [preferences, setPreferences] = useState<PlayerPreferences>(
-    initialPreferencesRef.current,
+    initialPreferences,
   );
 
-  const savePreferences = useMemo(() => createLatestSave(async (write: { preferences: PlayerPreferences; revision: number }) => {
+  const persistPreferences = useCallback(async (write: PreferenceWrite) => {
     const next = write.preferences;
     try {
       const { data, error } = await supabase.rpc(
@@ -68,7 +65,12 @@ export default function PlayerPreferencesPanel() {
       setServerAvailable(false);
       setSaveState("local");
     }
-  }), []);
+  }, []);
+  const saveQueue = useRef<((write: PreferenceWrite) => Promise<void>) | null>(null);
+  const savePreferences = useCallback((write: PreferenceWrite) => {
+    if (!saveQueue.current) saveQueue.current = createLatestSave(persistPreferences);
+    return saveQueue.current(write);
+  }, [persistPreferences]);
 
   const queueSave = useCallback(
     (next: PlayerPreferences) => {
@@ -102,7 +104,7 @@ export default function PlayerPreferencesPanel() {
 
   useEffect(() => {
     mountedRef.current = true;
-    const cached = initialPreferencesRef.current ?? DEFAULT_PLAYER_PREFERENCES;
+    const cached = initialPreferences;
     publishPlayerPreferences(cached);
 
     let active = true;
@@ -146,7 +148,7 @@ export default function PlayerPreferencesPanel() {
         void savePreferences({ preferences: latestPreferencesRef.current, revision: revisionRef.current });
       }
     };
-  }, [savePreferences]);
+  }, [savePreferences, initialPreferences]);
 
   useEffect(() => {
     if (previousPathname.current === pathname) return;
@@ -175,7 +177,7 @@ export default function PlayerPreferencesPanel() {
       <section
         ref={panelRef}
         tabIndex={-1}
-        role="dialog"
+        data-premium-dialog role="dialog"
         aria-modal="true"
         aria-labelledby="player-preferences-title"
         className="absolute inset-x-3 top-10 mx-auto flex max-h-[calc(100dvh-5rem)] w-auto max-w-xl flex-col overflow-hidden rounded-[2rem] border border-violet-100/20 bg-[#080a24]/98 shadow-[0_40px_140px_rgba(0,0,0,0.78)] backdrop-blur-3xl sm:inset-x-auto sm:right-5 sm:top-20 sm:w-[34rem]"

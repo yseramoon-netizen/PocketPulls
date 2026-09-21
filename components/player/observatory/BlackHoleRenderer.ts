@@ -32,17 +32,19 @@ vec3 diskLight(vec3 p,vec3 direction,vec3 normal){
  float angle=atan(y,x),speed=.82/pow(radius,1.5),phase=angle-uTime*speed;
  vec3 flow=vec3(cos(phase)*5.0,sin(phase)*5.0,radius*6.0-uTime*.035);
  float gas=turbulence(flow),fine=noise(flow*3.2+vec3(0,0,uTime*.02));
- float lanes=.93+.07*sin(radius*38.0+gas*8.0+sin(phase*3.0)*.6);
- float edge=smoothstep(INNER,INNER+.16,radius)*(1.0-smoothstep(2.9,4.0,radius));
- float energy=pow(INNER/radius,1.85)*edge*(.23+gas*1.45)*(.82+fine*.36)*lanes;
+ // Advected, irregular filaments avoid the repeated grooves of concentric rings.
+ float lanes=.9+.1*noise(vec3(radius*37.0+gas*2.0,cos(phase)*2.0,sin(phase)*2.0));
+ float wisps=.78+.22*turbulence(vec3(cos(phase)*9.0,sin(phase)*9.0,radius*12.0+gas));
+ float edge=smoothstep(INNER,INNER+.16,radius)*(1.0-smoothstep(2.4,4.0,radius));
+ float energy=pow(INNER/radius,1.85)*edge*(.23+gas*1.45)*(.82+fine*.36)*lanes*wisps;
  vec3 velocity=normalize(cross(normal,p))*sqrt(RS/(2.0*radius));
  float beta=dot(velocity,-normalize(direction));
  float doppler=sqrt(1.0-dot(velocity,velocity))/max(.3,1.0-beta);
  float redshift=sqrt(max(.01,1.0-RS/radius));
  energy*=pow(doppler,3.0)*redshift;
- vec3 warm=mix(vec3(1.55,.31,.075),vec3(1.5,.96,.53),clamp((2.25-radius)/1.2,0.0,1.0));
+ vec3 warm=mix(vec3(1.30,.39,.13),vec3(1.42,1.20,.87),clamp((2.75-radius)/1.45,0.0,1.0));
  warm=mix(warm,vec3(1.38,1.28,1.12),clamp((doppler-1.0)*1.7,0.0,.65));
- return warm*energy*2.1;
+ return warm*energy*2.65;
 }
 void main(){
  vec2 uv=(vUv*uViewScale+uViewOffset)*4.35;
@@ -61,7 +63,10 @@ void main(){
    vec3 point=mix(position,next,height/(height-nextHeight));float diskRadius=length(point);
    if(diskRadius>INNER&&diskRadius<4.0){
     radiance+=diskLight(point,direction,normal)*(1.0-opacity);
-    opacity+=.94*(1.0-opacity);
+    // The outer flow becomes optically thin. A constant opacity here left a
+    // black cut-out around the disk even where its emission had faded to zero.
+    float opticalDepth=smoothstep(INNER,INNER+.12,diskRadius)*(1.0-smoothstep(2.4,4.0,diskRadius));
+    opacity+=.96*opticalDepth*(1.0-opacity);
     if(opacity>.98)break;
    }
   }
@@ -74,8 +79,11 @@ void main(){
  float photonDistance=length(uv)-1.005;
  float photonBand=1.0-smoothstep(.018,.045,abs(photonDistance));
  float photonOffset=photonDistance/.021;
- vec3 photon=vec3(.95,.49,.19)*exp(-photonOffset*photonOffset)*.58;
- colour=mix(colour,photon,photonBand);
+ float azimuth=dot(vec3(uv/max(length(uv),.001),0.0),uDiskU);
+ vec3 photon=vec3(.96,.72,.48)*exp(-photonOffset*photonOffset)*(.28+.10*azimuth);
+ // Preserve bright foreground gas across the boundary rather than painting a
+ // uniform circle over it. The unresolved image only lifts darker pixels.
+ colour=max(colour,photon);
  // A faint corona softens the photon boundary, without washing out disk structure.
  float corona=exp(-abs(length(uv)-1.005)*15.0)*.008;
  colour+=vec3(.9,.38,.1)*corona;
@@ -106,7 +114,8 @@ void main(){
  glow+=(texture2D(uSource,uv+uDirection*3.230769).rgb+texture2D(uSource,uv-uDirection*3.230769).rgb)*.070270;
  if(uComposite<.5){gl_FragColor=vec4(glow,1.0);return;}
  vec4 scene=texture2D(uScene,uv);
- glow*=.38;
+ // Bloom only emissive highlights; the dark sky must retain its contrast.
+ glow=max(vec3(0.0),glow-vec3(.32))*.46;
  vec3 light=scene.rgb+glow*(1.0-scene.rgb);
  float alpha=max(scene.a,max(light.r,max(light.g,light.b)));
  gl_FragColor=vec4(light,alpha);

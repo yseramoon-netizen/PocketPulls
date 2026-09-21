@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { useState } from "react";
 
 import SupportPanel from "@/components/player/SupportPanel";
 import { TrustShell } from "@/components/player/TrustShell";
@@ -84,14 +87,21 @@ const NEW_TAB_LINKS = new Set([
 ]);
 
 export default function HelpPage() {
+  const [query, setQuery] = useState("");
+  const words = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  const cards = CARDS.filter(card => words.every(word => `${card.title} ${card.body}`.toLowerCase().includes(word)));
   return (
     <TrustShell
-      eyebrow="Player guide"
-      title="Everything you need, without the fine-print maze."
-      intro="Wishes are random physical-card purchases. The important rules, live odds and protections are kept here in plain English."
+      title="Help"
+      intro="Find an answer, read our policies or get help with your account."
     >
+      <div className="ap-help-search">
+        <label htmlFor="help-search">What can we help with?</label>
+        <div><input id="help-search" type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="Search shipping, refunds, wishes…" autoComplete="off"/>{query&&<button type="button" onClick={()=>setQuery("")}>Clear</button>}</div>
+        <a href="#support">Contact support <span aria-hidden="true">↗</span></a>
+      </div>
       <div className="grid gap-3 sm:grid-cols-2">
-        {CARDS.map((card) => (
+        {cards.map((card) => (
           <Link
             key={card.href}
             href={card.href}
@@ -109,6 +119,7 @@ export default function HelpPage() {
           </Link>
         ))}
       </div>
+      <p className={query ? "ap-help-status" : "sr-only"} role="status">{query ? cards.length ? `${cards.length} matching ${cards.length === 1 ? "topic" : "topics"}.` : "No topics found. Try another search or contact support below." : ""}</p>
 
       <section id="support" className="mt-6 scroll-mt-24 rounded-2xl border border-cyan-100/12 bg-cyan-200/[0.025] p-4 sm:p-5">
         <div className="mb-5 flex items-start gap-3 border-b border-white/[0.07] pb-5">

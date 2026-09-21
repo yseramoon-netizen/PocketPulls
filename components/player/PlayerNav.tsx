@@ -36,7 +36,8 @@ export default function PlayerNav({username,displayName,avatarUrl,wishBalance}:{
   const onBalance=(e:Event)=>{const n=Number((e as CustomEvent).detail?.wishBalance);if(Number.isFinite(n))setBalance(Math.max(0,Math.floor(n)))};
   const onCinematic=(e:Event)=>{setCinematic(Boolean((e as CustomEvent).detail?.open));setMenu(false)};
   window.addEventListener("pocketpulls:wish-balance",onBalance);window.addEventListener("pocketpulls:wish-cinematic-visibility",onCinematic);
-  return()=>{window.removeEventListener("pocketpulls:wish-balance",onBalance);window.removeEventListener("pocketpulls:wish-cinematic-visibility",onCinematic)};
+  window.addEventListener("ancientpulls:observatory-cinema",onCinematic);
+  return()=>{window.removeEventListener("pocketpulls:wish-balance",onBalance);window.removeEventListener("pocketpulls:wish-cinematic-visibility",onCinematic);window.removeEventListener("ancientpulls:observatory-cinema",onCinematic)};
  },[]);
  useEffect(()=>{
   if(!ready)return;let active=true;
@@ -65,7 +66,6 @@ export default function PlayerNav({username,displayName,avatarUrl,wishBalance}:{
    <nav className={styles.drawerLinks} aria-label="Explore">{secondary.map(item=><Link key={item.href} href={item.href} aria-current={isRouteActive(pathname,item.href)?"page":undefined}><AstralIcon name={item.icon}/><span><strong>{item.label}{item.href==="/achievements"&&reward?<i className={styles.rewardDot}/>:null}</strong><small>{item.detail}</small></span><AstralIcon name="arrow"/></Link>)}</nav>
    <div className={styles.drawerBottom}><span>Appearance & sound</span>{ready?<Preferences/>:null}</div>
    <button onClick={()=>void signOut()} disabled={signingOut} className={styles.signOut}>{signingOut?"Signing out…":"Sign out"}</button>
-   <small className={styles.version}>Ancient Pulls · Astra 73</small>
   </aside></div>:null}
  </>;
 }

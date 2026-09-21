@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import AstraCompanion from "@/components/player/astral/AstraCompanion";
 import ConstellationArtwork from "@/components/player/observatory/ConstellationArtwork";
-import DeepSky from "@/components/player/observatory/DeepSky";
+import CelestialWindow from "@/components/player/observatory/CelestialWindow";
 import AstralIcon from "@/components/player/observatory/AstralIcon";
 import styles from "@/components/player/observatory/Overview.module.css";
 import { formatMarketValue } from "@/lib/player/format";
@@ -186,7 +186,7 @@ export default function TrainerHqPage() {
     if (error) {
       console.error("Trainer HQ could not load:", error);
       setErrorMessage(
-        "Trainer HQ could not read your archive. Run the new Supabase file, then try again.",
+        "Your overview could not load. Please try again.",
       );
       setLoading(false);
       return;
@@ -195,7 +195,7 @@ export default function TrainerHqPage() {
     const parsed = parseHqData(result);
 
     if (!parsed) {
-      setErrorMessage("Trainer HQ returned no player data.");
+      setErrorMessage("Your overview could not load. Please try again.");
     } else {
       setData(parsed);
       setErrorMessage(null);
@@ -240,7 +240,7 @@ export default function TrainerHqPage() {
         <div className="w-full rounded-[2rem] border border-red-200/15 bg-red-400/[0.07] p-7 text-center">
           <p className="text-3xl">✧</p>
           <h1 className="mt-4 text-2xl font-black text-white">
-            Trainer HQ is waiting for its archive link
+            Your overview is unavailable
           </h1>
           <p className="mt-3 text-sm font-semibold leading-6 text-red-100/70">
             {errorMessage}
@@ -261,7 +261,7 @@ export default function TrainerHqPage() {
     <header className={styles.header}><h1>Overview</h1><p className={styles.greeting}>{greeting()}, {data.trainerName}.</p></header>
     {errorMessage?<div role="alert" className="mb-6 rounded-xl border border-red-200/20 bg-red-950/30 p-4 text-sm text-red-100">{errorMessage}</div>:null}
     <div className={styles.heroGrid}>
-      <article className={styles.skyCard}><DeepSky still/><ConstellationArtwork sign={data.zodiacSign} className={styles.art}/><div className={styles.skyCopy}><h2>Observatory</h2><span>{data.zodiacSign?`${zodiacLabel(data.zodiacSign)} · `:''}{formatNumber(data.constellationStars)} stars</span><Link href="/observatory">Open Observatory <AstralIcon name="arrow"/></Link></div></article>
+      <article className={styles.skyCard}><CelestialWindow/><ConstellationArtwork sign={data.zodiacSign} className={styles.art}/><div className={styles.skyCopy}><h2>Observatory</h2><span>{data.zodiacSign?`${zodiacLabel(data.zodiacSign)} · `:''}{formatNumber(data.constellationStars)} stars</span><Link href="/observatory">Open Observatory <AstralIcon name="arrow"/></Link></div></article>
       <article className={styles.wishCard}><AstraCompanion/><h2>Wishes</h2><p>{formatNumber(data.wishBalance)} available</p><Link href="/wishes">Make a wish <AstralIcon name="star"/></Link></article>
     </div>
     <div className={styles.metrics}>

@@ -323,7 +323,7 @@ export default function NotificationCentre() {
       <section
         ref={panelRef}
         tabIndex={-1}
-        role="dialog"
+        data-premium-dialog role="dialog"
         aria-modal="true"
         aria-labelledby="notification-centre-title"
         className="absolute inset-x-3 top-20 mx-auto flex max-h-[calc(100dvh-6rem)] w-auto max-w-md flex-col overflow-hidden rounded-[1.75rem] border border-cyan-100/20 bg-[#080a24]/98 shadow-[0_35px_120px_rgba(0,0,0,0.72)] backdrop-blur-3xl sm:inset-x-auto sm:right-5 sm:w-[27rem]"

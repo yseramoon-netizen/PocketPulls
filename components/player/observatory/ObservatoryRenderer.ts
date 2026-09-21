@@ -115,7 +115,7 @@ export class ObservatoryRenderer {
     this.departure.getContext('2d')?.drawImage(this.context.canvas,0,0);
   }
   dispose(){disposeBlackHoleRenderer(this.universeContext);if(this.local)disposeBlackHoleRenderer(this.local.getContext('2d')!);this.sprites.clear();this.sky.width=this.universe.width=1;if(this.local)this.local.width=1;if(this.departure)this.departure.width=1;}
-  render(width:number,height:number,density:number,view:ObservatoryView,time:number,scene:ObservatoryScene,options:{reduced:boolean;low:boolean;selectedStar:string|null;selectedGalaxy:string|null;arriving:Set<string>;insets?:{top:number;bottom:number}}):ObservatoryFrame {
+  render(width:number,height:number,density:number,view:ObservatoryView,time:number,scene:ObservatoryScene,options:{reduced:boolean;low:boolean;selectedStar:string|null;selectedGalaxy:string|null;arriving:Set<string>;insets?:{top:number;bottom:number};cinema?:boolean}):ObservatoryFrame {
     const c=this.context;
     if(width!==this.width||height!==this.height||density!==this.density){
       this.width=width;this.height=height;this.density=density;
@@ -130,7 +130,7 @@ export class ObservatoryRenderer {
     let galaxyHits:GalaxyHit[]=[],pending=false;
     if(view.distance>.16&&interior<1){
       const uc=this.universeContext;uc.setTransform(density,0,0,density,0,0);
-      const frame=paintUniverseFrame(uc,width,height,approach.camera,time,scene.nodes,scene.leader,options.selectedGalaxy,null,options.reduced,this.sprites,compact,entry>0?approach.radius:undefined);
+      const frame=paintUniverseFrame(uc,width,height,approach.camera,time,scene.nodes,scene.leader,options.selectedGalaxy,null,options.reduced,this.sprites,compact,entry>0?approach.radius:undefined,!!options.cinema);
       pending=frame.pendingSprites>0;galaxyHits=frame.hits;
       c.globalAlpha=p.universeOpacity;c.drawImage(this.universe,0,0,width,height);c.globalAlpha=1;
     }
@@ -180,7 +180,7 @@ export class ObservatoryRenderer {
       }
     }
     c.globalAlpha=1;
-    if(view.distance>.70&&entry<.01){
+    if(!options.cinema&&view.distance>.70&&entry<.01){
       const alpha=smooth(.7,.94,view.distance),radius=Math.max(14,p.radius*1.42);
       c.save();c.globalAlpha=alpha*.75;c.strokeStyle='#e2c89b';c.lineWidth=.8;c.setLineDash([2,6]);c.beginPath();c.arc(p.anchor.x,p.anchor.y,radius,0,Math.PI*2);c.stroke();c.restore();
     }

@@ -31,10 +31,12 @@ export default function QuickNavigation() {
       if (cinematicRef.current) setOpen(false);
     };
     window.addEventListener("pocketpulls:wish-cinematic-visibility", onCinematic);
+    window.addEventListener("ancientpulls:observatory-cinema",onCinematic);
     window.addEventListener("keydown", onKey);
     window.addEventListener("ancientpulls:quick-navigation", show);
     return () => {
       window.removeEventListener("pocketpulls:wish-cinematic-visibility", onCinematic);
+      window.removeEventListener("ancientpulls:observatory-cinema",onCinematic);
       window.removeEventListener("keydown", onKey);
       window.removeEventListener("ancientpulls:quick-navigation", show);
     };
@@ -51,7 +53,7 @@ export default function QuickNavigation() {
     </button>
     {open ? createPortal(
       <div className="fixed inset-0 z-[10020] flex items-start justify-center bg-[#02030d]/80 px-3 pt-[max(4rem,12dvh)] backdrop-blur-md" onMouseDown={(event) => { if (event.target === event.currentTarget) setOpen(false); }}>
-        <div ref={panelRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby={`${id}-title`} className="flex max-h-[72dvh] w-full max-w-xl flex-col overflow-hidden rounded-3xl border border-white/15 bg-[#0a0d20] text-white shadow-[0_32px_100px_#0009]">
+        <div ref={panelRef} tabIndex={-1} data-premium-dialog role="dialog" aria-modal="true" aria-labelledby={`${id}-title`} className="flex max-h-[72dvh] w-full max-w-xl flex-col overflow-hidden rounded-3xl border border-white/15 bg-[#0a0d20] text-white shadow-[0_32px_100px_#0009]">
           <div className="flex items-center gap-3 border-b border-white/10 px-5 py-4">
             <label id={`${id}-title`} htmlFor={`${id}-input`} className="sr-only">Go to a page</label>
             <span aria-hidden="true" className="text-xl text-cyan-100/60">⌕</span>

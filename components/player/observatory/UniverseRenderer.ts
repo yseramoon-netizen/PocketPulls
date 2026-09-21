@@ -664,7 +664,7 @@ export function drawOrbitingBlackHole(c:CanvasRenderingContext2D,point:Projected
 }
 
 /** Paint detailed spiral textures once; orbit frames reuse the same bounded sprite cache. */
-export function drawGalaxyCached(context: CanvasRenderingContext2D, node: GalaxyNode, projected: ProjectedPoint, radius: number, time: number, selected: boolean, hovered: boolean, reducedMotion: boolean, sprites: Map<string, HTMLCanvasElement>, compact: boolean, axes?:{x:number;y:number}[]) {
+export function drawGalaxyCached(context: CanvasRenderingContext2D, node: GalaxyNode, projected: ProjectedPoint, radius: number, time: number, selected: boolean, hovered: boolean, reducedMotion: boolean, sprites: Map<string, HTMLCanvasElement>, compact: boolean, axes?:{x:number;y:number}[],cinema=false) {
   const key = node.player.userId + (compact ? ":compact" : ":full");
   let sprite = sprites.get(key);
   if (!sprite) {
@@ -681,13 +681,13 @@ export function drawGalaxyCached(context: CanvasRenderingContext2D, node: Galaxy
   context.translate(projected.x,projected.y);
   if(axes)context.transform(axes[0].x,axes[0].y,axes[1].x,axes[1].y,0,0);
   else {context.rotate(node.tilt+time*.001*node.spin);context.scale(1,node.flatten);}
-  context.globalAlpha=selected||hovered?1:.9;
+  context.globalAlpha=selected||hovered||node.player.isCurrentUser?1:clamp(.77+projected.depth*.16,.38,.92);
   context.drawImage(sprite,-radius*1.7,-radius*1.7,radius*3.4,radius*3.4);
   context.restore();
-  if(selected||hovered||node.player.isCurrentUser){
+  if(!cinema&&(selected||hovered||node.player.isCurrentUser)){
     context.save();context.strokeStyle=node.player.isCurrentUser?"#ddc498aa":"#c7dfeb99";context.lineWidth=selected?1.15:.75;context.setLineDash(selected?[]:[2,5]);context.beginPath();context.arc(projected.x,projected.y,radius*1.28,0,TAU);context.stroke();context.restore();
   }
-  if(node.player.rank>0 && node.player.rank<=10 && radius>=15){
+  if(!cinema&&node.player.rank>0 && node.player.rank<=10 && radius>=15){
     context.save();context.fillStyle="#c3cddd99";context.font="400 12px system-ui, sans-serif";context.textAlign="center";context.fillText("#"+node.player.rank,projected.x,projected.y+radius+14);context.restore();
   }
 }
@@ -696,13 +696,13 @@ export function drawGalaxyCached(context: CanvasRenderingContext2D, node: Galaxy
 /** Frame-rate-independent camera damping (the same response at 30, 60 and 120 Hz). */
 export const cameraDamping=(dt:number)=>1-Math.exp(-Math.max(0,Math.min(80,dt))/210);
 
-export function paintUniverseFrame(context:CanvasRenderingContext2D,width:number,height:number,camera:Camera,time:number,nodes:readonly GalaxyNode[],leader:LeaderboardPlayer|null,selectedId:string|null,hoveredId:string|null,reduced:boolean,sprites:Map<string,HTMLCanvasElement>,compact=width<768,approachRadius?:number) {
+export function paintUniverseFrame(context:CanvasRenderingContext2D,width:number,height:number,camera:Camera,time:number,nodes:readonly GalaxyNode[],leader:LeaderboardPlayer|null,selectedId:string|null,hoveredId:string|null,reduced:boolean,sprites:Map<string,HTMLCanvasElement>,compact=width<768,approachRadius?:number,cinema=false) {
   drawBackground(context,width,height,camera,time,reduced);
-  drawOrbitLanes(context,camera,width,height,time,reduced);
+  if(!cinema)drawOrbitLanes(context,camera,width,height,time,reduced);
   const measure=Math.min(width,height),project=createProjector(camera,width,height),centre=project({x:0,y:0,z:0});
   const holeRadius=approachRadius??clamp(measure*.105*centre.scale,compact?24:56,compact?76:126);
   const active=!!leader&&(selectedId===leader.userId||hoveredId===leader.userId);
-  drawGalaxyTrails(context,nodes,project,measure,time,selectedId,hoveredId,reduced);
+  if(!cinema)drawGalaxyTrails(context,nodes,project,measure,time,selectedId,hoveredId,reduced);
   const projected=nodes.map(node=>({node,point:project(resolveGalaxyPosition(node,time,reduced))})).sort((a,b)=>a.point.depth-b.point.depth);
   const hits:GalaxyHit[]=[];let holeDrawn=false,prepared=0,pendingSprites=0;
   for(const {node,point} of projected){
@@ -712,7 +712,7 @@ export function paintUniverseFrame(context:CanvasRenderingContext2D,width:number
     const cached=sprites.has(node.player.userId+(compact?':compact':':full'));
     // Spread first-load texture work across frames, including in reduced-motion mode.
     if(cached||prepared<4){
-      drawGalaxyCached(context,node,point,radius,time,selectedId===node.player.userId,hoveredId===node.player.userId,reduced,sprites,compact,projectGalaxyDisk(node,time,project,measure));
+      drawGalaxyCached(context,node,point,radius,time,selectedId===node.player.userId,hoveredId===node.player.userId,reduced,sprites,compact,projectGalaxyDisk(node,time,project,measure),cinema);
       if(!cached)prepared++;
     }else{
       pendingSprites++;

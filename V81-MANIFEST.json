@@ -1,0 +1,135 @@
+{
+  "release": "V81",
+  "base": "V80",
+  "changed_source_files": 25,
+  "files": [
+    {
+      "path": "app/(player)/collection/collection.module.css",
+      "sha256": "d49b4626fe1045f862160cfae443044b2baca727afccef2e6c1aaf8d90925ccc",
+      "previous_sha256": "f5bb07827fd26fa4f2b72dd4b6dc707f4833c014a48c358345f062a19da926dc"
+    },
+    {
+      "path": "app/(player)/help/page.tsx",
+      "sha256": "22d1e8616eaba5d50dc9d9c97f66da64220b64c16a115393637cab2276c24cc4",
+      "previous_sha256": "d5c1e1ea8332ed049b71e3a895eed9ebcaf8dcb93aa5c1991e7649bfbb91204b"
+    },
+    {
+      "path": "app/(player)/hq/page.tsx",
+      "sha256": "9e4a27fa471d3fdf7997415bb8d31bc359ae9ca5d954e078c348324b024dfec9",
+      "previous_sha256": "0dc923bb3f5657320d578aec7ab8d71f50d270542cd112a1ebe724c9ca20de8d"
+    },
+    {
+      "path": "app/layout.tsx",
+      "sha256": "0041a4034ce34919a767e75de3508ff1f64eab30b5459244afea7252dc1e8eea",
+      "previous_sha256": "7148d8ce3594c75d59e2c3ca27a9d530a751e2534d9c4f9c5b0a8aa18c49c77c"
+    },
+    {
+      "path": "app/premium.css",
+      "sha256": "caeb268e30a0ebfff88fb85bc1b773ac03e1ee0d3442cdeab58e93bd05b21c46",
+      "previous_sha256": null
+    },
+    {
+      "path": "components/auth/AuthShell.module.css",
+      "sha256": "ca6f30183de126d70febbeefaa9e3700795db36386ca3546d40bdabbb6be6dcc",
+      "previous_sha256": "4286a8b789e8361c9ed27b56d4da7a0b4f5a5b5308fe239e8bcaa7f6f11ef9f4"
+    },
+    {
+      "path": "components/auth/AuthShell.tsx",
+      "sha256": "7171bc66c7fe70de8c4c0bebd1a6e6f81f9a08637e1d761961b7529cd7c4265d",
+      "previous_sha256": "4df5a4cfd3d76e2f87ac2cae1d31e28d5d845be68b93c567f94ee259c83b53f3"
+    },
+    {
+      "path": "components/player/NotificationCentre.tsx",
+      "sha256": "37161eb48a455825a8f4f2c7fabe81fe6206bd44096b15033f804ae4c0d021c1",
+      "previous_sha256": "8606a796d9470a5c28dd4a974c0eca4a785bccc3a83702eee33c1cbacc4d1c31"
+    },
+    {
+      "path": "components/player/PlayerNav.tsx",
+      "sha256": "19281d9af9cdbd03eab8ad8a79254d7ed9cf105244f0e9352e1270c462b55767",
+      "previous_sha256": "58aa93cd96c8bacc1ae4f23b39e750069fea079c86eb8f7d1ac52dfe3f43d111"
+    },
+    {
+      "path": "components/player/PlayerPreferences.tsx",
+      "sha256": "aa825fee9120bec270279c69388f5cf50cc815c6d0ff490fd51b8149869aadb5",
+      "previous_sha256": "abb1b318abf3e79df0e490cebcacc2e584d6893a0c1ea561f19201df683e36b8"
+    },
+    {
+      "path": "components/player/QuickNavigation.tsx",
+      "sha256": "64c37846043f484a7050cdfe2b473e3b2f0198556023d76a40f4336b81a4fd68",
+      "previous_sha256": "80d4b66b4fc9f49d8eee924277474fcb0a37f1d00b14bddd067da2afed1aa07c"
+    },
+    {
+      "path": "components/player/TrustShell.tsx",
+      "sha256": "b2ec6d23e7e87d7c11698b7212ad1a4020520e36658eb366a202ca8ff6b4ad26",
+      "previous_sha256": "c4913da6e8f1c27d050bb8fa57843eee6956b689e4c6e8b5a94aad9a0669b9cb"
+    },
+    {
+      "path": "components/player/astral/AstralWish.module.css",
+      "sha256": "2253bfd7f4a5733d882ee91950ace77db57502478284dd415756db851a3bf37d",
+      "previous_sha256": "13a6ca9ef4616e4f79022ad262a538351d9de6eedc4d2db21ad6834bcba16525"
+    },
+    {
+      "path": "components/player/astral/FlightRenderer.ts",
+      "sha256": "621a87a507e819bd851e4bd26068ff1472ee02248123628646f910d9ac426c38",
+      "previous_sha256": "f5365e21a88bc6ef368b86591f2cbb8d97d01252962e76c1c4f58186fbeebb3f"
+    },
+    {
+      "path": "components/player/astral/flight.ts",
+      "sha256": "80ab05015f77802e00d2fecdbd04569603b486184ea4976dff864d10aebb168f",
+      "previous_sha256": "96d25dcc94632fd5656e01cd588b2d96af8cebcc582c5fe1c8a52028c899d64c"
+    },
+    {
+      "path": "components/player/observatory/BlackHoleRenderer.ts",
+      "sha256": "85d1d10d021fa013692d4a42148bb3a5c01cc9c1e1d442ab7bd890197a8948ec",
+      "previous_sha256": "5f6f5145de8808469cdf48b9929c510a2b893528dfd62e0ca871daccea15e3a7"
+    },
+    {
+      "path": "components/player/observatory/CelestialWindow.tsx",
+      "sha256": "af803fd0a2fd4b253d6d8b8fa359709e9a8e65c77003cdff9f6e3b1c51b09228",
+      "previous_sha256": null
+    },
+    {
+      "path": "components/player/observatory/Navigation.module.css",
+      "sha256": "ecaeae181fbef5fd381887af1e71cf4152799545d978ffe28ee65ae3050606ea",
+      "previous_sha256": "9a16af7d1de8ff756b030f9f9ac333e4e9040c7fbeb50692985699fb463281ad"
+    },
+    {
+      "path": "components/player/observatory/Observatory.module.css",
+      "sha256": "2841595ebc49454f79e5d122a6c89e04cc251daf2ce6e68336f5c390e786d0ee",
+      "previous_sha256": "0cbf0f3c675e7a87ee0dd5977ba9aa8bb377d10809a31e280889708b611ebada"
+    },
+    {
+      "path": "components/player/observatory/Observatory.tsx",
+      "sha256": "01b0f4066d0f829c56deee455e7b7d535bcc2fdef1ceee5cfd078e4d3a39937c",
+      "previous_sha256": "c2825f99efa46cf5eae75cc8085f93f64e3d67f72c6bf6e7e2b0318889e5ae3d"
+    },
+    {
+      "path": "components/player/observatory/ObservatoryRenderer.ts",
+      "sha256": "588220891ca500164939e182e9d6d4b1620cb06dd098553badf8c8ae86264c76",
+      "previous_sha256": "1292ba50564ad16a5b37414ab74575959181c5061d6bfdf49ece95a5d22b4835"
+    },
+    {
+      "path": "components/player/observatory/Overview.module.css",
+      "sha256": "2ca272ae632bc04ee431961fa759dadd72185ee94c5780ba60db46ba736d7c54",
+      "previous_sha256": "2e0127d9a5190afdcddfac498820f96fcd05a9e1c0d91664f9e8ad3aa466448f"
+    },
+    {
+      "path": "components/player/observatory/UniverseRenderer.ts",
+      "sha256": "f2ccbbaac329ddd8b3b3394b562d21b325670d5becb390968a32b5d71700c1bf",
+      "previous_sha256": "14e2b34dc5c6dd5a836aafed99f54b285f25d0ea015fe370ab3a0e793631673b"
+    },
+    {
+      "path": "components/player/wishAudio.ts",
+      "sha256": "56e4a83dd850e5b6a043e1359bd2f216cc48304a6eb10b2ac7ea9a4c0a64a332",
+      "previous_sha256": "ab351b0729953af409d2facf6785c1d50cb870acf44a62ccdee8e539b1223b51"
+    },
+    {
+      "path": "scripts/astra-flight-regression.cjs",
+      "sha256": "1aa35259b231d4dedc01d3601008a57aec3e08e175f5cf501c378f2caf8439fe",
+      "previous_sha256": "3d1c05f9f64f95798e293b280e5c0ef2f98d9e0e40e72c3f9fb80adadd31f326"
+    }
+  ],
+  "requires_new_dependencies": false,
+  "requires_sql_migration": false,
+  "deployed": false
+}

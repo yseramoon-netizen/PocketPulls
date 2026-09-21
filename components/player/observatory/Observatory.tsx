@@ -31,6 +31,9 @@ export default function Observatory(){
   const [selectedStar,setSelectedStar]=useState<ConstellationStar|null>(null),[selectedGalaxy,setSelectedGalaxy]=useState<LeaderboardPlayer|null>(null);
   const [level,setLevel]=useState<ObservatoryLevel>('stars'),[paused,setPaused]=useState(false),[systemReduced,setSystemReduced]=useState(false);
   const [rankVerified,setRankVerified]=useState(false);
+  const [cinema,setCinema]=useState(false);
+  const cinemaRef=useModalFocus<HTMLElement>(cinema,()=>setCinema(false));
+  const cinemaTrigger=useRef<HTMLButtonElement>(null),wasCinema=useRef(false);
   const [holeMode,setHoleModeState]=useState(false),holeModeRef=useRef(false);
   const setHoleMode=useCallback((value:boolean)=>{holeModeRef.current=value;setHoleModeState(value);},[]);
   const [arrivalIds,setArrivalIds]=useState<string[]>([]),[arrivalMessage,setArrivalMessage]=useState('');
@@ -43,7 +46,17 @@ export default function Observatory(){
   const deepLinkHandled=useRef(false);
   const scene=useMemo(()=>user?{...buildObservatoryScene(stars,zodiac,players,user),entryConfirmed:rankVerified&&!rankError}:null,[stars,zodiac,players,user,rankError,rankVerified]);
   const reduced=preferences.reducedMotion||systemReduced;
-  const runtime=useRef<{scene:ObservatoryScene|null;reduced:boolean;low:boolean;paused:boolean;star:string|null;galaxy:string|null}>({scene:null,reduced:false,low:false,paused:false,star:null,galaxy:null});
+  const runtime=useRef<{scene:ObservatoryScene|null;reduced:boolean;low:boolean;paused:boolean;cinema:boolean;star:string|null;galaxy:string|null}>({scene:null,reduced:false,low:false,paused:false,cinema:false,star:null,galaxy:null});
+  const attachZoomInput=useCallback((element:HTMLInputElement|null)=>{
+    zoomInput.current=element;
+    if(element)element.value=String((holeModeRef.current?singularityRailValue(target.current.singularity,ownsBlackHole(runtime.current.scene)):(1.34-target.current.distance)/1.96)*100);
+  },[]);
+
+  useEffect(()=>{window.dispatchEvent(new CustomEvent('ancientpulls:observatory-cinema',{detail:{open:cinema}}));return()=>{window.dispatchEvent(new CustomEvent('ancientpulls:observatory-cinema',{detail:{open:false}}));};},[cinema]);
+  useEffect(()=>{if(wasCinema.current&&!cinema)cinemaTrigger.current?.focus({preventScroll:true});wasCinema.current=cinema;},[cinema]);
+  useEffect(()=>{
+    if(cinema&&paused){target.current.yaw=current.current.yaw;target.current.pitch=current.current.pitch;}
+  },[cinema,paused]);
 
   const load=useCallback(async()=>{
     const version=++loadVersion.current;setRefreshing(true);setError('');setRankError('');setRankVerified(false);
@@ -85,11 +98,14 @@ export default function Observatory(){
   },[]);
 
   useEffect(()=>{
-    const params=new URLSearchParams(window.location.search),ids=readArrivalIds(window.location.search);
-    if(params.get('view')==='universe'&&!ids.length&&!params.get('card')){target.current.distance=current.current.distance=1;setLevel('universe');levelRef.current='universe';}
-    if(params.get('panel')==='history')setPanel('cards');
-    arriving.current=new Set(ids);setArrivalIds(ids);void load();
-    return()=>{loadVersion.current++;};
+    const version=loadVersion;
+    const initial=requestAnimationFrame(()=>{
+      const params=new URLSearchParams(window.location.search),ids=readArrivalIds(window.location.search);
+      if(params.get('view')==='universe'&&!ids.length&&!params.get('card')){target.current.distance=current.current.distance=1;setLevel('universe');levelRef.current='universe';}
+      if(params.get('panel')==='history')setPanel('cards');
+      arriving.current=new Set(ids);setArrivalIds(ids);void load();
+    });
+    return()=>{cancelAnimationFrame(initial);version.current++;};
   },[load]);
 
   useEffect(()=>{
@@ -98,9 +114,9 @@ export default function Observatory(){
   },[]);
 
   useEffect(()=>{
-    runtime.current={scene,reduced,low:preferences.lowVisualEffects||preferences.dataSaver,paused,star:selectedStar?.id??null,galaxy:selectedGalaxy?.userId??null};
+    runtime.current={scene,reduced,low:preferences.lowVisualEffects||preferences.dataSaver,paused,cinema,star:selectedStar?.id??null,galaxy:selectedGalaxy?.userId??null};
     requestFrame.current();
-  },[scene,reduced,preferences.lowVisualEffects,preferences.dataSaver,paused,selectedStar,selectedGalaxy]);
+  },[scene,reduced,preferences.lowVisualEffects,preferences.dataSaver,paused,cinema,selectedStar,selectedGalaxy]);
   useEffect(()=>{renderer.current?.invalidate();requestFrame.current();},[scene]);
   useEffect(()=>{railGesture.current.advance=false;requestFrame.current();},[panel,holeMode,loading]);
   useEffect(()=>{
@@ -139,13 +155,14 @@ export default function Observatory(){
       current.current.singularity=clampSingularityDepth(current.current.singularity,r.scene);
       const dt=last===null?1000/60:stamp-last;last=stamp;
       if(railGesture.current.advance&&holeModeRef.current&&!ownsBlackHole(r.scene))target.current.singularity+=Math.min(64,dt)*.0007;
+      if(r.cinema&&!r.reduced&&!r.paused&&!gestures.current.points.size)target.current.yaw+=Math.min(64,dt)*.000018;
       const unsettled=dampView(current.current,target.current,dt,r.reduced);
-      const moving=!r.reduced&&!r.paused&&current.current.distance>.16;
+      const moving=!r.reduced&&!r.paused&&(current.current.distance>.16||r.cinema);
       const time=clock.current.sample(stamp,moving);
       const width=container.clientWidth,height=container.clientHeight;if(!width||!height)return;
       const density=Math.min(window.devicePixelRatio||1,r.low?1:width<768?1.2:1.5,Math.sqrt(1900000/(width*height)));
       try{
-        frame.current=painter.render(width,height,density,current.current,time,r.scene,{reduced:r.reduced||r.paused,low:r.low,selectedStar:r.star,selectedGalaxy:r.galaxy,arriving:arriving.current,insets});
+        frame.current=painter.render(width,height,density,current.current,time,r.scene,{reduced:r.reduced||r.paused,low:r.low,selectedStar:r.star,selectedGalaxy:r.galaxy,arriving:arriving.current,insets:r.cinema?{top:32,bottom:32}:insets,cinema:r.cinema});
       }catch{last=null;setError('The sky could not be drawn. Try again to restore your Observatory.');return;}
       if(holeModeRef.current&&ownsBlackHole(r.scene)&&current.current.singularity>=BLACK_HOLE_PASSAGE_END-.0001){
         const {yaw,pitch}=current.current;
@@ -178,7 +195,7 @@ export default function Observatory(){
     const visibility=()=>{clock.current.suspend();last=null;if(document.hidden){cancelAnimationFrame(raf);raf=0;}else queue();};
     document.addEventListener('visibilitychange',visibility);queue();
     return()=>{active=false;cancelAnimationFrame(raf);observer.disconnect();document.removeEventListener('visibilitychange',visibility);painter.dispose();renderer.current=null;requestFrame.current=()=>{};};
-  },[]);
+  },[setHoleMode]);
 
   const updateUrl=useCallback((view:string|null)=>{
     const url=new URL(window.location.href);if(view)url.searchParams.set('view',view);else url.searchParams.delete('view');
@@ -250,7 +267,8 @@ export default function Observatory(){
   useEffect(()=>{
     if(loading||!scene||deepLinkHandled.current)return;
     const id=new URLSearchParams(window.location.search).get('card');if(!id)return;
-    deepLinkHandled.current=true;const star=stars.find(star=>star.cardId===id);if(star)visitStar(star);else setArrivalMessage('This card does not have a wish star in your constellation yet.');
+    const pending=requestAnimationFrame(()=>{deepLinkHandled.current=true;const star=stars.find(star=>star.cardId===id);if(star)visitStar(star);else setArrivalMessage('This card does not have a wish star in your constellation yet.');});
+    return()=>cancelAnimationFrame(pending);
   },[loading,scene,stars,visitStar]);
   useEffect(()=>{
     const restore=()=>{const params=new URLSearchParams(window.location.search);goTo(params.get('view')==='universe'?1:0);setPanel(params.get('panel')==='history'?'cards':null);};
@@ -281,7 +299,7 @@ export default function Observatory(){
     const g=gestures.current,tap=g.points.size===1&&!g.moved&&event.type!=='pointercancel';g.points.delete(event.pointerId);
     if(event.currentTarget.hasPointerCapture(event.pointerId))event.currentTarget.releasePointerCapture(event.pointerId);
     if(g.points.size){g.moved=true;return;}event.currentTarget.style.cursor='grab';
-    if(!tap)return;
+    if(!tap||runtime.current.cinema)return;
     const bounds=event.currentTarget.getBoundingClientRect(),x=event.clientX-bounds.left,y=event.clientY-bounds.top;
     if(current.current.distance<.62){
       const hit=frame.current.stars.map(hit=>({hit,distance:Math.hypot(hit.x-x,hit.y-y)})).filter(item=>item.distance<=item.hit.radius).sort((a,b)=>a.distance-b.distance)[0];
@@ -302,7 +320,7 @@ export default function Observatory(){
   useEffect(()=>{
     const keydown=(event:KeyboardEvent)=>{
       if(arriving.current.size||event.target instanceof HTMLElement&&(event.target.matches('input,textarea,select')||event.target.isContentEditable))return;
-      if(event.key==='/'&&!event.ctrlKey&&!event.metaKey){event.preventDefault();setPanel('cards');setSearch('');}
+      if(!runtime.current.cinema&&event.key==='/'&&!event.ctrlKey&&!event.metaKey){event.preventDefault();setPanel('cards');setSearch('');}
       if(event.key==='Escape'){setSelectedStar(null);setSelectedGalaxy(null);}
     };
     document.addEventListener('keydown',keydown);return()=>document.removeEventListener('keydown',keydown);
@@ -319,12 +337,13 @@ export default function Observatory(){
   const totalValue=useMemo(()=>stars.reduce((total,star)=>total+star.marketValue,0),[stars]);
   const rank=scene?.owner.rank??0;
 
-  return <section className={`ap-scene ${styles.page}`} data-observatory-level={level} data-black-hole-selected={holeMode}>
-    <SceneHeader title="Observatory">
+  return <section ref={cinemaRef} className={`ap-scene ${styles.page}`} data-cinema={cinema} role={cinema?"dialog":undefined} aria-modal={cinema?true:undefined} aria-label={cinema?"Observatory cinema":undefined} tabIndex={cinema?-1:undefined} data-observatory-level={level} data-black-hole-selected={holeMode}>
+    <div hidden={cinema}><SceneHeader title="Observatory">
       <button className="ap-scene-button" aria-expanded={panel==='cards'} onClick={()=>openPanel('cards')}><AstralIcon name="search"/>Find a card</button>
       <button className="ap-scene-button" aria-expanded={panel==='galaxies'} onClick={()=>openPanel('galaxies')}><AstralIcon name="universe"/>Galaxies</button>
       <button className="ap-scene-button" aria-label="Observatory information" aria-expanded={panel==='info'} onClick={()=>openPanel('info')}><AstralIcon name="info"/><span className={styles.infoText}>Info</span></button>
-    </SceneHeader>
+    </SceneHeader></div>
+    {cinema&&<div className={styles.cinemaBar}><span>Observatory</span><div>{!reduced&&<button aria-pressed={paused} onClick={()=>setPaused(value=>!value)}>{paused?"Play":"Pause"}</button>}<button data-autofocus onClick={()=>setCinema(false)}><AstralIcon name="close"/>Exit cinema</button></div></div>}
     <div ref={viewport} className={styles.viewport} data-onboarding-target="constellation" tabIndex={0} aria-label="Explore the Observatory" aria-describedby="observatory-controls" onPointerDown={pointerDown} onPointerMove={pointerMove} onPointerUp={pointerUp} onPointerCancel={pointerUp}
       onKeyDown={event=>{
         if(event.target!==event.currentTarget)return;
@@ -365,11 +384,11 @@ export default function Observatory(){
     {selectedStar&&!panel&&<aside className={`ap-scene-panel ${styles.memory}`} aria-label="Card memory"><div className="ap-panel-heading"><div><p style={{color:selectedStar.colour}}>{selectedStar.rarity}</p><h2>{selectedStar.name}</h2></div><button className="ap-scene-button" onClick={()=>setSelectedStar(null)} aria-label="Close memory"><AstralIcon name="close"/></button></div><div className={styles.cardDetails}>{selectedStar.imageUrl?<img src={selectedStar.imageUrl} alt={selectedStar.name}/>:<AstralIcon/>}<div><p>{selectedStar.setName}</p>{selectedStar.cardNumber&&<p>Card #{selectedStar.cardNumber}</p>}<strong>{formatMoney(selectedStar.marketValue)}</strong><small>{formatDate(selectedStar.grantedAt)}</small></div></div>{selectedStar.anniversaryYears>0&&<p>{anniversaryMessage(selectedStar.anniversaryYears)}</p>}<button className={styles.personal} onClick={()=>goTo(0)}>Back to my stars <AstralIcon name="arrow"/></button></aside>}
     {selectedGalaxy&&!panel&&<aside className={`ap-scene-panel ${styles.memory}`} aria-label="Galaxy details"><div className="ap-panel-heading"><div><p>{selectedGalaxy.rank===1?'#1 · Black hole':selectedGalaxy.rank?`Galaxy #${selectedGalaxy.rank}`:'Your personal galaxy'}</p><h2>{selectedGalaxy.displayName}</h2></div><button className="ap-scene-button" onClick={()=>setSelectedGalaxy(null)} aria-label="Close galaxy"><AstralIcon name="close"/></button></div>{selectedGalaxy.rank>0?<div className={styles.stats}><Stat label="Cards" value={selectedGalaxy.totalCards.toLocaleString('en-GB')}/><Stat label="Unique cards" value={selectedGalaxy.uniqueCards.toLocaleString('en-GB')}/><Stat label="Collection value" value={formatMoney(selectedGalaxy.collectionValue)}/><Stat label="Wishes" value={selectedGalaxy.lifetimeWishes.toLocaleString('en-GB')}/></div>:<p>Your galaxy is shown outside the ranked top 100.</p>}{selectedGalaxy.rank===1&&<button className={styles.personal} onClick={exploreBlackHole}>Explore black hole <AstralIcon name="arrow"/></button>}{selectedGalaxy.isCurrentUser&&<button className={styles.personal} onClick={()=>goTo(0)}>Enter my constellation <AstralIcon name="arrow"/></button>}</aside>}
     <p id="observatory-controls" className="sr-only">Scroll or pinch to travel between your constellation and the universe. Drag or use arrow keys to rotate through 360 degrees. Plus and minus zoom. Home returns to your stars.</p>
-    {!loading&&!error&&!panel&&!selectedStar&&!selectedGalaxy&&<div ref={zoomRail} className={styles.zoomRail} aria-label="Zoom controls">
+    {!cinema&&!loading&&!error&&!panel&&!selectedStar&&!selectedGalaxy&&<div ref={zoomRail} className={styles.zoomRail} aria-label="Zoom controls">
       <button aria-label="Zoom in" onClick={()=>zoomBy(-.1)}>+</button>
       <div className={styles.zoomTrack}>
         {holeMode&&!ownsBlackHole(scene)&&<span className={styles.zoomInfinity} aria-hidden="true">∞</span>}
-        <input ref={zoomInput} type="range" min="0" max="100" step="0.1" defaultValue={(holeModeRef.current?singularityRailValue(target.current.singularity,ownsBlackHole(runtime.current.scene)):(1.34-target.current.distance)/1.96)*100} onPointerDown={()=>{railGesture.current.pressed=true;}} onPointerUp={()=>{railGesture.current={pressed:false,advance:false};}} onPointerCancel={()=>{railGesture.current={pressed:false,advance:false};}} onBlur={()=>{railGesture.current={pressed:false,advance:false};}} aria-orientation="vertical" aria-label={holeMode?'Black hole zoom':'Observatory zoom'} aria-describedby={holeMode&&!ownsBlackHole(scene)?'singularity-access':undefined}
+        <input ref={attachZoomInput} type="range" min="0" max="100" step="0.1" defaultValue={(1.34-HOME_VIEW.distance)/1.96*100} onPointerDown={()=>{railGesture.current.pressed=true;}} onPointerUp={()=>{railGesture.current={pressed:false,advance:false};}} onPointerCancel={()=>{railGesture.current={pressed:false,advance:false};}} onBlur={()=>{railGesture.current={pressed:false,advance:false};}} aria-orientation="vertical" aria-label={holeMode?'Black hole zoom':'Observatory zoom'} aria-describedby={holeMode&&!ownsBlackHole(scene)?'singularity-access':undefined}
           onChange={event=>{setRailZoom(Number(event.currentTarget.value)/100);event.currentTarget.value=String((holeModeRef.current?singularityRailValue(target.current.singularity,ownsBlackHole(runtime.current.scene)):(1.34-target.current.distance)/1.96)*100);}}
           onKeyDown={event=>{const value=Number(event.currentTarget.value)/100;const next=event.key==='Home'?0:event.key==='End'?1:['ArrowUp','ArrowRight'].includes(event.key)?value+.025:['ArrowDown','ArrowLeft'].includes(event.key)?value-.025:event.key==='PageUp'?value+.1:event.key==='PageDown'?value-.1:null;if(next===null)return;event.preventDefault();setRailZoom(next);}}
         />
@@ -377,9 +396,9 @@ export default function Observatory(){
       <button aria-label="Zoom out" onClick={()=>zoomBy(.1)}>−</button>
       <span id="singularity-access" className="sr-only">Keep scrolling, pressing plus, or holding the top of the slider to descend indefinitely. Only first place can pass through into their constellation.</span>
     </div>}
-    {!loading&&!panel&&<div className={styles.controls}>
+    {!loading&&!panel&&<div className={styles.controls} hidden={cinema}>
       <nav className={styles.stages} aria-label="Observatory scale"><button aria-current={level==='stars'?'step':undefined} onClick={()=>goTo(0)}>My stars</button><span/><button aria-current={level==='galaxy'?'step':undefined} onClick={()=>goTo(.54)}>{rank===1?'My black hole':'My galaxy'}</button><span/><button aria-current={level==='universe'?'step':undefined} onClick={()=>goTo(1)}>Universe</button></nav>
-      <div className={styles.dock}><span className={styles.scaleLabel}>{level==='stars'?'Constellation':level==='galaxy'?'Galaxy':level==='singularity'?'Singularity':holeMode?'Black hole':'Universe'}</span><i/>{level!=='stars'&&!reduced&&<button onClick={()=>setPaused(value=>!value)} aria-pressed={paused}>{paused?'Play':'Pause'}</button>}<button aria-label={holeMode?'Return to universe':'Return to my stars'} onClick={()=>goTo(holeMode?1:0)}><AstralIcon name="reset"/></button></div>
+      <div className={styles.dock}><button ref={cinemaTrigger} disabled={!!arrivalIds.length||!!error} onClick={()=>{setSelectedStar(null);setSelectedGalaxy(null);setPanel(null);railGesture.current.advance=false;setCinema(true);}} aria-label="Open cinema view"><AstralIcon name="universe"/><span>Cinema</span></button><i/><span className={styles.scaleLabel}>{level==='stars'?'Constellation':level==='galaxy'?'Galaxy':level==='singularity'?'Singularity':holeMode?'Black hole':'Universe'}</span><i/>{level!=='stars'&&!reduced&&<button onClick={()=>setPaused(value=>!value)} aria-pressed={paused}>{paused?'Play':'Pause'}</button>}<button aria-label={holeMode?'Return to universe':'Return to my stars'} onClick={()=>goTo(holeMode?1:0)}><AstralIcon name="reset"/></button></div>
     </div>}
     {arrivalIds.length>0&&!loading&&painted&&!error&&<AstraArrival getTargets={getArrivalTargets} onArrived={starArrived} onDone={finishArrival}/>}
     {arrivalMessage&&<p className="ap-arrival-message" role="status">{arrivalMessage}</p>}

@@ -49,6 +49,14 @@ export function ascentDistance(seconds: number): number {
 }
 export const flightDuration = (count: number) => count === 10 ? FLIGHT_TIMING.tenReady : FLIGHT_TIMING.singleReady;
 export const revealTime = (count: number) => count === 10 ? FLIGHT_TIMING.tenReveal : FLIGHT_TIMING.singleReveal;
+/** Authored camera beats share the neutral opening; no outcome can affect framing. */
+export function sampleFlightCamera(ms:number,count:number){
+    const t=Math.max(0,Number.isFinite(ms)?ms:0)/1000,ten=count===10,birth=revealTime(count)/1000;
+    const gather=smooth(ten?6:4.5,birth-.5,t),release=smooth(birth,birth+2.1,t);
+    const bank=Math.sin(smooth(.2,ten?6:5,t)*Math.PI*2)*(1-gather);
+    return {zoom:1+gather*.065-release*.055,x:bank*.012,y:-gather*.012+release*.010,roll:bank*.012,
+        hush:smooth(birth-1.05,birth-.16,t)*(1-smooth(birth,birth+.65,t)),reveal:release};
+}
 const TAU=Math.PI*2;
 const pulse=(start:number,end:number,t:number)=>Math.sin(clamp((t-start)/(end-start))*Math.PI)**2;
 function flightPosition(t:number,ten:boolean):Vec2 {

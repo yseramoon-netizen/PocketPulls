@@ -11,6 +11,7 @@ import { getConfiguredPublicOrigin } from "@/lib/auth/navigation";
 
 import "./globals.css";
 import "./astral.css";
+import "./premium.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL(

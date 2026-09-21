@@ -35,3 +35,17 @@
 @media(max-width:400px){.page :global(.ap-scene-actions){gap:6px}.page :global(.ap-scene-actions .ap-scene-button){font-size:12px;padding:0 8px;gap:7px;min-width:44px}.scaleLabel{width:64px}.dock{gap:2px;padding:4px 6px}.dock>i{margin:0 2px}.dock button{padding:0 8px}}
 html[data-pp-reduced-motion=true] .loading>span{animation:none}
 html[data-pp-low-effects=true] :is(.ownerLabel,.dock){backdrop-filter:none}
+
+/* The same live scene becomes an uncluttered screening room; no separate simulation. */
+.page[data-cinema=true]{position:fixed;inset:0;z-index:1000;width:100%;height:100dvh;min-height:0;outline:none;background:#02050a}
+.page[data-cinema=true] .ownerLabel{display:none}
+.page[data-cinema=true] .vignette{background:linear-gradient(180deg,#01030880,transparent 17%,transparent 82%,#01030899);box-shadow:inset 0 0 120px #01030844}
+.cinemaBar{position:absolute;inset:24px 28px auto;z-index:60;display:flex;justify-content:space-between;align-items:center;gap:16px;pointer-events:none}
+.cinemaBar>span{font-size:13px;letter-spacing:.07em;color:#d6dfe9;text-shadow:0 2px 8px #000}
+.cinemaBar>div{display:flex;align-items:center;gap:8px;pointer-events:auto}
+.cinemaBar button{min-height:44px;padding:0 16px;border:1px solid #c7d9ee24;border-radius:100px;background:#0b131ddd;backdrop-filter:blur(16px);display:flex;align-items:center;gap:9px;font-size:13px;color:#e2e7ed;cursor:pointer}
+.cinemaBar button:hover{background:#202c3d}.cinemaBar svg{width:16px;height:16px}
+.dock{border-radius:100px;padding:6px 10px;background:#101720e8;box-shadow:inset 0 1px #fff08,0 12px 40px #0005}.dock button{border-radius:100px;font-size:13px!important;display:flex;align-items:center;justify-content:center;gap:8px}.zoomRail{border-radius:100px;background:#101720d9;border-color:#d4dfe422;box-shadow:inset 0 1px #fff07}.ownerLabel{border-radius:100px;border-color:#d2c9ad33;background:#121923e3}.stages{border-radius:100px;padding:2px 15px;background:#060b1278}.stages button{min-height:38px;color:#a8b5c5}
+@media(max-width:600px){.cinemaBar{inset:16px 16px auto}.cinemaBar>span{font-size:12px}.cinemaBar button{padding:0 13px}.scaleLabel{display:none}.dock>i:nth-of-type(2){display:none}}
+@media(prefers-reduced-transparency:reduce){.cinemaBar button,.dock,.zoomRail,.ownerLabel{background:#111924;backdrop-filter:none}}
+.controls[hidden]{display:none}

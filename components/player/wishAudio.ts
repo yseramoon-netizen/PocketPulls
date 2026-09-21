@@ -91,16 +91,21 @@ export function startAstralWishAudio(options: AstralOptions & {flightV72?:boolea
         osc.start(start);
         osc.stop(start + remaining + .025);
     };
+    let airBuffer:AudioBuffer|null=null;
     const air = (at: number, duration: number, gain: number, from: number, to: number) => {
         if (at + duration <= offset)
             return;
         const start = now + Math.max(0, at - offset), remaining = at + duration - Math.max(at, offset);
-        const buffer = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * 2), ctx.sampleRate), data = buffer.getChannelData(0);
-        let seed = 81473;
-        for (let i = 0; i < data.length; i++) {
-            seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
-            data[i] = (seed / 4294967296 - .5) * .6;
+        if(!airBuffer){
+            airBuffer=ctx.createBuffer(1,Math.ceil(ctx.sampleRate*2),ctx.sampleRate);
+            const data=airBuffer.getChannelData(0);let seed=81473,previous=0;
+            for(let i=0;i<data.length;i++){
+                seed=(Math.imul(seed,1664525)+1013904223)>>>0;
+                previous=previous*.72+(seed/4294967296-.5)*.28;
+                data[i]=previous*.9;
+            }
         }
+        const buffer=airBuffer;
         const source = ctx.createBufferSource(), filter = ctx.createBiquadFilter(), envelope = ctx.createGain();
         source.buffer = buffer;
         source.loop = true;
@@ -121,13 +126,21 @@ export function startAstralWishAudio(options: AstralOptions & {flightV72?:boolea
     };
     if(options.flightV72){
         const ten=options.count===10,birth=ten?11.6:9.6,tier=Math.max(1,Math.min(9,options.tier));
-        tone(0,5.2,130.81,.07);tone(.18,5.0,196,.04);tone(.6,4.5,261.63,.024);
+        // An original low harmonic bed gives the small character a larger world.
+        // Every sound before birth is identical for every rarity.
+        tone(0,birth-1.2,65.405,.025);tone(.12,birth-1.35,130.81,.052,'triangle',1.002);
+        tone(.18,5.0,196,.036);tone(.6,4.5,261.63,.022);
+        tone(2.1,2.8,392,.012,'sine',.998);tone(2.14,2.8,392.9,.009);
+        air(birth-2.75,1.75,.10,220,1800);
         [523.25,783.99,1046.5,1174.66].forEach((hz,i)=>tone(1.2+i*.58,1.5,hz,.035));
         air(1.7,ten?4.3:2.8,.12,300,3100);tone(ten?6:4.7,3.1,196,.042,'sine',2);
         air(ten?6.5:5.1,2.5,.17,500,3500);
         const root=tier>=7?293.66:tier>=4?261.63:220;
         [1,1.5,2,2.5].forEach((r,i)=>tone(birth+i*.08,2.6,root*r,.065-i*.009));
-        air(birth,1.5,.19,1000,5500);
+        air(birth,1.5,.15,800,4200);
+        tone(birth,.85,65.405,.09,'sine',.72);
+        tone(birth+.18,2.75,root*4.003,.014);
+        tone(birth+.34,2.45,root*3,.021);
         if(ten)Array.from({length:10},(_,i)=>tone(birth+.18+i*.16,1.4,[523.25,659.25,783.99,1046.5,1174.66][i%5],.028));
         if(options.blackHole)tone(birth,2.6,98,.09,'sine',.5);
     }else{

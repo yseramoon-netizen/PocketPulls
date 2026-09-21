@@ -48,3 +48,18 @@ test('spell attachment points follow body rotation and foreshortening at mobile 
   }
  }
 });
+
+test('cinematic framing is continuous, bounded and settles before the result screen',()=>{
+ for(const count of [1,10]){
+  let last=F.sampleFlightCamera(0,count);
+  for(let ms=0;ms<=F.flightDuration(count);ms+=1000/120){
+   const camera=F.sampleFlightCamera(ms,count);
+   for(const value of Object.values(camera))assert.ok(Number.isFinite(value));
+   assert.ok(camera.zoom>=1&&camera.zoom<=1.066);
+   assert.ok(Math.abs(camera.x)<.02&&Math.abs(camera.roll)<.02);
+   for(const key of ['zoom','x','y','roll'])assert.ok(Math.abs(camera[key]-last[key])<.004,'camera cut at '+ms);
+   last=camera;
+  }
+  assert.equal(F.sampleFlightCamera(F.flightDuration(count),count).hush,0);
+ }
+});
