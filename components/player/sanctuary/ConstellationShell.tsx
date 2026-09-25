@@ -31,11 +31,27 @@ export default function ConstellationShell({ children, userId, displayName, wish
   const [moment, setMoment] = useState(false), [source, setSource] = useState({ x: 0, y: 0 });
   const [preferencesOpen, setPreferencesOpen] = useState(false), [cinema, setCinema] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const [astraMenu, setAstraMenu] = useState(false);
+  const [astraMenu, setAstraMenu] = useState(false), [skyPanel, setSkyPanel] = useState(false), [celebration, setCelebration] = useState(0);
+  const panelContent = useRef<HTMLDivElement>(null), scrollPositions = useRef(new Map<string, number>());
   const wish = useStaffWish(userId), routePanel = !homePaths.has(pathname), background = useRef<HTMLDivElement>(null);
   const closePanel = useCallback(() => router.push('/observatory', { scroll: false }), [router]);
   const panel = useModalFocus<HTMLElement>(routePanel, closePanel);
   const title = pathname === '/wishes/recovery' ? 'Recover your wishes' : TITLES[pathname.split('/')[1]] || 'Ancient Pulls';
+  useEffect(() => {
+    const element = panelContent.current;
+    if (!routePanel || !element) return;
+    const desired = scrollPositions.current.get(pathname) || 0;
+    let restored = desired === 0;
+    const restore = () => { if (!restored && element.scrollHeight - element.clientHeight >= desired) { element.scrollTop = desired; restored = true; } };
+    if (!desired) element.scrollTop = 0;
+    const save = () => { if (restored) scrollPositions.current.set(pathname, element.scrollTop); };
+    const interact = () => { restored = true; };
+    const observer = new ResizeObserver(restore); observer.observe(element); if (element.firstElementChild) observer.observe(element.firstElementChild);
+    const mutations = new MutationObserver(restore); mutations.observe(element, { childList: true, subtree: true });
+    const frame = requestAnimationFrame(restore);
+    element.addEventListener('scroll', save, { passive: true }); element.addEventListener('wheel', interact, { passive: true }); element.addEventListener('touchstart', interact, { passive: true }); element.addEventListener('keydown', interact);
+    return () => { mutations.disconnect(); observer.disconnect(); cancelAnimationFrame(frame); element.removeEventListener('scroll', save); element.removeEventListener('wheel', interact); element.removeEventListener('touchstart', interact); element.removeEventListener('keydown', interact); };
+  }, [pathname, routePanel]);
   useEffect(() => {
     const instrument = audio;
     const initial = requestAnimationFrame(() => { try { setSound(localStorage.getItem('ancientpulls:astra-sound') === 'on'); } catch {} });
@@ -49,11 +65,12 @@ export default function ConstellationShell({ children, userId, displayName, wish
     const sync = (event: Event) => setPreferencesOpen(!!(event as CustomEvent<{ open: boolean }>).detail.open);
     const cinemaChanged = (event: Event) => setCinema(!!(event as CustomEvent<{ open: boolean }>).detail.open);
     const notificationsChanged = (event: Event) => setNotificationsOpen(!!(event as CustomEvent<{ open: boolean }>).detail.open);
+    const skyChanged = (event: Event) => setSkyPanel(!!(event as CustomEvent<{ open: boolean }>).detail.open);
     const menuChanged = (event: Event) => setAstraMenu(!!(event as CustomEvent<{ open: boolean }>).detail.open);
     window.addEventListener('ancientpulls:preferences-visibility', sync); window.addEventListener('ancientpulls:observatory-cinema', cinemaChanged);
     window.addEventListener('ancientpulls:notifications-visibility', notificationsChanged);
-    window.addEventListener('ancientpulls:astra-menu', menuChanged);
-    return () => { window.removeEventListener('ancientpulls:preferences-visibility', sync); window.removeEventListener('ancientpulls:observatory-cinema', cinemaChanged); window.removeEventListener('ancientpulls:notifications-visibility', notificationsChanged); window.removeEventListener('ancientpulls:astra-menu', menuChanged); };
+    window.addEventListener('ancientpulls:astra-menu', menuChanged); window.addEventListener('ancientpulls:sky-panel', skyChanged);
+    return () => { window.removeEventListener('ancientpulls:preferences-visibility', sync); window.removeEventListener('ancientpulls:observatory-cinema', cinemaChanged); window.removeEventListener('ancientpulls:notifications-visibility', notificationsChanged); window.removeEventListener('ancientpulls:astra-menu', menuChanged); window.removeEventListener('ancientpulls:sky-panel', skyChanged); };
   }, []);
   useEffect(() => {
     if (wish.error) window.dispatchEvent(new Event('ancientpulls:call-astra'));
@@ -61,16 +78,33 @@ export default function ConstellationShell({ children, userId, displayName, wish
   const request = (id: AstraRequest) => {
     if (id === 'settings') { window.dispatchEvent(new Event('ancientpulls:open-preferences')); return; }
     if (id === 'notifications') { window.dispatchEvent(new Event('ancientpulls:open-notifications')); return; }
+    if (id === 'galaxies') { window.dispatchEvent(new CustomEvent('ancientpulls:sky-command', { detail: { action: 'search-galaxies' } })); return; }
     if (id === 'universe') { window.dispatchEvent(new CustomEvent('ancientpulls:sky-command', { detail: { action: 'universe' } })); return; }
     const href = ASTRA_REQUESTS.find(item => item.id === id)?.href;
     if (href) router.push(href, { scroll: false });
   };
   const startWish = (position: { x: number; y: number }) => { setSource(position); setMoment(true); void wish.summon(); };
-  const place = () => { wish.place(); setMoment(false); };
+  const place = () => { wish.place(); setMoment(false); setCelebration(value => value + 1); };
   const toggleSound = () => { const next = !sound; setSound(next); audio?.configure(next, preferences.sfxVolume); if (next) audio?.cue('menu'); try { localStorage.setItem('ancientpulls:astra-sound', next ? 'on' : 'off'); } catch {} };
-  const showingMoment = moment && !wish.error;
+  const showingMoment = moment && !wish.error && (wish.busy || !!wish.award);
   const overlay = routePanel || preferencesOpen || notificationsOpen || showingMoment;
+  const previouslyObscured = useRef(false);
+  useEffect(() => {
+    const obscured = overlay || cinema || skyPanel, restore = previouslyObscured.current && !obscured;
+    previouslyObscured.current = obscured;
+    if (!restore) return;
+    const frame = requestAnimationFrame(() => { if (!document.querySelector('[role="dialog"][aria-modal="true"]') && (document.activeElement === document.body || !document.activeElement?.isConnected)) (document.querySelector<HTMLButtonElement>('[data-testid="astra-staff"]') || document.querySelector<HTMLButtonElement>('.as-portal'))?.focus({ preventScroll: true }); });
+    return () => cancelAnimationFrame(frame);
+  }, [overlay, cinema, skyPanel]);
 
+  useEffect(() => {
+    const key = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || event.repeat || event.ctrlKey || event.metaKey || event.altKey || event.isComposing || overlay || cinema || astraMenu || skyPanel || document.querySelector('[role="dialog"][aria-modal="true"]')) return;
+      if (event.target instanceof HTMLElement && (event.target.matches('input,textarea,select') || event.target.isContentEditable)) return;
+      if (event.key.toLowerCase() === 'a') { event.preventDefault(); window.dispatchEvent(new Event('ancientpulls:call-astra')); }
+    };
+    document.addEventListener('keydown', key); return () => document.removeEventListener('keydown', key);
+  }, [overlay, cinema, astraMenu, skyPanel]);
   return <div className="as-sanctuary unknown-pulls-shell" data-testid="constellation-shell" data-overlay={overlay} data-reduced={reduced}>
     <a href="#main-content" className="skip-link">Skip to constellation</a>
     <div ref={background} className="as-world" inert={overlay || astraMenu}>
@@ -81,14 +115,14 @@ export default function ConstellationShell({ children, userId, displayName, wish
         <div className="as-floor"><button className="as-sound" aria-label={sound ? 'Turn sound off' : 'Turn sound on'} aria-pressed={sound} onClick={toggleSound}><RequestIcon name={sound ? 'sound' : 'muted'} /><span>Sound {sound ? 'on' : 'off'}</span></button><Link href="/help">Help & information</Link></div>
       </>}
     </div>
-    <div className="as-guide" hidden={cinema} inert={overlay}>
-      <AstraCompanion balance={wishBalance} reduced={reduced} low={preferences.lowVisualEffects || preferences.dataSaver} audio={audio} onRequest={request} onWish={startWish} onRecharge={() => router.push('/wishes/shop', { scroll: false })} busy={wish.busy || !!wish.award} pending={wish.pending} error={wish.error} serverExhausted={wish.exhausted} batchPending={wish.batchPending} onBatch={() => router.push('/wishes/recovery', { scroll: false })} maintenance={maintenance} />
+    <div className="as-guide" hidden={cinema} inert={overlay || skyPanel}>
+      <AstraCompanion suspended={overlay || cinema || skyPanel} celebration={celebration} balance={wishBalance} reduced={reduced} low={preferences.lowVisualEffects || preferences.dataSaver} audio={audio} onRequest={request} onWish={startWish} onRecharge={() => router.push('/wishes/shop', { scroll: false })} busy={wish.busy || !!wish.award} pending={wish.pending} error={wish.error} serverExhausted={wish.exhausted} batchPending={wish.batchPending} onBatch={() => router.push('/wishes/recovery', { scroll: false })} maintenance={maintenance} />
     </div>
-    <Preferences hideTrigger />
+    <Preferences hideTrigger soundEnabled={sound} onSoundChange={toggleSound} onSoundPreview={() => audio.cue('reveal')} />
     <Notifications hideTrigger />
     {routePanel && <div className="as-panel-scrim"><button className="as-panel-dismiss" aria-label="Return to constellation" tabIndex={-1} onClick={closePanel} /><section ref={panel} className="as-panel" role="dialog" aria-modal="true" aria-label={title} tabIndex={-1}>
       <div className="as-panel-bar"><div><RequestIcon name="star" /><span>{title}</span></div><button data-autofocus onClick={closePanel} aria-label="Close panel and return to constellation"><span>Back to the stars</span><RequestIcon name="close" /></button></div>
-      <div className="as-panel-content">{children}</div>
+      <div ref={panelContent} className="as-panel-content">{children}</div>
     </section></div>}
     {showingMoment && <StaffWishMoment award={wish.award} source={source} reduced={reduced} skip={preferences.skipPullCinematic && preferences.cinematicSeen} audio={audio} onPlace={place} onSeen={() => { if (!preferences.cinematicSeen) publishPlayerPreferences({ ...preferences, cinematicSeen: true }); }} />}
   </div>;

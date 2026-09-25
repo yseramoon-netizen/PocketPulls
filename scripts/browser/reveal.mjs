@@ -12,7 +12,7 @@ try {
  await p.getByTestId('astra-staff').waitFor(); await p.waitForTimeout(800);
  const checks = [];
  for (const method of ['button', 'Escape']) {
-  await p.getByTestId('astra-staff').focus(); await p.keyboard.press('ArrowDown'); await p.keyboard.press('Enter');
+  await p.getByTestId('astra-staff').focus(); await p.keyboard.press('ArrowRight'); await p.keyboard.press('Enter');
   await p.getByRole('button', { name: 'Reveal card', exact: false }).waitFor();
   if (method === 'button') await p.getByRole('button', { name: 'Reveal card', exact: false }).click();
   else await p.keyboard.press('Escape');

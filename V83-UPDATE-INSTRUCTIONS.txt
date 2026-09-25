@@ -1,0 +1,37 @@
+ANCIENT PULLS — V82 TO V83 UPDATE
+
+This archive contains only the changed/new application files, package version files and tests from V83. It is not a full installation.
+
+1. Back up your existing project or commit your current work.
+2. Extract this ZIP into your existing V82 project root (the folder containing package.json), keeping the paths and replacing matching files. Include the new lib/player/astraMotion.ts file.
+3. Run npm ci, then npm run build. Deploy using your usual process.
+
+Your .env configuration, database and unchanged assets are not included or replaced. No database migration is required. This update assumes the V82 Astra Sanctuary project is already installed; it is not an update directly from V81 or earlier.
+
+The files are byte-for-byte copies of the verified V83 release. Its production build, fresh dependency installation, 128 regression tests and 44 browser checks passed. This packaging check confirms that applying these files to V82 reproduces every V83 application and test change. Documentation, screenshots and generated verification logs are omitted.
+
+FILES INCLUDED:
+app/(auth)/sign-in/page.tsx
+app/sanctuary.css
+components/player/ConnectionStatus.tsx
+components/player/PlayerPreferences.tsx
+components/player/astral/AstraRig.ts
+components/player/astral/flight.ts
+components/player/observatory/Observatory.tsx
+components/player/sanctuary/AstraCompanion.tsx
+components/player/sanctuary/AstraPuppet.tsx
+components/player/sanctuary/ConstellationShell.tsx
+components/player/sanctuary/RequestIcon.tsx
+components/player/sanctuary/useStaffWish.ts
+lib/player/astraInteraction.ts
+lib/player/astraMotion.ts
+package-lock.json
+package.json
+scripts/browser/checks.mjs
+scripts/browser/edges.mjs
+scripts/browser/recharge.mjs
+scripts/browser/reveal.mjs
+scripts/browser/run.mjs
+scripts/browser/session.mjs
+scripts/browser/v83.mjs
+scripts/sanctuary-regression.cjs

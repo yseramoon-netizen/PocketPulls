@@ -23,11 +23,14 @@ export default function useStaffWish(userId: string) {
     alive.current = true;
     const frame = requestAnimationFrame(() => { setPending(!!readPendingWish(userId)); setBatchPending(!!readWishBatch(userId)); });
     const sync = () => { setPending(!!readPendingWish(userId)); setBatchPending(!!readWishBatch(userId)); };
+    const reconnected = () => setError(value => value.startsWith('You’re offline.') ? '' : value);
+    window.addEventListener('online', reconnected);
     window.addEventListener('pocketpulls:profile-updated', sync); window.addEventListener('storage', sync);
-    return () => { alive.current = false; cancelAnimationFrame(frame); controller.current?.abort(); window.removeEventListener('pocketpulls:profile-updated', sync); window.removeEventListener('storage', sync); };
+    return () => { window.removeEventListener('online', reconnected); alive.current = false; cancelAnimationFrame(frame); controller.current?.abort(); window.removeEventListener('pocketpulls:profile-updated', sync); window.removeEventListener('storage', sync); };
   }, [userId]);
   const summon = useCallback(async () => {
     if (lock.current || award || batchPending) return;
+    if (!navigator.onLine) { setError('You’re offline. Reconnect, then swing my staff again.'); return; }
     lock.current = true; setBusy(true); setError(''); setExhausted(false);
     const abort = new AbortController(); controller.current = abort;
     const timer = window.setTimeout(() => abort.abort(), 20000);

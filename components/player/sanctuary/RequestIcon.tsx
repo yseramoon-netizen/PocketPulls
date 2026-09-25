@@ -7,6 +7,7 @@ export default function RequestIcon({ name }: { name: AstraRequest | 'sound' | '
     settings: 'm10 2-.8 3-2 .9-2.8-.7-2 3.5 2 2.1v2.4l-2 2.1 2 3.5 2.8-.7 2 .9.8 3h4l.8-3 2-.9 2.8.7 2-3.5-2-2.1v-2.4l2-2.1-2-3.5-2.8.7-2-.9-.8-3Zm6 10a4 4 0 1 1-8 0 4 4 0 0 1 8 0Z',
     friends: 'M15 7a3 3 0 1 1-6 0 3 3 0 0 1 6 0ZM6 21v-3a6 6 0 0 1 12 0v3M18 4a3 3 0 0 1 0 6m2 4a5 5 0 0 1 2 4v2',
     universe: 'M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0ZM3 16c-2-3 1-8 6-11s11-3 12 0-1 8-6 11S5 19 3 16Z',
+    galaxies: 'M16 10a6 6 0 1 1-12 0 6 6 0 0 1 12 0Zm-1 5 6 6M10 6v8m-4-4h8',
     catalogue: 'M3 3h7v8H3Zm11 0h7v8h-7ZM3 15h7v6H3Zm11 0h7v6h-7Z',
     shipping: 'm3 6 9-4 9 4v12l-9 4-9-4Zm0 0 9 5 9-5M12 11v11M7 4l9 5v5',
     profile: 'M16 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0ZM4 22v-3a8 8 0 0 1 16 0v3',

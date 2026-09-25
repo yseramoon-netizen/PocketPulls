@@ -65,6 +65,7 @@ function PlayerSignInContent() {
 
   const [email, setEmail] = useState(searchParams.get("email") || "");
   const [password, setPassword] = useState("");
+  const [capsLock, setCapsLock] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [checking, setChecking] = useState(true);
   const [signingIn, setSigningIn] = useState(false);
@@ -343,10 +344,15 @@ function PlayerSignInContent() {
             />
           </label>
 
-          <label className="block">
-            <span className="text-xs font-black text-white/68">Password</span>
+          <div className="block">
+            <label htmlFor="sign-in-password" className="text-xs font-black text-white/68">Password</label>
             <div className="relative mt-2">
               <input
+                id="sign-in-password"
+                aria-describedby={capsLock ? 'password-caps-lock' : undefined}
+                onKeyDown={event => setCapsLock(event.getModifierState('CapsLock'))}
+                onKeyUp={event => setCapsLock(event.getModifierState('CapsLock'))}
+                onBlur={() => setCapsLock(false)}
                 type={showPassword ? "text" : "password"}
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
@@ -357,6 +363,9 @@ function PlayerSignInContent() {
               />
               <button
                 type="button"
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                aria-pressed={showPassword}
+                aria-controls="sign-in-password"
                 onClick={() => setShowPassword((value) => !value)}
                 disabled={isBusy}
                 className="absolute inset-y-0 right-0 px-4 text-[0.65rem] font-black uppercase tracking-[0.08em] text-white/38 hover:text-white disabled:opacity-50"
@@ -364,7 +373,8 @@ function PlayerSignInContent() {
                 {showPassword ? "Hide" : "Show"}
               </button>
             </div>
-          </label>
+            {capsLock && <p id="password-caps-lock" role="status" className="mt-2 text-xs text-amber-100">Caps Lock is on.</p>}
+          </div>
 
           <button
             type="submit"

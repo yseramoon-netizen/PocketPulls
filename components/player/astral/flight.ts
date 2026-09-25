@@ -11,6 +11,7 @@ export type FlightPose = {
     gaze: number;
     charge: number;
     expression?: number;
+    expressionBlend?: number;
     stretch?: number;
     pitch?: number;
     headTilt?: number;

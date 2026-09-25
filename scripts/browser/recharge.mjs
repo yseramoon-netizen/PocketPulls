@@ -14,7 +14,7 @@ try {
  await p.getByTestId('astra-staff').waitFor();
  await p.waitForTimeout(900);
  await p.getByTestId('astra-staff').focus();
- await p.keyboard.press('ArrowDown'); await p.keyboard.press('Enter');
+ await p.keyboard.press('ArrowRight'); await p.keyboard.press('Enter');
  await p.getByRole('button', { name: 'Recharge wishes', exact: true }).tap();
  await p.getByText('£5.00', { exact: true }).first().waitFor();
  await p.waitForTimeout(700);

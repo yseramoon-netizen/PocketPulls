@@ -17,7 +17,7 @@ export async function capture(page, output) {
   fs.writeFileSync(output, Buffer.from(result.data, 'base64'));
  } finally { clearTimeout(timer); await c.detach().catch(() => {}); }
 }
-export async function session({mobile=false,balance=34,empty=false,reduced=false,loseResponse=false}={}){
+export async function session({mobile=false,balance=34,empty=false,reduced=false,loseResponse=false,profile=false}={}){
  const browser=await chromium.launch({executablePath:process.env.ANCIENT_PULLS_BROWSER || undefined,args:process.env.ANCIENT_PULLS_BROWSER?['--no-sandbox','--disable-dev-shm-usage','--disable-gpu']:[],headless:true});
  const context=await browser.newContext({viewport:mobile?{width:390,height:844}:{width:1440,height:960},deviceScaleFactor:1,isMobile:mobile,hasTouch:mobile,reducedMotion:reduced?'reduce':'no-preference'});
  context.setDefaultTimeout(25000);
@@ -61,7 +61,7 @@ export async function session({mobile=false,balance=34,empty=false,reduced=false
  });
  await context.route('**/api/player/**',async route=>{const url=route.request().url();let data={ok:true};if(url.includes('wishes/store'))data={ok:true,ordersOpen:false,firstRechargeAvailable:false,firstRechargeDiscountPercent:20,packages:[10,25,50,100,250].map((n,i)=>({id:['little-star','wishing-cluster','starfall','constellation','celestial-vault'][i],name:['Little Star','Wishing Cluster','Starfall','Constellation','Celestial Vault'][i],subtitle:n+' wishes',wishes:n,amountPence:[500,1175,2250,4200,9500][i],firstRechargeAmountPence:[400,940,1800,3360,7600][i],bulkDiscountPercent:[0,6,10,16,24][i]}))};if(url.includes('nebu-entitlements'))data={skins:[]};await route.fulfill({contentType:'application/json',body:JSON.stringify(data)});});
  const page=await context.newPage();page.on('pageerror',e=>state.errors.push(e.message));
- await page.goto(origin+'/observatory',{waitUntil:'networkidle'});
+ await page.goto(origin+'/observatory'+(profile?'?astra-profile':''),{waitUntil:'networkidle'});
  await page.waitForSelector('[data-testid="constellation-shell"]',{timeout:30000});
  await page.waitForFunction(()=>document.querySelector('[data-observatory-level] canvas')?.style.opacity==='1',{timeout:30000});
  return {browser,context,page,state};

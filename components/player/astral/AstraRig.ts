@@ -148,7 +148,9 @@ export class AstraRig {
             if((index===1||index===15)&&Math.sin(pose.yaw)<0)c.scale(-1,1);
             this.part(c,index,0,-22,59,50,tilt);c.restore();
         };
-        head(face,1-profile);head(pose.expression===3?15:1,profile);
+        const expressionBlend=pose.expressionBlend??1;
+        if(face!==0&&face!==2&&expressionBlend<1)head(0,(1-profile)*(1-expressionBlend));
+        head(face,(1-profile)*(face!==0&&face!==2?expressionBlend:1));head(pose.expression===3?15:1,profile);
         c.restore();
         if (rear)
             drawCape();

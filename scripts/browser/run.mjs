@@ -9,9 +9,15 @@ const reports = path.join(root, 'docs/verification');
 fs.mkdirSync(reports, { recursive: true });
 // Next watches the project tree. Writing its log there can itself trigger a refresh.
 const temporaryReports = fs.mkdtempSync(path.join(os.tmpdir(), 'ancient-pulls-browser-'));
+const production = process.argv.includes('--production');
+if (production) {
+  const chunks = path.join(root, '.next/static/chunks');
+  const fictionalBuild = fs.existsSync(chunks) && fs.readdirSync(chunks, { recursive: true }).filter(file => file.endsWith('.js')).some(file => { const source = fs.readFileSync(path.join(chunks, file), 'utf8'); return source.includes('https://ancient-preview.supabase.co') && source.includes('preview-public-key'); });
+  if (!fictionalBuild) throw Error('Production browser QA requires a build using the fictional Supabase URL and preview-public-key. See docs/verification/README.md.');
+}
 const port = Number(process.env.ANCIENT_PULLS_QA_PORT || 3100), origin = `http://localhost:${port}`;
-const server = spawn(process.execPath, [path.join(root, 'node_modules/next/dist/bin/next'), 'dev', '--webpack', '--hostname', '127.0.0.1', '--port', String(port)], {
-  cwd: root, env: { ...process.env, ANCIENT_PULLS_BUILD_DIR: '.next-qa', NEXT_PUBLIC_SUPABASE_URL: 'https://ancient-preview.supabase.co', NEXT_PUBLIC_SUPABASE_ANON_KEY: 'preview-public-key', NEXT_TELEMETRY_DISABLED: '1' }, stdio: ['ignore', 'pipe', 'pipe'],
+const server = spawn(process.execPath, [path.join(root, 'node_modules/next/dist/bin/next'), ...(production ? ['start'] : ['dev', '--webpack']), '--hostname', '127.0.0.1', '--port', String(port)], {
+  cwd: root, env: { ...process.env, ANCIENT_PULLS_BUILD_DIR: production ? '.next' : '.next-qa', NEXT_PUBLIC_SUPABASE_URL: 'https://ancient-preview.supabase.co', NEXT_PUBLIC_SUPABASE_ANON_KEY: 'preview-public-key', NEXT_TELEMETRY_DISABLED: '1' }, stdio: ['ignore', 'pipe', 'pipe'],
 });
 const log = fs.createWriteStream(path.join(temporaryReports, 'browser-server.log')); server.stdout.pipe(log); server.stderr.pipe(log);
 try {
@@ -22,7 +28,7 @@ try {
     await new Promise(resolve => setTimeout(resolve, 250));
   }
   if (!ready) throw Error('The test server did not become ready.');
-  const scripts = process.argv.includes('--recharge-only') ? ['recharge.mjs'] : process.argv.includes('--edges-only') ? ['edges.mjs'] : process.argv.includes('--reveal-only') ? ['reveal.mjs'] : ['checks.mjs', 'edges.mjs', 'recharge.mjs', 'reveal.mjs'];
+  const scripts = process.argv.includes('--v83-only') ? ['v83.mjs'] : process.argv.includes('--recharge-only') ? ['recharge.mjs'] : process.argv.includes('--edges-only') ? ['edges.mjs'] : process.argv.includes('--reveal-only') ? ['reveal.mjs'] : ['checks.mjs', 'edges.mjs', 'recharge.mjs', 'reveal.mjs', 'v83.mjs'];
   for (const script of scripts) {
     const child = spawn(process.execPath, [path.join(root, 'scripts/browser', script)], { cwd: root, env: { ...process.env, ANCIENT_PULLS_QA_ORIGIN: origin, ANCIENT_PULLS_QA_REPORTS: temporaryReports }, stdio: 'inherit' });
     const code = await new Promise(resolve => child.on('exit', resolve));

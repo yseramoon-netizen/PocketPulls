@@ -24,7 +24,7 @@ import { supabase } from "@/lib/supabase";
 type SaveState = "idle" | "saving" | "saved" | "local";
 type PreferenceWrite = { preferences: PlayerPreferences; revision: number };
 
-export default function PlayerPreferencesPanel({ hideTrigger = false }: { hideTrigger?: boolean } = {}) {
+export default function PlayerPreferencesPanel({ hideTrigger = false, soundEnabled, onSoundChange, onSoundPreview }: { hideTrigger?: boolean; soundEnabled?: boolean; onSoundChange?: () => void; onSoundPreview?: () => void } = {}) {
   const router = useRouter();
   const pathname = usePathname();
   const previousPathname = useRef(pathname);
@@ -235,10 +235,12 @@ export default function PlayerPreferencesPanel({ hideTrigger = false }: { hideTr
             <SectionTitle
               glyph="♫"
               title="Sound"
-              detail="Gentle chimes, staff tension and the sound of a new star. Turn sound on from your sky."
+              detail="Gentle chimes, staff tension and the sound of a new star. Your choice is remembered on this device."
             />
 
             <div className="mt-3 space-y-3">
+              {onSoundChange && <ToggleRow title="Astra sounds" description="Enable the staff, request and wish sounds." checked={!!soundEnabled} onChange={onSoundChange} />}
+              {onSoundPreview && <button type="button" disabled={!soundEnabled || preferences.sfxVolume === 0} onClick={onSoundPreview} className="min-h-11 rounded-xl border border-white/15 px-4 text-xs text-cyan-100 disabled:opacity-40">Preview wish sound</button>}
               {!hideTrigger && <VolumeControl
                 label="Music volume"
                 value={preferences.musicVolume}

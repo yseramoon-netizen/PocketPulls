@@ -1,7 +1,9 @@
 import { getWishRevealConfig } from './wish-reveal';
 
-export const STAFF_PULL_DISTANCE = 88;
-export const STAFF_MAX_DISTANCE = 118;
+export const STAFF_MAX_ANGLE = 45;
+export const STAFF_RELEASE_ANGLE = 42;
+export const STAFF_PIVOT = { x: 168, y: 163 } as const;
+export const STAFF_RADIUS = 82;
 export const STAFF_TAP_SLOP = 7;
 
 /** Wallet colour is cosmetic. It never changes the odds or reveals a future result. */
@@ -26,18 +28,27 @@ export function staffPower(balance: number) {
     primary: count ? theme.primary : '#8992a7', secondary: count ? theme.secondary : '#586277' };
 }
 
-export function staffGesture(dx: number, dy: number, travelled: number, cancelled = false): 'pull' | 'tap' | 'cancel' {
-  if (cancelled || ![dx, dy, travelled].every(Number.isFinite)) return 'cancel';
-  if (dy >= STAFF_PULL_DISTANCE && Math.abs(dx) <= Math.max(44, dy * .65)) return 'pull';
+/** Clockwise degrees from upright. Radial tolerance accepts a human thumb's imperfect arc. */
+export function staffArc(x: number, y: number, pivotX: number, pivotY: number, radius: number, startAngle = 0) {
+  const dx = x - pivotX, dy = pivotY - y;
+  const raw = Math.atan2(dx, dy) * 180 / Math.PI - startAngle;
+  const ratio = Math.hypot(dx, dy) / radius;
+  const valid = [raw, ratio, radius].every(Number.isFinite) && radius > 0 && raw >= -12 && raw <= 74 && ratio >= .55 && ratio <= 1.65;
+  return { angle: Math.max(0, Math.min(STAFF_MAX_ANGLE, Number.isFinite(raw) ? raw : 0)), valid, raw };
+}
+export function staffGesture(angle: number, valid: boolean, travelled: number, cancelled = false): 'pull' | 'tap' | 'cancel' {
+  if (cancelled || ![angle, travelled].every(Number.isFinite)) return 'cancel';
+  if (valid && angle >= STAFF_RELEASE_ANGLE && travelled > STAFF_TAP_SLOP) return 'pull';
   return travelled <= STAFF_TAP_SLOP ? 'tap' : 'cancel';
 }
 
-export type AstraRequest = 'binder' | 'settings' | 'friends' | 'universe' | 'catalogue' | 'shipping' | 'profile' | 'help' | 'badges' | 'notifications';
+export type AstraRequest = 'binder' | 'settings' | 'friends' | 'universe' | 'galaxies' | 'catalogue' | 'shipping' | 'profile' | 'help' | 'badges' | 'notifications';
 export const ASTRA_REQUESTS: readonly { id: AstraRequest; label: string; reply: string; href?: string }[] = [
   { id: 'binder', label: 'Open my binder', reply: 'Let’s open your collection.', href: '/collection' },
   { id: 'friends', label: 'I want to trade with friends', reply: 'A little magic is better shared.', href: '/friends?panel=trade' },
   { id: 'settings', label: 'I want to change the settings', reply: 'Let’s make this feel like you.' },
   { id: 'universe', label: 'Show me the universe', reply: 'There’s so much more out there.' },
+  { id: 'galaxies', label: 'Find someone’s galaxy', reply: 'Who shall we visit?' },
   { id: 'catalogue', label: 'Let me explore the cards', reply: 'Let’s see what’s waiting.', href: '/catalogue' },
   { id: 'shipping', label: 'Bring my cards home', reply: 'Your collection, on its way.', href: '/shipping' },
   { id: 'badges', label: 'Show me my milestones', reply: 'Look how far you’ve come.', href: '/achievements' },
@@ -45,3 +56,9 @@ export const ASTRA_REQUESTS: readonly { id: AstraRequest; label: string; reply: 
   { id: 'profile', label: 'Open my profile', reply: 'Your own place among the stars.', href: '/profile' },
   { id: 'help', label: 'Astra, I need some help', reply: 'Of course. I’m right here.', href: '/help' },
 ];
+
+export function searchAstraRequests(query: string) {
+  const words = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  const synonyms: Partial<Record<AstraRequest, string>> = { binder: 'collection cards book', settings: 'sound audio volume accessibility motion', friends: 'trade trading social', galaxies: 'rank leaderboard player galaxy', help: 'support contact questions', shipping: 'orders delivery post', profile: 'account username avatar', badges: 'achievements rewards', notifications: 'messages news alerts' };
+  return ASTRA_REQUESTS.filter(item => words.every(word => `${item.label} ${item.id} ${synonyms[item.id] || ''}`.toLowerCase().includes(word)));
+}

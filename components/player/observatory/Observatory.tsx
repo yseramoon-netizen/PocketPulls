@@ -35,6 +35,7 @@ export default function Observatory({embedded=false,suspended=false}:{embedded?:
   const [level,setLevel]=useState<ObservatoryLevel>('stars'),[paused,setPaused]=useState(false),[systemReduced,setSystemReduced]=useState(false);
   const [rankVerified,setRankVerified]=useState(false);
   const [cinema,setCinema]=useState(false);
+  const [visibleResults, setVisibleResults] = useState(40);
   const cinemaRef=useModalFocus<HTMLElement>(cinema,()=>setCinema(false));
   const cinemaTrigger=useRef<HTMLButtonElement>(null),wasCinema=useRef(false);
   const [holeMode,setHoleModeState]=useState(false),holeModeRef=useRef(false);
@@ -223,6 +224,7 @@ export default function Observatory({embedded=false,suspended=false}:{embedded?:
       const detail=(event as CustomEvent<{action:string;ids?:string[]}>).detail;
       if(detail.action==='universe')goTo(1);
       if(detail.action==='home')goTo(0);
+      if(detail.action==='search-galaxies'){setSearch('');setVisibleResults(40);setSelectedStar(null);setSelectedGalaxy(null);setPanel('galaxies');}
       if(detail.action==='arrive'){
         goTo(0);
         const url=new URL(window.location.href);
@@ -345,15 +347,16 @@ export default function Observatory({embedded=false,suspended=false}:{embedded?:
 
   const closePanel=useCallback(()=>{setPanel(null);const url=new URL(window.location.href);url.searchParams.delete('panel');window.history.replaceState(window.history.state,'',url.pathname+url.search+url.hash);},[]);
   const panelRef=useModalFocus<HTMLElement>(panel!==null,closePanel);
+  useEffect(()=>{window.dispatchEvent(new CustomEvent('ancientpulls:sky-panel',{detail:{open:panel!==null}}));return()=>{window.dispatchEvent(new CustomEvent('ancientpulls:sky-panel',{detail:{open:false}}));};},[panel]);
   useEffect(()=>{
     const keydown=(event:KeyboardEvent)=>{
-      if(arriving.current.size||event.target instanceof HTMLElement&&(event.target.matches('input,textarea,select')||event.target.isContentEditable))return;
-      if(!runtime.current.cinema&&event.key==='/'&&!event.ctrlKey&&!event.metaKey){event.preventDefault();setPanel('cards');setSearch('');}
+      if(event.defaultPrevented||event.isComposing||event.altKey||runtime.current.suspended||document.querySelector('[role="dialog"][aria-modal="true"]')||arriving.current.size||event.target instanceof HTMLElement&&(event.target.matches('input,textarea,select')||event.target.isContentEditable))return;
+      if(!runtime.current.cinema&&event.key==='/'&&!event.ctrlKey&&!event.metaKey){event.preventDefault();setPanel('cards');setSearch('');setVisibleResults(40);}
       if(event.key==='Escape'){setSelectedStar(null);setSelectedGalaxy(null);}
     };
     document.addEventListener('keydown',keydown);return()=>document.removeEventListener('keydown',keydown);
   },[]);
-  const openPanel=(next:Panel)=>{setSearch('');setSelectedStar(null);setSelectedGalaxy(null);setPanel(old=>old===next?null:next);};
+  const openPanel=(next:Panel)=>{setSearch('');setVisibleResults(40);setSelectedStar(null);setSelectedGalaxy(null);setPanel(old=>old===next?null:next);};
   const getArrivalTargets=useCallback(():ArrivalTarget[]=>{
     const rect=canvas.current?.getBoundingClientRect();if(!rect)return [];
     return arrivalIds.flatMap(id=>{const hit=frame.current.stars.find(hit=>hit.star.id===id);return hit?[{id,x:(rect.left+hit.x)/window.innerWidth,y:(rect.top+hit.y)/window.innerHeight,colour:hit.star.colour,secondary:hit.star.colour}]:[];});
@@ -395,10 +398,12 @@ export default function Observatory({embedded=false,suspended=false}:{embedded?:
     {panel&&<aside ref={panelRef} className={`ap-scene-panel ${styles.panel}`} role="dialog" aria-modal="true" aria-label={panel==='cards'?'Find a card':panel==='galaxies'?'Find a galaxy':'Observatory information'} tabIndex={-1}>
       <div className="ap-panel-heading"><div><p>{panel==='cards'?'Your collection':panel==='galaxies'?'The ranked universe':'Your place in the sky'}</p><h2>{panel==='cards'?'Find a card':panel==='galaxies'?'Galaxies':'Observatory'}</h2></div><button className="ap-scene-button" onClick={closePanel} aria-label="Close panel"><AstralIcon name="close"/></button></div>
       {panel!=='info'?<>
-        <label><span className="sr-only">{panel==='cards'?'Search by card name, set, number or rarity':'Search by name or rank'}</span><input data-autofocus value={search} onChange={event=>setSearch(event.target.value)} placeholder={panel==='cards'?'Name, set, number or rarity':'Name or rank'}/></label>
+        <label><span className="sr-only">{panel==='cards'?'Search by card name, set, number or rarity':'Search by name or rank'}</span><input data-autofocus value={search} onChange={event=>{setSearch(event.target.value);setVisibleResults(40);}} placeholder={panel==='cards'?'Name, set, number or rarity':'Name or rank'}/></label>
         {panel==='galaxies'&&<button className={styles.personal} onClick={()=>goTo(.54)}><AstralIcon name="constellation"/><span>Find my galaxy</span><small>{rank?`#${rank}`:'Personal'}</small></button>}
         {panel==='galaxies'&&rankError&&<div role="status" className={styles.notice}>{rankError}<button onClick={()=>void load()}>Retry rankings</button></div>}
-        <div className={styles.results}>{panel==='cards'?filteredStars.map(star=><button className={styles.cardRow} key={star.id} onClick={()=>visitStar(star)}><span>{star.imageUrl?<img src={star.imageUrl} alt="" loading="lazy"/>:<AstralIcon/>}</span><span><strong>{star.name}</strong><small>{star.setName}{star.cardNumber?` · #${star.cardNumber}`:''}</small><small style={{color:star.colour}}>{star.rarity}</small></span><AstralIcon name="arrow"/></button>):filteredPlayers.map(player=><button className={styles.galaxyRow} key={player.userId} onClick={()=>visitGalaxy(player)}><span>{String(player.rank).padStart(2,'0')}</span><span><strong>{player.displayName}</strong><small>{player.rank===1?'Black hole':player.isCurrentUser?'Your galaxy':`@${player.username}`}</small></span><AstralIcon name="arrow"/></button>)}</div>
+        <div className="as-search-summary"><span role="status">{(panel==='cards'?filteredStars:filteredPlayers).length} {panel==='cards'?'cards':'galaxies'} found</span>{search&&<button onClick={()=>{setSearch('');setVisibleResults(40);panelRef.current?.querySelector('input')?.focus();}}>Clear search</button>}</div>
+        <div className={styles.results}>{panel==='cards'?filteredStars.slice(0,visibleResults).map(star=><button className={styles.cardRow} key={star.id} onClick={()=>visitStar(star)}><span>{star.imageUrl?<img src={star.imageUrl} alt="" loading="lazy"/>:<AstralIcon/>}</span><span><strong>{star.name}</strong><small>{star.setName}{star.cardNumber?` · #${star.cardNumber}`:''}</small><small style={{color:star.colour}}>{star.rarity}</small></span><AstralIcon name="arrow"/></button>):filteredPlayers.slice(0,visibleResults).map(player=><button className={styles.galaxyRow} key={player.userId} onClick={()=>visitGalaxy(player)}><span>{String(player.rank).padStart(2,'0')}</span><span><strong>{player.displayName}</strong><small>{player.rank===1?'Black hole':player.isCurrentUser?'Your galaxy':`@${player.username}`}</small></span><AstralIcon name="arrow"/></button>)}</div>
+        {(panel==='cards'?filteredStars.length:filteredPlayers.length)>visibleResults&&<button className="ap-scene-button as-load-results" onClick={()=>setVisibleResults(value=>value+40)}>Show more results</button>}
         {(panel==='cards'?filteredStars.length===0:filteredPlayers.length===0)&&<p className={styles.notice}>{loading?'Mapping your sky…':search?'Nothing matches that search.':panel==='cards'?'Your first wish will appear here.':rankError?'':'The first collection will become the centre.'}</p>}
       </>:<>
         <p>Zoom out from your stars to see your galaxy, then continue into the universe. Your galaxy stays marked. Select it to return.</p>
