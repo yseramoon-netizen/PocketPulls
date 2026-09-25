@@ -139,9 +139,9 @@ const requiredFiles = [
   "supabase/migrations/20260901_consent_and_open_wishes_v6714.sql",
   "supabase/migrations/20260901_wish_request_schema_collision_v6715.sql",
   "supabase/RELEASE_DATA_AUDIT.sql",
-  "ANCIENT_PULLS_V67_14_INSTALL.txt",
-  "ANCIENT_PULLS_V67_15_INSTALL.txt",
-  "ANCIENT_PULLS_V67_16_INSTALL.txt",
+  "docs/history/ANCIENT_PULLS_V67_14_INSTALL.txt",
+  "docs/history/ANCIENT_PULLS_V67_15_INSTALL.txt",
+  "docs/history/ANCIENT_PULLS_V67_16_INSTALL.txt",
   "RELEASE_CHECKLIST.md",
 ];
 

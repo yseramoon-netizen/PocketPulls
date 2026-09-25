@@ -1,6 +1,6 @@
 {
-  "name": "pocketpulls",
-  "version": "0.1.0",
+  "name": "ancient-pulls",
+  "version": "0.82.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -8,10 +8,13 @@
     "start": "next start",
     "lint": "eslint",
     "test:core": "node --test scripts/core-regression.cjs",
+    "test": "node --test --test-concurrency=1 scripts/core-regression.cjs scripts/astral-regression.cjs scripts/observatory-regression.cjs scripts/astra-flight-regression.cjs scripts/website-regression.cjs scripts/sanctuary-regression.cjs",
     "check:release": "node scripts/release-preflight.mjs",
     "check:release:production": "node scripts/release-preflight.mjs --production",
     "audit:performance": "node scripts/performance-budget.mjs",
-    "benchmark:scanner": "node scripts/scanner-benchmark.mjs"
+    "benchmark:scanner": "node scripts/scanner-benchmark.mjs",
+    "test:browser": "node scripts/browser/run.mjs",
+    "check:types": "tsc --noEmit"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.111.0",
@@ -24,6 +27,7 @@
     "tesseract.js": "^7.0.0"
   },
   "devDependencies": {
+    "@playwright/test": "1.63.0",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
@@ -32,5 +36,8 @@
     "eslint-config-next": "16.3.4",
     "tailwindcss": "^4",
     "typescript": "^5"
+  },
+  "engines": {
+    "node": ">=22.16.0"
   }
 }

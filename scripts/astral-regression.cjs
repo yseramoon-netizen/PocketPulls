@@ -59,7 +59,7 @@ test('mute, unavailable audio, seeking and repeat cleanup remain safe',async()=>
  const api=load('components/player/wishAudio');assert.equal(api.startAstralWishAudio(options[0],true),null);await api.primeWishAudio();
 });
 test('the current offline preview embeds the production rig and all ten outcomes',()=>{
- const html=fs.readFileSync(path.resolve(process.argv.find(a=>a.endsWith('Astra-Flight-Preview.html'))||path.join(root,'Astra-Flight-Preview.html')),'utf8');
+ const html=fs.readFileSync(path.resolve(process.argv.find(a=>a.endsWith('Astra-Flight-Preview.html'))||path.join(root,'docs/history/Astra-Flight-Preview.html')),'utf8');
  assert.ok(html.includes('data:image/png;base64,'));assert.equal((html.match(/<option value=/g)||[]).length,10);assert.ok(html.includes('class FlightRenderer'));assert.doesNotMatch(html,/<script[^>]+src=/);
 });
 

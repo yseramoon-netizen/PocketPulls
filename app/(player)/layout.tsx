@@ -2,13 +2,11 @@
 
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import dynamic from "next/dynamic";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import type { Session } from "@supabase/supabase-js";
 
-import ConnectionStatus from "@/components/player/ConnectionStatus";
-import PlayerNav from "@/components/player/PlayerNav";
+import ConstellationShell from "@/components/player/sanctuary/ConstellationShell";
 import PurchaseConsentGate from "@/components/player/PurchaseConsentGate";
 import UnknownPullsBackdrop from "@/components/player/UnknownPullsBackdrop";
 import {
@@ -22,13 +20,6 @@ import {
   readNebuPerformancesFromMetadata,
 } from "@/lib/player/nebuPerformances";
 import { supabase } from "@/lib/supabase";
-
-const FirstWishJourney = dynamic(
-  () => import("@/components/player/FirstWishJourney"),
-  { ssr: false },
-);
-
-const ONBOARDING_COMPLETE_KEY = "pocketpulls:first-wish-tour-complete-v1";
 
 type PlayerLayoutProps = {
   children: ReactNode;
@@ -50,6 +41,7 @@ type PlayerWalletRow = {
 };
 
 type PlayerShellData = {
+  userId: string;
   username: string;
   displayName: string;
   avatarUrl: string | null;
@@ -178,8 +170,6 @@ export default function PlayerLayout({ children }: PlayerLayoutProps) {
   const [player, setPlayer] = useState<PlayerShellData | null>(null);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [onboardingReadyFor, setOnboardingReadyFor] = useState<string | null>(null);
-  const activePlayerUsername = player?.username || null;
 
   const redirectToSignIn = useCallback(() => {
     const nextPath = window.location.pathname + window.location.search || "/wishes";
@@ -356,6 +346,7 @@ export default function PlayerLayout({ children }: PlayerLayoutProps) {
           : null;
 
       const nextPlayer: PlayerShellData = {
+        userId: session.user.id,
         username,
         displayName,
         avatarUrl,
@@ -589,33 +580,6 @@ export default function PlayerLayout({ children }: PlayerLayoutProps) {
     return () => window.removeEventListener("pocketpulls:wish-balance", updateWallet);
   }, []);
 
-  useEffect(() => {
-    if (!activePlayerUsername || loading) {
-      return;
-    }
-
-    try {
-      if (window.localStorage.getItem(ONBOARDING_COMPLETE_KEY) === "1") return;
-    } catch {
-      // The journey can still load when device storage is unavailable.
-    }
-
-    const start = () => setOnboardingReadyFor(activePlayerUsername);
-    const idleScheduler = window as unknown as {
-      requestIdleCallback?: (
-        callback: IdleRequestCallback,
-        options?: IdleRequestOptions,
-      ) => number;
-      cancelIdleCallback?: (handle: number) => void;
-    };
-    if (typeof idleScheduler.requestIdleCallback === "function") {
-      const handle = idleScheduler.requestIdleCallback(start, { timeout: 1800 });
-      return () => idleScheduler.cancelIdleCallback?.(handle);
-    }
-    const timer = window.setTimeout(start, 900);
-    return () => window.clearTimeout(timer);
-  }, [activePlayerUsername, loading]);
-
   if (legalPageAllowed && !player && !loading) {
     return <PublicLegalShell>{children}</PublicLegalShell>;
   }
@@ -681,104 +645,7 @@ export default function PlayerLayout({ children }: PlayerLayoutProps) {
     );
   }
 
-  return (
-    <div className="unknown-pulls-shell relative min-h-[100dvh] overflow-x-hidden bg-[#02030d] text-white">
-      <UnknownPullsBackdrop />
-      <a href="#main-content" className="skip-link">Skip to content</a>
-      <PlayerNav
-        username={player.username}
-        displayName={player.displayName}
-        avatarUrl={player.avatarUrl}
-        wishBalance={player.wishBalance}
-      />
-
-      <ConnectionStatus />
-      <main id="main-content" tabIndex={-1} data-player-main className="relative z-10 min-h-[calc(100dvh-5rem)] pb-[env(safe-area-inset-bottom)]">
-        {player.launchState.maintenance ? (
-          <div className="mx-auto mt-3 w-[calc(100%-2rem)] max-w-[1180px] rounded-2xl border border-amber-200/20 bg-amber-200/[0.09] px-4 py-3 text-center text-sm font-black text-amber-50/80">
-            {player.launchState.message || "Ancient Pulls is temporarily paused for maintenance. Your existing cards and records remain safe."}
-          </div>
-        ) : null}
-        {children}
-      </main>
-
-      {onboardingReadyFor === activePlayerUsername ? (
-        <FirstWishJourney displayName={player.displayName} />
-      ) : null}
-
-      <style jsx global>{`
-        .unknown-pulls-shell {
-          --ancient-gold: #d8c098;
-          --ancient-copper: #a85b2a;
-          --ancient-scarlet: #cf425f;
-          --ancient-cyan: #35d1c5;
-          --ancient-emerald: #3eb66f;
-          --ancient-violet: #7548b5;
-        }
-
-        .unknown-pulls-shell main input,
-        .unknown-pulls-shell main select,
-        .unknown-pulls-shell main textarea {
-          border-color: rgba(255, 255, 255, 0.1);
-          background-color: #0c1421;
-          background-image: none;
-        }
-
-        .unknown-pulls-shell main input:focus,
-        .unknown-pulls-shell main select:focus,
-        .unknown-pulls-shell main textarea:focus {
-          border-color: rgba(103, 232, 249, 0.34);
-          box-shadow:
-            0 0 0 2px rgba(103, 232, 249, 0.075);
-        }
-
-        .unknown-pulls-shell ::selection {
-          background: rgba(229, 169, 63, 0.38);
-          color: #fff8dc;
-        }
-
-        .unknown-pulls-shell * {
-          scrollbar-color:
-            rgba(229, 169, 63, 0.42)
-            rgba(5, 4, 17, 0.72);
-        }
-
-        html[data-pp-larger-text="true"] {
-          font-size: 112.5%;
-        }
-
-        html[data-pp-reduced-motion="true"] .unknown-pulls-shell *,
-        html[data-pp-reduced-motion="true"] .unknown-pulls-shell *::before,
-        html[data-pp-reduced-motion="true"] .unknown-pulls-shell *::after {
-          animation-delay: 0ms !important;
-          animation-duration: 1ms !important;
-          animation-iteration-count: 1 !important;
-          scroll-behavior: auto !important;
-          transition-delay: 0ms !important;
-          transition-duration: 1ms !important;
-        }
-
-        html[data-pp-low-effects="true"] [data-pocketpulls-ambient="heavy"],
-        html[data-pp-data-saver="true"] [data-pocketpulls-ambient="heavy"] {
-          display: none !important;
-        }
-
-        html[data-pp-low-effects="true"] .unknown-pulls-shell [class*="backdrop-blur"] {
-          backdrop-filter: none !important;
-        }
-
-        html[data-pp-low-effects="true"] .unknown-pulls-shell [class*="shadow-["] {
-          box-shadow: 0 14px 36px rgba(0, 0, 0, 0.32) !important;
-        }
-
-        @media (max-width: 520px) {
-          html[data-pp-larger-text="true"] {
-            font-size: 106.25%;
-          }
-        }
-      `}</style>
-    </div>
-  );
+  return <ConstellationShell key={player.userId} userId={player.userId} displayName={player.displayName} wishBalance={player.wishBalance} maintenance={player.launchState.maintenance} maintenanceMessage={player.launchState.message}>{children}</ConstellationShell>;
 }
 
 function PublicLegalShell({ children }: { children: ReactNode }) {

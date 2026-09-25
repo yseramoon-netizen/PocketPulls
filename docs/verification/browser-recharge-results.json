@@ -1,0 +1,6 @@
+{
+  "passed": 1,
+  "checks": [
+    "All five recharge prices fit the phone panel and selecting a package preserves the closed checkout state"
+  ]
+}

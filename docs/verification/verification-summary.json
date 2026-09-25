@@ -1,0 +1,18 @@
+{
+  "version": "0.82.0",
+  "verified_date": "2026-09-25",
+  "node": "24.19.0",
+  "clean_install_exit_code": 0,
+  "production_build_exit_code": 0,
+  "final_build_id": "oJTZk0LdRg3ifw19Xl_Ka",
+  "regression_checks_passed": 121,
+  "browser_checks_passed": 30,
+  "browser_reports": {
+    "browser-recharge-results.json": 1,
+    "browser-reveal-results.json": 2,
+    "browser-edge-results.json": 7,
+    "browser-results.json": 20
+  },
+  "performance_violations": [],
+  "data": "Fictional browser fixtures; no live account, purchase or deployment used."
+}

@@ -1,9 +1,0 @@
-{
-  "name": "Astra-Ten-Wishes-60fps",
-  "frames": 1374,
-  "duration": 22.9,
-  "bytes": 6060928,
-  "rendererMeanMs": 2.4481695174673024,
-  "rendererP95Ms": 3.9844949999969685,
-  "measurement": "Native canvas at 1280×720. Excludes encoding and is not a browser or phone FPS measurement."
-}

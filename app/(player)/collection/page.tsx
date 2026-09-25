@@ -204,7 +204,9 @@ export default function CollectionPage() {
   const [selectedCard, setSelectedCard] = useState<CollectionCard | null>(null);
 
   useEffect(() => {
-    if (filtersReady) setSearchInput(search);
+    if (!filtersReady) return;
+    const frame = requestAnimationFrame(() => setSearchInput(search));
+    return () => cancelAnimationFrame(frame);
   }, [filtersReady, search]);
 
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
@@ -325,7 +327,7 @@ export default function CollectionPage() {
         }
       }
     },
-    [search, setName, rarity, availability, page],
+    [search, setName, rarity, availability, page, setPage],
   );
 
   const refresh = useCallback(async () => {
@@ -395,7 +397,7 @@ export default function CollectionPage() {
     setRarity("");
     setAvailability("all");
     setPage(1);
-  }, []);
+  }, [setSearch, setSetName, setRarity, setAvailability, setPage]);
 
   const setSignature = useCallback(
     async (card: CollectionCard) => {
@@ -499,7 +501,7 @@ export default function CollectionPage() {
     } catch (error: unknown) {
       setErrorMessage(getErrorMessage(error, "Swap mode could not be started."));
     }
-  }, []);
+  }, [setSearch, setSetName, setRarity, setAvailability, setPage]);
 
   const swapWith = useCallback(
     async (target: BinderDisplayCard) => {
@@ -556,8 +558,8 @@ export default function CollectionPage() {
   );
 
   return (
-    <section className={styles.pageShell}>
-      <header className={styles.header}>
+    <section className={`${styles.pageShell} as-binder`}>
+      <header className={`${styles.header} as-binder-header`}>
         <div>
           <h1 className={styles.title}>{binderName}</h1>
         </div>
@@ -635,6 +637,7 @@ export default function CollectionPage() {
         ) : null}
       </div>
 
+      <details className="as-binder-customise"><summary>Personalise my binder <span aria-hidden="true">⌄</span></summary>
       <section className={styles.binderControls}>
         <div className={styles.nameControl}>
           <div>
@@ -720,6 +723,7 @@ export default function CollectionPage() {
         ) : null}
       </section>
 
+      </details>
       {swapSource || swapMessage ? (
         <div className={styles.swapBar}>
           <div>

@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  distDir: process.env.ANCIENT_PULLS_BUILD_DIR || '.next',
+  devIndicators: false,
   poweredByHeader: false,
   compress: true,
   images: {

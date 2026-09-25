@@ -138,7 +138,7 @@ function notificationTone(kind: string): string {
   }
 }
 
-export default function NotificationCentre() {
+export default function NotificationCentre({ hideTrigger = false }: { hideTrigger?: boolean } = {}) {
   const router = useRouter();
   const pathname = usePathname();
   const closeButtonRef = useRef<HTMLButtonElement | null>(null);
@@ -257,6 +257,15 @@ export default function NotificationCentre() {
   }, [loadNotifications, open]);
 
   const panelRef = useModalFocus<HTMLElement>(open, () => setOpen(false));
+  useEffect(() => {
+    const show = () => setOpen(true);
+    window.addEventListener('ancientpulls:open-notifications', show);
+    return () => window.removeEventListener('ancientpulls:open-notifications', show);
+  }, []);
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent('ancientpulls:notifications-visibility', { detail: { open } }));
+    return () => { window.dispatchEvent(new CustomEvent('ancientpulls:notifications-visibility', { detail: { open: false } })); };
+  }, [open]);
 
   const markRead = useCallback((notificationKey: string) => {
     setNotifications((current) =>
@@ -472,7 +481,7 @@ export default function NotificationCentre() {
 
   return (
     <>
-      <button
+      {!hideTrigger && <button
         type="button"
         onClick={() => setOpen(true)}
         aria-label={
@@ -491,7 +500,7 @@ export default function NotificationCentre() {
             {unreadCount > 99 ? "99+" : unreadCount}
           </span>
         ) : null}
-      </button>
+      </button>}
 
       {mounted && panel ? createPortal(panel, document.body) : null}
     </>

@@ -1,0 +1,25 @@
+{
+  "passed": 20,
+  "checks": [
+    "Home uses one viewport, with no old player navigation",
+    "Staff target stays still during idle animation",
+    "Short and horizontal drags do not make a wish",
+    "Tap opens requests without spending or exposing recharge",
+    "Binder spell lasts one second then opens over the same sky",
+    "Settings opens through the cog spell and closes with Escape",
+    "Universe remains connected and returns to the existing constellation",
+    "Sound requires explicit activation",
+    "A deliberate pull spends one wish and reveals the server card",
+    "Continue places the awarded star without replacing the canvas",
+    "No uncaught browser errors in the main desktop journey",
+    "Touch tap opens a scrollable mobile menu",
+    "Empty wallet touch pull shows the exact exhausted state without a charge",
+    "Recharge is a modal with existing prices and ordering state",
+    "No uncaught browser errors in the mobile journey",
+    "A lost response remains recoverable with the same request key",
+    "Reload before placement recovers the same stored award with no additional request",
+    "Keyboard Down and Enter makes a wish; Escape cancels an armed staff",
+    "Reduced motion suppresses the orbital reveal",
+    "No uncaught browser errors in recovery and keyboard paths"
+  ]
+}

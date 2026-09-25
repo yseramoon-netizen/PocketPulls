@@ -1,0 +1,7 @@
+{
+  "passed": 2,
+  "checks": [
+    "button reveal cancels pending cinematic timers and keeps the card visible",
+    "Escape reveal cancels pending cinematic timers and keeps the card visible"
+  ]
+}

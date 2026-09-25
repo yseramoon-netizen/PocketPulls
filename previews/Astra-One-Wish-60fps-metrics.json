@@ -1,9 +1,0 @@
-{
-  "name": "Astra-One-Wish-60fps",
-  "frames": 1158,
-  "duration": 19.3,
-  "bytes": 3797280,
-  "rendererMeanMs": 1.876971221070796,
-  "rendererP95Ms": 2.7122380000000703,
-  "measurement": "Native canvas at 1280×720. Excludes encoding and is not a browser or phone FPS measurement."
-}

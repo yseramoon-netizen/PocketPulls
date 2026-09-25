@@ -1,0 +1,23 @@
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+const projectRoot = fileURLToPath(new URL('../../', import.meta.url));
+const qaRoot = process.env.ANCIENT_PULLS_QA_REPORTS || path.join(projectRoot, 'docs/verification');
+const origin = process.env.ANCIENT_PULLS_QA_ORIGIN || 'http://localhost:3100';
+import {session} from './session.mjs';import assert from 'node:assert/strict';import fs from 'node:fs';
+const out=path.join(qaRoot,'screenshots');const checks=[];let app;
+async function ok(name,fn){await fn();checks.push(name);console.log('PASS '+name);}
+try{
+ app=await session({mobile:true,balance:5});let {page:p,state:s}=app;
+ await p.getByRole('button',{name:'Call Astra',exact:true}).tap();await p.waitForTimeout(900);
+ const staff=p.getByTestId('astra-staff');let b=await staff.boundingBox(),x=b.x+b.width/2,y=b.y+b.height/2;
+ await ok('Pointer cancellation never spends',async()=>{await p.mouse.move(x,y);await p.mouse.down();await p.mouse.move(x,y+100,{steps:10});await staff.dispatchEvent('pointercancel',{pointerId:1,pointerType:'mouse',isPrimary:true});await p.mouse.up();assert.equal(s.calls.length,0);});
+ await ok('A touch pull with a positive wallet makes exactly one wish',async()=>{await p.waitForTimeout(500);b=await staff.boundingBox();x=b.x+b.width/2;y=b.y+b.height/2;const c=await p.context().newCDPSession(p);await c.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x,y}]});await c.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x,y:y+112}]});await c.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});await p.getByTestId('wish-result').waitFor();await p.waitForTimeout(500);await p.screenshot({path:out+'/mobile-reveal.png'});assert.equal(s.calls.length,1);assert.equal(s.balance,4);await p.getByRole('button',{name:'Place in my constellation',exact:false}).tap();await p.waitForTimeout(6500);});
+ await ok('A stale nonzero wallet receives the no-power response without a stuck recovery',async()=>{s.balance=0;await staff.focus();await p.keyboard.press('ArrowDown');await p.keyboard.press('Enter');await p.getByRole('button',{name:'Recharge wishes',exact:true}).waitFor();assert.equal(await p.getByRole('button',{name:'Recover my wish',exact:false}).count(),0);assert.ok(await p.getByText('I have no power left',{exact:true}).isVisible());});
+ await ok('Every main control fits a 320px wide phone',async()=>{await p.setViewportSize({width:320,height:740});await p.waitForTimeout(600);await p.screenshot({path:out+'/mobile-320.png'});assert.ok(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));b=await staff.boundingBox();assert.ok(b.x>=0&&b.x+b.width<=320);await staff.tap();await p.waitForTimeout(500);b=await p.locator('#astra-requests').boundingBox();assert.ok(b.x>=0&&b.x+b.width<=320);await p.screenshot({path:out+'/mobile-320-menu.png'});await p.getByRole('button',{name:'Close Astra requests',exact:true}).tap();});
+ await ok('Landscape has a reachable staff and scrollable requests',async()=>{await p.setViewportSize({width:844,height:390});await p.waitForTimeout(700);b=await staff.boundingBox();assert.ok(b.y>=0&&b.y+b.height<390);assert.ok(b.height>=44);await staff.tap();await p.waitForTimeout(500);await p.screenshot({path:out+'/mobile-landscape.png'});b=await p.locator('#astra-requests').boundingBox();assert.ok(b.y>=0&&b.y+b.height<=390);});
+ await ok('Landscape Escape closes the requests and restores focus',async()=>{await p.keyboard.press('Escape');assert.equal(await p.locator('#astra-requests').count(),0);assert.equal(await p.evaluate(()=>document.activeElement?.getAttribute('data-testid')),'astra-staff');});
+ assert.deepEqual(s.errors,[]);await app.browser.close();app=null;
+ app=await session({empty:true,reduced:true});({page:p,state:s}=app);
+ await ok('A new account gets a useful empty sky and can call Astra',async()=>{await p.getByRole('heading',{name:'Your sky starts with a wish.',exact:true}).waitFor();await p.getByRole('button',{name:'Meet Astra',exact:false}).click();await p.getByTestId('astra-staff').waitFor();await p.screenshot({path:out+'/empty-sky.png'});assert.equal(s.calls.length,0);});
+ fs.writeFileSync(path.join(qaRoot,'browser-edge-results.json'),JSON.stringify({passed:checks.length,checks},null,2));
+}catch(e){if(app){await app.page.screenshot({path:out+'/edge-failure.png'});console.log('PAGE',await app.page.locator('body').innerText());console.log('ERRORS',app.state.errors);}throw e;}finally{if(app)await app.browser.close();}

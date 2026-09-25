@@ -1,0 +1,33 @@
+import { session, capture } from './session.mjs';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+const root = fileURLToPath(new URL('../../', import.meta.url));
+const reports = process.env.ANCIENT_PULLS_QA_REPORTS || path.join(root, 'docs/verification');
+const screenshots = path.join(reports, 'screenshots');
+fs.mkdirSync(screenshots, { recursive: true });
+const app = await session({ mobile: true, balance: 0 });
+try {
+ const p = app.page;
+ await p.getByRole('button', { name: 'Call Astra', exact: true }).tap();
+ await p.getByTestId('astra-staff').waitFor();
+ await p.waitForTimeout(900);
+ await p.getByTestId('astra-staff').focus();
+ await p.keyboard.press('ArrowDown'); await p.keyboard.press('Enter');
+ await p.getByRole('button', { name: 'Recharge wishes', exact: true }).tap();
+ await p.getByText('£5.00', { exact: true }).first().waitFor();
+ await p.waitForTimeout(700);
+ const last = p.locator('button[class*="packageCard"]').filter({ hasText: '250 wishes' });
+ const rect = await last.boundingBox();
+ assert.ok(rect && rect.y + rect.height < 844, 'All five package prices fit the initial phone panel');
+ await capture(p, path.join(screenshots, 'mobile-recharge.png'));
+ await p.locator('button[class*="packageCard"]').filter({ hasText: '25 wishes' }).tap();
+ const summary = p.locator('aside[class*="summaryCard"]');
+ assert.ok((await summary.innerText()).includes('25'));
+ assert.equal(app.state.calls.length, 0);
+ assert.deepEqual(app.state.errors, []);
+ const checks = ['All five recharge prices fit the phone panel and selecting a package preserves the closed checkout state'];
+ fs.writeFileSync(path.join(reports, 'browser-recharge-results.json'), JSON.stringify({ passed: 1, checks }, null, 2));
+ console.log('PASS ' + checks[0]);
+} finally { await app.browser.close(); }

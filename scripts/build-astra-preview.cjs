@@ -1,7 +1,7 @@
 /* Offline study, bundled from the exact production renderer and score. */
 const fs=require('node:fs'),path=require('node:path'),ts=require('typescript');
-const root=path.resolve(__dirname,'..'),output=path.resolve(process.argv[2]||path.join(root,'Astra-Flight-Preview.html'));
-const files={'./timeline':'components/player/astral/timeline.ts','./flight':'components/player/astral/flight.ts','./AstraRig':'components/player/astral/AstraRig.ts','./FlightRenderer':'components/player/astral/FlightRenderer.ts','./audio':'components/player/wishAudio.ts','./rarity':'lib/player/wish-reveal.ts'};
+const root=path.resolve(__dirname,'..'),output=path.resolve(process.argv[2]||path.join(root,'docs/history/Astra-Flight-Preview.html'));
+const files={'../observatory/SkyArt':'components/player/observatory/SkyArt.ts','./timeline':'components/player/astral/timeline.ts','./flight':'components/player/astral/flight.ts','./AstraRig':'components/player/astral/AstraRig.ts','./FlightRenderer':'components/player/astral/FlightRenderer.ts','./audio':'components/player/wishAudio.ts','./rarity':'lib/player/wish-reveal.ts'};
 const factories=Object.entries(files).map(([key,file])=>JSON.stringify(key)+':function(module,exports,require){\n'+ts.transpileModule(fs.readFileSync(path.join(root,file),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText+'\n}').join(',\n');
 const runtime=`const factories={${factories}},cache={};function require(id){if(id==='./astral/timeline')id='./timeline';if(cache[id])return cache[id].exports;const m={exports:{}};cache[id]=m;factories[id](m,m.exports,require);return m.exports;}const A={...require('./timeline'),...require('./flight'),...require('./FlightRenderer'),...require('./audio'),...require('./rarity')};`;
 const asset='data:image/png;base64,'+fs.readFileSync(path.join(root,'public/ancient-pulls/wish/astral/astra-rig.png')).toString('base64');

@@ -24,7 +24,7 @@ import { supabase } from "@/lib/supabase";
 type SaveState = "idle" | "saving" | "saved" | "local";
 type PreferenceWrite = { preferences: PlayerPreferences; revision: number };
 
-export default function PlayerPreferencesPanel() {
+export default function PlayerPreferencesPanel({ hideTrigger = false }: { hideTrigger?: boolean } = {}) {
   const router = useRouter();
   const pathname = usePathname();
   const previousPathname = useRef(pathname);
@@ -42,6 +42,7 @@ export default function PlayerPreferencesPanel() {
   const [loaded, setLoaded] = useState(false);
   const [serverAvailable, setServerAvailable] = useState(true);
   const [saveState, setSaveState] = useState<SaveState>("idle");
+  const [signingOut, setSigningOut] = useState(false);
   const [preferences, setPreferences] = useState<PlayerPreferences>(
     initialPreferences,
   );
@@ -159,6 +160,16 @@ export default function PlayerPreferencesPanel() {
 
   const panelRef = useModalFocus<HTMLElement>(open, () => setOpen(false));
 
+  useEffect(() => {
+    const show = () => setOpen(true);
+    window.addEventListener('ancientpulls:open-preferences', show);
+    return () => window.removeEventListener('ancientpulls:open-preferences', show);
+  }, []);
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent('ancientpulls:preferences-visibility', { detail: { open } }));
+    return () => { window.dispatchEvent(new CustomEvent('ancientpulls:preferences-visibility', { detail: { open: false } })); };
+  }, [open]);
+
   const statusLabel = saveState === "saving"
     ? "Saving…"
     : serverAvailable
@@ -224,15 +235,15 @@ export default function PlayerPreferencesPanel() {
             <SectionTitle
               glyph="♫"
               title="Sound"
-              detail="Pull effects respond immediately. Music volume is ready for ambient tracks."
+              detail="Gentle chimes, staff tension and the sound of a new star. Turn sound on from your sky."
             />
 
             <div className="mt-3 space-y-3">
-              <VolumeControl
+              {!hideTrigger && <VolumeControl
                 label="Music volume"
                 value={preferences.musicVolume}
                 onChange={(musicVolume) => updatePreferences({ musicVolume })}
-              />
+              />}
               <VolumeControl
                 label="Sound-effect volume"
                 value={preferences.sfxVolume}
@@ -296,19 +307,19 @@ export default function PlayerPreferencesPanel() {
               />
             </div>
 
-            <button
+            {!hideTrigger && <button
               type="button"
               onClick={() => {
                 setOpen(false);
 
-                if (pathname === "/wishes") {
+                if (pathname === "/wishes/recovery") {
                   window.dispatchEvent(
                     new Event("pocketpulls:replay-latest-wish"),
                   );
                   return;
                 }
 
-                router.push("/wishes?replay=latest");
+                router.push("/wishes/recovery?replay=latest");
               }}
               className="mt-3 flex min-h-12 w-full items-center justify-between rounded-xl border border-yellow-100/20 bg-yellow-200/[0.07] px-4 text-left transition hover:border-yellow-100/30 hover:bg-yellow-200/[0.11] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-100"
             >
@@ -323,7 +334,7 @@ export default function PlayerPreferencesPanel() {
               <span aria-hidden="true" className="ml-3 text-yellow-100/65">
                 →
               </span>
-            </button>
+            </button>}
           </section>
 
           <div className="mt-6 flex items-center justify-between gap-4 border-t border-white/[0.08] pt-5">
@@ -344,6 +355,11 @@ export default function PlayerPreferencesPanel() {
               Restore defaults
             </button>
           </div>
+          <button type="button" disabled={signingOut} className="mt-5 min-h-11 w-full rounded-xl border border-white/10 text-sm text-white/65 hover:bg-white/5" onClick={async () => {
+            setSigningOut(true);
+            try { await supabase.auth.signOut({ scope: 'local' }); window.location.replace('/sign-in'); }
+            finally { setSigningOut(false); }
+          }}>{signingOut ? 'Signing out…' : 'Sign out of Ancient Pulls'}</button>
         </div>
       </section>
     </div>
@@ -351,7 +367,7 @@ export default function PlayerPreferencesPanel() {
 
   return (
     <>
-      <button
+      {!hideTrigger && <button
         type="button"
         onClick={() => setOpen(true)}
         aria-label="Open player preferences"
@@ -360,7 +376,7 @@ export default function PlayerPreferencesPanel() {
         className="relative flex h-11 w-11 flex-none items-center justify-center rounded-xl border border-violet-100/15 bg-violet-200/[0.055] text-lg text-violet-50 transition hover:border-violet-100/25 hover:bg-violet-200/[0.1] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-200"
       >
         <span aria-hidden="true">⚙</span>
-      </button>
+      </button>}
 
       {mounted && panel ? createPortal(panel, document.body) : null}
     </>

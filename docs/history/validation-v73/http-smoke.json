@@ -1,0 +1,371 @@
+{
+  "scope": "Local production HTTP status and anonymous-access smoke checks only. No real sign-in, camera, payment, trade or shipping operations.",
+  "checks": 52,
+  "passed": 52,
+  "results": [
+    {
+      "path": "/sign-in",
+      "method": "GET",
+      "expected": 200,
+      "status": 200,
+      "passed": true
+    },
+    {
+      "path": "/sign-up",
+      "method": "GET",
+      "expected": 200,
+      "status": 200,
+      "passed": true
+    },
+    {
+      "path": "/forgot-password",
+      "method": "GET",
+      "expected": 200,
+      "status": 200,
+      "passed": true
+    },
+    {
+      "path": "/update-password",
+      "method": "GET",
+      "expected": 200,
+      "status": 200,
+      "passed": true
+    },
+    {
+      "path": "/welcome",
+      "method": "GET",
+      "expected": 200,
+      "status": 200,
+      "passed": true
+    },
+    {
+      "path": "/hq",
+      "method": "GET",
+      "expected": 200,
+      "status": 200,
+      "passed": true
+    },
+    {
+      "path": "/wishes",
+      "method": "GET",
+      "expected": 200,
+      "status": 200,
+      "passed": true
+    },
+    {
+      "path": "/wishes/preview",
+      "method": "GET",
+      "expected": 200,
+      "status": 200,
+      "passed": true
+    },
+    {
+      "path": "/wishes/shop",
+      "method": "GET",
+      "expected": 200,
+      "status": 200,
+      "passed": true
+    },
+    {
+      "path": "/constellation",
+      "method": "GET",
+      "expected": 200,
+      "status": 200,
+      "passed": true
+    },
+    {
+      "path": "/leaderboard",
+      "method": "GET",
+      "expected": 200,
+      "status": 200,
+      "passed": true
+    },
+    {
+      "path": "/collection",
+      "method": "GET",
+      "expected": 200,
+      "status": 200,
+      "passed": true
+    },
+    {
+      "path": "/catalogue",
+      "method": "GET",
+      "expected": 200,
+      "status": 200,
+      "passed": true
+    },
+    {
+      "path": "/friends",
+      "method": "GET",
+      "expected": 200,
+      "status": 200,
+      "passed": true
+    },
+    {
+      "path": "/shipping",
+      "method": "GET",
+      "expected": 200,
+      "status": 200,
+      "passed": true
+    },
+    {
+      "path": "/profile",
+      "method": "GET",
+      "expected": 200,
+      "status": 200,
+      "passed": true
+    },
+    {
+      "path": "/achievements",
+      "method": "GET",
+      "expected": 200,
+      "status": 200,
+      "passed": true
+    },
+    {
+      "path": "/help",
+      "method": "GET",
+      "expected": 200,
+      "status": 200,
+      "passed": true
+    },
+    {
+      "path": "/terms",
+      "method": "GET",
+      "expected": 200,
+      "status": 200,
+      "passed": true
+    },
+    {
+      "path": "/returns",
+      "method": "GET",
+      "expected": 200,
+      "status": 200,
+      "passed": true
+    },
+    {
+      "path": "/shipping-policy",
+      "method": "GET",
+      "expected": 200,
+      "status": 200,
+      "passed": true
+    },
+    {
+      "path": "/privacy",
+      "method": "GET",
+      "expected": 200,
+      "status": 200,
+      "passed": true
+    },
+    {
+      "path": "/cookies",
+      "method": "GET",
+      "expected": 200,
+      "status": 200,
+      "passed": true
+    },
+    {
+      "path": "/contact",
+      "method": "GET",
+      "expected": 200,
+      "status": 200,
+      "passed": true
+    },
+    {
+      "path": "/odds",
+      "method": "GET",
+      "expected": 200,
+      "status": 200,
+      "passed": true
+    },
+    {
+      "path": "/how-wishes-work",
+      "method": "GET",
+      "expected": 200,
+      "status": 200,
+      "passed": true
+    },
+    {
+      "path": "/admin",
+      "method": "GET",
+      "expected": 200,
+      "status": 200,
+      "passed": true
+    },
+    {
+      "path": "/admin/add",
+      "method": "GET",
+      "expected": 200,
+      "status": 200,
+      "passed": true
+    },
+    {
+      "path": "/admin/players",
+      "method": "GET",
+      "expected": 200,
+      "status": 200,
+      "passed": true
+    },
+    {
+      "path": "/admin/inventory",
+      "method": "GET",
+      "expected": 200,
+      "status": 200,
+      "passed": true
+    },
+    {
+      "path": "/admin/database",
+      "method": "GET",
+      "expected": 200,
+      "status": 200,
+      "passed": true
+    },
+    {
+      "path": "/api/health",
+      "method": "GET",
+      "expected": 200,
+      "status": 200,
+      "passed": true
+    },
+    {
+      "path": "/api/pull",
+      "method": "POST",
+      "expected": 410,
+      "status": 410,
+      "passed": true
+    },
+    {
+      "path": "/api/update-prices",
+      "method": "GET",
+      "expected": 405,
+      "status": 405,
+      "passed": true
+    },
+    {
+      "path": "/api/update-prices",
+      "method": "POST",
+      "expected": 401,
+      "status": 401,
+      "passed": true
+    },
+    {
+      "path": "/api/prices/refresh",
+      "method": "POST",
+      "expected": 401,
+      "status": 401,
+      "passed": true
+    },
+    {
+      "path": "/api/player/wishes/make",
+      "method": "POST",
+      "expected": 401,
+      "status": 401,
+      "passed": true
+    },
+    {
+      "path": "/api/admin/session",
+      "method": "GET",
+      "expected": 401,
+      "status": 401,
+      "passed": true
+    },
+    {
+      "path": "/api/admin/players",
+      "method": "GET",
+      "expected": 401,
+      "status": 401,
+      "passed": true
+    },
+    {
+      "path": "/api/admin/card-database",
+      "method": "GET",
+      "expected": 401,
+      "status": 401,
+      "passed": true
+    },
+    {
+      "path": "/api/admin/tree",
+      "method": "GET",
+      "expected": 401,
+      "status": 401,
+      "passed": true
+    },
+    {
+      "path": "/api/admin/shaymin",
+      "method": "GET",
+      "expected": 401,
+      "status": 401,
+      "passed": true
+    },
+    {
+      "path": "/api/admin/scanner/visual-index",
+      "method": "GET",
+      "expected": 401,
+      "status": 401,
+      "passed": true
+    },
+    {
+      "path": "/api/admin/cards/manual",
+      "method": "POST",
+      "expected": 401,
+      "status": 401,
+      "passed": true
+    },
+    {
+      "path": "/api/admin/inventory/add",
+      "method": "POST",
+      "expected": 401,
+      "status": 401,
+      "passed": true
+    },
+    {
+      "path": "/api/admin/test-pull",
+      "method": "POST",
+      "expected": 401,
+      "status": 401,
+      "passed": true
+    },
+    {
+      "path": "/api/admin/scanner/candidates",
+      "method": "POST",
+      "expected": 401,
+      "status": 401,
+      "passed": true
+    },
+    {
+      "path": "/api/admin/scanner/visual-search",
+      "method": "POST",
+      "expected": 401,
+      "status": 401,
+      "passed": true
+    },
+    {
+      "path": "/api/admin/scanner/reference-image",
+      "method": "POST",
+      "expected": 401,
+      "status": 401,
+      "passed": true
+    },
+    {
+      "path": "/api/admin/scanner/card-metadata",
+      "method": "POST",
+      "expected": 401,
+      "status": 401,
+      "passed": true
+    },
+    {
+      "path": "/ancient-pulls/wish/astral/astra-rig.png",
+      "method": "GET",
+      "expected": 200,
+      "status": 200,
+      "passed": true
+    },
+    {
+      "path": "/ancient-pulls/astral-share.png",
+      "method": "GET",
+      "expected": 200,
+      "status": 200,
+      "passed": true
+    }
+  ]
+}

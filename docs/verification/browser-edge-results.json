@@ -1,0 +1,12 @@
+{
+  "passed": 7,
+  "checks": [
+    "Pointer cancellation never spends",
+    "A touch pull with a positive wallet makes exactly one wish",
+    "A stale nonzero wallet receives the no-power response without a stuck recovery",
+    "Every main control fits a 320px wide phone",
+    "Landscape has a reachable staff and scrollable requests",
+    "Landscape Escape closes the requests and restores focus",
+    "A new account gets a useful empty sky and can call Astra"
+  ]
+}

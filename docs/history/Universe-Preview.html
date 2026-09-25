@@ -1,0 +1,913 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Ancient Pulls — Universe study</title><style>
+/* Ancient Pulls · Astra 73. Shared product design tokens. */
+:root{--ap-void:#060b14;--ap-surface:#0d1725;--ap-raised:#142235;--ap-line:rgba(180,205,226,.13);--ap-text:#f1eee5;--ap-muted:#9daec2;--ap-gold:#e6cea1;--ap-ice:#a8d6eb;--ap-ease:cubic-bezier(.2,.75,.25,1);--ap-nav-height:72px;--ap-bottom-space:0px;color-scheme:dark;--background:var(--ap-void);--foreground:var(--ap-text)}
+body{background:var(--ap-void);color:var(--ap-text);font-family:var(--font-geist-sans),system-ui,sans-serif;font-size:16px;-webkit-font-smoothing:antialiased}
+html[data-design="astra-73"] .unknown-pulls-shell{background:var(--ap-void)}
+.astral-type{display:block;max-width:100%;font-size:min(var(--astral-type-size,2.5rem),8vw);font-weight:450;letter-spacing:-.045em;line-height:1.12;color:var(--ap-text);text-wrap:balance;overflow-wrap:anywhere}.astral-type[data-tone="muted"]{color:var(--ap-muted)}
+.aster-portrait{object-fit:contain;image-rendering:pixelated;filter:drop-shadow(0 8px 14px #0004)}
+[data-player-main]{min-height:calc(100dvh - var(--ap-nav-height));padding-bottom:var(--ap-bottom-space)}
+[data-player-main] :where(h1,h2,h3){font-weight:500;letter-spacing:-.035em;text-wrap:balance;overflow-wrap:anywhere}
+[data-player-main] :where(h1){font-size:clamp(2rem,3.8vw,3.5rem);line-height:1.12}
+[data-player-main] :where(p){font-weight:400}
+[data-player-main] :where(button,a).font-black{font-weight:550}
+[data-player-main] :where(input,select,textarea){font-size:16px;line-height:1.5;border-radius:10px}
+[data-player-main] :where(input,textarea){background-color:#070c16;color:#e7e8ec}
+[data-player-main] :where(select){background-color:#0e1623;color:#d5dce7}
+[data-player-main] :where(option,optgroup){background:#0e1623;color:#e7e8ec}
+[data-player-page-header]{border:0;border-bottom:1px solid var(--ap-line);border-radius:0;background:transparent;padding:8px 0 28px;box-shadow:none;backdrop-filter:none}
+[data-player-page-header] h1{font-size:clamp(2.1rem,4vw,3.5rem);font-weight:450;margin-top:10px;letter-spacing:-.045em}
+[data-player-page-header] p:first-child{font-size:12px;color:#bda983;font-weight:500;letter-spacing:.17em}
+[data-player-page-header] p:last-child{font-size:16px;line-height:1.7;color:var(--ap-muted);font-weight:400;max-width:600px}
+[data-player-surface-line],[data-cosmic-page-sigil],[data-cosmic-nav-mark]{display:none!important}
+[data-player-panel]{border:1px solid var(--ap-line);border-radius:16px;background:var(--ap-surface);box-shadow:0 16px 60px #0002;backdrop-filter:none}
+[data-player-stat-card]{border:0;border-right:1px solid var(--ap-line);border-radius:0;background:none;box-shadow:none;padding:12px 24px}
+[data-player-stat-card] p:first-child{font-size:13px;color:var(--ap-muted);font-weight:400;text-transform:none;letter-spacing:0;opacity:1}
+[data-player-stat-card] p:nth-child(2){font-size:30px;font-weight:450;color:#eeeae1;letter-spacing:-.04em}
+[data-player-stat-card] p:last-child{font-size:12px;opacity:1;color:#8792a5}
+[data-player-primary-button],[data-onboarding-action="make-wish"]{background:#e5d0a7;color:#171b22;border:1px solid #f6e2ba;border-radius:10px;font-weight:600;box-shadow:0 6px 24px #e9c2750c;transition:transform .2s,background .2s}
+[data-player-primary-button]:hover,[data-onboarding-action="make-wish"]:hover{background:#f3dfb7;transform:translateY(-1px)}
+[data-player-primary-button]:disabled,[data-onboarding-action="make-wish"]:disabled{transform:none}
+
+/* Both maps share one responsive, content-sized control layout. */
+.ap-scene{--ap-scene-headspace:170px;position:relative;isolation:isolate;height:calc(100dvh - var(--ap-nav-height) - var(--ap-bottom-space));min-height:460px;overflow:hidden;background:#030812;color:var(--ap-text)}
+.ap-scene-header{position:relative;z-index:42;display:flex;justify-content:space-between;align-items:start;gap:24px;padding:clamp(24px,3vw,42px) clamp(22px,3vw,48px) 20px;pointer-events:none;background:linear-gradient(#030812cc,transparent)}
+.ap-scene-heading{min-width:0;max-width:min(64%,720px);pointer-events:none}
+.ap-scene-heading p{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:#c9b38c;margin-bottom:12px}
+.ap-scene-heading h1{font-size:clamp(28px,3.7vw,52px);font-weight:400;letter-spacing:-.05em;line-height:1.07;margin:0;color:#f1eee5;overflow-wrap:anywhere;text-wrap:balance}
+.ap-scene-heading>span{display:block;color:#9cacc1;font-size:14px;margin-top:14px;line-height:1.65}
+.ap-scene-actions{pointer-events:auto;display:flex;flex-wrap:wrap;gap:8px;flex-shrink:0;padding-top:4px}
+.ap-scene-button{min-height:44px;border:1px solid #c4daed24;background:#111e2bbb;backdrop-filter:blur(18px);border-radius:11px;color:#d7e0eb;font-size:14px;font-weight:450;display:inline-flex;align-items:center;justify-content:center;gap:9px;padding:0 15px;cursor:pointer;transition:background 180ms,border-color 180ms,transform 180ms}
+.ap-scene-button svg{width:17px;height:17px}
+.ap-scene-button:hover,.ap-scene-button[aria-expanded=true]{background:#23354dcc;color:#f7e5c4;border-color:#d6c39960}
+.ap-scene-button:disabled{opacity:.45;cursor:wait}
+.ap-scene-panel{position:absolute;top:var(--ap-scene-headspace);right:clamp(20px,3vw,48px);z-index:50;width:min(390px,calc(100% - 40px));max-height:calc(100% - var(--ap-scene-headspace) - 24px);overflow:auto;overscroll-behavior:contain;border:1px solid #c4d8e927;background:linear-gradient(150deg,#152334f5,#0a121fee);backdrop-filter:blur(28px);border-radius:18px;padding:24px;box-shadow:0 24px 90px #0007,inset 0 1px #ffffff07;animation:ap-panel-enter 280ms var(--ap-ease) both;scrollbar-width:thin;scrollbar-color:#748ba340 transparent}
+.ap-scene-panel h2{font-size:22px;font-weight:450}.ap-scene-panel p{font-size:14px;color:#a5b5c9;line-height:1.7}.ap-scene-panel input{width:100%;margin-top:18px;padding:12px 14px;border:1px solid #bfd9ed2e;background:#060e19}
+.ap-scene-dock{position:absolute;bottom:24px;left:50%;transform:translateX(-50%);z-index:40;display:flex;align-items:center;gap:4px;border:1px solid #c3d6e326;background:#0f1b29df;backdrop-filter:blur(20px);border-radius:15px;padding:6px;max-width:calc(100% - 24px);box-shadow:0 8px 35px #0005;white-space:nowrap}
+.ap-scene-dock button{height:44px;min-width:44px;border-radius:9px;color:#d3deeb;font-size:14px;padding:0 12px;cursor:pointer;transition:background 160ms}.ap-scene-dock button:hover{background:#ffffff0b}.ap-scene-dock>span{color:#a0b0c6;font-size:12px;min-width:40px;text-align:center}.ap-scene-dock .divider{min-width:1px;width:1px;height:18px;background:#ffffff20;margin:0 5px}
+@media(max-width:800px){:root{--ap-nav-height:64px;--ap-bottom-space:calc(69px + env(safe-area-inset-bottom))}.ap-scene-header{flex-direction:column;gap:16px;padding:24px 22px 12px}.ap-scene-heading{max-width:100%}.ap-scene-heading h1{font-size:clamp(27px,7.8vw,38px)}.ap-scene-heading>span{font-size:13px;margin-top:10px}.ap-scene-actions{padding:0}.ap-scene-panel{left:14px;right:14px;width:auto;padding:20px}.ap-scene-dock{bottom:16px}.ap-scene-dock button{padding:0 9px}.ap-scene{min-height:500px}[data-player-main]>section:not(.ap-scene){padding-bottom:30px}[data-player-stat-card]{padding:10px 14px}[data-player-page-header] p:last-child{font-size:15px}}
+@media(max-height:560px) and (min-width:650px){.ap-scene-header{padding:18px 24px 12px;flex-direction:row}.ap-scene-heading h1{font-size:28px}.ap-scene-heading>span{display:none}.ap-scene-actions{padding-top:0}.ap-scene{min-height:360px}}
+@media(prefers-reduced-motion:reduce){.aster-portrait,[data-pocketpulls-ambient]{animation:none!important}*,*::before,*::after{scroll-behavior:auto!important}}
+.ap-panel-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}.ap-panel-heading>div>p{font-size:12px;color:#c5b28e;margin-bottom:3px}.ap-panel-heading button{padding:0;width:44px;min-height:44px}.ap-archive-results{margin-top:14px;display:grid;gap:3px}.ap-archive-row{display:grid;grid-template-columns:42px minmax(0,1fr) 16px;align-items:center;gap:13px;text-align:left;padding:10px 2px;border-bottom:1px solid #ffffff09;cursor:pointer}.ap-archive-row:hover{background:#ffffff04}.ap-archive-image{height:59px;border-radius:5px;overflow:hidden;background:#ffffff07;display:grid;place-items:center}.ap-archive-image img{width:100%;height:100%;object-fit:contain}.ap-archive-row strong{font-size:14px;color:#e2e5ea;font-weight:500;display:block;overflow-wrap:anywhere}.ap-archive-row small{font-size:12px;color:#8f9bae;display:block;margin-top:4px}.ap-archive-row svg{width:16px;color:#acb6c5}.ap-sky-stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:24px 0}.ap-sky-stats>div{background:none;border:0;border-radius:0;padding:0;text-align:left}.ap-sky-stats p:first-child{font-size:12px;color:#929dae;text-transform:none;letter-spacing:0}.ap-sky-stats p:last-child{font-size:25px;color:#eee8da;letter-spacing:-.03em}.ap-sky-progress{margin-bottom:8px}.ap-scene-panel progress{height:3px;display:block;width:100%;accent-color:#dcc49b;margin-bottom:20px}.ap-scene-panel progress::-webkit-progress-bar{background:#ffffff0b}.ap-scene-panel progress::-webkit-progress-value{background:#d9c29b}.ap-brightest{margin:20px 0}.ap-brightest strong{display:block;color:#e1e4e9;font-weight:450;margin-top:6px}.ap-empty{padding:35px 0;text-align:center}.ap-memory-panel{top:auto;bottom:24px;max-height:calc(100% - 160px);width:min(380px,calc(100% - 32px))}.ap-scene-error{position:absolute;top:var(--ap-scene-headspace);left:50%;transform:translateX(-50%);z-index:60;max-width:calc(100% - 32px);padding:16px 20px;border:1px solid #fca5a540;background:#291621ed;border-radius:12px;font-size:14px;color:#fecaca}.ap-scene-error button{margin-left:16px;text-decoration:underline}.ap-constellation .constellationOrbitRing{opacity:.35}.ap-constellation .constellationNebula{opacity:.35}.ap-constellation .shootingStar{opacity:.25}
+@media(max-width:800px){.ap-memory-panel{left:16px;right:16px;width:auto;bottom:16px;top:auto;max-height:65%}.ap-scene-error{top:var(--ap-scene-headspace)}.ap-constellation [data-onboarding-target="constellation"]>div{max-height:100%}}
+.ap-wish-page{padding:40px clamp(22px,4vw,56px)}.ap-wish-page>div:first-child{align-items:end}.ap-wish-page>div:first-child>div:first-child>p:first-child{font-size:12px;color:#baa17a;letter-spacing:.17em}.ap-wish-page>div:first-child h1{font-weight:450;font-size:40px}.ap-wish-stage{position:relative;min-height:510px;border:1px solid #dbcfb826;border-radius:18px;overflow:hidden;background:#070e19}.ap-wish-outline{position:absolute;width:550px;height:550px;right:20px;top:-20px;opacity:.5;transform:rotate(10deg)}.ap-wish-stage-top{position:absolute;z-index:2;left:28px;right:28px;top:24px;display:flex;align-items:center;justify-content:space-between;gap:10px}.ap-wish-stage-top span,.ap-wish-stage-top button{font-size:13px;color:#bac2ce;display:flex;align-items:center;gap:8px;min-height:38px}.ap-wish-stage-top svg{width:15px;color:#dcc499}.ap-wish-stage-top button{color:#8d9aaf;cursor:pointer}.ap-wish-invitation{position:relative;z-index:1;padding:115px 52px 70px;max-width:570px}.ap-wish-invitation>p{font-size:11px;letter-spacing:.2em;color:#bda680;margin:0 0 18px}.ap-wish-invitation h2{font-size:clamp(40px,4vw,58px);line-height:1.03;font-weight:350;letter-spacing:-.05em;color:#ece8dc}.ap-wish-invitation>span{display:block;max-width:350px;font-size:15px;line-height:1.7;color:#8fa0b8;margin-top:22px}.ap-wish-actions{display:flex;flex-direction:column;align-items:flex-start;gap:16px;margin-top:28px}.ap-wish-actions>button:first-child,.ap-wish-actions>a{display:flex;align-items:center;justify-content:space-between;min-width:225px;min-height:50px;gap:22px;border-radius:9px;padding:0 18px;background:#e4cfa6;color:#1c2027;font-size:14px;font-weight:550;cursor:pointer}.ap-wish-actions>button:first-child:disabled{opacity:.55;cursor:wait}.ap-wish-actions>button:last-child{display:flex;align-items:center;gap:12px;min-height:36px;font-size:13px;color:#98a5b9;cursor:pointer}.ap-wish-actions svg{width:17px}.ap-wish-character{position:absolute;right:13%;top:30%;display:flex;align-items:center;flex-direction:column;transform:translateY(-10%);z-index:1}.ap-wish-character .ap-astra-companion{width:230px;height:230px;filter:drop-shadow(0 0 28px #a4cbd018)}.ap-wish-character>span{color:#9babbf;font-size:10px;letter-spacing:.3em;margin-top:12px}.ap-wish-lifetime{position:absolute;right:28px;bottom:26px;color:#7e8fa5;font-size:12px;z-index:1}.ap-wish-page>div:last-of-type>article{background:#0e1420;border-color:#ffffff12}
+@keyframes asterHover{50%{transform:translateY(-9px) rotate(2deg)}}
+@media(max-width:800px){.ap-wish-page{padding:28px 20px}.ap-wish-stage{min-height:640px}.ap-wish-stage-top{left:20px;right:20px;top:18px}.ap-wish-stage-top span,.ap-wish-stage-top button{font-size:12px}.ap-wish-outline{right:-60px;top:-60px;width:440px;height:440px;opacity:.4}.ap-wish-character{top:72px;right:50%;transform:translateX(50%)}.ap-wish-character .ap-astra-companion{width:150px;height:150px}.ap-wish-character>span{margin-top:-8px}.ap-wish-invitation{padding:260px 26px 65px}.ap-wish-invitation h2{font-size:40px}.ap-wish-invitation>span{font-size:14px}.ap-wish-actions>button:first-child,.ap-wish-actions>a{width:100%}.ap-wish-actions{align-items:stretch}.ap-wish-actions>button:last-child{justify-content:center}.ap-wish-lifetime{right:20px;bottom:20px;font-size:11px}.ap-wish-page>div:first-child h1{font-size:34px}}
+@media(prefers-reduced-motion:reduce){.ap-wish-character img{animation:none}}
+[data-astral-legal-footer]{background:#080c14;border-color:#ffffff0d;padding:28px clamp(22px,4vw,56px)}[data-astral-legal-footer] p:first-child{font-size:14px;font-weight:500;letter-spacing:-.02em;color:#c0c5ce}[data-astral-legal-footer] p:last-child{font-size:12px;color:#748095;font-weight:400}[data-astral-legal-footer] nav{font-size:12px;font-weight:400;color:#8b96a8}
+@media(max-width:800px){[data-astral-legal-footer]{padding-bottom:calc(85px + env(safe-area-inset-bottom))}}
+[data-astral-catalogue]{padding:40px clamp(22px,4vw,56px)}[data-astral-filters]{border-radius:12px;border-color:#ffffff0f;background:#0d1521;padding:16px;backdrop-filter:none}[data-astral-filters] input,[data-astral-filters] select{background:#121c2b!important;border-color:#ffffff14;color:#cfd6e1;font-weight:400}[data-astral-filters] button{font-size:13px;font-weight:450;letter-spacing:.02em;text-transform:none}[data-astral-catalogue-card]{border:0;border-radius:12px;background:transparent;box-shadow:none;padding:0}[data-astral-catalogue-card]:hover{box-shadow:none;transform:translateY(-3px)}[data-astral-catalogue-card]>button:last-child>div:first-child{border-radius:10px;border-color:#ffffff0f;background:#101726}[data-astral-catalogue-card]>button:last-child>div:first-child>div[aria-hidden]{opacity:.1}[data-astral-catalogue-card] h3{font-size:15px;font-weight:500;color:#d4dce6}[data-astral-catalogue-card] p{font-size:12px;font-weight:400}[data-astral-catalogue-card] button[aria-label]{right:10px;top:10px}
+[data-player-main] :where(p,span,label)[class*="text-[0.5"],[data-player-main] :where(p,span,label)[class*="text-[0.6"]{font-size:12px;letter-spacing:.045em}
+[data-player-main] :where(button,a)[class*="text-[0."]{font-size:13px;font-weight:500;letter-spacing:.025em}
+[data-player-main] :where(p,span,label)[class~="text-white/30"],[data-player-main] :where(p,span,label)[class~="text-white/34"],[data-player-main] :where(p,span,label)[class~="text-white/35"]{color:#8d9ab0}
+[data-player-main] :where(p,span,label)[class~="text-white/45"]{color:#a3adbd}
+@media(max-width:800px){[data-astral-catalogue]{padding:28px 20px}[data-player-main] .aster-portrait{max-width:100%}}
+[data-astral-guide]{max-width:1200px;padding:42px 32px}[data-astral-guide]>div:first-child{background:#0d1420;border-radius:16px;border-color:#ffffff12;box-shadow:none;backdrop-filter:none}[data-astral-guide] h1{font-size:clamp(30px,4vw,42px);font-weight:450;letter-spacing:-.045em}[data-astral-guide] h2{font-size:22px;font-weight:450;letter-spacing:-.03em}[data-astral-guide] section>div{font-size:16px;font-weight:400;line-height:1.85;color:#a4b0c1}[data-astral-guide] nav a{font-size:13px;font-weight:450;color:#99a5b7}[data-astral-guide]>footer{font-size:12px;font-weight:400;color:#78879c}[data-astral-guide] li{padding-left:3px}
+@media(max-width:800px){[data-astral-guide]{padding:26px 20px}[data-astral-guide] section>div{font-size:15px}}
+
+/* A quiet confirmation after Astra delivers the actual wish stars. */
+.ap-arrival-message {position:fixed;bottom:calc(1.5rem + var(--ap-bottom-space));left:50%;transform:translateX(-50%);z-index:55;max-width:calc(100vw - 2rem);border:1px solid #d1e8ff24;border-radius:999px;background:#08111de8;padding:.8rem 1.4rem;color:#d9ecff;font-size:.8rem;text-align:center;pointer-events:none;animation:ap-arrival-confirm 7s both;}
+.ap-batch-recovery {display:flex;align-items:center;justify-content:space-between;gap:1rem;margin:1rem 0;border:1px solid #a5d6ff2c;border-radius:1.1rem;padding:1rem 1.2rem;background:#91c9ff0b;color:#d7eaff;}
+.ap-batch-recovery button {min-height:44px;flex-shrink:0;border-radius:999px;padding:.5rem 1rem;background:#d7eaff;color:#09111c;font-weight:600;}
+@keyframes ap-arrival-confirm {0%{opacity:0}8%,70%{opacity:1}100%{opacity:0}}
+@media(max-width:540px){.ap-batch-recovery{align-items:stretch;flex-direction:column}}
+@media(prefers-reduced-motion:reduce){.ap-arrival-message{animation:none}}
+
+/* Shared feedback, focus and tactile motion, including utility pages. */
+.ap-astra-companion{display:block;image-rendering:pixelated;pointer-events:none}
+:where(button,a,input,select,textarea,[tabindex]):focus-visible{outline:2px solid #a9d9ed;outline-offset:4px}
+:where(button,a,input,select,textarea){-webkit-tap-highlight-color:transparent}
+[data-player-main] :where(input,textarea,select){transition:border-color .18s,box-shadow .18s}
+[data-player-main] :where(input,textarea,select):focus{border-color:#aed6ea77;box-shadow:0 0 0 3px #88c5e610}
+[data-player-main] :where(input,textarea)::placeholder{color:#8395ae;opacity:1}
+[data-player-panel]{background:linear-gradient(145deg,#132031,#0c1522 75%);border-color:#bed4e61f;border-radius:20px;box-shadow:inset 0 1px #fff03,0 14px 40px #0002}
+[data-player-secondary-button]{border:1px solid #b6cde528;background:#162334;border-radius:11px;color:#c2d0e0;font-weight:500;box-shadow:none;text-transform:none;letter-spacing:0}
+[data-player-secondary-button]:hover{background:#1d3045;border-color:#c2d9ed44}
+[data-player-error]{border-color:#edaaa22b;background:#311e28;color:#f3cfca;box-shadow:none}
+[data-player-loading]{position:relative;overflow:hidden}
+[data-player-loading] .animate-pulse{animation:ap-skeleton 2.2s ease-in-out infinite;background:#b9d5eb0a}
+.ap-route-content{animation:ap-page-enter 360ms ease both}
+.ap-constellation-art path{stroke-dasharray:1;stroke-dashoffset:0}
+.ap-constellation-art .ap-art-link{animation:ap-draw-line 1.6s var(--ap-ease) both;animation-delay:var(--delay,0ms)}
+.ap-constellation-art .ap-art-star{animation:ap-star-enter 900ms var(--ap-ease) both;animation-delay:var(--delay,0ms);transform-box:fill-box;transform-origin:center}
+.ap-scene-panel .ap-archive-row{border-radius:10px;padding:10px 8px;transition:background 160ms}
+.ap-scene-panel .ap-archive-row:hover{background:#b4d5f50a}
+.ap-scene-panel .ap-archive-results{content-visibility:auto;contain-intrinsic-size:auto 480px}
+.ap-memory-panel{max-height:calc(100% - var(--ap-scene-headspace) - 24px)}
+[data-astral-filters]{background:#101c2b;border:1px solid #c3d9ed1c;border-radius:16px}
+[data-astral-guide] nav{line-height:1.6}
+[data-astral-guide] section{scroll-margin-top:90px}
+@media(hover:hover) and (prefers-reduced-motion:no-preference){
+ [data-player-primary-button]:active,.ap-scene-button:active{transform:scale(.975)}
+ [data-astral-catalogue-card]{transition:transform 280ms var(--ap-ease)}
+ [data-astral-catalogue-card]:hover{transform:translateY(-5px)}
+}
+@keyframes ap-page-enter{from{opacity:.4}to{opacity:1}}
+@keyframes ap-panel-enter{from{opacity:0;transform:translateY(10px) scale(.985)}to{opacity:1;transform:none}}
+@keyframes ap-star-enter{from{opacity:0;transform:scale(.7)}to{opacity:1;transform:scale(1)}}
+@keyframes ap-draw-line{from{stroke-dashoffset:1;opacity:0}to{stroke-dashoffset:0;opacity:1}}
+@keyframes ap-skeleton{0%,100%{opacity:.5}50%{opacity:1}}
+@media(prefers-reduced-motion:reduce){.ap-route-content,.ap-scene-panel,.ap-constellation-art .ap-art-link,.ap-constellation-art .ap-art-star,[data-player-loading] .animate-pulse{animation:none}.ap-scene-button,[data-player-main] :where(input,textarea,select){transition:none}}
+html[data-pp-reduced-motion=true] :is(.ap-route-content,.ap-scene-panel,.ap-art-link,.ap-art-star,[data-player-loading] .animate-pulse){animation:none}
+html[data-pp-low-effects=true] :is(.ap-scene-panel,.ap-scene-dock,.ap-scene-button){backdrop-filter:none;background:#101c2b}
+
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+*{box-sizing:border-box}body{margin:0}button,input{font:inherit}button{color:inherit}h1,p,h2{margin:0}[hidden]{display:none!important}.ap-scene{height:100dvh;min-height:480px;--ap-bottom-space:0px}.scene{position:absolute;inset:0;width:100%;height:100%;touch-action:none;cursor:grab}.study-label{position:absolute;left:24px;bottom:26px;z-index:20;font-size:11px;line-height:1.7;color:#8597ad;pointer-events:none}.results{display:grid;margin-top:12px;gap:4px}.results button{display:flex;gap:16px;align-items:center;min-height:55px;text-align:left;padding:12px;background:transparent;border:0;border-bottom:1px solid #adc7ed14;border-radius:9px;cursor:pointer}.results button:hover{background:#acd7eb10}.results button span{color:#ddc99c;font-size:12px}.results button strong{font-size:14px;font-weight:450;color:#d3e3ef}.selected{position:absolute;left:50%;bottom:100px;z-index:15;transform:translateX(-50%);padding:10px 18px;border:1px solid #b7d1e62a;border-radius:30px;background:#0b1725df;color:#e3d4b5;max-width:calc(100% - 32px);font-size:14px;text-align:center}.ap-scene-dock button{border:0;background:transparent}.ap-scene-dock button:hover{background:#ffffff10}@media(max-width:700px){.study-label{top:auto;bottom:90px;left:22px;font-size:10px;max-width:140px}.selected{bottom:130px}.ap-scene-header{padding-top:26px}}
+</style></head><body><main class="ap-scene">
+<canvas id="scene" class="scene" tabindex="0" aria-label="Demo universe. Drag or use arrow keys to rotate; plus and minus zoom."></canvas>
+<header class="ap-scene-header" id="header"><div class="ap-scene-heading"><p>The collective sky</p><h1>Universe</h1><span>One hundred galaxies. One centre of gravity.</span></div><div class="ap-scene-actions"><button class="ap-scene-button" id="find" aria-expanded="false">⌕ &nbsp; Find a galaxy</button><button class="ap-scene-button" id="info" aria-expanded="false">Info</button></div></header>
+<aside id="panel" class="ap-scene-panel" aria-label="Universe controls" hidden><div class="ap-panel-heading"><h2 id="panelTitle">Find a galaxy</h2><button id="close" class="ap-scene-button" aria-label="Close panel">×</button></div><div id="searchBox"><label><span class="sr-only">Search sample galaxies</span><input id="search" type="search" placeholder="Name or rank" aria-label="Search sample galaxies"></label><div id="results" class="results"></div></div><p id="description" hidden>This interactive study uses the actual website renderer with 100 fictional collections. In the app, these positions and sizes come from your real leaderboard. The top rank is the black hole; higher ranks have larger galaxies in closer orbits.<br><br>Drag to rotate. Scroll or use the zoom controls. Search to select a galaxy.<br><br>No account access, payments or wish spending.</p></aside>
+<p class="study-label">ASTRA / 73<br>Production renderer · sample data</p><p id="selected" class="selected" role="status" aria-live="polite" hidden></p>
+<div class="ap-scene-dock"><button id="pause" aria-pressed="false">Pause</button><span class="divider"></span><button id="minus" aria-label="Zoom out">−</button><button id="plus" aria-label="Zoom in">+</button><button id="reset" aria-label="Return to centre">↺</button></div>
+<script>
+const factories={"./universe":function(module,exports,require){"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.cameraDamping = exports.BLACK_HOLE_DUST = exports.BACKGROUND_STARS = exports.OUTER_ORBIT_SPEED = exports.INNER_ORBIT_SPEED = exports.TAU = exports.GOLDEN_ANGLE = exports.MAX_VISIBLE_GALAXIES = exports.MAX_VISIBLE_RANKS = void 0;
+exports.clamp = clamp;
+exports.lerp = lerp;
+exports.hashString = hashString;
+exports.seededRandom = seededRandom;
+exports.parseRows = parseRows;
+exports.buildGalaxyParticles = buildGalaxyParticles;
+exports.buildGalaxyNodes = buildGalaxyNodes;
+exports.resolveGalaxyPosition = resolveGalaxyPosition;
+exports.createProjector = createProjector;
+exports.hsla = hsla;
+exports.drawBackground = drawBackground;
+exports.drawGalaxy = drawGalaxy;
+exports.drawGalaxyTrails = drawGalaxyTrails;
+exports.drawOrbitLanes = drawOrbitLanes;
+exports.drawBlackHoleDust = drawBlackHoleDust;
+exports.drawBlackHole = drawBlackHole;
+exports.drawGalaxyCached = drawGalaxyCached;
+exports.paintUniverseFrame = paintUniverseFrame;
+const format_1 = require("@/lib/player/format");
+const SkyArt_1 = require("./SkyArt");
+exports.MAX_VISIBLE_RANKS = 100;
+exports.MAX_VISIBLE_GALAXIES = exports.MAX_VISIBLE_RANKS - 1;
+exports.GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
+exports.TAU = Math.PI * 2;
+exports.INNER_ORBIT_SPEED = exports.TAU / 120;
+exports.OUTER_ORBIT_SPEED = exports.TAU / 260;
+function clamp(value, minimum, maximum) {
+    return Math.max(minimum, Math.min(maximum, value));
+}
+function lerp(from, to, amount) {
+    return from + (to - from) * amount;
+}
+function hashString(value) {
+    let hash = 2166136261;
+    for (let index = 0; index < value.length; index += 1) {
+        hash ^= value.charCodeAt(index);
+        hash = Math.imul(hash, 16777619);
+    }
+    return hash >>> 0;
+}
+function seededRandom(seed) {
+    return () => {
+        let value = (seed += 0x6d2b79f5);
+        value = Math.imul(value ^ (value >>> 15), value | 1);
+        value ^= value + Math.imul(value ^ (value >>> 7), value | 61);
+        return ((value ^ (value >>> 14)) >>> 0) / 4294967296;
+    };
+}
+function parseRows(value) {
+    if (!Array.isArray(value))
+        return [];
+    return value
+        .map((row) => ({
+        rank: (0, format_1.toWholeNumber)(row.rank_position),
+        userId: row.user_id || "",
+        username: row.username?.trim() || "trainer",
+        displayName: row.display_name?.trim() || "Star Trainer",
+        avatarUrl: row.avatar_url?.trim() || null,
+        totalCards: (0, format_1.toWholeNumber)(row.total_cards),
+        uniqueCards: (0, format_1.toWholeNumber)(row.unique_cards),
+        collectionValue: (0, format_1.toNumber)(row.collection_value),
+        lifetimeWishes: (0, format_1.toWholeNumber)(row.lifetime_wishes),
+        score: (0, format_1.toWholeNumber)(row.score),
+        isCurrentUser: row.is_current_user === true,
+        cosmicIssueNumber: null,
+    }))
+        .filter((player, index, all) => player.userId && player.rank > 0 && player.rank <= exports.MAX_VISIBLE_RANKS && all.findIndex(other => other.userId === player.userId || other.rank === player.rank) === index)
+        .sort((first, second) => first.rank - second.rank)
+        .slice(0, exports.MAX_VISIBLE_RANKS);
+}
+function buildGalaxyParticles(seed, rank) {
+    // XOR produces a signed int32. Keep modulo arithmetic non-negative so arms never becomes zero.
+    seed = seed >>> 0;
+    const random = seededRandom(seed);
+    const count = Math.round(clamp(220 - rank * 1.4, 55, 220));
+    const arms = 2 + (seed % 3);
+    return Array.from({ length: count }, (_, index) => {
+        const radius = Math.pow(random(), 0.7);
+        const arm = index % arms;
+        const scatter = (random() - 0.5) * (0.28 + radius * 0.34);
+        return {
+            radius,
+            angle: (arm / arms) * exports.TAU + radius * (5.8 + (seed % 17) / 18) + scatter,
+            size: 0.42 + random() * (radius < 0.25 ? 1.28 : 0.86),
+            brightness: 0.28 + random() * 0.72,
+            warmth: random(),
+        };
+    });
+}
+function buildGalaxyNodes(players) {
+    const galaxyPlayers = players
+        .filter((player) => player.rank >= 2)
+        .slice(0, exports.MAX_VISIBLE_GALAXIES);
+    const maximumCards = Math.max(1, ...galaxyPlayers.map((player) => player.totalCards));
+    let previousSize = 0.108;
+    return galaxyPlayers.map((player, index) => {
+        const progress = clamp((player.rank - 2) / (exports.MAX_VISIBLE_RANKS - 2), 0, 1);
+        const rankPower = Math.pow(1 - progress, 1.6);
+        const cardPower = Math.sqrt(player.totalCards / maximumCards);
+        const requestedSize = 0.018 + rankPower * 0.049 + cardPower * 0.012;
+        const size = clamp(Math.min(previousSize - 0.00042, requestedSize), 0.018, 0.105);
+        previousSize = size;
+        const seed = hashString(player.userId + ":" + player.rank);
+        const random = seededRandom(seed);
+        const angle = index * exports.GOLDEN_ANGLE + (random() - 0.5) * 0.09;
+        const orbit = 0.37 + Math.pow(progress, 0.72) * 0.78;
+        const orbitInclination = (random() - 0.5) * 0.46;
+        const orbitEccentricity = 1.06 + random() * 0.16;
+        const orbitFlatten = 0.56 + random() * 0.13;
+        const orbitX = Math.cos(angle) * orbit * orbitEccentricity;
+        const orbitY = Math.sin(angle) * orbit * orbitFlatten;
+        return {
+            player,
+            x: orbitX * Math.cos(orbitInclination) - orbitY * Math.sin(orbitInclination),
+            y: orbitX * Math.sin(orbitInclination) + orbitY * Math.cos(orbitInclination),
+            z: 0.03 + (random() - 0.5) * 0.24,
+            orbitAngle: angle,
+            orbitRadius: orbit,
+            orbitSpeed: lerp(exports.INNER_ORBIT_SPEED, exports.OUTER_ORBIT_SPEED, Math.pow(progress, 0.72)),
+            orbitDepth: 0.045 + progress * 0.055,
+            orbitDirection: 1,
+            orbitInclination,
+            orbitEccentricity,
+            orbitFlatten,
+            size,
+            hue: [38, 202, 212, 222, 35, 195][seed % 6],
+            tilt: (random() - 0.5) * 1.2,
+            flatten: 0.34 + random() * 0.23,
+            spin: (random() > 0.5 ? 1 : -1) * (0.025 + random() * 0.038),
+            particles: buildGalaxyParticles(seed ^ 0xa57ea, player.rank),
+        };
+    });
+}
+function resolveGalaxyPosition(node, time, reducedMotion) {
+    const angle = node.orbitAngle + time * 0.001 * node.orbitSpeed * node.orbitDirection;
+    const orbitX = Math.cos(angle) * node.orbitRadius * node.orbitEccentricity;
+    const orbitY = Math.sin(angle) * node.orbitRadius * node.orbitFlatten;
+    const cosInclination = Math.cos(node.orbitInclination);
+    const sinInclination = Math.sin(node.orbitInclination);
+    return {
+        x: orbitX * cosInclination - orbitY * sinInclination,
+        y: orbitX * sinInclination + orbitY * cosInclination,
+        z: node.z + Math.sin(angle + node.tilt * 0.35) * node.orbitDepth,
+    };
+}
+exports.BACKGROUND_STARS = (() => {
+    const random = seededRandom(0x51a7c0de);
+    return Array.from({ length: 320 }, () => ({
+        x: (random() - 0.5) * 3.2,
+        y: (random() - 0.5) * 2.25,
+        z: -1.2 + random() * 1.8,
+        size: 0.36 + random() * 1.34,
+        brightness: 0.18 + random() * 0.66,
+        phase: random() * exports.TAU,
+        temperature: random(),
+    }));
+})();
+exports.BLACK_HOLE_DUST = (() => {
+    const random = seededRandom(0xb1ac40de);
+    return Array.from({ length: 86 }, () => ({
+        angle: random() * exports.TAU,
+        radius: 1.05 + Math.pow(random(), 0.72) * 1.08,
+        speed: 0.00012 + random() * 0.00022,
+        size: 0.34 + random() * 1.08,
+        brightness: 0.18 + random() * 0.68,
+        warmth: random(),
+    }));
+})();
+function createProjector(camera, width, height) {
+    const sinYaw = Math.sin(camera.yaw);
+    const cosYaw = Math.cos(camera.yaw);
+    const sinPitch = Math.sin(camera.pitch);
+    const cosPitch = Math.cos(camera.pitch);
+    const measure = Math.min(width, height);
+    return (point) => {
+        const worldX = point.x + camera.focusX;
+        const worldY = point.y + camera.focusY;
+        const worldZ = point.z + camera.focusZ;
+        const yawX = worldX * cosYaw + worldZ * sinYaw;
+        const yawZ = -worldX * sinYaw + worldZ * cosYaw;
+        const pitchY = worldY * cosPitch - yawZ * sinPitch;
+        const depth = worldY * sinPitch + yawZ * cosPitch;
+        const perspective = 2.9 / Math.max(1.45, 2.9 - depth);
+        // Fit the full orbital array in portrait without changing saved zoom levels.
+        const scale = perspective * camera.zoom * (width / height < .8 ? .72 : 1);
+        return {
+            x: width / 2 + yawX * measure * 0.47 * scale,
+            y: height / 2 + pitchY * measure * 0.47 * scale,
+            scale,
+            depth,
+        };
+    };
+}
+function hsla(hue, saturation, lightness, alpha) {
+    return "hsla(" + hue + "," + saturation + "%," + lightness + "%," + alpha + ")";
+}
+const backgrounds = new WeakMap();
+function drawBackground(context, width, height, camera, time, reducedMotion) {
+    let cached = backgrounds.get(context);
+    if (!cached || cached.width !== width || cached.height !== height) {
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.ceil(width);
+        canvas.height = Math.ceil(height);
+        const c = canvas.getContext('2d');
+        if (c)
+            (0, SkyArt_1.paintObservatorySky)(c, width, height);
+        cached = { width, height, canvas };
+        backgrounds.set(context, cached);
+    }
+    context.drawImage(cached.canvas, 0, 0, width, height);
+    const projectBackground = createProjector({
+        ...camera,
+        focusX: camera.focusX * 0.08,
+        focusY: camera.focusY * 0.08,
+        focusZ: 0,
+        zoom: 0.82 + camera.zoom * 0.12,
+    }, width, height);
+    for (const star of exports.BACKGROUND_STARS) {
+        const projected = projectBackground(star);
+        if (projected.x < -4 || projected.x > width + 4 || projected.y < -4 || projected.y > height + 4)
+            continue;
+        const pulse = reducedMotion ? 1 : 0.78 + Math.sin(time * 0.00072 + star.phase) * 0.22;
+        const colour = star.temperature > 0.68
+            ? "rgba(213,247,255,"
+            : star.temperature < 0.22
+                ? "rgba(255,244,214,"
+                : "rgba(238,235,255,";
+        context.fillStyle = colour + clamp(star.brightness * pulse, 0.06, 0.82) + ")";
+        context.beginPath();
+        context.arc(projected.x, projected.y, Math.max(0.32, star.size * projected.scale), 0, exports.TAU);
+        context.fill();
+    }
+}
+function drawGalaxy(context, node, projected, radius, time, selected, hovered, reducedMotion) {
+    const random = seededRandom(hashString(node.player.userId)), arms = 2 + (hashString(node.player.userId) % 2);
+    context.save();
+    context.translate(projected.x, projected.y);
+    context.rotate(node.tilt);
+    context.scale(1, node.flatten + .08);
+    context.globalCompositeOperation = 'lighter';
+    const glow = context.createRadialGradient(0, 0, 0, 0, 0, radius * 1.4);
+    glow.addColorStop(0, '#eddfc571');
+    glow.addColorStop(.14, hsla(node.hue, 38, 70, .27));
+    glow.addColorStop(.5, hsla(node.hue, 43, 50, .05));
+    glow.addColorStop(1, 'transparent');
+    context.fillStyle = glow;
+    context.fillRect(-radius * 1.4, -radius * 1.4, radius * 2.8, radius * 2.8);
+    // Resolve fine-grained spiral dust only when building a cached sprite.
+    for (let i = 0; i < 940; i++) {
+        const t = Math.pow(random(), .75), scatter = (random() + random() - 1) * (.13 + t * .34), angle = (i % arms) * exports.TAU / arms + t * 5.5 + scatter;
+        const r = t * radius, x = Math.cos(angle) * r, y = Math.sin(angle) * r;
+        context.globalAlpha = (.12 + random() * .36) * (1 - t * .6);
+        context.fillStyle = i % 9 === 0 ? '#f2d6aa' : hsla(node.hue + (random() - .5) * 18, 35, 65 + random() * 23, 1);
+        const dot = .22 + random() * .66;
+        context.beginPath();
+        context.arc(x, y, dot, 0, exports.TAU);
+        context.fill();
+    }
+    // Broad arms carry a luminous edge and a narrow dark dust lane.
+    for (let arm = 0; arm < arms; arm++) {
+        context.lineWidth = radius * .025;
+        context.strokeStyle = hsla(node.hue, 42, 76, .12);
+        context.beginPath();
+        for (let i = 4; i <= 64; i++) {
+            const t = i / 64, a = arm * exports.TAU / arms + t * 5.5, x = Math.cos(a) * radius * t, y = Math.sin(a) * radius * t;
+            if (i === 4)
+                context.moveTo(x, y);
+            else
+                context.lineTo(x, y);
+        }
+        context.stroke();
+    }
+    context.globalAlpha = 1;
+    const core = context.createRadialGradient(0, 0, 0, 0, 0, radius * .19);
+    core.addColorStop(0, '#fff6db');
+    core.addColorStop(.2, '#f5e5cbbb');
+    core.addColorStop(1, 'transparent');
+    context.fillStyle = core;
+    context.fillRect(-radius * .2, -radius * .2, radius * .4, radius * .4);
+    context.restore();
+}
+function drawGalaxyTrails(context, nodes, project, measure, time, selectedUserId, hoveredUserId, reducedMotion) {
+    if (reducedMotion)
+        return;
+    context.save();
+    context.globalCompositeOperation = "lighter";
+    context.lineCap = "round";
+    for (const node of nodes) {
+        const highlighted = node.player.userId === selectedUserId ||
+            node.player.userId === hoveredUserId || node.player.isCurrentUser;
+        if (!highlighted && node.player.rank > 24)
+            continue;
+        const samples = highlighted ? 11 : 7;
+        const interval = highlighted ? 430 : 360;
+        let previous = project(resolveGalaxyPosition(node, time - samples * interval, false));
+        for (let sample = 1; sample <= samples; sample += 1) {
+            const current = project(resolveGalaxyPosition(node, time - (samples - sample) * interval, false));
+            const strength = sample / samples;
+            context.strokeStyle = hsla(node.hue + 8, 92, 72, (highlighted ? 0.15 : 0.055) * strength);
+            context.lineWidth = clamp(node.size * measure * 0.045 * current.scale, 0.45, highlighted ? 2.1 : 1.15);
+            context.beginPath();
+            context.moveTo(previous.x, previous.y);
+            context.lineTo(current.x, current.y);
+            context.stroke();
+            previous = current;
+        }
+    }
+    context.restore();
+}
+function drawOrbitLanes(context, camera, width, height, time, reducedMotion) {
+    const radii = [0.31, 0.53, 0.77, 1.02];
+    const inclinations = [0.04, -0.085, 0.11, -0.055];
+    context.save();
+    context.lineWidth = 0.65;
+    context.setLineDash([1.5, 8]);
+    const project = createProjector(camera, width, height);
+    for (let lane = 0; lane < radii.length; lane += 1) {
+        const radius = radii[lane];
+        const inclination = inclinations[lane];
+        const cosInclination = Math.cos(inclination);
+        const sinInclination = Math.sin(inclination);
+        context.lineDashOffset = -time * (0.002 + lane * 0.0004);
+        context.strokeStyle = lane % 2 === 0
+            ? "rgba(170,235,250,0.035)"
+            : "rgba(205,188,255,0.03)";
+        context.beginPath();
+        for (let step = 0; step <= 72; step += 1) {
+            const angle = (step / 72) * exports.TAU;
+            const orbitX = Math.cos(angle) * radius * 1.13;
+            const orbitY = Math.sin(angle) * radius * 0.62;
+            const projected = project({
+                x: orbitX * cosInclination - orbitY * sinInclination,
+                y: orbitX * sinInclination + orbitY * cosInclination,
+                z: -0.08 + Math.sin(angle) * (0.025 + lane * 0.008),
+            });
+            if (step === 0)
+                context.moveTo(projected.x, projected.y);
+            else
+                context.lineTo(projected.x, projected.y);
+        }
+        context.stroke();
+    }
+    context.restore();
+}
+function drawBlackHoleDust(context, point, radius, time, reducedMotion) {
+    context.save();
+    context.translate(point.x, point.y);
+    context.rotate(-0.12);
+    context.scale(1, 0.29);
+    context.globalCompositeOperation = "lighter";
+    for (const mote of exports.BLACK_HOLE_DUST) {
+        const angle = mote.angle + (time * mote.speed);
+        const orbitRadius = radius * mote.radius;
+        const x = Math.cos(angle) * orbitRadius;
+        const y = Math.sin(angle) * orbitRadius;
+        const alpha = mote.brightness * (0.2 + Math.max(0, Math.sin(angle)) * 0.44);
+        context.fillStyle = mote.warmth > 0.62
+            ? "rgba(255,219,150," + alpha + ")"
+            : "rgba(157,213,255," + alpha * 0.82 + ")";
+        context.beginPath();
+        context.arc(x, y, Math.max(0.4, mote.size * radius * 0.009), 0, exports.TAU);
+        context.fill();
+    }
+    context.restore();
+}
+function drawBlackHole(context, point, radius, time, active, reducedMotion) {
+    (0, SkyArt_1.paintSingularity)(context, point.x, point.y, radius, time, active);
+}
+/** Paint detailed spiral textures once; orbit frames reuse the same bounded sprite cache. */
+function drawGalaxyCached(context, node, projected, radius, time, selected, hovered, reducedMotion, sprites, compact) {
+    const key = node.player.userId + (compact ? ":compact" : ":full");
+    let sprite = sprites.get(key);
+    if (!sprite) {
+        sprite = document.createElement("canvas");
+        const pixels = compact ? 128 : 192;
+        sprite.width = pixels;
+        sprite.height = pixels;
+        const painter = sprite.getContext("2d");
+        if (!painter) {
+            drawGalaxy(context, node, projected, radius, time, selected, hovered, reducedMotion);
+            return;
+        }
+        const neutral = { ...node, player: { ...node.player, rank: 100, isCurrentUser: false } };
+        drawGalaxy(painter, neutral, { x: pixels / 2, y: pixels / 2, scale: 1, depth: 0 }, pixels / 3.4, 0, false, false, true);
+        sprites.set(key, sprite);
+    }
+    context.save();
+    context.translate(projected.x, projected.y);
+    context.rotate(time * .001 * node.spin);
+    context.globalAlpha = selected || hovered ? 1 : .9;
+    context.drawImage(sprite, -radius * 1.7, -radius * 1.7, radius * 3.4, radius * 3.4);
+    context.restore();
+    if (selected || hovered || node.player.isCurrentUser) {
+        context.save();
+        context.strokeStyle = node.player.isCurrentUser ? "#ddc498aa" : "#c7dfeb99";
+        context.lineWidth = selected ? 1.15 : .75;
+        context.setLineDash(selected ? [] : [2, 5]);
+        context.beginPath();
+        context.arc(projected.x, projected.y, radius * 1.28, 0, exports.TAU);
+        context.stroke();
+        context.restore();
+    }
+    if (node.player.rank <= 10 && radius >= 15) {
+        context.save();
+        context.fillStyle = "#c3cddd99";
+        context.font = "400 12px system-ui, sans-serif";
+        context.textAlign = "center";
+        context.fillText("#" + node.player.rank, projected.x, projected.y + radius + 14);
+        context.restore();
+    }
+}
+/** Frame-rate-independent camera damping (the same response at 30, 60 and 120 Hz). */
+const cameraDamping = (dt) => 1 - Math.exp(-Math.max(0, Math.min(80, dt)) / 210);
+exports.cameraDamping = cameraDamping;
+function paintUniverseFrame(context, width, height, camera, time, nodes, pharaoh, selectedId, hoveredId, reduced, sprites, compact = width < 768) {
+    drawBackground(context, width, height, camera, time, reduced);
+    drawOrbitLanes(context, camera, width, height, time, reduced);
+    const measure = Math.min(width, height), project = createProjector(camera, width, height), centre = project({ x: 0, y: 0, z: .18 });
+    const holeRadius = clamp(measure * .105 * centre.scale, compact ? 32 : 64, compact ? 76 : 126);
+    const active = !!pharaoh && (selectedId === pharaoh.userId || hoveredId === pharaoh.userId);
+    drawGalaxyTrails(context, nodes, project, measure, time, selectedId, hoveredId, reduced);
+    const projected = nodes.map(node => ({ node, point: project(resolveGalaxyPosition(node, time, reduced)) })).sort((a, b) => a.point.depth - b.point.depth);
+    const hits = [];
+    let holeDrawn = false, prepared = 0, pendingSprites = 0;
+    for (const { node, point } of projected) {
+        if (!holeDrawn && point.depth >= centre.depth) {
+            drawBlackHole(context, centre, holeRadius, time, active, reduced);
+            holeDrawn = true;
+        }
+        const radius = clamp(node.size * measure * point.scale, compact ? 5.2 : 5.8, compact ? 40 : 70);
+        if (point.x < -radius * 2 || point.x > width + radius * 2 || point.y < -radius * 2 || point.y > height + radius * 2)
+            continue;
+        const cached = sprites.has(node.player.userId + (compact ? ':compact' : ':full'));
+        // Spread first-load texture work across frames, including in reduced-motion mode.
+        if (cached || prepared < 4) {
+            drawGalaxyCached(context, node, point, radius, time, selectedId === node.player.userId, hoveredId === node.player.userId, reduced, sprites, compact);
+            if (!cached)
+                prepared++;
+        }
+        else {
+            pendingSprites++;
+            context.fillStyle = hsla(node.hue, 30, 76, .5);
+            context.beginPath();
+            context.ellipse(point.x, point.y, 2, 1, node.tilt, 0, exports.TAU);
+            context.fill();
+        }
+        hits.push({ player: node.player, x: point.x, y: point.y, radius: Math.max(compact ? 18 : 13, radius * 1.35), depth: point.depth });
+    }
+    if (!holeDrawn)
+        drawBlackHole(context, centre, holeRadius, time, active, reduced);
+    if (pharaoh)
+        hits.push({ player: pharaoh, x: centre.x, y: centre.y, radius: holeRadius, depth: centre.depth + 2 });
+    return { hits: hits.sort((a, b) => b.depth - a.depth), centre, holeRadius, pendingSprites };
+}
+},"./SkyArt":function(module,exports,require){"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.skyRandom = skyRandom;
+exports.paintObservatorySky = paintObservatorySky;
+exports.starlightTexture = starlightTexture;
+exports.paintStarlight = paintStarlight;
+exports.paintSingularity = paintSingularity;
+/** Shared, deterministic art direction for the observatory and Astra's ceremony.
+ * Paint the expensive sky once at resize; stars use small, reusable light textures. */
+const TAU = Math.PI * 2;
+const lights = new Map();
+function skyRandom(seed = 89125) {
+    return () => {
+        seed = (Math.imul(seed, 1664525) + 1013904223) | 0;
+        return (seed >>> 0) / 4294967296;
+    };
+}
+function paintObservatorySky(c, w, h) {
+    const random = skyRandom();
+    c.save();
+    c.fillStyle = '#030812';
+    c.fillRect(0, 0, w, h);
+    const haze = (x, y, r, colour) => {
+        const g = c.createRadialGradient(x, y, 0, x, y, r);
+        g.addColorStop(0, colour);
+        g.addColorStop(1, 'transparent');
+        c.fillStyle = g;
+        c.fillRect(x - r, y - r, r * 2, r * 2);
+    };
+    haze(w * .56, h * .48, Math.max(w, h) * .62, '#153b5158');
+    haze(w * .75, h * .6, w * .43, '#344b7533');
+    haze(w * .34, h * .73, w * .32, '#63507519');
+    // A curved, broken dust lane: tiny light clouds, not a repeating star wallpaper.
+    for (let i = 0; i < 95; i++) {
+        const t = random(), x = w * (t * 1.3 - .15), bend = .77 - t * .5 + Math.sin(t * 5) * .08;
+        const y = h * (bend + (random() - .5) * .11), r = (.015 + random() * .05) * w;
+        haze(x, y, r, i % 4 ? '#789fb209' : '#dbbd8a09');
+    }
+    for (let i = 0; i < 2600; i++) {
+        const t = random(), band = (random() + random() + random() - 1.5) * .065;
+        const x = w * (t * 1.3 - .15), y = h * (.77 - t * .5 + Math.sin(t * 5) * .08 + band);
+        c.fillStyle = i % 5 ? '#8ab6d5' : '#ead4a5';
+        c.globalAlpha = .035 + random() * .16;
+        const r = .35 + random() * .7;
+        c.fillRect(x, y, r, r);
+    }
+    for (let i = 0; i < Math.min(1000, Math.round(w * h / 1700)); i++) {
+        const x = random() * w, y = random() * h, r = .3 + Math.pow(random(), 7) * 1.5;
+        c.globalAlpha = .16 + random() * .59;
+        c.fillStyle = i % 8 ? '#b6d2e6' : '#f5dab1';
+        c.beginPath();
+        c.arc(x, y, r, 0, TAU);
+        c.fill();
+    }
+    c.restore();
+}
+/** Bounded by the rarity palette; callers can supply any valid CSS colour. */
+function starlightTexture(colour) {
+    let texture = lights.get(colour);
+    if (texture)
+        return texture;
+    texture = document.createElement('canvas');
+    texture.width = texture.height = 96;
+    const c = texture.getContext('2d');
+    const g = c.createRadialGradient(48, 48, 0, 48, 48, 48);
+    g.addColorStop(0, '#fff9ea');
+    g.addColorStop(.06, colour);
+    g.addColorStop(.22, colour);
+    g.addColorStop(1, 'transparent');
+    c.fillStyle = g;
+    c.fillRect(0, 0, 96, 96);
+    if (lights.size >= 32)
+        lights.delete(lights.keys().next().value);
+    lights.set(colour, texture);
+    return texture;
+}
+function paintStarlight(c, x, y, radius, colour, active = false, glow = true) {
+    c.save();
+    c.translate(x, y);
+    const alpha = c.globalAlpha;
+    if (glow) {
+        c.globalCompositeOperation = 'lighter';
+        c.globalAlpha *= active ? .42 : .25;
+        const r = radius * (active ? 8 : 5);
+        c.drawImage(starlightTexture(colour), -r, -r, r * 2, r * 2);
+        c.globalAlpha = alpha;
+    }
+    c.fillStyle = colour;
+    c.beginPath();
+    for (let i = 0; i < 8; i++) {
+        const a = i * Math.PI / 4, r = radius * (i % 2 ? .28 : 1.8);
+        if (i)
+            c.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+        else
+            c.moveTo(r, 0);
+    }
+    c.closePath();
+    c.fill();
+    c.fillStyle = '#fff9e9';
+    c.beginPath();
+    c.arc(0, 0, Math.max(.8, radius * .34), 0, TAU);
+    c.fill();
+    if (active) {
+        c.globalAlpha = .7;
+        c.strokeStyle = colour;
+        c.lineWidth = .8;
+        for (let i = 0; i < 4; i++) {
+            c.beginPath();
+            c.arc(0, 0, radius * 3.7, i * Math.PI / 2 + .2, i * Math.PI / 2 + .9);
+            c.stroke();
+        }
+    }
+    c.restore();
+}
+/** Lensed back arc, photon ring and foreground disk are distinct depth layers. */
+function paintSingularity(c, x, y, radius, time, active = false) {
+    c.save();
+    c.translate(x, y);
+    c.rotate(-.14);
+    const halo = c.createRadialGradient(0, 0, radius * .42, 0, 0, radius * 2.6);
+    halo.addColorStop(0, '#e6c89100');
+    halo.addColorStop(.28, active ? '#b8d7ff28' : '#83afcf19');
+    halo.addColorStop(.58, '#396ba211');
+    halo.addColorStop(1, 'transparent');
+    c.fillStyle = halo;
+    c.fillRect(-radius * 2.6, -radius * 2.6, radius * 5.2, radius * 5.2);
+    c.globalCompositeOperation = 'lighter';
+    // A bright, asymmetric far-side arc bends over the event horizon.
+    for (let band = 0; band < 14; band++) {
+        const r = radius * (.79 + band * .014);
+        c.strokeStyle = band < 4 ? '#fbebc8' : '#91bbd6';
+        c.globalAlpha = (1 - band / 15) * .14;
+        c.lineWidth = radius * .035;
+        c.beginPath();
+        c.ellipse(0, -radius * .014, r, r * .98, 0, Math.PI * .98, TAU + .035);
+        c.stroke();
+    }
+    for (let band = 0; band < 22; band++) {
+        const r = radius * (1.15 + band * .047);
+        c.lineWidth = radius * .025;
+        c.strokeStyle = band % 3 ? '#dfc598' : '#a7c9df';
+        c.globalAlpha = (1 - band / 24) * .085;
+        c.beginPath();
+        c.ellipse(0, 0, r, r * .18, 0, Math.PI, TAU);
+        c.stroke();
+    }
+    c.globalCompositeOperation = 'source-over';
+    c.globalAlpha = 1;
+    c.fillStyle = '#010309';
+    c.beginPath();
+    c.arc(0, 0, radius * .77, 0, TAU);
+    c.fill();
+    // Photon ring, warm on the approaching side and blue on the receding side.
+    const edge = c.createLinearGradient(-radius, 0, radius, 0);
+    edge.addColorStop(0, '#91c6ef66');
+    edge.addColorStop(.55, '#fff4d5');
+    edge.addColorStop(1, '#efbc7544');
+    c.strokeStyle = edge;
+    c.lineWidth = Math.max(1, radius * .02);
+    c.beginPath();
+    c.arc(0, 0, radius * .8, 0, TAU);
+    c.stroke();
+    c.globalCompositeOperation = 'lighter';
+    for (let band = 0; band < 28; band++) {
+        const r = radius * (.82 + band * .05), flatten = .17;
+        const g = c.createLinearGradient(-r, 0, r, 0);
+        g.addColorStop(0, '#669cb000');
+        g.addColorStop(.3, '#aacde28c');
+        g.addColorStop(.56, '#fff2c9');
+        g.addColorStop(.77, '#d6a46e8c');
+        g.addColorStop(1, '#c1956800');
+        c.strokeStyle = g;
+        c.globalAlpha = (1 - band / 31) * .38;
+        c.lineWidth = radius * .022;
+        c.beginPath();
+        c.ellipse(0, 0, r, r * flatten, 0, 0, Math.PI);
+        c.stroke();
+        // The distant half remains outside the dark horizon.
+    }
+    for (let i = 0; i < 110; i++) {
+        const a = i * 2.399 + time * .00019 * (1 + (i % 5) * .07), r = radius * (.85 + (i % 19) * .057);
+        if (Math.sin(a) < 0)
+            continue;
+        c.globalAlpha = .12 + (i % 5) * .07;
+        c.strokeStyle = i % 3 ? '#e5cb9f' : '#b3d9f6';
+        c.lineWidth = .8;
+        c.beginPath();
+        c.ellipse(0, 0, r, r * .17, 0, a, a + .03);
+        c.stroke();
+    }
+    c.restore();
+}
+},"@/lib/player/format":function(module,exports,require){"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.getErrorMessage = getErrorMessage;
+exports.toNumber = toNumber;
+exports.toWholeNumber = toWholeNumber;
+exports.formatMoney = formatMoney;
+exports.formatMarketValue = formatMarketValue;
+exports.formatWholeNumber = formatWholeNumber;
+exports.formatDate = formatDate;
+exports.formatDateTime = formatDateTime;
+exports.normaliseStringArray = normaliseStringArray;
+exports.clamp = clamp;
+const MONEY_FORMATTER = new Intl.NumberFormat("en-GB", {
+    style: "currency",
+    currency: "GBP",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+});
+const WHOLE_NUMBER_FORMATTER = new Intl.NumberFormat("en-GB");
+const DATE_FORMATTER = new Intl.DateTimeFormat("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+});
+const DATE_TIME_FORMATTER = new Intl.DateTimeFormat("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+});
+const NATURAL_COLLATOR = new Intl.Collator(undefined, {
+    sensitivity: "base",
+    numeric: true,
+});
+function getErrorMessage(error, fallback) {
+    if (error instanceof Error && error.message.trim()) {
+        return error.message.trim();
+    }
+    if (typeof error === "string" && error.trim()) {
+        return error.trim();
+    }
+    if (typeof error === "object" &&
+        error !== null &&
+        "message" in error) {
+        const message = error.message;
+        if (typeof message === "string" && message.trim()) {
+            return message.trim();
+        }
+    }
+    return fallback;
+}
+function toNumber(value) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+}
+function toWholeNumber(value) {
+    return Math.max(0, Math.floor(toNumber(value)));
+}
+function formatMoney(value) {
+    return MONEY_FORMATTER.format(Math.max(0, value));
+}
+function formatMarketValue(value) {
+    if (value == null || !Number.isFinite(value) || value <= 0) {
+        return "Price pending";
+    }
+    return formatMoney(value);
+}
+function formatWholeNumber(value) {
+    return WHOLE_NUMBER_FORMATTER.format(Math.max(0, Math.floor(value)));
+}
+function formatDate(value) {
+    if (!value) {
+        return "Not yet";
+    }
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+        return "Recently";
+    }
+    return DATE_FORMATTER.format(date);
+}
+function formatDateTime(value) {
+    if (!value) {
+        return "Not yet";
+    }
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+        return "Recently";
+    }
+    return DATE_TIME_FORMATTER.format(date);
+}
+function normaliseStringArray(value) {
+    let source = value;
+    if (typeof source === "string") {
+        try {
+            source = JSON.parse(source);
+        }
+        catch {
+            return [];
+        }
+    }
+    if (!Array.isArray(source)) {
+        return [];
+    }
+    return Array.from(new Set(source
+        .filter((item) => typeof item === "string" &&
+        item.trim().length > 0)
+        .map((item) => item.trim()))).sort((first, second) => NATURAL_COLLATOR.compare(first, second));
+}
+function clamp(value, minimum, maximum) {
+    return Math.min(maximum, Math.max(minimum, value));
+}
+}},cache={};function require(id){if(cache[id])return cache[id].exports;const m={exports:{}};cache[id]=m;factories[id](m,m.exports,require);return m.exports;}const U=require('./universe');
+const $=id=>document.getElementById(id),canvas=$('scene'),c=canvas.getContext('2d',{alpha:false}),sprites=new Map(),media=matchMedia('(prefers-reduced-motion:reduce)');
+const names=['Lunar archive','Andromeda','Cassiopeia','Orion','Solstice','Nova','Stardust','Moonlit atlas','Aurora','Vesper'];
+const players=U.parseRows(Array.from({length:100},(_,i)=>({rank_position:i+1,user_id:'sample-'+i,username:'collector'+(i+1),display_name:names[i%10]+(i>9?' '+(i+1):''),total_cards:Math.round(100000/(1+i*.48)),is_current_user:i===7})));
+const nodes=U.buildGalaxyNodes(players);const initial=()=>({yaw:0,pitch:0,zoom:1,focusX:0,focusY:0,focusZ:0});let camera=initial(),target=initial(),running=!media.matches,time=0,last=0,frame=0,hits=[],selected=null,hovered=null,visible=true,pointer=null,dragged=0;
+function queue(){if(!frame&&!document.hidden)frame=requestAnimationFrame(draw);}
+function draw(stamp){frame=0;const dt=last?Math.min(50,stamp-last):16.67;last=stamp;if(running)time+=dt;
+ const w=canvas.clientWidth,h=canvas.clientHeight,dpr=Math.min(devicePixelRatio||1,1.5,Math.sqrt(1900000/(w*h)));if(canvas.width!==Math.round(w*dpr)||canvas.height!==Math.round(h*dpr)){canvas.width=Math.round(w*dpr);canvas.height=Math.round(h*dpr);}
+ c.setTransform(dpr,0,0,dpr,0,0);for(const key in camera)camera[key]+=(target[key]-camera[key])*U.cameraDamping(dt);
+ const state=U.paintUniverseFrame(c,w,h,camera,time,nodes,players[0],selected?.userId,hovered?.userId,!running,sprites);hits=state.hits;
+ if(running||state.pendingSprites||Object.keys(camera).some(k=>Math.abs(camera[k]-target[k])>.0001))queue();
+}
+function select(player){selected=player;$('selected').hidden=!player;$('selected').textContent=player?`#${player.rank} · ${player.displayName}`:'';queue();}
+function hit(event){const r=canvas.getBoundingClientRect();return hits.find(h=>Math.hypot(event.clientX-r.left-h.x,event.clientY-r.top-h.y)<=h.radius)?.player||null;}
+canvas.addEventListener('pointerdown',e=>{pointer={x:e.clientX,y:e.clientY,id:e.pointerId};dragged=0;canvas.setPointerCapture(e.pointerId);});
+canvas.addEventListener('pointermove',e=>{if(pointer){const dx=e.clientX-pointer.x,dy=e.clientY-pointer.y;dragged+=Math.abs(dx)+Math.abs(dy);target.yaw+=dx*.004;target.pitch=U.clamp(target.pitch+dy*.003,-.55,.55);pointer.x=e.clientX;pointer.y=e.clientY;queue();}else{hovered=hit(e);canvas.style.cursor=hovered?'pointer':'grab';queue();}});
+canvas.addEventListener('pointerup',e=>{if(dragged<8)select(hit(e));pointer=null;});canvas.addEventListener('pointercancel',()=>pointer=null);
+function zoom(factor){target.zoom=U.clamp(target.zoom*factor,.65,2.2);queue();}
+canvas.addEventListener('wheel',e=>{e.preventDefault();zoom(Math.exp(-e.deltaY*.001));},{passive:false});
+$('minus').onclick=()=>zoom(.85);$('plus').onclick=()=>zoom(1.15);$('reset').onclick=()=>{target=initial();select(null);queue();};
+function syncPause(){ $('pause').textContent=running?'Pause':'Play';$('pause').setAttribute('aria-pressed',String(!running));last=0;queue();}
+$('pause').onclick=()=>{running=!running;syncPause();};media.addEventListener('change',()=>{running=!media.matches;syncPause();});
+canvas.onkeydown=e=>{if(e.key==='ArrowLeft')target.yaw-=.12;else if(e.key==='ArrowRight')target.yaw+=.12;else if(e.key==='ArrowUp')target.pitch=U.clamp(target.pitch-.09,-.55,.55);else if(e.key==='ArrowDown')target.pitch=U.clamp(target.pitch+.09,-.55,.55);else if(e.key==='+'||e.key==='=')zoom(1.15);else if(e.key==='-')zoom(.85);else if(e.key==='0')$('reset').click();else return;e.preventDefault();queue();};
+function results(){const q=$('search').value.toLowerCase().trim();$('results').replaceChildren();for(const p of players.filter(p=>`${p.displayName} #${p.rank}`.toLowerCase().includes(q))){const b=document.createElement('button'),rank=document.createElement('span'),name=document.createElement('strong');rank.textContent=String(p.rank).padStart(2,'0');name.textContent=p.displayName;b.append(rank,name);b.onclick=()=>{select(p);close();};$('results').append(b);}}
+function open(mode){$('panel').hidden=false;$('panelTitle').textContent=mode==='search'?'Find a galaxy':'The ranked universe';$('searchBox').hidden=mode!=='search';$('description').hidden=mode==='search';$('find').setAttribute('aria-expanded',String(mode==='search'));$('info').setAttribute('aria-expanded',String(mode==='info'));if(mode==='search'){$('search').focus();results();}else $('close').focus();}
+function close(){$('panel').hidden=true;$('find').setAttribute('aria-expanded','false');$('info').setAttribute('aria-expanded','false');canvas.focus();}
+$('find').onclick=()=>open('search');$('info').onclick=()=>open('info');$('close').onclick=close;$('search').oninput=results;document.addEventListener('keydown',e=>{if(e.key==='Escape')close();});
+new ResizeObserver(()=>{document.querySelector('main').style.setProperty('--ap-scene-headspace',($('header').offsetHeight+12)+'px');queue();}).observe(canvas);
+document.addEventListener('visibilitychange',()=>{last=0;if(document.hidden){cancelAnimationFrame(frame);frame=0;}else queue();});syncPause();
+</script></body></html>

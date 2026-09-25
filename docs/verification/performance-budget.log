@@ -1,0 +1,131 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> ancient-pulls@0.82.0 audit:performance
+> node scripts/performance-budget.mjs
+
+{
+  "budgets": {
+    "initialRouteJsTransferKiB": 270,
+    "publicAssetKiB": 2560,
+    "serverChunkKiB": 1024
+  },
+  "totals": {
+    "publicMiB": 46.7,
+    "clientJsKiB": 2227.9
+  },
+  "largestPublicAsset": {
+    "file": "tree-wonder/garden-background.webp",
+    "kiB": 2290.1
+  },
+  "largestServerChunk": {
+    "file": "6295.js",
+    "kiB": 435.5
+  },
+  "heaviestRoutes": [
+    {
+      "route": "/create-account",
+      "initialJsRawKiB": 855.7,
+      "initialJsTransferKiB": 258.7,
+      "chunks": 20
+    },
+    {
+      "route": "/admin/inventory",
+      "initialJsRawKiB": 891.9,
+      "initialJsTransferKiB": 258.2,
+      "chunks": 20
+    },
+    {
+      "route": "/welcome",
+      "initialJsRawKiB": 845.4,
+      "initialJsTransferKiB": 255.8,
+      "chunks": 20
+    },
+    {
+      "route": "/auth/callback",
+      "initialJsRawKiB": 844.9,
+      "initialJsTransferKiB": 255.6,
+      "chunks": 20
+    },
+    {
+      "route": "/admin/add",
+      "initialJsRawKiB": 876.1,
+      "initialJsTransferKiB": 255.6,
+      "chunks": 20
+    },
+    {
+      "route": "/admin/shaymin",
+      "initialJsRawKiB": 861.5,
+      "initialJsTransferKiB": 255.3,
+      "chunks": 20
+    },
+    {
+      "route": "/update-password",
+      "initialJsRawKiB": 844.7,
+      "initialJsTransferKiB": 255.3,
+      "chunks": 20
+    },
+    {
+      "route": "/check-email",
+      "initialJsRawKiB": 843.4,
+      "initialJsTransferKiB": 255.1,
+      "chunks": 20
+    },
+    {
+      "route": "/admin/players",
+      "initialJsRawKiB": 868,
+      "initialJsTransferKiB": 254.6,
+      "chunks": 20
+    },
+    {
+      "route": "/forgot-password",
+      "initialJsRawKiB": 840.3,
+      "initialJsTransferKiB": 254.1,
+      "chunks": 20
+    },
+    {
+      "route": "/admin/database",
+      "initialJsRawKiB": 853.1,
+      "initialJsTransferKiB": 253.8,
+      "chunks": 20
+    },
+    {
+      "route": "/admin/pulls",
+      "initialJsRawKiB": 850.5,
+      "initialJsTransferKiB": 252.9,
+      "chunks": 20
+    }
+  ],
+  "keyRoutes": [
+    {
+      "route": "/wishes",
+      "initialJsRawKiB": 789,
+      "initialJsTransferKiB": 232.7,
+      "chunks": 16
+    },
+    {
+      "route": "/collection",
+      "initialJsRawKiB": 827.1,
+      "initialJsTransferKiB": 245.7,
+      "chunks": 18
+    },
+    {
+      "route": "/constellation",
+      "initialJsRawKiB": 789,
+      "initialJsTransferKiB": 232.7,
+      "chunks": 16
+    },
+    {
+      "route": "/wishes/preview",
+      "initialJsRawKiB": 833.4,
+      "initialJsTransferKiB": 249.2,
+      "chunks": 19
+    },
+    {
+      "route": "/admin/add",
+      "initialJsRawKiB": 876.1,
+      "initialJsTransferKiB": 255.6,
+      "chunks": 20
+    }
+  ],
+  "violations": []
+}

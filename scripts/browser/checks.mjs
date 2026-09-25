@@ -1,0 +1,49 @@
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+const projectRoot = fileURLToPath(new URL('../../', import.meta.url));
+const qaRoot = process.env.ANCIENT_PULLS_QA_REPORTS || path.join(projectRoot, 'docs/verification');
+const origin = process.env.ANCIENT_PULLS_QA_ORIGIN || 'http://localhost:3100';
+import { session, capture } from './session.mjs';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+const output=path.join(qaRoot,'screenshots');fs.mkdirSync(output,{recursive:true});
+const results=[];
+async function check(name,fn){console.log('CHECK '+name);await fn();results.push(name);console.log('PASS '+name);}
+async function openAstra(p){await p.getByRole('button',{name:'Call Astra',exact:true}).click();await p.getByTestId('astra-staff').waitFor();await p.waitForTimeout(800);}
+async function menu(p){await p.getByTestId('astra-staff').click();await p.locator('#astra-requests').waitFor();}
+async function drag(p,dy,dx=0,touch=false){const b=await p.getByTestId('astra-staff').boundingBox();const x=b.x+b.width/2,y=b.y+b.height/2;if(touch){const c=await p.context().newCDPSession(p);await c.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x,y}]});for(let i=1;i<=8;i++)await c.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:x+dx*i/8,y:y+dy*i/8}]});await c.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});await c.detach();}else{await p.mouse.move(x,y);await p.mouse.down();await p.mouse.move(x+dx,y+dy,{steps:12});await p.mouse.up();}}
+async function screenshot(p,name){await p.waitForTimeout(450);await capture(p,output+'/'+name+'.png');}
+let active;
+try{
+ if(!process.env.QA_FROM_MOBILE){
+ active=await session();let {page:p,state:s}=active;
+ await check('Home uses one viewport, with no old player navigation',async()=>{assert.equal(await p.locator('[data-player-nav]').count(),0);assert.ok(await p.evaluate(()=>document.documentElement.scrollHeight<=innerHeight));assert.equal(await p.getByRole('button',{name:'Recharge wishes',exact:true}).count(),0);await p.evaluate(()=>window.__originalSky=document.querySelector('[data-observatory-level] canvas'));});
+ await openAstra(p);
+ await check('Staff target stays still during idle animation',async()=>{const a=await p.getByTestId('astra-staff').boundingBox();await p.waitForTimeout(200);const b=await p.getByTestId('astra-staff').boundingBox();assert.ok(Math.abs(a.y-b.y)<.1);assert.ok(Math.abs(a.x-b.x)<.1);});
+ await check('Short and horizontal drags do not make a wish',async()=>{await drag(p,33);await drag(p,105,120);assert.equal(s.calls.length,0);});
+ await check('Tap opens requests without spending or exposing recharge',async()=>{await menu(p);assert.equal(s.calls.length,0);assert.equal(await p.locator('#astra-requests').getByText('Recharge wishes').count(),0);});
+ await check('Binder spell lasts one second then opens over the same sky',async()=>{await p.getByRole('button',{name:'Open my binder',exact:false}).click();await p.waitForTimeout(300);assert.equal(await p.locator('.as-spell-orbit>span').count(),4);await screenshot(p,'desktop-binder-spell');await p.waitForURL('**/collection');await p.locator('.as-panel').waitFor();await p.waitForTimeout(600);assert.equal(await p.evaluate(()=>document.querySelector('[data-observatory-level] canvas')===window.__originalSky),true);await screenshot(p,'desktop-binder');await p.keyboard.press('Escape');await p.waitForURL('**/observatory');});
+ await check('Settings opens through the cog spell and closes with Escape',async()=>{await menu(p);await p.getByRole('button',{name:'I want to change the settings',exact:false}).click();await p.getByRole('heading',{name:'Player preferences',exact:true}).waitFor();await screenshot(p,'desktop-settings');assert.equal(await p.locator('.as-world').getAttribute('inert'),'');await p.keyboard.press('Escape');await p.getByRole('heading',{name:'Player preferences',exact:true}).waitFor({state:'hidden'});});
+ await check('Universe remains connected and returns to the existing constellation',async()=>{await menu(p);await p.getByRole('button',{name:'Show me the universe',exact:false}).click();await p.waitForFunction(()=>document.querySelector('[data-observatory-level]').dataset.observatoryLevel==='universe');await p.waitForTimeout(1500);await screenshot(p,'desktop-universe');await p.getByRole('button',{name:'My stars',exact:true}).click();await p.waitForFunction(()=>document.querySelector('[data-observatory-level]').dataset.observatoryLevel==='stars');});
+ await check('Sound requires explicit activation',async()=>{await p.getByRole('button',{name:'Turn sound on',exact:true}).click();assert.equal(await p.getByRole('button',{name:'Turn sound off',exact:true}).getAttribute('aria-pressed'),'true');await p.getByRole('button',{name:'Turn sound off',exact:true}).click();});
+ await check('A deliberate pull spends one wish and reveals the server card',async()=>{await drag(p,106);await p.getByRole('dialog',{name:'Your wish',exact:true}).waitFor();await p.waitForTimeout(1400);await screenshot(p,'desktop-star-birth');await p.getByTestId('wish-result').waitFor();assert.equal(s.calls.length,1);assert.equal(s.balance,33);await screenshot(p,'desktop-reveal');});
+ await check('Continue places the awarded star without replacing the canvas',async()=>{await p.getByRole('button',{name:'Place in my constellation',exact:false}).click();await p.getByRole('dialog',{name:'Your wish',exact:true}).waitFor({state:'hidden'});await p.waitForTimeout(1000);assert.equal(await p.evaluate(()=>document.querySelector('[data-observatory-level] canvas')===window.__originalSky),true);assert.equal(await p.evaluate(()=>sessionStorage.getItem('ancientpulls:pending-wish:11111111-1111-4111-8111-111111111111')),null);});
+ await check('No uncaught browser errors in the main desktop journey',async()=>assert.deepEqual(s.errors,[]));await active.browser.close();active=null;
+ }
+ let p,s;
+ active=await session({mobile:true,balance:0});({page:p,state:s}=active);
+ await screenshot(p,'mobile-home');await openAstra(p);await screenshot(p,'mobile-astra');
+ await check('Touch tap opens a scrollable mobile menu',async()=>{await p.getByTestId('astra-staff').tap();await p.locator('#astra-requests').waitFor();await screenshot(p,'mobile-menu');assert.equal(await p.locator('#astra-requests').getByText('Recharge wishes').count(),0);const b=await p.locator('#astra-requests').boundingBox();assert.ok(b.x>=0&&b.x+b.width<=390&&b.y+b.height<=844);await p.getByRole('button',{name:'Close Astra requests',exact:true}).tap();});
+ await check('Empty wallet touch pull shows the exact exhausted state without a charge',async()=>{await drag(p,105,0,true);await p.getByRole('button',{name:'Recharge wishes',exact:true}).waitFor();assert.ok(await p.getByText('I have no power left',{exact:true}).isVisible());assert.equal(s.calls.length,0);await screenshot(p,'mobile-empty-power');});
+ await check('Recharge is a modal with existing prices and ordering state',async()=>{await p.getByRole('button',{name:'Recharge wishes',exact:true}).tap();await p.waitForURL('**/wishes/shop');await p.getByText('£5.00',{exact:true}).first().waitFor();await screenshot(p,'mobile-recharge');assert.equal(await p.getByRole('dialog',{name:'Recharge wishes',exact:true}).count(),1);assert.ok(await p.evaluate(()=>document.documentElement.scrollHeight<=innerHeight));});
+ await check('No uncaught browser errors in the mobile journey',async()=>assert.deepEqual(s.errors,[]));await active.browser.close();active=null;
+
+ active=await session({reduced:true,balance:2,loseResponse:true});({page:p,state:s}=active);await openAstra(p);
+ await check('A lost response remains recoverable with the same request key',async()=>{await drag(p,105);await p.getByRole('button',{name:'Recover my wish',exact:false}).waitFor();assert.equal(s.calls.length,1);assert.equal(s.balance,1);await p.getByRole('button',{name:'Recover my wish',exact:false}).click();await p.getByTestId('wish-result').waitFor();assert.equal(s.calls.length,2);assert.equal(s.calls[0],s.calls[1]);assert.equal(s.balance,1);});
+ await check('Reload before placement recovers the same stored award with no additional request',async()=>{await p.reload({waitUntil:'networkidle'});await p.getByRole('button',{name:'Call Astra',exact:true}).waitFor();await openAstra(p);await p.getByRole('button',{name:'Recover my wish',exact:false}).click();await p.getByTestId('wish-result').waitFor();assert.equal(s.calls.length,2);await p.getByRole('button',{name:'Place in my constellation',exact:false}).click();});
+ await check('Keyboard Down and Enter makes a wish; Escape cancels an armed staff',async()=>{await p.getByTestId('astra-staff').focus();await p.keyboard.press('ArrowDown');await p.keyboard.press('Escape');assert.equal(s.calls.length,2);await p.getByTestId('astra-staff').focus();await p.keyboard.press('ArrowDown');await p.keyboard.press('Enter');await p.getByTestId('wish-result').waitFor();assert.equal(s.calls.length,3);assert.equal(s.balance,0);await p.getByRole('button',{name:'Place in my constellation',exact:false}).click();});
+ await check('Reduced motion suppresses the orbital reveal',async()=>{assert.equal(await p.locator('[data-testid="constellation-shell"]').getAttribute('data-reduced'),'true');});
+ await check('No uncaught browser errors in recovery and keyboard paths',async()=>assert.deepEqual(s.errors,[]));await active.browser.close();active=null;
+ fs.writeFileSync(path.join(qaRoot,'browser-results.json'),JSON.stringify({passed:results.length,checks:results},null,2));
+ console.log(JSON.stringify({passed:results.length,checks:results}));
+}catch(e){console.error('CHECK FAILED',e);if(active){console.log('STATE',JSON.stringify(active.state));await screenshot(active.page,'failure').catch(()=>{});}throw e;}finally{if(active)await active.browser.close();}

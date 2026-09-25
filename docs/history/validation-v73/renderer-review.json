@@ -1,0 +1,27 @@
+{
+  "scope": "Native @napi-rs/canvas rendering of production code. This is NOT browser or physical-device FPS certification.",
+  "maps": [
+    {
+      "width": 1440,
+      "height": 900,
+      "first_paint_ms": 53.31338900000003,
+      "mean_ms": 53.499837566666685,
+      "p95_ms": 62.89911299999994,
+      "cached_galaxies": 99
+    },
+    {
+      "width": 390,
+      "height": 760,
+      "first_paint_ms": 44.200214999998934,
+      "mean_ms": 25.90046387222227,
+      "p95_ms": 28.978235000000495,
+      "cached_galaxies": 99
+    }
+  ],
+  "checks": [
+    "At most four textures are created per frame; reduced-motion rendering completes all 99 galaxies.",
+    "Single and ten-wish production renderings are pixel-identical across different outcomes before reveal; revealed colors differ.",
+    "Astra-Flight-Preview.html bundled dependencies load and JavaScript parses.",
+    "Universe-Preview.html bundled dependencies load and JavaScript parses."
+  ]
+}

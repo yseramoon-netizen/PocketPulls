@@ -1,0 +1,26 @@
+Production build verification — Astra 73
+
+Command: node node_modules/next/dist/bin/next build --webpack
+Configuration: inert example Supabase URL and local-build-placeholder keys.
+Real credentials and live transactions were not used.
+Exit code: 0
+
+Captured build output:
+▲ Next.js 16.3.4 (webpack)
+✓ Running next.config.ts took 26ms
+Creating an optimized production build ...
+✓ Compiled successfully in 7.1s
+Running TypeScript ...
+Finished TypeScript in 1603ms ...
+Collecting page data using 8 workers ...
+Generating static pages using 8 workers (0/59) ...
+Generating static pages using 8 workers (14/59)
+Generating static pages using 8 workers (29/59)
+Generating static pages using 8 workers (44/59)
+✓ Generating static pages using 8 workers (59/59) in 1097ms
+Finalizing page optimization ...
+Collecting build traces ...
+
+All listed application routes compiled, including the player, authentication,
+administrator, scanner, commerce, policy and compatibility redirect routes.
+This is compilation/prerender validation, not live-account end-to-end testing.

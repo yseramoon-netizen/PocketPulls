@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { ZODIAC_SHAPES, type ZodiacSign } from '@/lib/player/zodiac-constellations';
 import { readArrivalIds, clearArrivalQuery } from '@/lib/player/constellationArrival';
@@ -21,7 +22,9 @@ import styles from './Observatory.module.css';
 type Panel='cards'|'galaxies'|'info'|null;
 const emptyFrame:ObservatoryFrame={stars:[],galaxies:[],owner:{x:0,y:0,radius:0},pending:false};
 
-export default function Observatory(){
+export default function Observatory({embedded=false,suspended=false}:{embedded?:boolean;suspended?:boolean}={}){
+  const query=useSearchParams();
+  const linkedQuery=useRef('');
   const preferences=usePlayerPreferences();
   const [stars,setStars]=useState<ConstellationStar[]>([]),[zodiac,setZodiac]=useState<ZodiacSign|null>(null);
   const [players,setPlayers]=useState<LeaderboardPlayer[]>([]),[user,setUser]=useState<{id:string;name:string}|null>(null);
@@ -46,7 +49,7 @@ export default function Observatory(){
   const deepLinkHandled=useRef(false);
   const scene=useMemo(()=>user?{...buildObservatoryScene(stars,zodiac,players,user),entryConfirmed:rankVerified&&!rankError}:null,[stars,zodiac,players,user,rankError,rankVerified]);
   const reduced=preferences.reducedMotion||systemReduced;
-  const runtime=useRef<{scene:ObservatoryScene|null;reduced:boolean;low:boolean;paused:boolean;cinema:boolean;star:string|null;galaxy:string|null}>({scene:null,reduced:false,low:false,paused:false,cinema:false,star:null,galaxy:null});
+  const runtime=useRef<{scene:ObservatoryScene|null;reduced:boolean;low:boolean;paused:boolean;cinema:boolean;suspended:boolean;star:string|null;galaxy:string|null}>({scene:null,reduced:false,low:false,paused:false,cinema:false,suspended:false,star:null,galaxy:null});
   const attachZoomInput=useCallback((element:HTMLInputElement|null)=>{
     zoomInput.current=element;
     if(element)element.value=String((holeModeRef.current?singularityRailValue(target.current.singularity,ownsBlackHole(runtime.current.scene)):(1.34-target.current.distance)/1.96)*100);
@@ -114,9 +117,9 @@ export default function Observatory(){
   },[]);
 
   useEffect(()=>{
-    runtime.current={scene,reduced,low:preferences.lowVisualEffects||preferences.dataSaver,paused,cinema,star:selectedStar?.id??null,galaxy:selectedGalaxy?.userId??null};
+    runtime.current={scene,reduced,low:preferences.lowVisualEffects||preferences.dataSaver,paused,cinema,suspended,star:selectedStar?.id??null,galaxy:selectedGalaxy?.userId??null};
     requestFrame.current();
-  },[scene,reduced,preferences.lowVisualEffects,preferences.dataSaver,paused,cinema,selectedStar,selectedGalaxy]);
+  },[scene,reduced,preferences.lowVisualEffects,preferences.dataSaver,paused,cinema,suspended,selectedStar,selectedGalaxy]);
   useEffect(()=>{renderer.current?.invalidate();requestFrame.current();},[scene]);
   useEffect(()=>{railGesture.current.advance=false;requestFrame.current();},[panel,holeMode,loading]);
   useEffect(()=>{
@@ -150,7 +153,7 @@ export default function Observatory(){
     const insets={top:0,bottom:124};
     const draw=(stamp:number)=>{
       raf=0;if(!active||document.hidden){last=null;return;}
-      const r=runtime.current;if(!r.scene)return;
+      const r=runtime.current;if(!r.scene||r.suspended){last=null;clock.current.suspend();return;}
       target.current.singularity=clampSingularityDepth(target.current.singularity,r.scene);
       current.current.singularity=clampSingularityDepth(current.current.singularity,r.scene);
       const dt=last===null?1000/60:stamp-last;last=stamp;
@@ -190,12 +193,12 @@ export default function Observatory(){
     };
     const queue=()=>{if(active&&!raf&&!document.hidden)raf=requestAnimationFrame(draw);};requestFrame.current=queue;
     const heading=container.parentElement?.querySelector('.ap-scene-header');
-    const resize=()=>{insets.top=heading?Math.max(0,heading.getBoundingClientRect().bottom-container.getBoundingClientRect().top+10):0;queue();};
+    const resize=()=>{insets.top=embedded?86:heading?Math.max(0,heading.getBoundingClientRect().bottom-container.getBoundingClientRect().top+10):0;queue();};
     const observer=new ResizeObserver(resize);observer.observe(container);if(heading)observer.observe(heading);resize();
     const visibility=()=>{clock.current.suspend();last=null;if(document.hidden){cancelAnimationFrame(raf);raf=0;}else queue();};
     document.addEventListener('visibilitychange',visibility);queue();
     return()=>{active=false;cancelAnimationFrame(raf);observer.disconnect();document.removeEventListener('visibilitychange',visibility);painter.dispose();renderer.current=null;requestFrame.current=()=>{};};
-  },[setHoleMode]);
+  },[setHoleMode,embedded]);
 
   const updateUrl=useCallback((view:string|null)=>{
     const url=new URL(window.location.href);if(view)url.searchParams.set('view',view);else url.searchParams.delete('view');
@@ -215,6 +218,31 @@ export default function Observatory(){
     Object.assign(target.current,{...HOME_VIEW,distance:blackHole?1:distance,singularity:blackHole?.24:0});setSelectedStar(null);setSelectedGalaxy(null);setPanel(null);setSearch('');
     updateUrl(distance>=.8?'universe':null);requestFrame.current();
   },[updateUrl,setHoleMode,leaveHole]);
+  useEffect(()=>{
+    const command=(event:Event)=>{
+      const detail=(event as CustomEvent<{action:string;ids?:string[]}>).detail;
+      if(detail.action==='universe')goTo(1);
+      if(detail.action==='home')goTo(0);
+      if(detail.action==='arrive'){
+        goTo(0);
+        const url=new URL(window.location.href);
+        url.searchParams.set('arrive',(detail.ids||[]).join(','));
+        window.history.replaceState(window.history.state,'',url.pathname+url.search);
+      }
+    };
+    window.addEventListener('ancientpulls:sky-command',command);
+    return()=>window.removeEventListener('ancientpulls:sky-command',command);
+  },[goTo]);
+  useEffect(()=>{
+    const key=[query.get('arrive'),query.get('card'),query.get('panel')].join(':');
+    if(key===linkedQuery.current)return;
+    linkedQuery.current=key;
+    const task=requestAnimationFrame(()=>{
+      if(query.get('card')||query.get('arrive')){deepLinkHandled.current=false;void load();}
+      if(query.get('panel')==='history')setPanel('cards');
+    });
+    return()=>cancelAnimationFrame(task);
+  },[query,load]);
   const zoomBy=useCallback((amount:number)=>{
     if(arriving.current.size)return;
     if(!holeModeRef.current&&ownsBlackHole(runtime.current.scene)&&target.current.distance>=.78&&amount<0){setHoleMode(true);Object.assign(target.current,{distance:1,singularity:0,focusX:0,focusY:0,focusZ:0});}
@@ -337,8 +365,8 @@ export default function Observatory(){
   const totalValue=useMemo(()=>stars.reduce((total,star)=>total+star.marketValue,0),[stars]);
   const rank=scene?.owner.rank??0;
 
-  return <section ref={cinemaRef} className={`ap-scene ${styles.page}`} data-cinema={cinema} role={cinema?"dialog":undefined} aria-modal={cinema?true:undefined} aria-label={cinema?"Observatory cinema":undefined} tabIndex={cinema?-1:undefined} data-observatory-level={level} data-black-hole-selected={holeMode}>
-    <div hidden={cinema}><SceneHeader title="Observatory">
+  return <section ref={cinemaRef} className={`ap-scene ${styles.page}`} data-embedded={embedded} data-cinema={cinema} role={cinema?"dialog":undefined} aria-modal={cinema?true:undefined} aria-label={cinema?"Observatory cinema":undefined} tabIndex={cinema?-1:undefined} data-observatory-level={level} data-black-hole-selected={holeMode}>
+    <div hidden={cinema||embedded}><SceneHeader title="Observatory">
       <button className="ap-scene-button" aria-expanded={panel==='cards'} onClick={()=>openPanel('cards')}><AstralIcon name="search"/>Find a card</button>
       <button className="ap-scene-button" aria-expanded={panel==='galaxies'} onClick={()=>openPanel('galaxies')}><AstralIcon name="universe"/>Galaxies</button>
       <button className="ap-scene-button" aria-label="Observatory information" aria-expanded={panel==='info'} onClick={()=>openPanel('info')}><AstralIcon name="info"/><span className={styles.infoText}>Info</span></button>
@@ -363,7 +391,7 @@ export default function Observatory(){
     <div className={styles.vignette} aria-hidden="true"/>
     {(loading||(!painted&&!error))&&<div className={styles.loading} role="status"><span/><p>Loading…</p></div>}
     {error&&<div className={styles.error} role="alert"><p>{error}</p><button onClick={()=>void load()}>Try again</button></div>}
-    {!loading&&scene&&stars.length===0&&level==='stars'&&!error&&<div className={styles.empty}><AstralIcon/><h2>No wish stars yet.</h2><Link href="/wishes">Make a wish <AstralIcon name="arrow"/></Link></div>}
+    {!loading&&scene&&stars.length===0&&level==='stars'&&!error&&<div className={styles.empty}><AstralIcon/><h2>Your sky starts with a wish.</h2><p>Call Astra from the little star above.</p><button className="as-empty-call" onClick={()=>window.dispatchEvent(new Event('ancientpulls:call-astra'))}>Meet Astra <AstralIcon name="arrow"/></button></div>}
     {panel&&<aside ref={panelRef} className={`ap-scene-panel ${styles.panel}`} role="dialog" aria-modal="true" aria-label={panel==='cards'?'Find a card':panel==='galaxies'?'Find a galaxy':'Observatory information'} tabIndex={-1}>
       <div className="ap-panel-heading"><div><p>{panel==='cards'?'Your collection':panel==='galaxies'?'The ranked universe':'Your place in the sky'}</p><h2>{panel==='cards'?'Find a card':panel==='galaxies'?'Galaxies':'Observatory'}</h2></div><button className="ap-scene-button" onClick={closePanel} aria-label="Close panel"><AstralIcon name="close"/></button></div>
       {panel!=='info'?<>
@@ -398,7 +426,7 @@ export default function Observatory(){
     </div>}
     {!loading&&!panel&&<div className={styles.controls} hidden={cinema}>
       <nav className={styles.stages} aria-label="Observatory scale"><button aria-current={level==='stars'?'step':undefined} onClick={()=>goTo(0)}>My stars</button><span/><button aria-current={level==='galaxy'?'step':undefined} onClick={()=>goTo(.54)}>{rank===1?'My black hole':'My galaxy'}</button><span/><button aria-current={level==='universe'?'step':undefined} onClick={()=>goTo(1)}>Universe</button></nav>
-      <div className={styles.dock}><button ref={cinemaTrigger} disabled={!!arrivalIds.length||!!error} onClick={()=>{setSelectedStar(null);setSelectedGalaxy(null);setPanel(null);railGesture.current.advance=false;setCinema(true);}} aria-label="Open cinema view"><AstralIcon name="universe"/><span>Cinema</span></button><i/><span className={styles.scaleLabel}>{level==='stars'?'Constellation':level==='galaxy'?'Galaxy':level==='singularity'?'Singularity':holeMode?'Black hole':'Universe'}</span><i/>{level!=='stars'&&!reduced&&<button onClick={()=>setPaused(value=>!value)} aria-pressed={paused}>{paused?'Play':'Pause'}</button>}<button aria-label={holeMode?'Return to universe':'Return to my stars'} onClick={()=>goTo(holeMode?1:0)}><AstralIcon name="reset"/></button></div>
+      <div className={styles.dock}>{embedded&&<button aria-label="Find a card in my sky" onClick={()=>openPanel('cards')}><AstralIcon name="search"/></button>}<button ref={cinemaTrigger} disabled={!!arrivalIds.length||!!error} onClick={()=>{setSelectedStar(null);setSelectedGalaxy(null);setPanel(null);railGesture.current.advance=false;setCinema(true);}} aria-label="Open cinema view"><AstralIcon name="universe"/>{!embedded&&<span>Cinema</span>}</button><i/>{!embedded&&<span className={styles.scaleLabel}>{level==='stars'?'Constellation':level==='galaxy'?'Galaxy':level==='singularity'?'Singularity':holeMode?'Black hole':'Universe'}</span>}{level!=='stars'&&!reduced&&<button onClick={()=>setPaused(value=>!value)} aria-pressed={paused}>{paused?'Play':'Pause'}</button>}<button aria-label={holeMode?'Return to universe':'Return to my stars'} onClick={()=>goTo(holeMode?1:0)}><AstralIcon name="reset"/></button></div>
     </div>}
     {arrivalIds.length>0&&!loading&&painted&&!error&&<AstraArrival getTargets={getArrivalTargets} onArrived={starArrived} onDone={finishArrival}/>}
     {arrivalMessage&&<p className="ap-arrival-message" role="status">{arrivalMessage}</p>}

@@ -36,7 +36,7 @@ For an existing live project, prefer the guarded installer so newer local work i
 
 ## Preview
 
-Open `Astra-Flight-Preview.html` locally in a normal browser. It embeds the production renderer, artwork, and synthesised score. Choose a single rarity or all ten, pause, seek, replay, and switch the desktop preview to portrait framing. Continue shows placement in a **sample** constellation. No account, network request, or wish spending is involved.
+Open `docs/history/Astra-Flight-Preview.html` locally in a normal browser. It embeds the production renderer, artwork, and synthesised score. Choose a single rarity or all ten, pause, seek, replay, and switch the desktop preview to portrait framing. Continue shows placement in a **sample** constellation. No account, network request, or wish spending is involved.
 
 `Astra-One-Wish-60fps.mp4` and `Astra-Ten-Wishes-60fps.mp4` are silent, 1280 × 720 animation studies rendered from the same production engine at 60 fps. Their transition to placement illustrates pressing Continue. They omit the app's real card artwork and its interactive waiting period; the HTML includes sample result controls.
 
